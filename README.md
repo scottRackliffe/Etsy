@@ -65,7 +65,11 @@ A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classi
 - **Shop selector** – If you have multiple shops, pick which one to view
 - **Orders list** – Recent receipts with date, order #, ship-to address, total, paid/shipped status
 
-## Setup
+## Installation
+
+For full step-by-step instructions on **macOS** and **Windows 11** (prerequisites, Etsy app setup, env config, running the app), see **[documents/installation.md](documents/installation.md)**.
+
+## Setup (quick)
 
 1. **Register an Etsy app**
    - Go to [Etsy Developers](https://www.etsy.com/developers/register) and create an app.
@@ -77,7 +81,7 @@ A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classi
      - Production: `https://your-domain.com/api/auth/etsy/callback`
 
 3. **Environment variables**
-   - Copy `.env.example` to `.env.local`.
+   - Copy `system/.env.example` to `.env.local`.
    - Fill in:
      - `ETSY_CLIENT_ID` – your Etsy app keystring
      - `ETSY_CLIENT_SECRET` – your Etsy app shared secret
@@ -97,7 +101,7 @@ A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classi
 
 ## Architecture decisions
 
-Design and scope decisions are recorded as **Architecture Decision Records (ADRs)** in [docs/adr/](docs/adr/). They cover the database model, inventory and customer data, shipper/vendor tracking, and reports (thank you note, invoice, sales, costs, income MTD/YTD, postal costs by vendor).
+Design and scope decisions are recorded as **Architecture Decision Records (ADRs)** in [documents/adr/](documents/adr/). They cover the database model, inventory and customer data, shipper/vendor tracking, and reports (thank you note, invoice, sales, costs, income MTD/YTD, postal costs by vendor).
 
 ## Notes
 
