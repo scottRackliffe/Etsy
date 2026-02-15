@@ -26,3 +26,6 @@ We use a standard format for all ADRs:
 | [ADR-006](0006-reports-scope.md) | Reports: thank you note, invoice, sales, costs, income, postal by vendor |
 | [ADR-007](0007-base-system-etsy-oauth-dashboard-receipts.md) | Base system — Etsy OAuth, dashboard, and receipts |
 | [ADR-008](0008-data-storage-scope-all-app-data-except-reports.md) | Data storage scope — all app data in database, reports not stored |
+| [ADR-009](0009-ui-layout-tabs-commands-outstanding-detail-card.md) | UI layout — tabs, commands panel, outstanding panel, detail card, intuitive design |
+| [ADR-010](0010-inventory-picture-import-process.md) | Inventory picture import — upload, import from folder, replace/reorder/remove |
+| [ADR-011](0011-compliance-with-etsy-rules.md) | Compliance with Etsy rules (API, seller, listing, vintage, data) |
