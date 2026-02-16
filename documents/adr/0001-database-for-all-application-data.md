@@ -29,5 +29,5 @@ Use a **database** for all application data. Every field discussed for inventory
 
 ## Notes
 
-- Exact database technology (e.g. SQLite vs PostgreSQL) can be decided at implementation time.
+- Database technology is **SQLite** (see [ADR-012](0012-database-technology-sqlite.md)).
 - Etsy OAuth tokens may remain in cookies or a separate store; “all application data” here refers to business data (inventory, customers, purchases, costs).

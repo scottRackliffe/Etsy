@@ -10,7 +10,7 @@ This document defines the application layout: **tabs** (top), **commands** (left
 
 - **Tabs** — Use clear, everyday names (Dashboard, Sales, Inventory, Customers, Reports, Config). Order follows how people work: overview first, then day-to-day work (sales, inventory, customers), then reports, then settings.
 - **Commands** — One action per command; label with a verb (“Add item”, “Mark shipped”). Show only commands that apply to the current tab and selection. Avoid nested menus for core actions.
-- **Outstanding panel** — Label it clearly (e.g. “To do” or “Needs attention”). Each row is one thing; clicking it does the obvious thing: open a **detail card** for that item. No hidden steps.
+- **Outstanding panel** — Label it clearly (e.g. “To do” or “Needs attention”). Each row is one thing; clicking it **puts context in place**: go to the **correct tab** and **correct record** ready for action. No hidden steps.
 - **Detail card** — Show the most important info at a glance. Buttons say what they do (“Mark shipped”, “View order”). A clear way to close (X or “Done”) so it’s obvious how to get back.
 - **Lists and forms** — Column headers and field labels use plain language. Primary action (Save, Submit) is easy to spot. Errors and success messages are short and tell the user what to do next.
 - **Processes** — Common flows (complete a sale, add customer, add item, import pictures) should match how the user thinks: “I have an order” → Sales; “I need to add a buyer” → Customers or from the order. No hunting for the right place.
@@ -25,8 +25,8 @@ When in doubt: **fewer steps, clearer labels, predictable behavior.**
 | Area | Position | Purpose |
 |------|----------|---------|
 | **Tabs** | Top, full width | Main application sections. One tab active; content below. |
-| **Commands** | Left **or** right (choose one for the whole app) | Context-sensitive actions for the current tab (and global actions where it makes sense). |
-| **Outstanding / To-do** | Opposite side from commands (e.g. right if commands are left) | **Panel** listing things that need attention. **Click an item** → a **detail card** pops up (overlay/modal) for that item; user can view details and take quick actions without leaving the current tab. |
+| **Commands** | One side (left or right) | Context-sensitive actions for the current tab (and global actions where it makes sense). **Which side is which** (commands vs outstanding) is **configurable in Config**; the UI also provides an **icon that flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. |
+| **Outstanding / To-do** | Opposite side from commands | **Panel** listing outstanding work to be done. **Click an item** → the app **puts context in place**: it **navigates to the correct tab** and **opens/selects the correct record** so the user is on the right screen with the right order, item, or customer **ready for action**. |
 | **Content** | Center / main area | List, form, or report for the active tab. |
 
 **Header:** App name (e.g. “Trudy’s Etsy Sales”), maybe global status (Etsy connected / not connected), user or shop indicator. No tabs in the header strip if we want a clean “tabs only” bar below it.
@@ -41,12 +41,12 @@ Proposed top-level tabs. Order can change; names are placeholders.
 |-----|---------|--------------|
 | **Dashboard** | Home. Snapshot of today: recent activity, quick stats (e.g. orders this week, revenue MTD), and a feed or summary. | Summary cards, recent orders, link into “outstanding” items. |
 | **Sales / Orders** | Everything about orders and completing a sale. | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process. |
-| **Inventory** | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping). | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (In stock, Listed, Sold, etc.). |
+| **Inventory** | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping). | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (Draft, In stock, Listed, Sold, etc.). When date listed is entered, item is In stock / Listed. |
 | **Customers** | Buyers and addresses. | Customer list. Add / edit customer (name, address). View purchases per customer. |
 | **Reports** | Run and view reports. | Chooser: Thank you note, Invoice, Sales, Costs, Income (MTD/YTD), Postal costs by vendor. Options (date range, order/customer). Preview or download. |
 | **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to system folder files. | **Search** (over in-app content and system-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, system folder files). **Links to files in the system folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md). |
-| **Outstanding** | Dedicated view of the to-do list (optional; could be a panel only). | Same items as the “outstanding” panel, but full-page so user can work through the list. |
-| **Config / Settings** | Etsy connection, preferences, defaults. | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. Business name/address for invoices. Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
+| **Outstanding** | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab. | Same items as the “outstanding” panel, but full-page so user can work through the list. |
+| **Config / Settings** | Etsy connection, preferences, defaults. | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. Business name/address for invoices. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
 
 **Recommendation:** Start with **Dashboard**, **Sales**, **Inventory**, **Customers**, **Reports**, **Tutorial and tips**, **Config**. Treat “Outstanding” as a **panel** on the right (or left) on every tab, not its own tab—unless you want a full-page “Outstanding” tab as well.
 
@@ -54,7 +54,7 @@ Proposed top-level tabs. Order can change; names are placeholders.
 
 ## 3. Commands (left or right panel)
 
-Commands are **context-sensitive** to the active tab, plus a few **global** actions. Pick one side for the whole app (e.g. **left** for commands, **right** for outstanding).
+Commands are **context-sensitive** to the active tab, plus a few **global** actions. Which side is commands vs outstanding is **configurable** (Config), and an **icon in the UI** flips the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse.
 
 ### Global (any tab)
 
@@ -68,7 +68,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ### Sales / Orders
 
-- **New order** (manual entry if we support it).
+- **New order** (manual entry — we support creating orders in the app for in-person or non-Etsy sales). Item(s) sold are chosen from a **pick list** (picture icon + item name); user can **scroll** or **type the item name** to filter and narrow the list, then select. Same UX as "Add sale for this customer" (ADR-015).
 - **Sync from Etsy** (pull latest orders).
 - **Mark as paid** (for selected order).
 - **Mark as shipped** (for selected order; prompt for shipper and date).
@@ -93,7 +93,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Add customer** (new customer record).
 - **Edit** (selected customer).
 - **View purchases** (filter orders by this customer).
-- **New order for this customer** (optional; start an order with customer pre-filled).
+- **Add sale for this customer** — Record another sale for the currently selected customer. Item sold is chosen from a **pick list** (picture icon + item name); user can **scroll** or **type the item name** to filter and narrow the list, then select. Multiple sales can be recorded for the same customer in sequence.
 
 ### Reports
 
@@ -123,22 +123,22 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ## 4. Outstanding / To-do list (panel + detail card)
 
-**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It is **not** a full tab; it stays visible on every tab. Items are data-driven (and optionally manual).
+**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It is **not** a full tab; it stays visible on every tab. Items are **data-driven only**; we do not support user-added manual tasks. The panel shows as many data-driven next steps as we can. Which side this panel is on (vs commands) is **configurable in Config**; an **icon in the UI** lets the user **swap** the two panels.
 
-**Suggested items (data-driven):**
+**Data-driven next steps:**
 
 - Orders **paid but not yet shipped**.
 - Orders **not yet marked paid** (after payment received).
 - New **Etsy orders** not yet synced or processed.
-- **Inventory items** in “In stock” but not yet “Listed” (optional).
-- **Customers** with no address or incomplete address (optional).
+- **Inventory items** in “In stock” but not yet “Listed” .
+- **Customers** with no address or incomplete address.
+- (Add more data-driven next steps as the app grows — e.g. orders missing shipping cost, items without pictures — so the user always sees the most useful next actions.)
 
-**Optional (manual):** User-added tasks (e.g. “List item #42”, “Follow up with customer X”). Requires a simple task store.
-
+**We do not support user-added manual tasks.** Outstanding items are data-driven only. “List item #42”, “Follow up with customer X”). 
 **Behavior:**
 
 - **Panel:** Show a short list (e.g. top 10–20) with one-line summary per item (e.g. “Order #1234 – Jane Doe – not shipped”).
-- **Click an item:** A **detail card** pops up (overlay/modal or slide-out card) for that item. The card shows:
+- **Click an item:** The app **puts context in place**: it **navigates to the correct tab** (Sales, Inventory, Customers, etc.) and **opens/selects the correct record** (that order, item, or customer) so the user is **ready for action**. No hunting for the tab or record — one click and the user can act. Optionally show a detail card or inline actions; the key is correct tab + correct record. (Previously: detail card popped up (overlay/modal or slide-out card) for that item. The card shows:
   - Key details (order #, customer, date, status; or item #, description; or customer name, address gap).
   - **Quick actions** (e.g. “Mark shipped”, “Mark paid”, “View full order”, “Edit customer”, “Go to Inventory”). Actions may open the relevant tab or complete the action in place and refresh the panel.
 - User can **dismiss** the card (e.g. X or click outside) and stay on the current tab; no requirement to navigate away.
@@ -196,6 +196,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 - **Etsy**: Connect (OAuth), Disconnect, view redirect URI.
 - **Defaults**: Default shipper, business name/address for invoices.
+- **Panel layout**: Which side is commands vs outstanding. An **icon** in the UI flips the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse.
 - **Preferences**: e.g. date format, currency, first-day-of-week (if we add them).
 
 ### 5.8 Importing the 10 pictures (and related)
@@ -297,14 +298,14 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 | Tutorial and tips | Search, Index, links to system folder files | — |
 | Config | Connect Etsy, Default shipper, Business details, optional guide links | — |
 
-**Outstanding panel:** Same idea on every tab: unshipped orders, new orders, items to list, incomplete customers. Click an item → **detail card** pops up with details and quick actions; user can dismiss and stay on the current tab.
+**Outstanding panel:** Same idea on every tab: unshipped orders, new orders, items to list, incomplete customers. Click an item → app **puts context in place** (correct tab + correct record, ready for action).
 
 ---
 
 ## 7. Next steps
 
-- Decide: **commands on left**, **outstanding on right** (or the reverse).
-- Lock tab set: at least Dashboard, Sales, Inventory, Customers, Reports, Config.
+- **Layout decided:** Config + icon (left = commands, right = outstanding to-do's, or the reverse).
+- Lock tab set: at least Dashboard, Sales, Inventory, Customers, Reports, **Outstanding**, Tutorial and tips, Config.
 - Prioritize which commands and outstanding items to build first (e.g. Sales + “mark shipped” + unshipped orders in outstanding).
 - Add or remove processes (e.g. “List on Etsy” from the app) once we know integration scope.
 - Use this doc as the reference for implementation (no code in this document).

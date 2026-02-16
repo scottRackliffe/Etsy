@@ -30,4 +30,4 @@ The user wants a report showing postal/shipping costs broken down by carrier. Th
 
 ## Notes
 
-- If a sale has no shipper or cost entered, those amounts can be excluded or shown in “Other”/“Unspecified” depending on product preference.
+- If a sale has no shipper or cost entered, show those amounts in “Other” or “Unspecified” so the report is complete; do not exclude them.

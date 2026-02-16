@@ -24,7 +24,7 @@ This document summarizes **Etsy rules and policies** that apply to the Etsy Sale
 | **Private data only with OAuth** | All shop and receipt data is accessed with OAuth; we store tokens securely (e.g. HTTP-only cookies) and do not expose them to the client. |
 | **Trademark disclaimer (commercial access)** | If we ever seek commercial access (multi-seller app), we will display prominently: *"The term 'Etsy' is a trademark of Etsy, Inc. This application uses the Etsy API but is not endorsed or certified by Etsy, Inc."* For personal access (single shop / up to 5 shops), we still avoid implying endorsement; we can show a short disclaimer in Config or footer. |
 | **Clearly distinguish from Etsy** | App name and UI make clear this is a third-party tool (e.g. "Trudy's Etsy Sales" or "Etsy Sales Manager"), not Etsy itself. No Etsy logos or branding that imply affiliation. |
-| **Caching policy (Section 1 of API Terms)** | We will follow Etsy’s caching rules when we implement caching (e.g. do not cache longer than allowed; respect cache-related headers or terms). We do not persist Etsy data beyond what’s needed for the session or for our own database (inventory, customers) with user consent. |
+| **Caching policy (Section 1 of API Terms)** | We do not cache Etsy API responses; we minimize API calls and respect rate limits. If we add caching in the future, we will follow Etsy's API Terms (allowed duration, headers, etc.). We do not persist Etsy data beyond what’s needed for the session or for our own database (inventory, customers) with user consent. |
 | **No dormant apps** | Apps with no successful API request in 6 months can be marked dormant and banned. We keep the app in use or make at least one successful request within 6 months when the user is connected. |
 | **Rate limits** | Etsy enforces ~10 requests per second and ~10,000 requests per 24-hour period (per key/token). We will avoid unnecessary calls, batch where possible, and handle 429 (retry-after) gracefully. |
 | **Commercial access: transaction_r / buyer_email** | If we request commercial access and use transaction/receipt data, we will request buyer_email access separately if we need it; we do not store or use buyer email beyond what Etsy and law allow. |
@@ -76,7 +76,7 @@ This document summarizes **Etsy rules and policies** that apply to the Etsy Sale
 - [ ] Use only the official Etsy API; no scraping or bypassing.
 - [ ] Use OAuth for all private shop/receipt data; store tokens securely.
 - [ ] Respect rate limits (10/sec, 10k/day); handle 429 and retry-after.
-- [ ] Follow Etsy’s caching policy when implementing caching.
+- [ ] Do not cache Etsy API responses; minimize calls and respect rate limits. If we add caching later, follow Etsy API Terms.
 - [ ] Display trademark disclaimer (at least in Config/footer; prominently if commercial access).
 - [ ] Clearly distinguish app from Etsy (name, UI); no implied endorsement.
 - [ ] Support accurate condition disclosure: condition code, notes, up to 5 condition pictures (aligned with Etsy listing/image expectations).

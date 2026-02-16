@@ -27,9 +27,10 @@ We decided to use a database for application data (ADR-001) and defined reports 
 - **Not stored as data: reports**  
   **Reports** (thank you note, invoice, sales, costs, income month-to-date, income year-to-date, postal costs by vendor) are **not** stored as separate entities in the database. They are **generated on demand** from the stored data above (queries, aggregations, and document generation). No “report result” rows or blobs are persisted; only the underlying inventory, customer, and purchase data is stored.
 
+- **No caching of report output.** Reports are generated on demand only; we do not cache report output. Each run uses current data.
+
 - **Out of scope for this ADR**  
   - Etsy OAuth tokens (stored in cookies or a separate mechanism; see ADR-007).  
-  - Caching of report output for performance (optional later; would be cache, not canonical storage).  
   - Export files (e.g. PDF/CSV) that the user downloads—those are outputs, not stored app data.
 
 ## Consequences
@@ -39,7 +40,7 @@ We decided to use a database for application data (ADR-001) and defined reports 
   - No risk of stale or duplicated “report data”; changing a sale or cost updates future report runs automatically.
   - Clear boundary for what to back up and migrate: the database only (plus auth/tokens as implemented).
 - **Negative**
-  - Reports require query/aggregation at request time; for large datasets, performance may require indexing or caching later.
+  - Reports require query/aggregation at request time. We address performance by defining database indexes from the start (see [ADR-014](0014-database-indexes-for-reports-and-queries.md)); we do not cache report output.
 
 ## Notes
 

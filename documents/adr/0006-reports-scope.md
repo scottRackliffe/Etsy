@@ -26,7 +26,7 @@ The following **reports** will be supported; all are backed by the database and 
 | **Income — year to date** | Revenue for the current year. | Same as above for the current year. |
 | **Postal costs by vendor** | Shipping spend by carrier. | Sum of seller’s shipping cost grouped by shipper (USPS, UPS, FedEx, DHL, Other). See ADR-005. |
 
-Output format (PDF, print, screen) can be decided at implementation time. The scope of *what* each report contains is fixed above.
+Output format is **PDF** for all reports (see [ADR-013](0013-report-output-pdf.md)) so they look professional and can be printed or shared. The scope of *what* each report contains is fixed above.
 
 ## Consequences
 

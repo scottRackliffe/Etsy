@@ -22,6 +22,9 @@ Build and ship a **base system** with the following:
 - **Token storage**  
   Access token (and refresh token) are stored in **HTTP-only cookies** (SameSite=Lax). No token in client-side JavaScript; API routes read cookies on the server. OAuth state and code_verifier are stored temporarily in cookies during the flow only.
 
+- **Token refresh (we will implement)**  
+  When the access token expires, the app **will** use the stored refresh token to obtain a new access token from Etsy so the user does not need to reconnect. Implementation is a required follow-up to the base system.
+
 - **API routes (Next.js App Router)**  
   - `GET /api/auth/etsy` — Start OAuth; set state and code_verifier in cookies; redirect to Etsy.  
   - `GET /api/auth/etsy/callback` — Validate state; exchange code for tokens; set token cookies; redirect to home.  
@@ -48,9 +51,11 @@ Build and ship a **base system** with the following:
   - Foundation for adding inventory, customers, and reports later (with a database per ADR-001).
 - **Negative**
   - Etsy receipt data is not persisted; each visit refetches from Etsy (rate limits apply).
-  - Token refresh is not yet implemented; when access token expires, user may need to reconnect.
+- **Planned**
+  - Token refresh will be implemented: use the refresh token when the access token expires so the user does not need to reconnect.
 
 ## Notes
 
 - Base system does not include the inventory, customer, or report features described in other ADRs; those are planned additions with database storage.
 - Redirect URI must be registered in the Etsy developer app and match `ETSY_REDIRECT_URI` exactly.
+- Token refresh: call Etsy's token endpoint with `grant_type=refresh_token` and the stored refresh token when the access token is expired or about to expire; update the access token cookie. Required for production use.

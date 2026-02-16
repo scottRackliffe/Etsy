@@ -50,3 +50,4 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 ## Notes
 
 - Full process description and “etc.” (e.g. thumbnails, “copy from another item”) are in [documents/ui-design.md](../ui-design.md) section 5.8. This ADR records the decision for the import mechanisms and commands.
+- **Picture icon (thumbnail):** When an item is entered or when its first picture is added, the app creates the **picture icon** (thumbnail) for that item at that time, for use in pick lists (e.g. "item sold" when recording a sale). See ADR-015.

@@ -34,7 +34,7 @@ Store the following in the database:
   - **has_condition_issue** — Boolean: true if the item has a blemish, flaw, or issue that should be documented (and shown to buyers). When true, condition_notes and up to 5 condition pictures are relevant.
   - **condition_notes** — Optional text: accurate description of flaws. Use specific terminology where appropriate (e.g. “patina”, “crazing” for ceramics, “foxing” for paper). Sellers must accurately describe flaws; this field supports that.
   - **Condition pictures:** condition_picture_1 through condition_picture_5 — Up to 5 pictures that **substantiate the condition grade**: all sides, marks, and defects. Photos are crucial for the chosen condition. Paths or URLs in the database; files on disk or object storage. Empty slots are null.
-- **Status:** e.g. In stock, Listed, Sold, Reserved, Retired
+- **Status:** e.g. Draft, In stock, Listed, Sold, Reserved, Retired. We support **Draft** for items being prepared; when **date listed** is entered, the item is **In stock** (and typically moves to **Listed**).
 - **Optional:** Etsy listing ID (for linking to Etsy), quantity (default 1), category/tags, notes
 - **Audit:** created_at, updated_at
 

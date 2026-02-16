@@ -18,7 +18,7 @@ We **follow all applicable Etsy rules** that apply to our use of the API and to 
 
 **Scope**
 
-- **API:** We comply with Etsy’s API Terms of Use (no scraping, OAuth for private data, rate limits, caching policy, trademark disclaimer when required, no dormant app).
+- **API:** We comply with Etsy’s API Terms of Use (no scraping, OAuth for private data, rate limits, no caching of API responses—we minimize calls and respect rate limits; trademark disclaimer when required, no dormant app).
 - **Seller policies:** We do not contradict Etsy’s seller policies; we remind or link to them where helpful (e.g. prohibited items).
 - **Listing and images:** We support accurate condition disclosure (condition code, notes, up to 5 condition pictures) and original photos of the actual item, consistent with Etsy’s listing and image requirements.
 - **Vintage/antique:** We use condition terms and documentation (notes, condition pictures) that align with Etsy’s vintage policy (accurate description, photos that show condition).
