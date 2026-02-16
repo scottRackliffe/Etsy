@@ -1,5 +1,8 @@
 import { getDb } from "@/lib/sqlite";
 import PDFDocument from "pdfkit";
+import fs from "node:fs";
+import path from "node:path";
+import { getSetting } from "@/lib/settings-store";
 
 type ReportMetricValue = number | string;
 
@@ -475,6 +478,26 @@ export async function buildReportPdf(report: ReportResult): Promise<Buffer> {
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", (error) => reject(error));
+
+    const reportIconSetting = getSetting("ui.icons.report_header_path");
+    const reportIconWidthSetting = getSetting("ui.icons.report_header_width_px");
+    const reportIconPath =
+      reportIconSetting && reportIconSetting.startsWith("/")
+        ? path.join(process.cwd(), "public", reportIconSetting.replace(/^\/+/, ""))
+        : path.join(process.cwd(), "public", "icons", "report-header.png");
+    const reportIconWidth = Number.isFinite(Number(reportIconWidthSetting))
+      ? Math.max(80, Math.min(640, Math.floor(Number(reportIconWidthSetting))))
+      : 220;
+    if (fs.existsSync(reportIconPath)) {
+      try {
+        doc.image(reportIconPath, {
+          fit: [reportIconWidth, 80] as [number, number],
+        });
+        doc.moveDown(0.5);
+      } catch {
+        // Non-blocking: continue report generation without icon.
+      }
+    }
 
     doc.fontSize(18).text(`${report.report_name} report`, { underline: true });
     doc.moveDown(0.5);

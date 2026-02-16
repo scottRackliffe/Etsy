@@ -5,6 +5,7 @@
  * Uses /api/shop and /api/receipts for data; /api/auth/etsy and /api/auth/logout for auth.
  */
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 type Shop = { shop_id: number; shop_name: string };
 type InventoryItem = {
@@ -156,6 +157,12 @@ type AppTab =
   | "outstanding"
   | "tutorial"
   | "config";
+type IconConfig = {
+  screenHeaderPath: string;
+  reportHeaderPath: string;
+  screenHeaderSizePx: string;
+  reportHeaderWidthPx: string;
+};
 type PublishHistory = {
   item?: {
     id: number;
@@ -235,6 +242,12 @@ export default function Home() {
   const [pictureSlotDraft, setPictureSlotDraft] = useState("1");
   const [picturePathDraft, setPicturePathDraft] = useState("");
   const [pictureReorderDraft, setPictureReorderDraft] = useState("");
+  const [iconConfig, setIconConfig] = useState<IconConfig>({
+    screenHeaderPath: "/icons/screen-header.png",
+    reportHeaderPath: "/icons/report-header.png",
+    screenHeaderSizePx: "32",
+    reportHeaderWidthPx: "220",
+  });
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
@@ -550,6 +563,10 @@ export default function Home() {
         imageJpegQuality,
         allowPartialImageUpload,
         imageUploadAttempts,
+        screenHeaderPath,
+        reportHeaderPath,
+        screenHeaderSizePx,
+        reportHeaderWidthPx,
       ] = await Promise.all([
         getSettingValue("etsy.publish.taxonomy_id"),
         getSettingValue("etsy.publish.shipping_profile_id"),
@@ -562,6 +579,10 @@ export default function Home() {
         getSettingValue("etsy.publish.image_jpeg_quality"),
         getSettingValue("etsy.publish.allow_partial_image_upload"),
         getSettingValue("etsy.publish.image_upload_attempts"),
+        getSettingValue("ui.icons.screen_header_path"),
+        getSettingValue("ui.icons.report_header_path"),
+        getSettingValue("ui.icons.screen_header_size_px"),
+        getSettingValue("ui.icons.report_header_width_px"),
       ]);
       setPublishConfig({
         taxonomyId,
@@ -575,6 +596,12 @@ export default function Home() {
         imageJpegQuality: imageJpegQuality || "82",
         allowPartialImageUpload: allowPartialImageUpload || "false",
         imageUploadAttempts: imageUploadAttempts || "3",
+      });
+      setIconConfig({
+        screenHeaderPath: screenHeaderPath || "/icons/screen-header.png",
+        reportHeaderPath: reportHeaderPath || "/icons/report-header.png",
+        screenHeaderSizePx: screenHeaderSizePx || "32",
+        reportHeaderWidthPx: reportHeaderWidthPx || "220",
       });
     };
     load().catch(() => {
@@ -622,6 +649,12 @@ export default function Home() {
   const grossCurrency = receipts[0]?.currency_code ?? "USD";
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
+  const screenHeaderIconSize = Number.isFinite(Number(iconConfig.screenHeaderSizePx))
+    ? Math.max(16, Math.min(256, Math.floor(Number(iconConfig.screenHeaderSizePx))))
+    : 32;
+  const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
+    ? Math.max(80, Math.min(640, Math.floor(Number(iconConfig.reportHeaderWidthPx))))
+    : 220;
   const selectedItemPictures = selectedItem
     ? Array.from({ length: 10 }, (_, index) => {
         const slot = index + 1;
@@ -975,6 +1008,48 @@ export default function Home() {
         "We could not save Etsy publish settings.",
         err
       );
+    } finally {
+      setAiSettingsSaving(false);
+    }
+  };
+
+  const saveIconSettings = async () => {
+    setAiSettingsSaving(true);
+    try {
+      const updates: Array<{ key: string; value: string }> = [
+        {
+          key: "ui.icons.screen_header_path",
+          value: iconConfig.screenHeaderPath.trim() || "/icons/screen-header.png",
+        },
+        {
+          key: "ui.icons.report_header_path",
+          value: iconConfig.reportHeaderPath.trim() || "/icons/report-header.png",
+        },
+        {
+          key: "ui.icons.screen_header_size_px",
+          value: iconConfig.screenHeaderSizePx.trim() || "32",
+        },
+        {
+          key: "ui.icons.report_header_width_px",
+          value: iconConfig.reportHeaderWidthPx.trim() || "220",
+        },
+      ];
+      for (const update of updates) {
+        const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ value: update.value }),
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        if (!response.ok) throw data;
+      }
+      setError({
+        title: "Icon settings saved",
+        message: "Screen and report icon configuration was updated.",
+        actions: ["Refresh or switch tabs to verify icon rendering."],
+      });
+    } catch (err) {
+      setApiError("Could not save icon settings", "We could not save icon settings.", err);
     } finally {
       setAiSettingsSaving(false);
     }
@@ -1362,7 +1437,13 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2">
-              <span className="block h-2 w-2 rounded-full bg-[var(--ui-accent)]" />
+              <Image
+                src={iconConfig.screenHeaderPath || "/icons/screen-header.png"}
+                alt="Screen header icon"
+                width={screenHeaderIconSize}
+                height={screenHeaderIconSize}
+                className="h-auto w-auto"
+              />
             </div>
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-[var(--ui-title)]">
@@ -1764,7 +1845,16 @@ export default function Home() {
                 id="panel-reports"
                 className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm"
               >
-                <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
+                <div className="mb-3 flex items-center gap-3">
+                  <Image
+                    src={iconConfig.reportHeaderPath || "/icons/report-header.png"}
+                    alt="Report header icon"
+                    width={reportHeaderIconWidth}
+                    height={Math.max(24, Math.floor(reportHeaderIconWidth * 0.22))}
+                    className="h-auto max-h-16 w-auto rounded"
+                  />
+                  <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={reportType}
@@ -1932,7 +2022,7 @@ export default function Home() {
                 className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm"
               >
                 <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Configuration</h3>
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                   <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
                     <h4 className="mb-2 text-sm font-semibold">AI settings</h4>
                     <input
@@ -2004,6 +2094,52 @@ export default function Home() {
                       className="mt-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
                     >
                       Save publish defaults
+                    </button>
+                  </div>
+                  <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+                    <h4 className="mb-2 text-sm font-semibold">Icons and sizing</h4>
+                    <p className="mb-2 text-xs text-[var(--ui-muted)]">
+                      Use `/icons/...` paths for bundled install-safe assets.
+                    </p>
+                    <input
+                      value={iconConfig.screenHeaderPath}
+                      onChange={(e) =>
+                        setIconConfig((current) => ({ ...current, screenHeaderPath: e.target.value }))
+                      }
+                      placeholder="/icons/screen-header.png"
+                      className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    />
+                    <input
+                      value={iconConfig.screenHeaderSizePx}
+                      onChange={(e) =>
+                        setIconConfig((current) => ({ ...current, screenHeaderSizePx: e.target.value }))
+                      }
+                      placeholder="Screen icon size px (for example 32)"
+                      className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    />
+                    <input
+                      value={iconConfig.reportHeaderPath}
+                      onChange={(e) =>
+                        setIconConfig((current) => ({ ...current, reportHeaderPath: e.target.value }))
+                      }
+                      placeholder="/icons/report-header.png"
+                      className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    />
+                    <input
+                      value={iconConfig.reportHeaderWidthPx}
+                      onChange={(e) =>
+                        setIconConfig((current) => ({ ...current, reportHeaderWidthPx: e.target.value }))
+                      }
+                      placeholder="Report icon width px (for example 220)"
+                      className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveIconSettings}
+                      disabled={aiSettingsSaving}
+                      className="mt-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+                    >
+                      Save icon settings
                     </button>
                   </div>
                 </div>
