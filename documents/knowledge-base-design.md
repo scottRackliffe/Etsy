@@ -1,6 +1,6 @@
 # Knowledge base: Tutorial and tips — design
 
-The app includes a **Tutorial and tips** knowledge base: one place for the tutorial (how Etsy works, how this app helps), tips to improve sales, pricing guidance, and links to your own files. It is presented as its own tab with **search**, **index**, and **links to files outside the program but in the system folder**.
+The app includes a **Tutorial and tips** knowledge base: one place for the tutorial (how Etsy works, how this app helps), tips to improve sales, pricing guidance, and links to your own files. It is presented as its own tab with **search**, **index**, and **links to files in the tips folder**. The default document set lives in **`system/tips/`** so it is contained with the app build; no external document path is required for the default set to work.
 
 ---
 
@@ -30,23 +30,27 @@ The app includes a **Tutorial and tips** knowledge base: one place for the tutor
   - How to set prices (costs, cost-based and market-based pricing, psychology)
   - Pictures and condition (why pictures matter, condition grades, directory picker)
   - Etsy rules we follow (compliance, links to policies)
-  - **System folder files** (see below): listed as a category or section in the index; each entry is a link to a file.
+  - **Tips-folder files** (see below): listed as a category or section in the index; each entry is a link to a file.
 - **Display:** Sidebar or top section in Tutorial and tips. Clicking an index entry scrolls to that section in the main content area or opens the linked article/file.
 - **Intuitive:** Clear labels; index entries match the way the content is organized (same headings as in [tutorial.md](tutorial.md) and related docs).
 
 ---
 
-## 4. Links to files outside the program but in the system folder
+## 4. Documents in the tips folder (contained with the system build)
 
-- **System folder:** A folder **on the user’s system** that holds files (PDFs, docs, etc.) that are **outside the application code** but that the app can **link to**. Two options:
-  - **Option A — App’s `system` folder:** A folder named `system` (or similar) inside the application directory (e.g. `etsy/system/` or `etsy/system/knowledge-base/`). User (or installer) places files there; app lists them and shows links.
-  - **Option B — User-configured path:** In Config, user sets a path to a folder on their machine (e.g. `~/Documents/TrudysEtsyGuides`). App lists files in that folder and shows links.
-  - We can support both: default `system` subfolder plus an optional override path in Config.
+- **Contained with the system build:** The documents needed for the Tutorial and tips function live in the default tips folder, **`system/tips/`**, so they are contained with the app build.
+- **Terminology (canonical):**
+  - **Default tips folder:** `system/tips/` (inside the project/app directory; pre-populated default set).
+  - **Custom tips folder:** Optional user-configured path in Config (`tutorial_system_folder_path`) that extends or overrides the default folder.
+- **Folder options:**
+  - **Option A — Default tips folder:** `system/tips/` in the project directory.
+  - **Option B — Custom tips folder:** user sets a path on their machine (e.g. `~/Documents/TrudysEtsyGuides`).
+  - The app may support both simultaneously: default folder plus optional custom path.
 - **What the app does:**
-  - **List** files in the system folder (e.g. by name; optional: filter by extension like `.pdf`, `.md`).
-  - **Show** each file as a **link** in the Tutorial and tips view (e.g. in the Index under “Guides in system folder” or “Your documents”).
+  - **List** files in the default/custom tips folder (e.g. by name; optional: filter by extension like `.pdf`, `.md`).
+  - **Show** each file as a **link** in the Tutorial and tips view (e.g. in the Index under “Guides in tips folder” or “Your documents”).
   - **Open** when the user clicks: open the file with the **system default application** (e.g. PDF with default PDF viewer, doc with default app). So the file stays on disk and is not embedded in the app; the app only provides the link.
-- **Links to files outside of the program but in the system folder** = the app displays links that point to these files; clicking opens them in the OS. No requirement to copy files into the app bundle.
+- **Links to files outside of the app but in a tips folder** = the app displays links that point to these files; clicking opens them in the OS. No requirement to embed those files in the app UI.
 - **Optional:** In Config, user can add a **custom title or description** for a system-folder file so it appears with a friendly name in the index and search (e.g. “Tips for Getting Featured on Etsy” for `Tips for Getting Featured on Etsy.pdf`).
 
 ---
@@ -62,19 +66,33 @@ The app includes a **Tutorial and tips** knowledge base: one place for the tutor
 
 ## 6. Summary: Tutorial and tips tab
 
-| Element | Behavior |
-|--------|----------|
-| **Search** | Search box; search over in-app content and system-folder file names (and optional metadata). Results open the article or the file. |
-| **Index** | Browsable list of topics (How Etsy works, How this app helps, Sales tips, Pricing, Pictures, Etsy rules, System folder files). Click to go to section or open file. |
-| **Links to system folder** | App lists files in the designated system folder; each is a link. Click opens file in the system default app (outside the program). Path set in app’s system folder and/or Config. |
+| Element                  | Behavior                                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Search**               | Search box; search over in-app content and tips-folder file names (and optional metadata). Results open the article or the file.                                  |
+| **Index**                | Browsable list of topics (How Etsy works, How this app helps, Sales tips, Pricing, Pictures, Etsy rules, tips-folder files). Click to go to section or open file. |
+| **Links to tips folder** | App lists files in the default tips folder and optional custom tips folder; each is a link. Click opens file in the system default app (outside the app).         |
 
 ---
 
 ## 7. Config
 
-- **System folder path (optional):** Config can expose “Tutorial and tips folder” so the user can set a custom path for “files outside the program but in the system folder.” If unset, use default (e.g. `system/knowledge-base` or `system/tips` inside the app directory).
-- **“Why pictures matter” link** can point to the built-in doc or to a file in the system folder (existing Config option).
+- **Custom tips folder path (optional):** Config can expose “Tutorial and tips folder” so the user can set a custom path for additional scannable/lookup tips. If unset, use default **`system/tips/`** inside the app/project directory.
+- **“Why pictures matter” link** can point to the built-in doc or to a file in the tips folder (existing Config option).
 
 ---
 
-*This design replaces the earlier “Tutorial” tab description with “Tips and suggestions” and adds search, index, and system-folder links. Tutorial and tips are merged in one tab: search, index, system-folder links; built-in content is the tutorial (tutorial.md) plus Why pictures matter and Etsy compliance. Implementation can follow this when building the tab.*
+## 8. Topic catalog and maintenance
+
+- The searchable topic baseline is defined in [knowledge-base-topics-catalog.md](knowledge-base-topics-catalog.md).
+- The catalog is exhaustive and designed for search/index tagging.
+- After UI updates, review and update:
+  1. operating instructions,
+  2. topic coverage,
+  3. aliases/keywords,
+  4. outdated steps.
+
+This ensures user help remains accurate as the UI evolves.
+
+---
+
+_This design replaces the earlier “Tutorial” tab description with “Tips and suggestions” and adds search, index, and system-folder links. Tutorial and tips are merged in one tab: search, index, system-folder links; built-in content is the tutorial (tutorial.md) plus Why pictures matter and Etsy compliance. Implementers follow this design when building the tab._

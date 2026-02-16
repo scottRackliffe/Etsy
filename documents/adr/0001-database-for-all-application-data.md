@@ -30,4 +30,4 @@ Use a **database** for all application data. Every field discussed for inventory
 ## Notes
 
 - Database technology is **SQLite** (see [ADR-012](0012-database-technology-sqlite.md)).
-- Etsy OAuth tokens may remain in cookies or a separate store; “all application data” here refers to business data (inventory, customers, purchases, costs).
+- **All application data is stored in SQLite**, including auth/session state and operational/business data. Cookies may be used only as transport for opaque session identifiers.

@@ -5,23 +5,30 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getShops } from "@/lib/etsy";
-
-const TOKEN_COOKIE = "etsy_access_token";
+import { errorResponse, fromUnknownError } from "@/lib/api-error";
+import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getSetting } from "@/lib/settings-store";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(TOKEN_COOKIE)?.value;
-  if (!token) {
-    return NextResponse.json({ error: "Not connected to Etsy" }, { status: 401 });
-  }
   try {
+    const cookieStore = await cookies();
+    const token = await resolveEtsyAccessToken(cookieStore);
     const shops = await getShops(token);
-    return NextResponse.json({ shops });
+    const activeShopIdRaw = getSetting("etsy.active_shop_id");
+    const activeShopId = activeShopIdRaw ? Number(activeShopIdRaw) : null;
+    return NextResponse.json({ ok: true, shops, active_shop_id: activeShopId });
   } catch (e) {
     console.error("Shops error:", e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to load shops" },
-      { status: 500 }
+    return errorResponse(
+      fromUnknownError(e, {
+        code: "ETSY_API_FAILED",
+        message: "Failed to load shops",
+        userMessage: "We could not load your Etsy shops right now.",
+        actions: [
+          "Refresh the page and try again.",
+          "If the problem continues, disconnect and reconnect Etsy.",
+        ],
+      })
     );
   }
 }

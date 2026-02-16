@@ -22,14 +22,14 @@ The **dashboard** is the application’s home view. Its content, structure, and 
 
 ### 1. Layout (single full page)
 
-- **Header (top, full width)**  
-  - **Left:** Application title (e.g. “Trudy’s Etsy Sales”).  
-  - **Right:** One of:  
-    - **“Connect Etsy”** button (when not connected) — primary action; navigates to `/api/auth/etsy`.  
+- **Header (top, full width)**
+  - **Left:** Application title (e.g. “Trudy’s Etsy Sales”).
+  - **Right:** One of:
+    - **“Connect Etsy”** button (when not connected) — primary action; navigates to `/api/auth/etsy`.
     - **“Disconnect”** button (when connected) — calls logout (POST `/api/auth/logout` or equivalent); clears session and returns the view to “not connected” state.
 
-- **Main content (below header)**  
-  - Centered, constrained width (e.g. max-width container).  
+- **Main content (below header)**
+  - Centered, constrained width (e.g. max-width container).
   - Content depends on connection state and (when connected) on loaded data (see below).
 
 ---
@@ -39,8 +39,8 @@ The **dashboard** is the application’s home view. Its content, structure, and 
 When the user is **not** authenticated with Etsy (no valid token / not connected):
 
 - **Do not** show the shop selector or the receipts table.
-- **Show:**  
-  - A short, plain-language message that the user should connect their Etsy account to view and manage sales (exact wording at implementation discretion).  
+- **Show:**
+  - A short, plain-language message: "Connect your Etsy account to view and manage your sales." (Or equivalent approved wording; no other variant without updating this ADR.)
   - A single primary action: **“Connect with Etsy”** (or equivalent), which starts the OAuth flow (e.g. redirect to `/api/auth/etsy`).
 - **Optional:** If the OAuth callback returned an error (e.g. user denied, or error query param on the redirect), show that error message clearly (e.g. in an alert or inline message) so the user understands why they are not connected.
 - **Loading:** While checking connection (e.g. calling `/api/shop` or auth check), show a brief loading indication (e.g. “Checking connection…”); then show either “not connected” or “connected” content.
@@ -53,31 +53,31 @@ When the user **is** authenticated with Etsy (valid token, “connected”):
 
 - **Header:** Show “Disconnect” (as above).
 
-- **Shop selector**  
-  - Appears at the top of the main content area.  
-  - **Control:** A dropdown (or equivalent) listing the user’s Etsy shop(s) returned from the API (e.g. `GET /api/shop`).  
-  - **Behavior:** User selects one shop. The selection determines which shop’s receipts are shown.  
-  - **Default:** If the user has at least one shop, one shop is selected by default (e.g. the first in the list).  
+- **Shop selector**
+  - Appears at the top of the main content area.
+  - **Control:** A dropdown (or equivalent) listing the user’s Etsy shop(s) returned from the API (e.g. `GET /api/shop`).
+  - **Behavior:** User selects one shop. The selection determines which shop’s receipts are shown.
+  - **Default:** If the user has at least one shop, one shop is selected by default (e.g. the first in the list).
   - **Persistence:** Selection is in-memory for the session only (no requirement to persist across sessions).
 
-- **Recent orders (receipts) section**  
-  - **Heading:** e.g. “Recent orders” (or equivalent).  
-  - **Subheading or caption:** Indicate that the list shows receipts with paid/shipped status (e.g. “N receipt(s) — paid / shipped status below”).  
-  - **Data source:** Receipts for the **selected shop only**, fetched from the Etsy API via the app’s API (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Data is **not** persisted in the application database in the base system; it is fetched on load and when the shop selection changes.  
-  - **Limit:** Implementation defines the limit (e.g. 100); pagination (offset) is optional for the base system.
+- **Recent orders (receipts) section**
+  - **Heading:** e.g. “Recent orders” (or equivalent).
+  - **Subheading or caption:** Indicate that the list shows receipts with paid/shipped status (e.g. “N receipt(s) — paid / shipped status below”).
+  - **Data source:** Receipts for the **selected shop only**, fetched from the Etsy API via the app’s API (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Data is **not** persisted in the application database in the base system; it is fetched on load and when the shop selection changes.
+  - **Limit:** 100 receipts per request. Pagination: offset parameter optional (e.g. offset=0 for first page; limit=100).
 
-- **Receipts table (when connected)**  
+- **Receipts table (when connected)**
   - **Columns (required):**  
-    | Column   | Meaning | Source / notes |
+    | Column | Meaning | Source / notes |
     |----------|---------|----------------|
-    | Date     | Order/receipt date | Etsy receipt creation timestamp; display in a human-readable date format (e.g. locale-aware). |
-    | Order #  | Receipt or order identifier | Etsy `receipt_id` (or equivalent); display as-is or as “Order #” + id. |
-    | Ship to  | Ship-to address | Buyer name plus a short address (e.g. first line, city, state, zip, country). Two lines acceptable (name; address). |
-    | Total    | Money amount | Total price; if total shipping cost &gt; 0, show it (e.g. “$X + $Y ship” or equivalent). Use receipt currency for formatting. |
-    | Paid     | Whether the order was marked paid | Boolean; display as “Yes” / “No” (or equivalent). |
-    | Shipped  | Whether the order was marked shipped | Boolean; display as “Yes” / “No” (or equivalent). |
-  - **Empty state:** If the API returns zero receipts for the selected shop, show a clear empty state (e.g. “No orders yet.”).  
-  - **Loading state:** While fetching receipts for the selected shop, show a loading state (e.g. “Loading orders…”); do not show the table until data is available or the empty state applies.  
+    | Date | Order/receipt date | Etsy receipt creation timestamp; display in a human-readable date format (e.g. locale-aware). |
+    | Order # | Receipt or order identifier | Etsy `receipt_id` (or equivalent); display as-is or as “Order #” + id. |
+    | Ship to | Ship-to address | Buyer name plus a short address (e.g. first line, city, state, zip, country). Two lines acceptable (name; address). |
+    | Total | Money amount | Total price; if total shipping cost &gt; 0, show it (e.g. “$X + $Y ship” or equivalent). Use receipt currency for formatting. |
+    | Paid | Whether the order was marked paid | Boolean; display as “Yes” / “No” (or equivalent). |
+    | Shipped | Whether the order was marked shipped | Boolean; display as “Yes” / “No” (or equivalent). |
+  - **Empty state:** If the API returns zero receipts for the selected shop, show a clear empty state (e.g. “No orders yet.”).
+  - **Loading state:** While fetching receipts for the selected shop, show a loading state (e.g. “Loading orders…”); do not show the table until data is available or the empty state applies.
   - **Errors:** If the receipts request fails, show an appropriate error message (e.g. “Error loading orders” or the API error); do not leave the user with a blank or misleading view.
 
 - **No other content is required** on the dashboard in the base system. Optional: app version or “Help” link; not specified here.
@@ -86,8 +86,8 @@ When the user **is** authenticated with Etsy (valid token, “connected”):
 
 ### 4. Data and APIs
 
-- **Auth:** Connection state is determined by the app’s auth mechanism (e.g. presence/validity of token in cookies). Logout clears that state and any in-memory shop/receipt data.  
-- **Shops:** Shops are obtained from the Etsy API via the app (e.g. `GET /api/shop`). Unauthenticated requests return 401; the UI then shows “not connected.”  
+- **Auth:** Connection state is determined by the app’s auth/session records in SQLite (with opaque session id cookie transport). Logout invalidates SQLite auth/session records and clears the session id cookie.
+- **Shops:** Shops are obtained from the Etsy API via the app (e.g. `GET /api/shop`). Unauthenticated requests return 401; the UI then shows “not connected.”
 - **Receipts:** Receipts are obtained per shop via the app (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Response includes at least: receipt_id, order_id, buyer name, ship-to address fields, total_price, total_shipping_cost, currency_code, was_paid, was_shipped, creation_tsz (or equivalent). Exact field names follow the Etsy API and the app’s mapping.
 
 ---
@@ -101,12 +101,12 @@ When the tabbed layout (ADR-009) exists:
 
 ## Consequences
 
-- **Positive**  
-  - One ADR defines exactly what the dashboard is. No ambiguity for implementers or reviewers.  
-  - Clear separation of “not connected” vs “connected” and exact table columns and states.  
+- **Positive**
+  - One ADR defines exactly what the dashboard is. No ambiguity for implementers or reviewers.
+  - Clear separation of “not connected” vs “connected” and exact table columns and states.
   - Easy to test and accept: behavior and content are specified.
 
-- **Negative**  
+- **Negative**
   - Any change to dashboard content or behavior should be reflected in this ADR (or a superseding one).
 
 ## Notes

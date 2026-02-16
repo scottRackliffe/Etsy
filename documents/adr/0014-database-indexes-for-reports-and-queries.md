@@ -22,7 +22,7 @@ We **define database indexes as part of the initial schema** (with the first mig
 - **Customer table:** index on **customer_id** (primary key) is implicit; any lookup by name or email can get a separate index if we add those searches.
 - **Inventory table:** index on **date** fields used in reports (e.g. date of sale); index on **inventory_id** / foreign keys used in joins.
 
-Exact index list (names, single vs composite) is set at implementation time from the actual schema and report SQL; this ADR commits to **doing that work up front**, not “adding indexes later if needed.”
+Exact index list and names are defined in [ADR-017](0017-database-schema.md) (schema DDL); This ADR commits to indexes being part of the initial schema, not added later.
 
 ## Consequences
 

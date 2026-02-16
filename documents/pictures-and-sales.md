@@ -15,6 +15,16 @@ Good photos are one of the most important factors in selling on Etsy. This short
 - For **main pictures (up to 10):** Use your best shots of the item; first picture = primary listing image.
 - For **condition pictures (up to 5):** Use photos that show any blemish, wear, or defect so the condition grade (Mint/Near Mint through Fair/As-Is) is clearly substantiated.
 
+## Operator photo checklist (before listing request)
+
+- [ ] At least one main photo exists.
+- [ ] Hero photo is clear, bright, and representative.
+- [ ] Condition photos show defects clearly (if defects exist).
+- [ ] No misleading angle/cropping that hides flaws.
+- [ ] Photos match item description and condition notes.
+
+If this checklist is not complete, do not request listing generation yet.
+
 ## More from Etsy
 
 - [Listing image requirements](https://www.etsy.com/legal/policy/listing-image-requirements/253962679005)
@@ -23,4 +33,4 @@ Good photos are one of the most important factors in selling on Etsy. This short
 
 ---
 
-*You can also link to your own guide (e.g. a PDF in your files) in Config if you have a document that explains how important pictures are to your sales.*
+_You can also link to your own guide (e.g. a PDF in your files) in Config if you have a document that explains how important pictures are to your sales._

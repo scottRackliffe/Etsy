@@ -18,7 +18,7 @@ The user wants a report showing postal/shipping costs broken down by carrier. Th
 - **Metric:** Sum of **seller’s shipping cost** (the amount the seller pays to the carrier) for each vendor.
 - **Vendors:** **USPS**, **UPS**, **FedEx**, **DHL**, and **Other** (from the shipper field on purchase/shipment records; see ADR-004).
 - **Data source:** Database: purchase/shipment table, grouped by shipper, summing the stored shipping cost field.
-- **Scope:** All time or a chosen date range; implementation can add filters (e.g. month, year) as needed.
+- **Scope:** All time or a chosen date range (from_date, to_date). No additional filters (e.g. by month only) in scope unless added in a future ADR.
 
 ## Consequences
 

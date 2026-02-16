@@ -29,4 +29,3 @@ Use **SQLite** as the application database.
 - **Negative**
   - Not ideal for high concurrency or very large datasets; acceptable for Trudy’s Classic Treasures and similar single/small-shop use.
   - File must be writable by the app and backed up by the user or deployment process.
-

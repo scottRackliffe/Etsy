@@ -1,0 +1,20 @@
+[
+  {
+    "first_name": "Taylor",
+    "last_name": "Chen",
+    "email": "taylor@example.com",
+    "city": "Chicago",
+    "state": "IL",
+    "postal_code": "60601",
+    "country": "US"
+  },
+  {
+    "first_name": "Reese",
+    "last_name": "Patel",
+    "email": "reese@example.com",
+    "city": "Seattle",
+    "state": "WA",
+    "postal_code": "98101",
+    "country": "US"
+  }
+]

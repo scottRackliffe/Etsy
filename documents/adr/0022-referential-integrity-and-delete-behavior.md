@@ -46,7 +46,7 @@ The following rules apply. “Restrict” means the delete is rejected with an H
 
 **Rule:** **Allow** delete even if the address was used in one or more purchases.
 
-**Reason:** The purchase row holds a snapshot of ship-to address (ship_to_* columns); it does not reference customer_address_id for display of past orders. customer_address_id on purchase is optional and for “which address was picked” only (ADR-003). So deleting an address does not alter past purchase data. We allow delete; optionally set purchase.customer_address_id to NULL for any purchase that pointed to this address (so we don’t have a dangling FK). **Decision:** On delete of customer_address, set purchase.customer_address_id = NULL for all purchase rows where customer_address_id = this id. Then delete the address row. Return 204.
+**Reason:** The purchase row holds a snapshot of ship-to address (ship*to*\* columns); it does not reference customer_address_id for display of past orders. customer_address_id on purchase is optional and for “which address was picked” only (ADR-003). So deleting an address does not alter past purchase data. We allow delete; optionally set purchase.customer_address_id to NULL for any purchase that pointed to this address (so we don’t have a dangling FK). **Decision:** On delete of customer_address, set purchase.customer_address_id = NULL for all purchase rows where customer_address_id = this id. Then delete the address row. Return 204.
 
 **Behavior:** DELETE /api/addresses/[id]: (1) UPDATE purchase SET customer_address_id = NULL WHERE customer_address_id = [id]. (2) DELETE FROM customer_address WHERE id = [id]. Return 204. 404 if address not found.
 
@@ -60,21 +60,19 @@ The following rules apply. “Restrict” means the delete is rejected with an H
 
 ---
 
-### 5. Delete purchase (order)
+### 5. Delete purchase (order); void and cancel
 
-**Rule:** We **do not** support deleting purchase rows (ADR-018: “No DELETE for purchases”). Corrections are done via PATCH (e.g. fix date, shipper, or notes). If the business later requires “void order” or “cancel order,” that is a new decision (e.g. status flag on purchase or order); not in scope here.
-
----
+## **Rule:** We **do not** support deleting purchase rows. Void and cancel are implemented via order_status only (no row delete). (ADR-018: “No DELETE for purchases”). Corrections are done via PATCH (e.g. fix date, shipper, or notes). **Void and cancel (in scope):** Use order_status = 'void' or 'cancelled' on all purchase rows with that order_id (status change only; no row delete). Schema: ADR-017. Exclusion from reports and outstanding list: ADR-013 (global report filter), ADR-020 (outstanding filter). Full behavior index: design-decisions-implementation §4.
 
 ### 6. Summary table
 
-| Entity | Delete allowed? | Condition | If restricted: response |
-|--------|------------------|-----------|---------------------------|
-| customer | Yes | Only if no purchase rows reference this customer_id | 409, message |
-| inventory | Yes | Only if no purchase rows reference this inventory_id | 409, message |
-| customer_address | Yes | Always; first null customer_address_id on purchase rows that reference it | 204 |
-| inventory_other_cost | Yes | Always | 204 |
-| purchase | No | — | No endpoint |
+| Entity               | Delete allowed? | Condition                                                                 | If restricted: response |
+| -------------------- | --------------- | ------------------------------------------------------------------------- | ----------------------- |
+| customer             | Yes             | Only if no purchase rows reference this customer_id                       | 409, message            |
+| inventory            | Yes             | Only if no purchase rows reference this inventory_id                      | 409, message            |
+| customer_address     | Yes             | Always; first null customer_address_id on purchase rows that reference it | 204                     |
+| inventory_other_cost | Yes             | Always                                                                    | 204                     |
+| purchase             | No              | —                                                                         | No endpoint             |
 
 ---
 
@@ -86,4 +84,4 @@ The following rules apply. “Restrict” means the delete is rejected with an H
 ## Notes
 
 - 409 Conflict is the standard HTTP code for “operation cannot be performed because of state of the resource.” Message body must be human-readable so the UI can display it.
-- “Retire” for inventory: set status = Retired; item remains in DB and in reports but can be filtered out of “active” lists and pick lists (implementation may exclude Retired from pick list per ADR-015 scope).
+- “Retire” for inventory: set status = Retired; item remains in DB and in reports but can be filtered out of “active” lists and pick lists (Retired items are excluded from the add-sale pick list per ADR-015).

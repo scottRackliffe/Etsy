@@ -6,20 +6,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "node --test tests/**/*.test.mjs",
+    "test:watch": "node --test --watch tests/**/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage tests/**/*.test.mjs",
+    "test:e2e": "node --test tests/e2e/**/*.test.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:seed": "node scripts/seed.mjs",
+    "db:reset": "node scripts/migrate.mjs --reset && node scripts/seed.mjs",
+    "env:check": "node scripts/env-check.mjs"
   },
   "dependencies": {
+    "better-sqlite3": "^12.6.2",
     "next": "16.1.6",
+    "openai": "^6.22.0",
+    "pdfkit": "^0.17.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

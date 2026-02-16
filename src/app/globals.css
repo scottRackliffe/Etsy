@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/*
+ * Etsy Sales Manager — System color palette (aligned to Cursor blue UI / NSLS).
+ * Deep navy surfaces, cool blue accents. Semantic colors for status/actions.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Screen & typography */
+  --ui-background: #081a34;
+  --ui-panel-bg: #0b2346;
+  --ui-card-bg: #0f2b55;
+  --ui-border: #1a3a66;
+  --ui-title: #eef4ff;
+  --ui-body: #c7d6f2;
+  --ui-muted: #9bb0d1;
+
+  /* Semantic (status / actions) */
+  --ui-green: #00cc66;
+  --ui-yellow: #ffcc00;
+  --ui-red: #ff4444;
+  --ui-orange: #f5a65b;
+  --ui-purple: #aa00ff;
+  --ui-black: #000000;
+
+  /* Lists */
+  --ui-list-dark: #0c2342;
+  --ui-list-light: #102a4f;
+  --ui-list-hover: #14315c;
+
+  /* Buttons / accents */
+  --ui-accent: #2f80ed;
+  --ui-accent-hover: #1f6fd6;
+  --ui-primary-hover: #2ea043;
+  --ui-danger-hover: #e11d48;
+  --ui-disabled: #2a3b59;
+  --ui-neutral: #233553;
+  --ui-neutral-hover: #2b4168;
+  --ui-help: #8ab4ff;
+  --ui-help-hover: #203b63;
+
+  /* Tailwind compatibility */
+  --background: var(--ui-background);
+  --foreground: var(--ui-body);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--ui-background);
+  --color-foreground: var(--ui-body);
+  --color-ui-panel: var(--ui-panel-bg);
+  --color-ui-card: var(--ui-card-bg);
+  --color-ui-border: var(--ui-border);
+  --color-ui-title: var(--ui-title);
+  --color-ui-body: var(--ui-body);
+  --color-ui-muted: var(--ui-muted);
+  --color-ui-green: var(--ui-green);
+  --color-ui-yellow: var(--ui-yellow);
+  --color-ui-red: var(--ui-red);
+  --color-ui-orange: var(--ui-orange);
+  --color-ui-accent: var(--ui-accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ui-background);
+  color: var(--ui-body);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

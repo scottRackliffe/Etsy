@@ -2,7 +2,7 @@
 
 This document defines the structure of an Etsy listing for use when generating listing content (including AI) and when enforcing "can't list until complete." It is the input for AI to generate listing text; the AI returns **structured data** that maps to item/listing fields for direct import into the inventory record.
 
-**References:** design-decisions-implementation.md §9; ADR-002 (inventory); etsy-compliance.md; TrudysClassicTreasures/book/How_to_Win_on_Etsy.md; TrudysClassicTreasures/book/Etsy_Photo_Guide.md.
+**References:** design-decisions-implementation.md §9; ADR-002 (inventory); etsy-compliance.md; [system/tips/How_to_Win_on_Etsy.md](../system/tips/How_to_Win_on_Etsy.md); [system/tips/Etsy_Photo_Guide.md](../system/tips/Etsy_Photo_Guide.md) (scannable tips in knowledge base).
 
 ---
 
@@ -10,16 +10,16 @@ This document defines the structure of an Etsy listing for use when generating l
 
 An Etsy listing consists of:
 
-| Part | Etsy / app field | Required for List on Etsy | Source (inventory or derived) |
-|------|-------------------|----------------------------|--------------------------------|
-| **Title** | listing title | Yes | inventory.listing_title (AI or manual) |
-| **Category** | category path | Yes (Etsy) | inventory.listing_category_path or selection from Etsy taxonomy |
-| **Attributes** | Etsy attributes (e.g. color, size) | Per Etsy category | From template or AI; map to Etsy attribute IDs |
-| **Tags** | tags (up to 13) | Yes (Etsy) | inventory.listing_tags (comma-separated or array) |
-| **Description** | listing description | Yes | inventory.listing_description (AI or manual) |
-| **Price** | price | Yes | inventory.sale_revenue or listing price |
-| **Photos** | main + up to 9 more | Yes (at least 1) | inventory.picture_1 … picture_10 (paths or URLs) |
-| **Shipping** | profile or override | Yes for physical | Shipping profile or item-level; from Config or item |
+| Part            | Etsy / app field                   | Required for List on Etsy | Source (inventory or derived)                                   |
+| --------------- | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
+| **Title**       | listing title                      | Yes                       | inventory.listing_title (AI or manual)                          |
+| **Category**    | category path                      | Yes (Etsy)                | inventory.listing_category_path or selection from Etsy taxonomy |
+| **Attributes**  | Etsy attributes (e.g. color, size) | Per Etsy category         | From template or AI; map to Etsy attribute IDs                  |
+| **Tags**        | tags (up to 13)                    | Yes (Etsy)                | inventory.listing_tags (comma-separated or array)               |
+| **Description** | listing description                | Yes                       | inventory.listing_description (AI or manual)                    |
+| **Price**       | price                              | Yes                       | inventory.sale_revenue or listing price                         |
+| **Photos**      | main + up to 9 more                | Yes (at least 1)          | inventory.picture_1 … picture_10 (paths or URLs)                |
+| **Shipping**    | profile or override                | Yes for physical          | Shipping profile or item-level; from Config or item             |
 
 **Can't list until complete:** An item **cannot** be listed (List on Etsy / Publish) until **all** Etsy-required fields and **all** required AI-generated content (at least listing_title, listing_description, listing_tags) are present and saved on the inventory record. The app enforces this; any missing required field appears in validation/outstanding (ADR-020, ADR-021).
 
@@ -61,7 +61,7 @@ The data returned from the AI must be **structured** (e.g. JSON) so each element
 }
 ```
 
-The template/requirements doc (this document and the Trudy docs) define the **prompt and constraints** for the AI (tone, length, Etsy rules). The response shape above is the **contract** for direct import: field names match inventory columns (ADR-017). Implementations may extend with more keys (e.g. attributes) when needed.
+The template/requirements doc (this document and the Trudy docs) define the **prompt and constraints** for the AI (tone, length, Etsy rules). The response shape above is the **contract** for direct import: field names match inventory columns (ADR-017). The response contract is fixed; field names match inventory columns. Extensions (e.g. additional keys) require a document/ADR update.
 
 ---
 
@@ -73,4 +73,32 @@ The template/requirements doc (this document and the Trudy docs) define the **pr
 
 ---
 
-*End of etsy-listing-template-and-requirements.md (first pass).*
+## 6. Operator procedure (required)
+
+Before requesting listing generation:
+
+1. Confirm item data completeness:
+   - item number
+   - description
+   - condition code
+   - sale revenue (>0)
+   - at least one picture
+2. Run listing readiness check for the item.
+3. If readiness is false, complete missing fields and re-check.
+4. When readiness is true, request listing generation.
+5. Review generated content for accuracy and policy compliance before any publish/list action.
+
+### Failure handling
+
+- If listing request is blocked by validation:
+  - follow field-level error guidance,
+  - fix missing item data,
+  - retry readiness and generation.
+- If AI request fails:
+  - retry once,
+  - verify image paths and AI configuration,
+  - use fallback manual listing entry if needed.
+
+---
+
+_End of etsy-listing-template-and-requirements.md (first pass)._

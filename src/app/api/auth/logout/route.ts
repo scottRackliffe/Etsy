@@ -1,18 +1,26 @@
 /**
  * POST /api/auth/logout
- * Clears Etsy access_token, refresh_token, and shop_id cookies (disconnect).
+ * Invalidates SQLite-backed Etsy session and clears session cookie.
  */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
-const TOKEN_COOKIE = "etsy_access_token";
-const REFRESH_COOKIE = "etsy_refresh_token";
-const SHOP_ID_COOKIE = "etsy_shop_id";
+import { errorResponse, fromUnknownError } from "@/lib/api-error";
+import { SESSION_COOKIE, clearSession } from "@/lib/auth-session";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.delete(TOKEN_COOKIE);
-  cookieStore.delete(REFRESH_COOKIE);
-  cookieStore.delete(SHOP_ID_COOKIE);
-  return NextResponse.json({ ok: true });
+  try {
+    const cookieStore = await cookies();
+    clearSession();
+    cookieStore.delete(SESSION_COOKIE);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse(
+      fromUnknownError(error, {
+        code: "INTERNAL_ERROR",
+        message: "Logout failed",
+        userMessage: "We could not disconnect your Etsy session.",
+        actions: ["Try disconnecting again.", "If the issue persists, refresh and retry."],
+      })
+    );
+  }
 }

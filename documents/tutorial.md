@@ -1,6 +1,6 @@
 # Tutorial: How Etsy works, how this app helps, and tips to improve sales
 
-This tutorial explains **how Etsy works**, **how the Etsy Sales Manager application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the system folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
+This tutorial explains **how Etsy works**, **how the Etsy Sales Manager application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the tips folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
 
 ---
 
@@ -38,18 +38,18 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ### What the app does
 
-| Area | How it helps |
-|------|----------------|
-| **Dashboard** | Quick view of activity and outstanding items (e.g. orders to ship). |
-| **Sales / Orders** | See Etsy orders in one place; mark paid/shipped; print labels, thank-you notes, invoices; link orders to your inventory and customers. |
-| **Inventory** | Track each item: description, costs (purchase, shipping, other), dates (purchased, listed, sold), **up to 10 photos**, and **condition** (grade + notes + up to 5 condition pictures). Use the **directory picker and preview** to add pictures from a folder and confirm the right images. |
-| **Customers** | Store buyer names and addresses; link purchases to customers; use data for thank-you notes and invoices. |
-| **Reports** | Thank-you note, invoice, sales list, costs, **income month-to-date and year-to-date**, and **postal costs by vendor** (USPS, UPS, FedEx, DHL) so you know where your money goes. |
-| **Config** | Connect/disconnect Etsy, set default shipper, business details for invoices; optional link to your own “why pictures matter” or other guides. |
+| Area               | How it helps                                                                                                                                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**      | Quick view of activity and outstanding items (e.g. orders to ship).                                                                                                                                                                                                                         |
+| **Sales / Orders** | See Etsy orders in one place; mark paid/shipped; print labels, thank-you notes, invoices; link orders to your inventory and customers.                                                                                                                                                      |
+| **Inventory**      | Track each item: description, costs (purchase, shipping, other), dates (purchased, listed, sold), **up to 10 photos**, and **condition** (grade + notes + up to 5 condition pictures). Use the **directory picker and preview** to add pictures from a folder and confirm the right images. |
+| **Customers**      | Store buyer names and addresses; link purchases to customers; use data for thank-you notes and invoices.                                                                                                                                                                                    |
+| **Reports**        | Thank-you note, invoice, sales list, costs, **income month-to-date and year-to-date**, and **postal costs by vendor** (USPS, UPS, FedEx, DHL) so you know where your money goes.                                                                                                            |
+| **Config**         | Connect/disconnect Etsy, set default shipper, business details for invoices; optional link to your own “why pictures matter” or other guides.                                                                                                                                               |
 
 ### Tutorial and guides in the app
 
-- The app exposes **Tutorial and tips** (one tab) that includes this document and to [pictures-and-sales.md](pictures-and-sales.md). In Config you can add a path or URL to **your own** guides (e.g. Etsy Seller Handbook PDFs, pricing notes) so everything is in one place.
+- The app exposes **Tutorial and tips** (one tab) that includes this document and [pictures-and-sales.md](pictures-and-sales.md). In Config you can add a path or URL to **your own** guides (e.g. Etsy Seller Handbook PDFs, pricing notes) so everything is in one place.
 
 ---
 
@@ -86,7 +86,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 - **Item cost:** What you paid (purchase cost). Track it in **Inventory** in this app.
 - **Shipping cost:** What you pay the carrier (USPS, UPS, FedEx, DHL). Track it per order (and by vendor in **Reports**). You can charge the buyer a shipping price or fold it into the item price; either way, know your **actual** shipping cost.
 - **Other costs:** Repairs, cleaning, materials, fees. Use the **other costs** (amount + description) in Inventory so nothing is missed.
-- **Etsy fees:** Listing fee per listing; transaction fee (percentage of sale + payment processing); optional ad fees. Check Etsy’s current fee page. Your **sale revenue** in this app is what you receive; Etsy has already taken its cut from the buyer’s payment.
+- **Etsy fees:** Listing fee per listing; transaction fee (percentage of sale + payment processing); optional ad fees. Check Etsy’s current fee page: [Etsy Fees and Taxes](https://www.etsy.com/help/article/136) (last verified 2026-02-16). Your **sale revenue** in this app is what you receive; Etsy has already taken its cut from the buyer’s payment.
 
 ### Cost-based pricing (floor)
 
@@ -94,7 +94,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ### Market-based pricing
 
-- See what **similar items** sell for on Etsy (search, filters, sold listings). Price in line with the market unless you have a reason to be higher (rarity, condition, presentation) or lower (clearance, minor flaws).
+- See what **similar items** sell for on Etsy: search similar items, filter for comparable condition/era/category, and review sold listings to calibrate actual market pricing. Price in line with the market unless you have a reason to be higher (rarity, condition, presentation) or lower (clearance, minor flaws).
 - For **vintage/antique**, condition (Mint/Near Mint vs Fair/As-Is) and documentation (photos, notes) justify price differences. Our condition section helps you document so you can price accordingly.
 
 ### Psychology and presentation
@@ -110,18 +110,53 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ## Quick reference
 
-| Topic | Where in the app | Where in this doc |
-|-------|-------------------|-------------------|
-| Connect Etsy | Config; Dashboard | Part 2 |
-| View orders | Sales / Orders | Part 2 |
-| Track inventory & costs | Inventory | Part 2, Part 4 |
-| Add pictures (directory → preview) | Inventory (main + condition) | Part 2; [pictures-and-sales.md](pictures-and-sales.md) |
-| Condition (grade, notes, pics) | Inventory → Condition | Part 3; Part 4 |
-| Customers | Customers | Part 2 |
-| Income & costs reports | Reports | Part 2, Part 4 |
-| Postal costs by vendor | Reports | Part 2 |
-| Set prices | — (use Etsy + this app’s cost/revenue data) | Part 4 |
+| Topic                              | Where in the app                            | Where in this doc                                      |
+| ---------------------------------- | ------------------------------------------- | ------------------------------------------------------ |
+| Connect Etsy                       | Config; Dashboard                           | Part 2                                                 |
+| View orders                        | Sales / Orders                              | Part 2                                                 |
+| Track inventory & costs            | Inventory                                   | Part 2, Part 4                                         |
+| Add pictures (directory → preview) | Inventory (main + condition)                | Part 2; [pictures-and-sales.md](pictures-and-sales.md) |
+| Condition (grade, notes, pics)     | Inventory → Condition                       | Part 3; Part 4                                         |
+| Customers                          | Customers                                   | Part 2                                                 |
+| Income & costs reports             | Reports                                     | Part 2, Part 4                                         |
+| Postal costs by vendor             | Reports                                     | Part 2                                                 |
+| Set prices                         | — (use Etsy + this app’s cost/revenue data) | Part 4                                                 |
 
 ---
 
-*For installation and setup, see [installation.md](installation.md). For Etsy rules we follow, see [etsy-compliance.md](etsy-compliance.md).*
+## Part 5: How to operate this system (practical)
+
+### Daily workflow (current UI)
+
+1. Open dashboard and confirm connection status.
+2. If not connected, click **Connect Etsy** and complete OAuth.
+3. Select the shop you want to work on.
+4. Review recent orders:
+   - prioritize unpaid/unshipped items,
+   - check totals and ship-to details.
+5. Resolve any error banner actions before continuing.
+
+### Listing workflow (API-ready, UI integration ongoing)
+
+For each inventory item before listing request:
+
+1. Ensure required fields exist:
+   - item number
+   - description
+   - condition code
+   - sale revenue (>0)
+   - at least one picture
+2. Run listing readiness check.
+3. Only when ready, request listing content generation.
+4. Review generated title/description/tags before publish/list actions.
+
+### If something fails
+
+- Read the error title and message.
+- Follow each action listed by the system in order.
+- Retry once after completing actions.
+- If still failing, capture details (time, shop/item/order id, exact message) and escalate.
+
+---
+
+_For installation and setup, see [installation.md](installation.md). For day-to-day operations, see [operating-the-system.md](operating-the-system.md). For Etsy rules we follow, see [etsy-compliance.md](etsy-compliance.md)._

@@ -14,7 +14,9 @@ The outstanding panel and full-page Outstanding tab (ADR-009) show a data-driven
 
 ## Decision
 
-The outstanding list is the **union** of the following item types. Each type has an exact definition and a query rule (SQL or equivalent). The list is ordered by priority (implementation may choose sort order; e.g. by date, then by type). The panel may show a capped number (e.g. top 20); the full-page Outstanding tab shows the full list. Clicking an item puts context in place (navigate to tab and select record) per ADR-009.
+The outstanding list is the **union** of the following item types. Each type has an exact definition and a query rule (SQL or equivalent). The list is ordered by user-configurable sort (ADR-020 sort order; default date first). The panel may show a capped number (e.g. top 20); the full-page Outstanding tab shows the full list. Clicking an item puts context in place (navigate to tab and select record) per ADR-009.
+
+**Exclude void/cancelled orders:** For every outstanding type that is **order-based** (types 1, 2, 6 — orders paid but not shipped, orders not yet paid, orders missing shipping cost), include **only** orders where **every** purchase row in that order has **order_status = 'active'**. Do not show void or cancelled orders on the outstanding list; they need no action. (ADR-017: order_status one of active, void, cancelled.)
 
 **Item types and query rules:**
 
@@ -48,7 +50,9 @@ The outstanding list is the **union** of the following item types. Each type has
 
 **Query rule:** Not a pure SQL query. (1) Fetch receipts from Etsy (same as dashboard, e.g. last N receipts). (2) For each receipt id, check whether there exists a row in `purchase` with `etsy_receipt_id` = that id. (3) If no such row exists, the receipt is “new Etsy order not yet synced.” Display one outstanding item per such receipt, e.g. “Etsy order #&lt;receipt_id&gt; – not synced”.
 
-**Target on click:** Sales tab; optionally open a “Sync from Etsy” flow or show a list of unsynced receipts. Or: navigate to Sales and highlight “Sync from Etsy” command. Implementation may show a detail that says “Sync to import this order.”
+**Rate-limit and failure behavior:** Cache the fetched Etsy receipt-id set for 5 minutes to reduce repeated API calls from panel/tab refreshes. If Etsy returns HTTP 429, keep showing cached results and surface “Etsy sync status may be delayed.” If Etsy is unavailable, omit this type from the list for that refresh and show “Etsy sync status unavailable.”
+
+**Target on click:** Sales tab; navigate to Sales and highlight or focus the “Sync from Etsy” command. The app shows a clear indication that syncing will import this order (e.g. detail text: “Sync to import this order”). User may then run Sync from Etsy.
 
 ---
 
@@ -57,6 +61,7 @@ The outstanding list is the **union** of the following item types. Each type has
 **Definition:** Inventory rows with status that indicates in stock but not yet listed (e.g. status = ‘In stock’ and date_listed IS NULL, or status = ‘Draft’ and ready to list).
 
 **Query rule:** Select from `inventory` where:
+
 - `status` = ‘In stock’ AND (`date_listed` IS NULL OR `date_listed` = ‘’)
 - OR `status` = ‘Draft’ (items being prepared; user may list them next).
 
@@ -70,9 +75,10 @@ One outstanding item per inventory row. Display: e.g. “Item &lt;item_number&gt
 
 **Definition:** Customers that have zero addresses, or for which every address is “incomplete” (missing required fields for shipping).
 
-**Query rule:** Required address fields for “complete”: at least address_line_1, city, country, postal_code (per ADR-003 and typical shipping). So:
-- Customers with no addresses: `customer` id not in (select customer_id from customer_address).
-- Customers with only incomplete addresses: customer_id in (select customer_id from customer_address group by customer_id having every row missing at least one of address_line_1, city, country, postal_code). Simpler rule: list `customer` where id NOT IN (select customer_id from customer_address where address_line_1 IS NOT NULL AND address_line_1 <> ’’ AND city IS NOT NULL AND city <> ’’ AND country IS NOT NULL AND country <> ’’ AND postal_code IS NOT NULL AND postal_code <> ’’). So: customers who do not have at least one address with non-empty address_line_1, city, country, postal_code.
+**Query rule:** Required address fields for “complete”: address_line_1, city, country, postal_code (per ADR-003 and typical shipping). List customers where `customer.id` is **not in** the set of customer ids that have at least one complete address:
+
+- complete-address set = `SELECT customer_id FROM customer_address WHERE address_line_1 IS NOT NULL AND address_line_1 <> '' AND city IS NOT NULL AND city <> '' AND country IS NOT NULL AND country <> '' AND postal_code IS NOT NULL AND postal_code <> ''`
+- outstanding set = customers with `id NOT IN (complete-address set)`
 
 One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt; &lt;last_name&gt; – no address” or “incomplete address”.
 
@@ -80,7 +86,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ---
 
-### 6. Optional future: orders missing shipping cost
+### 6. Orders missing shipping cost (in scope)
 
 **Definition:** Orders that have been shipped (shipper and shipping_date set) but shipping_cost is NULL or zero and should be filled for accurate “postal costs by vendor” report.
 
@@ -94,7 +100,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 **Definition:** Records that failed validation or context checks at save time and were not auto-corrected. Each such record appears as an outstanding to-do so the user can fix it (e.g. "Order #123 — select a customer," "Item X — listing description required before List on Etsy").
 
-**Query rule:** Implementation may store a flag or run validation/context checks and list failures. Per ADR-021: every validation or context-check failure either auto-corrects or creates an outstanding item. One outstanding item per record (or per order) that has unresolved validation/context issues.
+**Query rule:** When the Outstanding list is built, the app runs validation and context checks (ADR-021) for the relevant records; records (or orders) with unresolved validation/context-check failures appear as outstanding items. One outstanding item per record or per order that has unresolved issues. No separate stored "flag" is required; the app evaluates validation state to build the list.
 
 **Target on click:** Navigate to the tab and record that needs attention (e.g. Sales → order; Inventory → item).
 
@@ -102,15 +108,15 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ### Summary table
 
-| Type | Data source | Query / logic | One item per | Click target |
-|------|-------------|----------------|--------------|--------------|
-| Paid but not shipped | purchase | order_id where any row has shipping_date/shipper/shipping_cost missing | order_id | Sales, order |
-| Not yet marked paid | purchase | order_id where all rows have was_paid = 0 | order_id | Sales, order |
-| New Etsy not synced | Etsy API + purchase | Receipt ids with no purchase.etsy_receipt_id | receipt | Sales, sync or order |
-| In stock not listed | inventory | status In stock/Draft and date_listed empty | inventory id | Inventory, item |
-| Customer no/incomplete address | customer, customer_address | Customer with no complete address | customer id | Customers, customer |
-| Missing shipping cost | purchase | order with shipper/shipping_date set but shipping_cost null/0 | order_id | Sales, order |
-| Validation/context-check issues | DB or computed | records with unresolved validation/context failures | record or order_id | Tab and record |
+| Type                            | Data source                | Query / logic                                                          | One item per       | Click target         |
+| ------------------------------- | -------------------------- | ---------------------------------------------------------------------- | ------------------ | -------------------- |
+| Paid but not shipped            | purchase                   | order_id where any row has shipping_date/shipper/shipping_cost missing | order_id           | Sales, order         |
+| Not yet marked paid             | purchase                   | order_id where all rows have was_paid = 0                              | order_id           | Sales, order         |
+| New Etsy not synced             | Etsy API + purchase        | Receipt ids with no purchase.etsy_receipt_id                           | receipt            | Sales, sync or order |
+| In stock not listed             | inventory                  | status In stock/Draft and date_listed empty                            | inventory id       | Inventory, item      |
+| Customer no/incomplete address  | customer, customer_address | Customer with no complete address                                      | customer id        | Customers, customer  |
+| Missing shipping cost           | purchase                   | order with shipper/shipping_date set but shipping_cost null/0          | order_id           | Sales, order         |
+| Validation/context-check issues | DB or computed             | records with unresolved validation/context failures                    | record or order_id | Tab and record       |
 
 ---
 

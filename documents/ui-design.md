@@ -21,12 +21,12 @@ When in doubt: **fewer steps, clearer labels, predictable behavior.**
 
 ## 1. Layout overview
 
-| Area | Position | Purpose |
-|------|----------|---------|
-| **Tabs** | Top, full width | Main application sections. One tab active; content below. |
-| **Commands** | One side (left or right) | Context-sensitive actions for the current tab (and global actions where it makes sense). **Which side is which** (commands vs outstanding) is **configurable in Config**; the UI also provides an **icon that flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. |
-| **Outstanding / To-do** | Opposite side from commands | **Panel** listing outstanding work to be done. **Click an item** → the app **puts context in place**: it **navigates to the correct tab** and **opens/selects the correct record** so the user is on the right screen with the right order, item, or customer **ready for action**. |
-| **Content** | Center / main area | List, form, or report for the active tab. |
+| Area                    | Position                    | Purpose                                                                                                                                                                                                                                                                                                   |
+| ----------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tabs**                | Top, full width             | Main application sections. One tab active; content below.                                                                                                                                                                                                                                                 |
+| **Commands**            | One side (left or right)    | Context-sensitive actions for the current tab (and global actions where it makes sense). **Which side is which** (commands vs outstanding) is **configurable in Config**; the UI also provides an **icon that flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. |
+| **Outstanding / To-do** | Opposite side from commands | **Panel** listing outstanding work to be done. **Click an item** → the app **puts context in place**: it **navigates to the correct tab** and **opens/selects the correct record** so the user is on the right screen with the right order, item, or customer **ready for action**.                       |
+| **Content**             | Center / main area          | List, form, or report for the active tab.                                                                                                                                                                                                                                                                 |
 
 **Header:** App name (e.g. “Trudy’s Etsy Sales”), maybe global status (Etsy connected / not connected), user or shop indicator. No tabs in the header strip if we want a clean “tabs only” bar below it.
 
@@ -36,16 +36,16 @@ When in doubt: **fewer steps, clearer labels, predictable behavior.**
 
 Proposed top-level tabs. Order can change; names are placeholders.
 
-| Tab | Purpose | Main content |
-|-----|---------|--------------|
-| **Dashboard** | Home. Snapshot of today: recent activity, quick stats (e.g. orders this week, revenue MTD), and a feed or summary. | Summary cards, recent orders, link into “outstanding” items. |
-| **Sales / Orders** | Everything about orders and completing a sale. | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process. |
-| **Inventory** | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping). | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (Draft, In stock, Listed, Sold, etc.). When date listed is entered, item is In stock / Listed. |
-| **Customers** | Buyers and addresses. | Customer list. Add / edit customer (name, address). View purchases per customer. |
-| **Reports** | Run and view reports. | Chooser: Thank you note, Invoice, Sales, Costs, Income (MTD/YTD), Postal costs by vendor. Options (date range, order/customer). Preview or download. |
-| **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to system folder files. | **Search** (over in-app content and system-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, system folder files). **Links to files in the system folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md). |
-| **Outstanding** | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab. | Same items as the “outstanding” panel, but full-page so user can work through the list. |
-| **Config / Settings** | Etsy connection, preferences, defaults. | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. Business name/address for invoices. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
+| Tab                   | Purpose                                                                                                                          | Main content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Home. Snapshot of today: recent activity, quick stats (e.g. orders this week, revenue MTD), and a feed or summary.               | Summary cards, recent orders, link into “outstanding” items.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **Sales / Orders**    | Everything about orders and completing a sale.                                                                                   | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (Draft, In stock, Listed, Sold, etc.). When date listed is entered, item is In stock / Listed.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View purchases per customer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Reports**           | Run and view reports.                                                                                                            | Chooser: Thank you note, Invoice, Sales, Costs, Income (MTD/YTD), Postal costs by vendor. Options (date range, order/customer). Preview or download.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to tips-folder files. | **Search** (over in-app content and tips-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, tips-folder files). **Links to files in the tips folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md).                                                                                                                                                                                                                                                                                           |
+| **Outstanding**       | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab.                                | Same items as the “outstanding” panel, but full-page so user can work through the list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Config / Settings** | Etsy connection, preferences, defaults.                                                                                          | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. **Business details:** name, address, **user logo** (upload or select; stored in system for use in invoices, thank-you notes, reports, labels). **Shipping Info:** per-carrier data needed for labels (account numbers, return address, etc.); user adds/edits here; required when Printing shipping label if label cannot be complete without it. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
 
 **Recommendation:** Start with **Dashboard**, **Sales**, **Inventory**, **Customers**, **Reports**, **Tutorial and tips**, **Config**. Treat “Outstanding” as a **panel** on the right (or left) on every tab, not its own tab—unless you want a full-page “Outstanding” tab as well.
 
@@ -71,7 +71,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Sync from Etsy** (pull latest orders).
 - **Mark as paid** (for selected order).
 - **Mark as shipped** (for selected order; prompt for shipper and date).
-- **Print shipping label** (for selected order).
+- **Print shipping label** (for selected order): No automated connection to any shipping service. App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to go to Config → Shipping Info. See shipping-label-carrier-templates.md. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first.
 - **Thank you note** (generate/print for selected order).
 - **Invoice** (generate/print for selected order).
 - **Record in inventory** (link order to inventory item / mark item sold).
@@ -107,16 +107,16 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 ### Tutorial and tips (knowledge base)
 
 - **Search** — Search box over in-app content (tutorial + tips) and system-folder file names; results open article or file.
-- **Index** — Browsable list of topics (How Etsy works, How this app helps, Sales tips, Pricing, Pictures, Etsy rules, system folder files); click to jump to section or open linked file. Links to **files in the system folder** open in the OS default app.
+- **Index** — Browsable list of topics (How Etsy works, How this app helps, Sales tips, Pricing, Pictures, Etsy rules, tips-folder files); click to jump to section or open linked file. Links to **files in the tips folder** open in the OS default app.
 - No other commands; content is read-only (tutorial and tips merged in this tab).
 
 ### Config / Settings
 
 - **Connect Etsy** / **Disconnect**.
 - **Set default shipper** (USPS, UPS, FedEx, DHL).
-- **Business details** (name, address for invoices).
+- **Business details** (name, address for invoices; **user logo** — upload or select, stored in system, placed on documents).
 - **Redirect URI** (read-only reminder for Etsy app settings).
-- **Optional:** “Why pictures matter” path/URL; **Tutorial and tips system folder path** (folder on the system whose files appear as links in the knowledge base).
+- **Optional:** “Why pictures matter” path/URL; **Tutorial and tips custom folder path** (folder on the system whose files appear as links in the knowledge base).
 
 ---
 
@@ -215,11 +215,11 @@ Each inventory item can have up to **10 pictures** (picture 1 = primary; order m
 
 **Ways to get pictures in**
 
-| Method | Description |
-|--------|-------------|
-| **Upload** | User picks one or more files (e.g. from a file dialog). App assigns them to slots 1–10 in order; user can reorder or replace. |
+| Method               | Description                                                                                                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Upload**           | User picks one or more files (e.g. from a file dialog). App assigns them to slots 1–10 in order; user can reorder or replace.                                                                                                    |
 | **Select directory** | User selects a folder via directory picker; app shows **preview of some pictures** from that folder so user can confirm correct directory; then app maps files to slots (main 1–10 or condition 1–5). Same for Replace per slot. |
-| **URL** (optional) | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot. |
+| **URL** (optional)   | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot.                                                                                                                     |
 
 **Process: add or replace pictures for an item**
 
@@ -252,13 +252,13 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 **Condition (code) — dropdown options**
 
-| Term | Meaning |
-|------|--------|
-| **Mint/Near Mint** | Item appears unused, pristine, and without flaws. |
-| **Excellent** | Very minor signs of use, consistent with age, but no damage. |
-| **Very Good** | Light wear, minor surface scratches, or patina, but structurally sound. |
-| **Good** | Typical vintage/antique wear, minor flaws (e.g., small chip, light stains) noted in description. |
-| **Fair/As-Is** | Visible damage, significant wear, or requiring restoration. |
+| Term               | Meaning                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| **Mint/Near Mint** | Item appears unused, pristine, and without flaws.                                                |
+| **Excellent**      | Very minor signs of use, consistent with age, but no damage.                                     |
+| **Very Good**      | Light wear, minor surface scratches, or patina, but structurally sound.                          |
+| **Good**           | Typical vintage/antique wear, minor flaws (e.g., small chip, light stains) noted in description. |
+| **Fair/As-Is**     | Visible damage, significant wear, or requiring restoration.                                      |
 
 **Fields**
 
@@ -286,15 +286,15 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 ## 6. Summary: tabs and commands at a glance
 
-| Tab | Commands (examples) | Outstanding (examples) |
-|-----|----------------------|-------------------------|
-| Dashboard | Refresh, Connect Etsy | Unshipped orders, new orders |
-| Sales | New order, Sync, Mark paid/shipped, Label, Thank you, Invoice, Record in inventory | Same |
-| Inventory | Add, Edit, Pictures, Mark listed/sold, Retire | Items to list |
-| Customers | Add, Edit, View purchases | Incomplete addresses |
-| Reports | Each report type, Export | — |
-| Tutorial and tips | Search, Index, links to system folder files | — |
-| Config | Connect Etsy, Default shipper, Business details, optional guide links | — |
+| Tab               | Commands (examples)                                                                | Outstanding (examples)       |
+| ----------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
+| Dashboard         | Refresh, Connect Etsy                                                              | Unshipped orders, new orders |
+| Sales             | New order, Sync, Mark paid/shipped, Label, Thank you, Invoice, Record in inventory | Same                         |
+| Inventory         | Add, Edit, Pictures, Mark listed/sold, Retire                                      | Items to list                |
+| Customers         | Add, Edit, View purchases                                                          | Incomplete addresses         |
+| Reports           | Each report type, Export                                                           | —                            |
+| Tutorial and tips | Search, Index, links to tips-folder files                                          | —                            |
+| Config            | Connect Etsy, Default shipper, Business details, optional guide links              | —                            |
 
 **Outstanding panel:** Same idea on every tab: unshipped orders, new orders, items to list, incomplete customers. Click an item → app **puts context in place** (correct tab + correct record, ready for action).
 

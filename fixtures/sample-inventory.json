@@ -1,0 +1,20 @@
+[
+  {
+    "item_number": "INV-2001",
+    "description": "Blue transferware dinner plate",
+    "purchase_cost": 8.5,
+    "shipping_cost": 3.25,
+    "status": "draft",
+    "quantity": 1,
+    "category_tags": ["vintage", "plate", "transferware"]
+  },
+  {
+    "item_number": "INV-2002",
+    "description": "Sterling silver teaspoon",
+    "purchase_cost": 11,
+    "shipping_cost": 2.75,
+    "status": "draft",
+    "quantity": 2,
+    "category_tags": ["sterling", "flatware", "antique"]
+  }
+]

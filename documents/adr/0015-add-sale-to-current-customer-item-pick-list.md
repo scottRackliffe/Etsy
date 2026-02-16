@@ -19,7 +19,7 @@ Users need to record multiple sales for the same customer (e.g. in-person or non
 - **Item sold is chosen from a pick list** that shows:
   - A **picture icon** (thumbnail) of the item — **created when the item is entered** (when the user adds the inventory item or adds its first picture). We do not generate the icon on demand when the pick list is shown; we create and store it at item entry time.
   - The **item name** (and optionally item number or short description)
-  Each row in the list is selectable (one item = one sale line when recording a sale).
+    Each row in the list is selectable (one item = one sale line when recording a sale).
 
 - **Selection methods:**
   - **Scroll** — User scrolls through the list of items (picture icon + name) and selects one.
