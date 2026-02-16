@@ -66,6 +66,20 @@ A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classi
 
 For full step-by-step instructions on **macOS** and **Windows 11** (prerequisites, Etsy app setup, env config, running the app), see **[documents/installation.md](documents/installation.md)**.
 
+### Scripted install/run
+
+Initialize once:
+
+```bash
+npm run ESM_initialize
+```
+
+Then run normally (no initialization):
+
+```bash
+npm run ESM
+```
+
 ## Operations guide
 
 For day-to-day operation workflows (startup, connection checks, order monitoring, listing readiness/generation, and error playbooks), see **[documents/operating-the-system.md](documents/operating-the-system.md)**.

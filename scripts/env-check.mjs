@@ -1,3 +1,22 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const envPath = path.join(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const idx = line.indexOf("=");
+    if (idx <= 0) continue;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
+    if (!(key in process.env)) {
+      process.env[key] = value;
+    }
+  }
+}
+
 const required = ["ETSY_CLIENT_ID", "ETSY_CLIENT_SECRET", "ETSY_REDIRECT_URI"];
 const optional = [
   "ETSY_API_KEY_HEADER",

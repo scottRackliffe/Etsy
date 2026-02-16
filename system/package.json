@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "ESM_initialize": "node scripts/install-esm.mjs --skip-start",
+    "ESM": "next dev",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

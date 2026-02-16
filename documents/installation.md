@@ -4,6 +4,24 @@ This guide covers installing and running the Etsy Sales Manager app on **macOS**
 
 ---
 
+## Quick path (scripted)
+
+From project root:
+
+```bash
+npm run ESM_initialize
+```
+
+This command scripts local initialization (env, dependency install, db reset/seed).
+
+Then run the app normally:
+
+```bash
+npm run ESM
+```
+
+---
+
 ## 1. Prerequisites
 
 ### Node.js and npm
