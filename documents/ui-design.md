@@ -10,11 +10,10 @@ This document defines the application layout: **tabs** (top), **commands** (left
 
 - **Tabs** — Use clear, everyday names (Dashboard, Sales, Inventory, Customers, Reports, Config). Order follows how people work: overview first, then day-to-day work (sales, inventory, customers), then reports, then settings.
 - **Commands** — One action per command; label with a verb (“Add item”, “Mark shipped”). Show only commands that apply to the current tab and selection. Avoid nested menus for core actions.
-- **Outstanding panel** — Label it clearly (e.g. “To do” or “Needs attention”). Each row is one thing; clicking it **puts context in place**: go to the **correct tab** and **correct record** ready for action. No hidden steps.
-- **Detail card** — Show the most important info at a glance. Buttons say what they do (“Mark shipped”, “View order”). A clear way to close (X or “Done”) so it’s obvious how to get back.
+- **Outstanding panel** — Label it clearly (e.g. “To do” or “Needs attention”). Each row is one thing; clicking it **puts context in place**: go to the **correct tab** and **correct record** ready for action (ADR-009). No separate overlay; the main content area shows the right tab and record.
 - **Lists and forms** — Column headers and field labels use plain language. Primary action (Save, Submit) is easy to spot. Errors and success messages are short and tell the user what to do next.
 - **Processes** — Common flows (complete a sale, add customer, add item, import pictures) should match how the user thinks: “I have an order” → Sales; “I need to add a buyer” → Customers or from the order. No hunting for the right place.
-- **Consistency** — Same pattern everywhere: select something in the center → act via commands or via the outstanding detail card. Same style of buttons, cards, and feedback across tabs.
+- **Consistency** — Same pattern everywhere: select something in the center → act via commands or by clicking an outstanding item (context in place). Same style of buttons, cards, and feedback across tabs.
 
 When in doubt: **fewer steps, clearer labels, predictable behavior.**
 
@@ -121,28 +120,26 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ---
 
-## 4. Outstanding / To-do list (panel + detail card)
+## 4. Outstanding / To-do list (panel and full-page tab)
 
-**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It is **not** a full tab; it stays visible on every tab. Items are **data-driven only**; we do not support user-added manual tasks. The panel shows as many data-driven next steps as we can. Which side this panel is on (vs commands) is **configurable in Config**; an **icon in the UI** lets the user **swap** the two panels.
+**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It stays visible on every tab. We also support a full-page **Outstanding** tab with the same list (ADR-009). Items are **data-driven only**; we do not support user-added manual tasks. Which side the panel is on (vs commands) is **configurable in Config**; an **icon in the UI** lets the user **swap** the two panels.
 
-**Data-driven next steps:**
+**Data-driven next steps (exact definitions and query rules: ADR-020):**
 
 - Orders **paid but not yet shipped**.
 - Orders **not yet marked paid** (after payment received).
 - New **Etsy orders** not yet synced or processed.
-- **Inventory items** in “In stock” but not yet “Listed” .
+- **Inventory items** in “In stock” but not yet “Listed”.
 - **Customers** with no address or incomplete address.
-- (Add more data-driven next steps as the app grows — e.g. orders missing shipping cost, items without pictures — so the user always sees the most useful next actions.)
+- (Optional: orders missing shipping cost — ADR-020.)
 
-**We do not support user-added manual tasks.** Outstanding items are data-driven only. “List item #42”, “Follow up with customer X”). 
+**We do not support user-added manual tasks** (e.g. “List item #42”, “Follow up with customer X”).
+
 **Behavior:**
 
-- **Panel:** Show a short list (e.g. top 10–20) with one-line summary per item (e.g. “Order #1234 – Jane Doe – not shipped”).
-- **Click an item:** The app **puts context in place**: it **navigates to the correct tab** (Sales, Inventory, Customers, etc.) and **opens/selects the correct record** (that order, item, or customer) so the user is **ready for action**. No hunting for the tab or record — one click and the user can act. Optionally show a detail card or inline actions; the key is correct tab + correct record. (Previously: detail card popped up (overlay/modal or slide-out card) for that item. The card shows:
-  - Key details (order #, customer, date, status; or item #, description; or customer name, address gap).
-  - **Quick actions** (e.g. “Mark shipped”, “Mark paid”, “View full order”, “Edit customer”, “Go to Inventory”). Actions may open the relevant tab or complete the action in place and refresh the panel.
-- User can **dismiss** the card (e.g. X or click outside) and stay on the current tab; no requirement to navigate away.
-- “Outstanding” panel is on the **right** if commands are on the **left** (or the opposite).
+- **Panel:** Show a short list (e.g. top 10–20) with one-line summary per item (e.g. “Order #1234 – Jane Doe – not shipped”). Full-page Outstanding tab shows the full list.
+- **Click an item:** The app **puts context in place** (ADR-009): it **navigates to the correct tab** (Sales, Inventory, Customers, etc.) and **opens/selects the correct record** (that order, item, or customer) so the user is **ready for action**. The main content area shows the right tab and record; we do not use a separate overlay or modal. The user can then use commands (e.g. “Mark shipped”, “Mark paid”, “View full order”, “Edit customer”) on that tab.
+- “Outstanding” panel is on the **right** if commands are on the **left** (or the opposite, per Config).
 
 ---
 
@@ -175,9 +172,10 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 ### 5.4 List item for sale (optional flow)
 
 1. **Inventory** tab: select item.
-2. Command **Mark as listed** (or “List on Etsy” if we integrate listing creation).
-3. Set **date listed**. Optionally link Etsy listing ID when listed on Etsy.
-4. Status → “Listed.”
+2. **Generate listing content** (optional): User runs "Generate listing content" (or equivalent). The app **sends all item pictures** (picture_1…picture_10 and condition_picture_1…condition_picture_5 — every non-empty one) to the AI with item context and the listing template/requirements. The AI returns title, description, and 13 tags; the app saves them to the item. Do not generate listing content without providing all associated pictures. Full requirements: **[documents/etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md)**.
+3. Command **Mark as listed** (or “List on Etsy” if we integrate listing creation). Item cannot be listed until required listing content is complete per the template doc.
+4. Set **date listed**. Optionally link Etsy listing ID when listed on Etsy.
+5. Status → “Listed.”
 
 ### 5.5 Run a report
 

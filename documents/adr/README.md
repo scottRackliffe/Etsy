@@ -14,6 +14,8 @@ We use a standard format for all ADRs:
 - **Consequences** – Positive and negative outcomes of the decision.
 - **Notes** – (Optional) References, alternatives, or follow-ups.
 
+**For implementers:** Each ADR is self-contained for its decision. For UI flows, commands, and the exact definition of “outstanding” items, see [documents/ui-design.md](../ui-design.md). For Etsy compliance details, see [documents/etsy-compliance.md](../etsy-compliance.md). For implementation order (phases only), see [documents/implementation-guide.md](../implementation-guide.md). For Etsy listing content requirements, "can't list until complete," and AI generation (including the requirement that **all item pictures** — picture_1…10 and condition_picture_1…5 — be sent to the AI when generating listing content), see [documents/etsy-listing-template-and-requirements.md](../etsy-listing-template-and-requirements.md).
+
 ## Index
 
 | ADR | Title |
@@ -33,3 +35,10 @@ We use a standard format for all ADRs:
 | [ADR-013](0013-report-output-pdf.md) | Report output format — PDF |
 | [ADR-014](0014-database-indexes-for-reports-and-queries.md) | Database indexes for reports and queries |
 | [ADR-015](0015-add-sale-to-current-customer-item-pick-list.md) | Add sale to current customer — item pick list (picture icon + name, scroll or filter) |
+| [ADR-016](0016-dashboard-content-and-behavior.md) | Dashboard — content, structure, and behavior |
+| [ADR-017](0017-database-schema.md) | Database schema — canonical definition (no ambiguity) |
+| [ADR-018](0018-api-surface-endpoints.md) | API surface — endpoints and behavior (no ambiguity) |
+| [ADR-019](0019-etsy-order-sync-import.md) | Etsy order sync / import — when and how Etsy receipts become local data |
+| [ADR-020](0020-outstanding-list-definitions-and-queries.md) | Outstanding list — definitions and query rules (no ambiguity) |
+| [ADR-021](0021-validation-and-business-rules.md) | Validation and business rules (no ambiguity) |
+| [ADR-022](0022-referential-integrity-and-delete-behavior.md) | Referential integrity and delete behavior (no ambiguity) |

@@ -18,11 +18,11 @@ The application must track sellable items with full financial and operational de
 
 Store the following in the database:
 
-- **Identity:** item number
+- **Identity:** item number — **required** and **unique** across inventory (used for display and for matching in bulk import).
 - **Description:** description (text)
 - **Financial:** purchase cost, shipping cost, sale revenue
 - **Dates:** date purchased (when you acquired the item), date listed (when you listed it for sale, e.g. on Etsy), date of sale, shipping date
-- **Media:** picture 1 through picture 10 (stored as paths or URLs in the database; files stored on disk or object storage)
+- **Media:** picture 1 through picture 10 (stored as paths or URLs in the database; files stored on disk or object storage). **Picture icon (thumbnail):** Create and store a small thumbnail when the item is created or when its first picture is added (e.g. a `thumbnail_path` column or a thumbnails store keyed by inventory id); used by pick lists (ADR-015). Size/format at implementation discretion (e.g. small JPEG). If the item has no picture yet, pick lists show a placeholder.
 - **Condition (Etsy-aligned, antique/vintage terms):**
   - **condition_code** — Item condition using **commonly used antique condition terms on Etsy**:
     - **Mint/Near Mint** — Item appears unused, pristine, and without flaws.
@@ -34,7 +34,7 @@ Store the following in the database:
   - **has_condition_issue** — Boolean: true if the item has a blemish, flaw, or issue that should be documented (and shown to buyers). When true, condition_notes and up to 5 condition pictures are relevant.
   - **condition_notes** — Optional text: accurate description of flaws. Use specific terminology where appropriate (e.g. “patina”, “crazing” for ceramics, “foxing” for paper). Sellers must accurately describe flaws; this field supports that.
   - **Condition pictures:** condition_picture_1 through condition_picture_5 — Up to 5 pictures that **substantiate the condition grade**: all sides, marks, and defects. Photos are crucial for the chosen condition. Paths or URLs in the database; files on disk or object storage. Empty slots are null.
-- **Status:** e.g. Draft, In stock, Listed, Sold, Reserved, Retired. We support **Draft** for items being prepared; when **date listed** is entered, the item is **In stock** (and typically moves to **Listed**).
+- **Status:** e.g. Draft, In stock, Listed, Sold, Reserved, Retired. We support **Draft** for items being prepared. When **date listed** is entered, the item is treated as **In stock** and **Listed** (the app may set status to Listed automatically or the user may set it via “Mark as listed”); status is stored in the database so filters and outstanding lists can use it.
 - **Optional:** Etsy listing ID (for linking to Etsy), quantity (default 1), category/tags, notes
 - **Audit:** created_at, updated_at
 

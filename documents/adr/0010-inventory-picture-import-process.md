@@ -17,7 +17,7 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 **Ways to get pictures in**
 
 - **Directory picker:** For any picture need (main or condition), open a file directory (folder) window; user selects the directory that contains the images.
-- **Import from folder:** User selects a single folder; app discovers image files (by name or order), maps them to picture 1–10 (first 10 if more), copies or moves files into app-controlled storage, saves paths to the database. Optional: bulk flow where a parent folder contains one subfolder per item and we import each subfolder’s images into that item’s slots.
+- **Import from folder:** User selects a single folder; app discovers image files (by name or order), maps them to picture 1–10 (first 10 if more), copies or moves files into app-controlled storage, saves paths to the database. **Bulk picture import (in scope):** (1) User selects an inventory item first (Inventory tab). (2) User runs Add / Import pictures. (3) App uses remembered directory (settings: default_picture_directory) or asks for directory and remembers it. (4) App opens a selection window showing all pictures in that directory with a selection control (e.g. checkboxes); user selects which pictures to import. (5) Selected pictures are filed with the selected item (picture_1 … picture_10 in order; thumbnail created per ADR-002/015). Optional: bulk flow where a parent folder contains one subfolder per item and we import each subfolder’s images into that item’s slots.
 - **URL (optional):** User can paste a URL for a picture; app stores the URL in the corresponding slot (no file copy).
 - **Preview (required after directory selection):** Display a preview of some pictures in the selected directory so the user can confirm correct folder before importing. Same for Replace per slot.
 - **"Why pictures matter" link:** Show a link to a doc on why pictures matter for sales. Default: documents/pictures-and-sales.md. Optional in Config: user path or URL (e.g. a PDF that was a beginning of this project).
@@ -50,4 +50,4 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 ## Notes
 
 - Full process description and “etc.” (e.g. thumbnails, “copy from another item”) are in [documents/ui-design.md](../ui-design.md) section 5.8. This ADR records the decision for the import mechanisms and commands.
-- **Picture icon (thumbnail):** When an item is entered or when its first picture is added, the app creates the **picture icon** (thumbnail) for that item at that time, for use in pick lists (e.g. "item sold" when recording a sale). See ADR-015.
+- **Picture icon (thumbnail):** When an item is entered or when its first picture is added, the app creates the **picture icon** (thumbnail) at that time and stores it (storage approach in ADR-002). Used in pick lists (ADR-015). No picture yet → show placeholder in pick list.

@@ -22,8 +22,8 @@ Build and ship a **base system** with the following:
 - **Token storage**  
   Access token (and refresh token) are stored in **HTTP-only cookies** (SameSite=Lax). No token in client-side JavaScript; API routes read cookies on the server. OAuth state and code_verifier are stored temporarily in cookies during the flow only.
 
-- **Token refresh (we will implement)**  
-  When the access token expires, the app **will** use the stored refresh token to obtain a new access token from Etsy so the user does not need to reconnect. Implementation is a required follow-up to the base system.
+- **Token refresh (required for production)**  
+  When the access token expires, the app uses the stored refresh token to obtain a new access token from Etsy so the user does not need to reconnect. See **Token refresh (full behavior)** below.
 
 - **API routes (Next.js App Router)**  
   - `GET /api/auth/etsy` — Start OAuth; set state and code_verifier in cookies; redirect to Etsy.  
@@ -33,15 +33,28 @@ Build and ship a **base system** with the following:
   - `GET /api/receipts?shop_id=&limit=&offset=` — Return shop receipts (orders) for the given shop (from Etsy API).
 
 - **Dashboard (single page)**  
-  - If not connected: show “Connect with Etsy” and link to `/api/auth/etsy`.  
-  - If connected: show shop selector (dropdown), then a table of recent receipts with date, order #, ship-to address, total, paid/shipped status. Data is fetched from Etsy on load (no database for Etsy orders in the base system).  
-  - “Disconnect” calls logout and clears cookies.
+  The dashboard’s exact content, structure, and behavior are specified in **[ADR-016](0016-dashboard-content-and-behavior.md)** (no ambiguity). In short: if not connected, show connect CTA and link to `/api/auth/etsy`; if connected, show shop selector and a table of recent receipts (date, order #, ship-to, total, paid, shipped). Data from Etsy on load; no DB persistence for Etsy orders in the base system. “Disconnect” calls logout and clears cookies.
 
 - **Etsy API client (`src/lib/etsy.ts`)**  
   Centralized helpers: config from env, PKCE generation, auth URL building, token exchange, and typed API calls to Etsy (shops, receipts) with `x-api-key` and Bearer token.
 
 - **Stack**  
   Next.js 16 (App Router), TypeScript, Tailwind CSS. Env: `ETSY_CLIENT_ID`, `ETSY_CLIENT_SECRET`, `ETSY_REDIRECT_URI` (and optionally `ETSY_API_KEY_HEADER`).
+
+---
+
+### Token refresh (full behavior)
+
+Token refresh is **required for production**. Users must not have to re-connect to Etsy just because the access token expired.
+
+**When to refresh:**
+
+- **On 401 from Etsy:** Any Etsy API call returns 401 (Unauthorized) → attempt refresh: call Etsy token endpoint with `grant_type=refresh_token` and the stored refresh token. If refresh succeeds, update the access token cookie (and refresh token if Etsy returned a new one) and **retry the original request** once. If refresh fails (e.g. 400, refresh token revoked), clear tokens and treat as not connected; redirect or prompt user to "Connect Etsy" again.
+- **Proactively (recommended):** If Etsy returns an expiry time for the access token (e.g. `expires_in` at grant), store it or compute expiry. Before making an Etsy request, if the access token is expired or within a short window (e.g. 5 minutes), refresh first, then proceed. If expiry is not available, rely on "refresh on 401" only.
+
+**How:** Etsy OAuth token endpoint. Request: `grant_type=refresh_token`, `refresh_token=<stored_refresh_token>`. Response: new access token (and possibly new refresh token; if so, replace stored refresh token in cookie). Update only the token cookie(s); do not change other state.
+
+**Single in-flight:** Only one refresh in progress per user/session; if a second request gets 401 while refresh is in progress, wait for that refresh to complete (or queue) then retry with the new token.
 
 ## Consequences
 
@@ -52,7 +65,7 @@ Build and ship a **base system** with the following:
 - **Negative**
   - Etsy receipt data is not persisted; each visit refetches from Etsy (rate limits apply).
 - **Planned**
-  - Token refresh will be implemented: use the refresh token when the access token expires so the user does not need to reconnect.
+  - Token refresh is specified in full above; required for production.
 
 ## Notes
 

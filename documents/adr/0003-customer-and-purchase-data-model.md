@@ -39,7 +39,7 @@ The system **must hold multiple ship-to addresses** per customer. This is a **co
 
 The purchase record **holds all data as it appeared at the time** of the sale. When the user picks a customer and (optionally) one of their addresses, the app copies that address — and the customer name — onto the purchase record at save time. So the purchase is a **snapshot**: invoices and thank-you notes always show what was actually used then; later changes to the customer or their addresses do not change past orders.
 
-- **Links:** customer_id (FK to customer), **customer_address_id** (optional FK — which address was picked, for convenience; the canonical data is the snapshot below), inventory_id (FK to inventory — “item purchased”)
+- **Links:** customer_id (FK to customer), **customer_address_id** (optional FK — which address was picked, for convenience; the canonical data is the snapshot below), inventory_id (FK to inventory — “item purchased”). **Order grouping (optional):** Add an **order_id** (or local_receipt_id) column so multiple purchase rows can belong to the same order (one row per item). Etsy receipt ID groups Etsy orders; for manual orders the app assigns a local order id when creating a “New order.” Thank-you note and invoice are generated per order (all purchase rows with the same order_id); see ADR-006.
 - **Snapshot (stored on this record):** **Ship-to name** (first name, last name as at time of purchase), **Ship-to address** (addr line 1, addr line 2, city, state/province, country, postal code as at time of purchase). These are copied from the customer and chosen address when the purchase is saved.
 - **Date:** date of purchase (and optionally shipping date if not on inventory)
 - **Discount:** **discount amount** (e.g. currency amount applied to this sale) — identified per sale so invoices and reports show the discount for each transaction
@@ -47,7 +47,7 @@ The purchase record **holds all data as it appeared at the time** of the sale. W
 - **Optional:** notes
 - **Audit:** created_at
 
-“Item purchased”, “date”, and the full ship-to name and address (as they were at the time) are stored on this purchase record. Every field listed for “customer inventory” is stored in the database.
+“Item purchased” and “date” are stored on this purchase record; the full ship-to name and address as they were at the time are stored on this purchase record (snapshot). Every field listed for “customer inventory” is stored in the database.
 
 ## Consequences
 

@@ -20,9 +20,9 @@ We decided to use a database for application data (ADR-001) and defined reports 
   - **Customers:** first name, last name, address lines, city, state/province, country, postal code, email, etc. (ADR-003).  
   - **Purchases/shipments:** customer, item purchased, date(s), shipping cost, shipper (USPS, UPS, FedEx, DHL, Other), Etsy receipt ID, notes, etc. (ADR-003, ADR-004).  
   - **Other costs:** amount and description per line, linked to inventory (ADR-002).  
-  - Any other app data (e.g. settings, audit timestamps) that the application treats as source of truth.
+  - Any other app data (e.g. **settings** — panel layout, default shipper, business details, optional preferences; audit timestamps) that the application treats as source of truth.
 
-  This is “all app data” for the purpose of storage decisions.
+  This is “all app data” for the purpose of storage decisions. **Currency:** Use a single currency for the app (e.g. from user locale or a Config default); multi-currency is out of scope for v1. All monetary fields (costs, revenue, discount, shipping cost) use that currency.
 
 - **Not stored as data: reports**  
   **Reports** (thank you note, invoice, sales, costs, income month-to-date, income year-to-date, postal costs by vendor) are **not** stored as separate entities in the database. They are **generated on demand** from the stored data above (queries, aggregations, and document generation). No “report result” rows or blobs are persisted; only the underlying inventory, customer, and purchase data is stored.

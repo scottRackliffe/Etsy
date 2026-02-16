@@ -22,9 +22,11 @@ The following **reports** will be supported; all are backed by the database and 
 | **Invoice** | Per-sale document: buyer, address, items, amounts, dates, payment/shipping. | Customer, purchase(s), linked inventory (description, sale revenue), shipping cost, shipper, dates. |
 | **Sales** | List/summary of sales (e.g. by date range). | Purchases + linked inventory (sale revenue, dates). |
 | **Costs** | What the seller spent (purchase cost, shipping, other costs). | Inventory (purchase cost, shipping cost), inventory_other_costs, and shipping cost on purchase/shipment. |
-| **Income — month to date** | Revenue for the current month. | Sum of sale revenue (or purchase amounts) where date of sale is in the current month. |
+| **Income — month to date** | Revenue for the current month. | Sum of inventory.sale_revenue for items linked from purchases where date_of_purchase is in the current month (see Notes). |
 | **Income — year to date** | Revenue for the current year. | Same as above for the current year. |
 | **Postal costs by vendor** | Shipping spend by carrier. | Sum of seller’s shipping cost grouped by shipper (USPS, UPS, FedEx, DHL, Other). See ADR-005. |
+| **Outstanding items** | All current outstanding to-dos (same as outstanding panel/tab). | Union of outstanding item types per ADR-020; snapshot at run time. See ADR-013. |
+| **AR aging** | Unpaid orders by age bucket (0–30, 31–60, 61–90, 90+ days). | purchase with was_paid = 0; exclude void/cancelled; group by order_id and age bucket. See ADR-013. |
 
 Output format is **PDF** for all reports (see [ADR-013](0013-report-output-pdf.md)) so they look professional and can be printed or shared. The scope of *what* each report contains is fixed above.
 
@@ -39,4 +41,5 @@ Output format is **PDF** for all reports (see [ADR-013](0013-report-output-pdf.m
 ## Notes
 
 - “Date of sale” for MTD/YTD should align with the field used on inventory or purchase (e.g. purchase date or date_of_sale on inventory).
-- Thank you note and invoice are document-style reports; sales, costs, income MTD/YTD, and postal by vendor are summary/list reports.
+- **Income MTD/YTD:** Sum **inventory.sale_revenue** for all items linked from purchases (or from inventory date of sale) in the selected period. Sale revenue is stored on inventory (ADR-002); the purchase record links to the item. Do not store a duplicate “amount” on the purchase record for revenue; use the linked inventory’s sale_revenue.
+- Thank you note and invoice are document-style reports (per order: all purchase rows with the same order_id); sales, costs, income MTD/YTD, and postal by vendor are summary/list reports.

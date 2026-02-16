@@ -15,7 +15,7 @@ We need to report “postal costs by vendor” (USPS, UPS, FedEx, DHL). That req
 ## Decision
 
 - **Where to store:** Add **shipper** (and **shipping cost** if not already present) to the **purchase/shipment** record (the table that links customer + item + date), not only on inventory.
-- **Shipper values (allowed vendors):** **USPS**, **UPS**, **FedEx**, **DHL**, and optionally **Other**.
+- **Shipper values (allowed vendors):** **USPS**, **UPS**, **FedEx**, **DHL**, and **Other**. “Other” is required for unspecified or unknown carrier; the “Postal costs by vendor” report shows a row for Other (ADR-005).
 - **Shipping cost:** Store the **seller’s actual shipping cost** (what the seller pays to the carrier) on this record so it can be summed by shipper for the “postal costs by vendor” report.
 
 All values are stored in the database; reports will group and sum by these vendor values.
@@ -31,4 +31,5 @@ All values are stored in the database; reports will group and sum by these vendo
 ## Notes
 
 - DHL was explicitly added alongside USPS, UPS, and FedEx.
+- **“Other” here = other shippers (carriers), not “other costs”.** “Other” is a **shipper** value (unspecified or alternative carrier). “Other costs” (e.g. repair, cleaning per item) are defined in ADR-002 (inventory_other_costs) and are unrelated to this ADR.
 - “Other” allows future or rare carriers without schema change.

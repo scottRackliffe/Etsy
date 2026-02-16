@@ -24,7 +24,7 @@ Use a **database** for all application data. Every field discussed for inventory
   - Clear schema and relationships (e.g. purchases link customers to inventory).
   - Easier to add new fields or tables later without changing storage model.
 - **Negative**
-  - Requires choosing and operating a database (e.g. SQLite, PostgreSQL).
+  - Requires operating a database (technology is SQLite, see ADR-012).
   - Need migrations and schema management as the model evolves.
 
 ## Notes
