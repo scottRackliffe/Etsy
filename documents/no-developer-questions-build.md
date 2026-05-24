@@ -182,6 +182,17 @@ A phase is complete only when all are true:
 9. **Remaining UI: Config, Tutorial, Shipping labels** — Complete per ui-design.md.
 10. **Shipping Info schema and currency mapping** — Define and implement.
 
+11. **Shared component adoption** — Wire DataTable, Button, FormField, Modal, Toast, EmptyState into all pages per ADR-028.
+12. **Search, filter, sort, pagination** — Add to all list views per ADR-029.
+13. **Inventory detail editing** — Core field management UI per ADR-030.
+14. **Order detail view** — Full order detail panel per ADR-031.
+15. **Confirmation dialogs** — All destructive actions per ADR-032.
+16. **Image upload and thumbnail preview** — Visual upload grid per ADR-033.
+17. **Config completion** — Business profile, shipping, display prefs per ADR-034.
+18. **Deep-link navigation** — Outstanding click-through selects record per ADR-035.
+19. **Reports date picker and per-order docs** — Date range controls and single-order invoice/thank-you per ADR-036.
+20. **Activity log** — Persistent audit trail per ADR-037.
+
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 
 ## 5) Remaining specification gaps (non-blocking but needed before ship)

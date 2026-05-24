@@ -1,9 +1,16 @@
+/**
+ * DELETE /api/inventory/[id]/pictures/[slot]
+ *
+ * Removes a picture from a slot: deletes the file from disk,
+ * clears the DB column, and regenerates the thumbnail (ADR-026 §7).
+ */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
+import { removePicture } from "@/lib/picture-storage";
 
 async function parseParams(context: {
   params: Promise<{ id: string; slot: string }>;
@@ -43,10 +50,9 @@ export async function DELETE(
   try {
     requireEtsyAccessToken(await cookies());
     const { inventoryId, slot } = await parseParams(context);
-    const column = `picture_${slot}`;
-    getDb()
-      .prepare(`UPDATE inventory SET ${column} = NULL, updated_at = @updated_at WHERE id = @id`)
-      .run({ updated_at: new Date().toISOString(), id: inventoryId });
+
+    await removePicture(inventoryId, slot, "main");
+
     const item = getDb().prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     if (!item) {
       throw new ApiRouteError({

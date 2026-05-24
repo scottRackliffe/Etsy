@@ -1,11 +1,16 @@
+/**
+ * PATCH /api/inventory/[id]/pictures/reorder
+ *
+ * Reorders pictures across slots, renames files on disk,
+ * and regenerates thumbnail (ADR-026 §6).
+ */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
-
-const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+import { reorderPictures } from "@/lib/picture-storage";
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -41,22 +46,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       });
     }
 
-    const params: Record<string, unknown> = {
-      id: inventoryId,
-      updated_at: new Date().toISOString(),
-    };
-    const updates = SLOTS.map((slot, index) => {
-      const key = `picture_${slot}`;
-      const value = pictures[index];
-      params[key] = typeof value === "string" ? value : null;
-      return `${key} = @${key}`;
-    });
+    const newOrder: (string | null)[] = [];
+    for (let i = 0; i < 10; i++) {
+      const val = pictures[i];
+      newOrder.push(typeof val === "string" && val.trim() ? val.trim() : null);
+    }
 
-    getDb()
-      .prepare(
-        `UPDATE inventory SET ${updates.join(", ")}, updated_at = @updated_at WHERE id = @id`
-      )
-      .run(params);
+    await reorderPictures(inventoryId, newOrder);
+
     const item = getDb().prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     if (!item) {
       throw new ApiRouteError({

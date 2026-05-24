@@ -27,6 +27,9 @@
 # SQLite database files
 /data/
 
+# Uploaded pictures (ADR-026)
+/uploads/
+
 # Personal/local content
 /TrudysClassicTreasures/
 

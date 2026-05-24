@@ -49,3 +49,13 @@ We use a standard format for all ADRs:
 | [ADR-025](0025-token-refresh-middleware.md)                         | Token refresh middleware — deterministic behavior (no ambiguity)                        |
 | [ADR-026](0026-picture-storage-and-thumbnails.md)                   | Picture storage layout and thumbnail specification (no ambiguity)                       |
 | [ADR-027](0027-backup-and-restore.md)                               | Backup and restore — automated backups with rolling retention                           |
+| [ADR-028](0028-shared-component-adoption.md)                        | Shared component adoption — wire existing UI primitives into all pages                  |
+| [ADR-029](0029-search-filter-sort-pagination.md)                    | Search, filter, sort, and pagination across all list views                              |
+| [ADR-030](0030-inventory-detail-editing.md)                         | Inventory detail editing — core field management UI                                     |
+| [ADR-031](0031-order-detail-view-and-editing.md)                    | Order detail view and editing                                                           |
+| [ADR-032](0032-confirmation-dialogs.md)                             | Confirmation dialogs for destructive and irreversible actions                           |
+| [ADR-033](0033-image-upload-and-thumbnail-preview.md)               | Image upload UI and thumbnail preview grid                                              |
+| [ADR-034](0034-config-completion.md)                                | Config completion — business profile, shipping info, date format, and full settings     |
+| [ADR-035](0035-deep-link-navigation.md)                             | Deep-link navigation — Outstanding click-through selects record on target page          |
+| [ADR-036](0036-reports-date-picker-and-per-order-documents.md)      | Reports date picker UI and per-order document generation                                |
+| [ADR-037](0037-activity-log-and-audit-trail.md)                     | Activity log and audit trail                                                            |

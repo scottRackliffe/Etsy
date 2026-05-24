@@ -45,8 +45,36 @@ function yearStart(): string {
   return isoDateOnly(new Date(Date.UTC(d.getUTCFullYear(), 0, 1)));
 }
 
-function buildSalesReport(): ReportResult {
+function buildDateClause(
+  column: string,
+  fromDate?: string,
+  toDate?: string
+): { dateClause: string; dateParams: unknown[] } {
+  const parts: string[] = [];
+  const params: unknown[] = [];
+  if (fromDate) {
+    parts.push(`AND ${column} >= ?`);
+    params.push(fromDate);
+  }
+  if (toDate) {
+    parts.push(`AND ${column} <= ?`);
+    params.push(toDate);
+  }
+  return { dateClause: parts.join(" "), dateParams: params };
+}
+
+function describeDateRange(fromDate?: string, toDate?: string): string {
+  if (fromDate && toDate) return `${fromDate} to ${toDate}`;
+  if (fromDate) return `from ${fromDate}`;
+  if (toDate) return `through ${toDate}`;
+  return "All time";
+}
+
+function buildSalesReport(params?: { from_date?: string; to_date?: string }): ReportResult {
   const db = getDb();
+  const { dateClause, dateParams } = buildDateClause("o.order_date", params?.from_date, params?.to_date);
+  const dateLabel = describeDateRange(params?.from_date, params?.to_date);
+
   const topItems = db
     .prepare(
       `
@@ -56,24 +84,31 @@ function buildSalesReport(): ReportResult {
         ROUND(SUM(COALESCE(oi.line_total, COALESCE(oi.unit_price, 0) * COALESCE(oi.quantity, 0))), 2) AS revenue
       FROM order_items oi
       JOIN inventory i ON i.id = oi.inventory_id
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.order_status = 'active' ${dateClause}
       GROUP BY oi.inventory_id
       ORDER BY revenue DESC, units_sold DESC
       LIMIT 10
     `
     )
-    .all() as Array<{ item: string; units_sold: number; revenue: number }>;
+    .all(...dateParams) as Array<{ item: string; units_sold: number; revenue: number }>;
 
-  const orderCount = getCount("SELECT COUNT(*) AS c FROM orders");
+  const orderCount = getCount(
+    `SELECT COUNT(*) AS c FROM orders o WHERE o.order_status = 'active' ${dateClause}`,
+    dateParams
+  );
   const grossRevenue = asNumber(
-    (db.prepare("SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders").get() as { v: number })
-      .v
+    (db.prepare(
+      `SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders o WHERE o.order_status = 'active' ${dateClause}`
+    ).get(...dateParams) as { v: number }).v
   );
 
   return {
     report_name: "sales",
     generated_at: new Date().toISOString(),
-    summary: "Sales performance with order totals and top items.",
+    summary: `Sales performance — ${dateLabel}.`,
     metrics: {
+      date_range: dateLabel,
       order_count: orderCount,
       gross_revenue: grossRevenue,
       average_order_value: orderCount > 0 ? Number((grossRevenue / orderCount).toFixed(2)) : 0,
@@ -133,62 +168,21 @@ function buildCostsReport(): ReportResult {
 function buildIncomeReport(kind: "income-mtd" | "income-ytd"): ReportResult {
   const db = getDb();
   const startDate = kind === "income-mtd" ? monthStart() : yearStart();
+  const baseWhere = "WHERE order_status = 'active' AND COALESCE(order_date, created_at, '') >= ?";
+
   const gross = asNumber(
-    (
-      db
-        .prepare(
-          `
-          SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v
-          FROM orders
-          WHERE COALESCE(order_date, created_at, '') >= ?
-        `
-        )
-        .get(startDate) as { v: number }
-    ).v
+    (db.prepare(`SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
   );
   const shipping = asNumber(
-    (
-      db
-        .prepare(
-          `
-          SELECT ROUND(SUM(COALESCE(shipping_total, 0)), 2) AS v
-          FROM orders
-          WHERE COALESCE(order_date, created_at, '') >= ?
-        `
-        )
-        .get(startDate) as { v: number }
-    ).v
+    (db.prepare(`SELECT ROUND(SUM(COALESCE(shipping_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
   );
   const tax = asNumber(
-    (
-      db
-        .prepare(
-          `
-          SELECT ROUND(SUM(COALESCE(tax_total, 0)), 2) AS v
-          FROM orders
-          WHERE COALESCE(order_date, created_at, '') >= ?
-        `
-        )
-        .get(startDate) as { v: number }
-    ).v
+    (db.prepare(`SELECT ROUND(SUM(COALESCE(tax_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
   );
   const discount = asNumber(
-    (
-      db
-        .prepare(
-          `
-          SELECT ROUND(SUM(COALESCE(discount_total, 0)), 2) AS v
-          FROM orders
-          WHERE COALESCE(order_date, created_at, '') >= ?
-        `
-        )
-        .get(startDate) as { v: number }
-    ).v
+    (db.prepare(`SELECT ROUND(SUM(COALESCE(discount_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
   );
-  const orders = getCount(
-    "SELECT COUNT(*) AS c FROM orders WHERE COALESCE(order_date, created_at, '') >= ?",
-    [startDate]
-  );
+  const orders = getCount(`SELECT COUNT(*) AS c FROM orders ${baseWhere}`, [startDate]);
 
   return {
     report_name: kind,
@@ -207,28 +201,34 @@ function buildIncomeReport(kind: "income-mtd" | "income-ytd"): ReportResult {
   };
 }
 
-function buildPostalByVendorReport(): ReportResult {
+function buildPostalByVendorReport(params?: { from_date?: string; to_date?: string }): ReportResult {
+  const { dateClause, dateParams } = buildDateClause("o.order_date", params?.from_date, params?.to_date);
+  const dateLabel = describeDateRange(params?.from_date, params?.to_date);
+
   const rows = getDb()
     .prepare(
       `
       SELECT
-        COALESCE(vendor_name, '(unspecified)') AS vendor_name,
-        COUNT(*) AS purchase_count,
-        ROUND(SUM(COALESCE(shipping_price, 0)), 2) AS shipping_total
-      FROM purchases
-      GROUP BY COALESCE(vendor_name, '(unspecified)')
-      ORDER BY shipping_total DESC, purchase_count DESC
+        COALESCE(o.shipper, 'Other') AS vendor,
+        COUNT(*) AS order_count,
+        ROUND(SUM(COALESCE(o.seller_shipping_cost, 0)), 2) AS shipping_total
+      FROM orders o
+      WHERE o.order_status = 'active'
+        AND o.shipping_date IS NOT NULL AND o.shipping_date <> ''
+        ${dateClause}
+      GROUP BY COALESCE(o.shipper, 'Other')
+      ORDER BY shipping_total DESC, order_count DESC
     `
     )
-    .all() as Array<{ vendor_name: string; purchase_count: number; shipping_total: number }>;
+    .all(...dateParams) as Array<{ vendor: string; order_count: number; shipping_total: number }>;
 
   return {
     report_name: "postal-by-vendor",
     generated_at: new Date().toISOString(),
-    summary: "Shipping cost exposure by vendor.",
+    summary: `Postal costs by carrier — ${dateLabel}.`,
     metrics: {
       vendor_count: rows.length,
-      shipping_total: rows.reduce((sum, row) => sum + asNumber(row.shipping_total), 0),
+      shipping_total: Number(rows.reduce((sum, row) => sum + asNumber(row.shipping_total), 0).toFixed(2)),
     },
     sections: [{ title: "Postal spend by vendor", rows }],
   };
@@ -282,7 +282,8 @@ function buildArAgingReport(): ReportResult {
         ROUND(COALESCE(grand_total, 0), 2) AS amount,
         CAST(julianday('now') - julianday(COALESCE(order_date, created_at, date('now'))) AS INTEGER) AS age_days
       FROM orders
-      WHERE LOWER(COALESCE(payment_status, '')) NOT IN ('paid', 'complete')
+      WHERE order_status = 'active'
+        AND (was_paid = 0 OR was_paid IS NULL)
       ORDER BY age_days DESC, id DESC
     `
     )
@@ -334,7 +335,8 @@ function buildInvoiceReport(): ReportResult {
         COALESCE(c.email, '') AS customer_email
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
-      WHERE LOWER(COALESCE(o.payment_status, '')) NOT IN ('paid', 'complete')
+      WHERE o.order_status = 'active'
+        AND (o.was_paid = 0 OR o.was_paid IS NULL)
       ORDER BY COALESCE(o.order_date, o.created_at, '') DESC
       LIMIT 200
     `
@@ -373,7 +375,8 @@ function buildThankYouReport(): ReportResult {
         ROUND(COALESCE(o.grand_total, 0), 2) AS amount
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
-      WHERE LOWER(COALESCE(o.payment_status, '')) IN ('paid', 'complete')
+      WHERE o.order_status = 'active'
+        AND o.was_paid = 1
       ORDER BY COALESCE(o.order_date, o.created_at, '') DESC
       LIMIT 200
     `
@@ -399,11 +402,16 @@ function buildThankYouReport(): ReportResult {
   };
 }
 
-export function buildReport(reportName: string): ReportResult {
-  if (reportName === "sales") return buildSalesReport();
+export type ReportParams = {
+  from_date?: string;
+  to_date?: string;
+};
+
+export function buildReport(reportName: string, params?: ReportParams): ReportResult {
+  if (reportName === "sales") return buildSalesReport(params);
   if (reportName === "costs") return buildCostsReport();
   if (reportName === "income-mtd" || reportName === "income-ytd") return buildIncomeReport(reportName);
-  if (reportName === "postal-by-vendor") return buildPostalByVendorReport();
+  if (reportName === "postal-by-vendor") return buildPostalByVendorReport(params);
   if (reportName === "outstanding-items") return buildOutstandingItemsReport();
   if (reportName === "ar-aging") return buildArAgingReport();
   if (reportName === "invoice") return buildInvoiceReport();
@@ -421,6 +429,14 @@ export function buildReport(reportName: string): ReportResult {
     },
     sections: [],
   };
+}
+
+function isReportEmpty(report: ReportResult): boolean {
+  const allSectionsEmpty = report.sections.every((s) => s.rows.length === 0);
+  const metricsAllZero = Object.values(report.metrics).every(
+    (v) => v === 0 || v === "0" || v === "All time"
+  );
+  return allSectionsEmpty && metricsAllZero;
 }
 
 export function parseReportFormat(value: string | null): ReportFormat {
@@ -505,27 +521,38 @@ export async function buildReportPdf(report: ReportResult): Promise<Buffer> {
     doc.moveDown(0.5);
     doc.fontSize(11).text(report.summary);
     doc.moveDown();
-    doc.fontSize(13).text("Metrics");
-    doc.moveDown(0.5);
-    for (const [metric, value] of Object.entries(report.metrics)) {
-      doc.fontSize(11).text(`- ${metric}: ${value}`);
-    }
-    for (const section of report.sections) {
+
+    if (isReportEmpty(report)) {
       doc.moveDown();
-      doc.fontSize(13).text(section.title);
-      doc.moveDown(0.4);
-      if (section.rows.length === 0) {
-        doc.fontSize(10).text("No rows.");
-        continue;
+      doc.fontSize(14).text("No data found for the selected criteria.", { align: "center" });
+      doc.moveDown();
+      doc.fontSize(11).text(
+        "Try adjusting the date range or filters, or check that relevant records exist.",
+        { align: "center" }
+      );
+    } else {
+      doc.fontSize(13).text("Metrics");
+      doc.moveDown(0.5);
+      for (const [metric, value] of Object.entries(report.metrics)) {
+        doc.fontSize(11).text(`- ${metric}: ${value}`);
       }
-      for (const row of section.rows.slice(0, 100)) {
-        const line = Object.entries(row)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(" | ");
-        doc.fontSize(10).text(line);
-      }
-      if (section.rows.length > 100) {
-        doc.fontSize(10).text(`... ${section.rows.length - 100} additional rows omitted in PDF output.`);
+      for (const section of report.sections) {
+        doc.moveDown();
+        doc.fontSize(13).text(section.title);
+        doc.moveDown(0.4);
+        if (section.rows.length === 0) {
+          doc.fontSize(10).text("No rows.");
+          continue;
+        }
+        for (const row of section.rows.slice(0, 100)) {
+          const line = Object.entries(row)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(" | ");
+          doc.fontSize(10).text(line);
+        }
+        if (section.rows.length > 100) {
+          doc.fontSize(10).text(`... ${section.rows.length - 100} additional rows omitted in PDF output.`);
+        }
       }
     }
     doc.end();

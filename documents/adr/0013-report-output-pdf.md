@@ -108,6 +108,18 @@ The following specifies the **exact content** that each report must include. Dat
 
 ---
 
+---
+
+**Edge cases (no ambiguity)**
+
+1. **Empty dataset:** When a report query returns zero rows and all metrics are zero, the PDF displays centered text: "No data found for the selected criteria." followed by "Try adjusting the date range or filters, or check that relevant records exist." The CSV output still includes the header row and metadata but with zero values.
+
+2. **PDF generation failure:** If PDFKit or any PDF-rendering step throws an exception, the endpoint returns HTTP 500 with `user_message`: "Report generation failed. Please try again." and `actions`: ["Try again.", "Export as CSV instead."]. The CSV path is unaffected by PDF failures.
+
+3. **Date handling:** All date filter parameters (`from_date`, `to_date`) use UTC dates in `YYYY-MM-DD` format. The UI converts display dates to/from the user's `date_format` preference (stored in settings). If no date range is provided, the report defaults to "All time" (subject to the global active-order filter). If only `from_date` is provided, it filters from that date through today. If only `to_date` is provided, it filters through that date.
+
+---
+
 ## Consequences
 
 - **Positive**
