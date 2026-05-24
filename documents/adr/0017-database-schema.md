@@ -81,9 +81,9 @@ One row per “other cost” line for an inventory item (e.g. Repair $5, Cleanin
 
 ---
 
-### 3. Table: `customer`
+### 3. Table: `customers`
 
-One row per person (not per order). Source: ADR-003. Customer country = billing address country; if no billing address, US. Currency = from billing country mapping; default USD (design-decisions-implementation §2, §3).
+One row per person (not per order). Source: ADR-003. Customer country = billing address country; if no billing address, US. Currency = from billing country mapping; default USD (design-decisions-implementation §2, §3). **Note:** Implementation uses table name `customers` (plural); ADR-017 originally used `customer`.
 
 | Column             | Type    | Constraints                     | Source / notes                                                                 |
 | ------------------ | ------- | ------------------------------- | ------------------------------------------------------------------------------ |
@@ -99,9 +99,9 @@ One row per person (not per order). Source: ADR-003. Customer country = billing 
 
 ---
 
-### 4. Table: `customer_address`
+### 4. Table: `addresses`
 
-Multiple rows per customer; each row is one ship-to address. Source: ADR-003.
+Multiple rows per customer; each row is one ship-to address. Source: ADR-003. **Note:** Implementation uses table name `addresses` with column names `first_line`/`second_line`/`state` (vs. ADR-017 original `address_line_1`/`address_line_2`/`state_province`). The implementation column names are canonical.
 
 | Column         | Type    | Constraints                       | Source / notes                 |
 | -------------- | ------- | --------------------------------- | ------------------------------ |
@@ -119,9 +119,11 @@ Multiple rows per customer; each row is one ship-to address. Source: ADR-003.
 
 ---
 
-### 5. Table: `purchase`
+### 5. Table: `orders`
 
-One row per item sold in an order (one order can have multiple rows with the same order_id). Holds snapshot of ship-to name and address at time of sale. Source: ADR-003, ADR-004.
+One row per sales order. Holds ship-to snapshot and shipping/payment state. Line items are in `order_items`. Source: ADR-003, ADR-004, ADR-019.
+
+**Note (updated 2026-05-24):** The original ADR-017 used a single `purchase` table. The implementation uses a three-table model (`orders` + `order_items` + `purchases`). This update aligns the canonical schema with the implementation. See `documents/database/SCHEMA_RECONCILIATION.md` for migration details.
 
 | Column                        | Type    | Constraints                        | Source / notes                                                                                                                                         |
 | ----------------------------- | ------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -284,28 +286,36 @@ CREATE TABLE customer (
   updated_at TEXT
 );
 
--- 4. customer_address (ADR-003)
-CREATE TABLE customer_address (
+-- 4. addresses (ADR-003)
+CREATE TABLE addresses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  customer_id INTEGER NOT NULL REFERENCES customer(id),
-  address_line_1 TEXT,
-  address_line_2 TEXT,
-  city TEXT,
-  state_province TEXT,
-  country TEXT,
-  postal_code TEXT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   label TEXT,
-  created_at TEXT,
-  updated_at TEXT
+  first_line TEXT,
+  second_line TEXT,
+  city TEXT,
+  state TEXT,
+  postal_code TEXT,
+  country TEXT,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5. purchase (ADR-003, ADR-004)
-CREATE TABLE purchase (
+-- 5. orders (ADR-003, ADR-004, ADR-019)
+CREATE TABLE orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id TEXT NOT NULL,
-  customer_id INTEGER NOT NULL REFERENCES customer(id),
-  customer_address_id INTEGER REFERENCES customer_address(id),
-  inventory_id INTEGER NOT NULL REFERENCES inventory(id),
+  order_number TEXT UNIQUE,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  order_date TEXT,
+  order_status TEXT DEFAULT 'active',
+  payment_status TEXT,
+  was_paid INTEGER DEFAULT 0,
+  shipper TEXT,
+  seller_shipping_cost REAL,
+  shipped_without_paid_override INTEGER DEFAULT 0,
+  etsy_receipt_id TEXT,
+  shipping_date TEXT,
   ship_to_first_name TEXT,
   ship_to_last_name TEXT,
   ship_to_address_line_1 TEXT,
@@ -314,32 +324,70 @@ CREATE TABLE purchase (
   ship_to_state_province TEXT,
   ship_to_country TEXT,
   ship_to_postal_code TEXT,
-  date_of_purchase TEXT,
-  shipping_date TEXT,
-  was_paid INTEGER DEFAULT 0,
-  order_status TEXT DEFAULT 'active',
-  discount_amount REAL,
-  etsy_receipt_id TEXT,
+  subtotal REAL,
+  shipping_total REAL,
+  tax_total REAL,
+  discount_total REAL,
+  grand_total REAL,
+  source_channel TEXT,
   notes TEXT,
-  shipper TEXT,
-  shipping_cost REAL,
-  shipped_without_paid_override INTEGER DEFAULT 0,
-  created_at TEXT
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5b. order_items (ADR-003)
+CREATE TABLE order_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_price REAL,
+  line_total REAL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5c. purchases — vendor sourcing (ADR-002)
+CREATE TABLE purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
+  vendor_name TEXT,
+  purchase_date TEXT,
+  purchase_price REAL,
+  shipping_price REAL,
+  reference_number TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- 6. settings (ADR-008, ADR-009)
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
-  value TEXT
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 7. schema_migrations
+CREATE TABLE schema_migrations (
+  version TEXT PRIMARY KEY,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Indexes (ADR-014)
-CREATE INDEX idx_purchase_date_of_purchase ON purchase(date_of_purchase);
-CREATE INDEX idx_purchase_customer_id ON purchase(customer_id);
-CREATE INDEX idx_purchase_shipper ON purchase(shipper);
-CREATE INDEX idx_purchase_order_id ON purchase(order_id);
+CREATE INDEX idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX idx_orders_order_date ON orders(order_date);
+CREATE INDEX idx_orders_was_paid ON orders(was_paid);
+CREATE INDEX idx_orders_shipping_date ON orders(shipping_date);
+CREATE INDEX idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);
+CREATE INDEX idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX idx_order_items_inventory_id ON order_items(inventory_id);
+CREATE INDEX idx_purchases_inventory_id ON purchases(inventory_id);
+CREATE INDEX idx_addresses_customer_id ON addresses(customer_id);
+CREATE INDEX idx_customers_is_active ON customers(is_active);
 CREATE INDEX idx_inventory_date_of_sale ON inventory(date_of_sale);
-CREATE INDEX idx_inventory_other_cost_inventory_id ON inventory_other_cost(inventory_id);
+CREATE INDEX idx_inventory_date_listed ON inventory(date_listed);
+CREATE INDEX idx_other_costs_inventory_id ON other_costs(inventory_id);
 ```
 
 ---

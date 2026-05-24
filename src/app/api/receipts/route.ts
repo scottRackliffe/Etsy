@@ -6,12 +6,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getShopReceipts } from "@/lib/etsy";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
+import { EtsyApiError } from "@/lib/etsy";
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const token = await resolveEtsyAccessToken(cookieStore);
+    const token = await getValidAccessToken(cookieStore);
 
     const searchParams = request.nextUrl.searchParams;
     const shopId = searchParams.get("shop_id");
@@ -29,10 +30,22 @@ export async function GET(request: NextRequest) {
 
     const limit = searchParams.get("limit");
     const offset = searchParams.get("offset");
-    const data = await getShopReceipts(token, Number(shopId), {
+    const receiptOpts = {
       limit: limit ? Number(limit) : 50,
       offset: offset ? Number(offset) : undefined,
-    });
+    };
+    let data;
+    try {
+      data = await getShopReceipts(token, Number(shopId), receiptOpts);
+    } catch (err) {
+      if (err instanceof EtsyApiError && err.status === 401) {
+        data = await refreshAndRetry(cookieStore, `/shops/${shopId}/receipts`, (t) =>
+          getShopReceipts(t, Number(shopId), receiptOpts)
+        );
+      } else {
+        throw err;
+      }
+    }
     return NextResponse.json({ ok: true, ...data });
   } catch (e) {
     console.error("Receipts error:", e);

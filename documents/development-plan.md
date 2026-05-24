@@ -142,19 +142,25 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 Same as [implementation-guide.md](implementation-guide.md):
 
-| Topic                                | Where                                     |
-| ------------------------------------ | ----------------------------------------- |
-| Schema, DDL, indexes                 | ADR-017                                   |
-| Every API endpoint                   | ADR-018                                   |
-| Etsy sync step-by-step               | ADR-019                                   |
-| Outstanding list queries             | ADR-020                                   |
-| Validation rules                     | ADR-021                                   |
-| Delete / integrity                   | ADR-022                                   |
-| Report content (exact)               | ADR-013                                   |
-| Dashboard                            | ADR-016                                   |
-| UI layout, tabs, commands            | ADR-009, ui-design.md                     |
-| Inventory, customers, purchase model | ADR-002, ADR-003, ADR-004                 |
-| Pictures, thumbnail                  | ADR-010, ADR-015                          |
-| Etsy compliance                      | ADR-011, etsy-compliance.md               |
-| Etsy listing content, AI generation  | etsy-listing-template-and-requirements.md |
-| Listing generation modes and approval flow | ADR-023                              |
+| Topic                                      | Where                                                |
+| ------------------------------------------ | ---------------------------------------------------- |
+| Schema, DDL, indexes                       | ADR-017                                              |
+| Schema drift and migration plan            | documents/database/SCHEMA_RECONCILIATION.md          |
+| Every API endpoint                         | ADR-018                                              |
+| Etsy sync step-by-step                     | ADR-019                                              |
+| Outstanding list queries and caching       | ADR-020                                              |
+| Validation rules                           | ADR-021                                              |
+| Delete / integrity                         | ADR-022                                              |
+| Report content (exact)                     | ADR-013                                              |
+| Dashboard                                  | ADR-016                                              |
+| UI layout, tabs, commands                  | ADR-009, ui-design.md                                |
+| Frontend component architecture            | ADR-024, documents/frontend-architecture.md          |
+| Client-side state management               | documents/state-management.md                        |
+| Inventory, customers, purchase model       | ADR-002, ADR-003, ADR-004                            |
+| Pictures, thumbnail, storage               | ADR-010, ADR-015, ADR-026                            |
+| Token refresh middleware                   | ADR-025                                              |
+| Backup and restore                         | ADR-027                                              |
+| Etsy compliance                            | ADR-011, etsy-compliance.md                          |
+| Etsy listing content, AI generation        | etsy-listing-template-and-requirements.md            |
+| Listing generation modes and approval flow | ADR-023                                              |
+| Build readiness checklist                  | documents/no-developer-questions-build.md            |

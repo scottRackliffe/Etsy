@@ -1,0 +1,324 @@
+# Etsy Sales Manager — Cursor Rules
+# Last updated: 2026-05-24
+# These rules tell Cursor exactly where to look and what to follow for every domain.
+# When in doubt: read the ADR first, then implement.
+
+---
+
+## Project Overview
+
+This is **Etsy Sales Manager** — a Next.js 16 (App Router) + TypeScript + Tailwind CSS + SQLite app
+for managing an Etsy vintage/antique business (Trudy's Classic Treasures). It connects to Etsy via
+OAuth, manages inventory, customers, orders, and generates reports and listing content (including
+AI-assisted). It is a single-user local app.
+
+Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equivalent), Node 20 LTS.
+
+---
+
+## 1. CANONICAL SOURCES — always check these before writing code
+
+| Question | Go here first |
+|---|---|
+| Database schema, table/column names, types | `documents/adr/0017-database-schema.md` |
+| API endpoint shape, request/response, status codes | `documents/adr/0018-api-surface-endpoints.md` |
+| UI layout, tabs, commands, outstanding panel | `documents/ui-design.md` |
+| Validation and business rules | `documents/adr/0021-validation-and-business-rules.md` |
+| Delete / referential integrity | `documents/adr/0022-referential-integrity-and-delete-behavior.md` |
+| Outstanding list definitions and queries | `documents/adr/0020-outstanding-list-definitions-and-queries.md` |
+| Etsy sync step-by-step | `documents/adr/0019-etsy-order-sync-import.md` |
+| Reports (exact content, layout, format) | `documents/adr/0013-report-output-pdf.md` |
+| Dashboard content and behavior | `documents/adr/0016-dashboard-content-and-behavior.md` |
+| Inventory data model | `documents/adr/0002-inventory-data-model.md` |
+| Customer and purchase model | `documents/adr/0003-customer-and-purchase-data-model.md` |
+| Picture import / thumbnail | `documents/adr/0010-inventory-picture-import-process.md` |
+| Item pick list | `documents/adr/0015-add-sale-to-current-customer-item-pick-list.md` |
+| Listing content generation modes | `documents/adr/0023-listing-content-generation-modes.md` |
+| Listing template and AI inputs | `documents/etsy-listing-template-and-requirements.md` |
+| Etsy compliance | `documents/adr/0011-compliance-with-etsy-rules.md` + `documents/etsy-compliance.md` |
+| OAuth and token refresh | `documents/adr/0007-base-system-etsy-oauth-dashboard-receipts.md` |
+| Shipping label behavior | `documents/shipping-label-carrier-templates.md` |
+| Design decisions (23 cross-cutting decisions) | `documents/design-decisions-implementation.md` |
+| UI color palette and CSS variables | `documents/System_Colors.md` |
+| Implementation phase order | `documents/development-plan.md` |
+| Knowledge base / tutorial tab | `documents/knowledge-base-design.md` |
+
+---
+
+## 2. ACTUAL DATABASE SCHEMA (source of truth: live schema in app.sqlite)
+
+The live schema diverges from ADR-017 in some intentional ways. **Always match the live schema.**
+Run `PRAGMA table_info(<table>)` if unsure. Key divergences:
+
+### `customers` table — FLAT address structure (NOT separate customer_address table)
+```
+id, first_name, last_name, email, phone,
+address_1, address_2, city, state, postal_code, country,
+notes, created_at, updated_at
+```
+
+### `addresses` table — separate ship-to addresses (per customer, for orders)
+```
+id, customer_id, label, first_line, second_line,
+city, state, postal_code, country, is_default,
+created_at, updated_at
+```
+
+### `orders` table — order header with totals (NOT just order_id grouping on purchases)
+```
+id, order_number, customer_id, order_date, order_status, payment_status,
+subtotal, shipping_total, tax_total, discount_total, grand_total,
+source_channel, notes, created_at, updated_at
+```
+- `order_status`: active | void | cancelled
+- `payment_status`: unpaid | paid
+- `source_channel`: etsy | manual
+
+### `order_items` table — line items per order
+```
+id, order_id, inventory_id, quantity, unit_price, line_total,
+created_at, updated_at
+```
+
+### `purchases` table — BUY-SIDE only (vendor purchases of items to resell)
+```
+id, inventory_id, vendor_name, purchase_date, purchase_price,
+shipping_price, reference_number, notes, created_at, updated_at
+```
+⚠️ NOTE: `purchases` = what Trudy BOUGHT from vendors, NOT customer sales.
+Customer sales = `orders` + `order_items`.
+
+### `inventory` table — full listing authoring fields included
+```
+id, item_number, description, purchase_cost, shipping_cost, sale_revenue,
+date_purchased, date_listed, date_of_sale, shipping_date,
+picture_1..picture_10, thumbnail_path,
+condition_code, has_condition_issue, condition_notes, condition_picture_1..5,
+status, etsy_listing_id, quantity, category_tags,
+listing_title, listing_description, listing_tags, listing_category_path,
+listing_title_strategy, listing_product_story, listing_condition_clarity,
+listing_attributes, listing_pricing_shipping_notes, listing_quality_checklist,
+listing_draft_state, listing_draft_source, listing_export_id,
+listing_approved_at, listing_published_at, is_listed,
+notes, created_at, updated_at
+```
+- `status`: Draft | In stock | Listed | Sold | Reserved | Retired
+- `condition_code`: Mint/Near Mint | Excellent | Very Good | Good | Fair/As-Is
+- `listing_draft_state`: draft | generated | imported | approved | published
+- `listing_draft_source`: manual | integrated_ai | portable_import
+
+### `settings` table — key/value store
+Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
+`etsy_access_token_encrypted`, `etsy_refresh_token_encrypted`, `etsy_token_expires_at`,
+`app.session.current_id`, `panel_layout`, `default_shipper`,
+`business_name`, `business_logo_path`, `business_address_*`,
+`pictures_matter_url`, `tutorial_system_folder_path`,
+`last_etsy_sync_at`, `default_picture_directory`, `thumbnail_size`,
+`outstanding_sort_*`, `date_format`, `first_day_of_week`,
+`backup_directory`, `backup_schedule`, `shipping_info_usps/ups/fedex/dhl/other`
+
+### `etsy_receipts` table — raw Etsy receipt cache
+```
+id, receipt_id, shop_id, receipt_json, synced_at
+```
+
+### `listing_exports`, `listing_imports`, `listing_publish_previews` — listing workflow audit
+```
+listing_exports: id, export_id, inventory_id, payload_json, created_at
+listing_imports: id, inventory_id, export_id, payload_json, source_label, created_at
+listing_publish_previews: id, inventory_id, preview_hash, payload_json, created_at
+```
+
+### `other_costs` table — per-item additional costs
+```
+id, inventory_id, cost_type, amount, note, created_at, updated_at
+```
+
+### `report_artifacts` table — generated report metadata
+```
+id, report_name, report_params_json, artifact_path, artifact_json, generated_at
+```
+
+---
+
+## 3. API RULES
+
+- All JSON errors use the standard envelope: `{ ok: false, error: { code, message, user_message, actions, can_retry }, fields? }`
+- All list endpoints return: `{ items: [], pagination: { limit, offset, total, has_more } }`
+- PATCH semantics: omitted = unchanged; null = clear field; empty string = empty string
+- Status codes: 200 read/update, 201 created, 204 delete, 400 validation, 401 unauth, 404 not found, 409 conflict, 429 rate limit, 500 server error
+- Protected routes: resolve session from HTTP-only cookie → SQLite settings `app.session.current_user_id`
+- Date fields: `YYYY-MM-DD`; timestamps: ISO 8601 UTC
+- Full endpoint spec: `documents/adr/0018-api-surface-endpoints.md`
+
+---
+
+## 4. UI RULES
+
+### Color system — always use CSS variables (defined in `src/app/globals.css`)
+```
+--ui-background: #081a34       (all screens)
+--ui-panel-bg:   #0b2346       (header, panels, selects)
+--ui-card-bg:    #0f2b55       (cards, sections)
+--ui-border:     #1a3a66       (borders)
+--ui-title:      #eef4ff       (headings)
+--ui-body:       #c7d6f2       (body text)
+--ui-muted:      #9bb0d1       (secondary)
+--ui-green:      #00CC66       (success, paid, shipped)
+--ui-yellow:     #FFCC00       (warning, unpaid)
+--ui-red:        #FF4444       (error, danger)
+--ui-accent:     #2f80ed       (primary buttons)
+--ui-neutral:    #233553       (secondary buttons)
+```
+NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `bg-[var(--ui-*)]`.
+
+### Layout structure (ui-design.md §1)
+- Tabs: top, full width — Dashboard | Sales | Inventory | Customers | Reports | Tutorial & Tips | Outstanding | Config
+- Commands panel: left OR right (configurable; setting: `panel_layout`)
+- Outstanding/To-do panel: opposite side from commands
+- Content: center/main area
+- Header: app name, Etsy connection status, shop selector
+
+### Tabs and their commands: `documents/ui-design.md` §2 and §3 — read before building any tab
+
+### Outstanding panel behavior
+- Data-driven only (no user-added tasks)
+- Click an item → navigate to correct tab AND open/select correct record (context in place)
+- No separate overlay/modal — main content area shows the right tab and record
+- Full definitions and queries: `documents/adr/0020-outstanding-list-definitions-and-queries.md`
+
+### Forms and validation
+- Errors always in user-friendly language (never expose DB or technical errors to UI)
+- Primary action button always clearly visible
+- Validation failures show field-level messages from the API `fields` object
+
+---
+
+## 5. BUSINESS LOGIC RULES — never guess, always check ADR-021 and design-decisions
+
+### Key rules to always enforce:
+- **Mark as shipped**: blocked until order is paid UNLESS user explicitly chooses "Ship anyway"
+  → store `shipped_without_paid_override` audit flag on order_items when overridden
+- **List on Etsy / publish**: blocked until listing_draft_state = 'approved'
+- **Listing generation**: blocked until item has item_number + description + condition_code + sale_revenue > 0 + at least one picture
+- **Can't list until complete**: listing_title + listing_description + listing_tags must all be non-empty
+- **Delete with purchases**: 409 if inventory item has associated order_items; can retire instead
+- **Delete customer with orders**: 409 if customer has orders; cannot delete
+- **Void/cancel order**: status change only, never delete rows; void/cancelled excluded from all reports
+- **Etsy sync**: idempotent by receipt_id; never create duplicates
+- **Token refresh**: proactive (5 min before expiry) + reactive (on 401); single in-flight; encrypted at rest (AES-256-GCM); per ADR-025
+
+---
+
+## 6. LISTING AUTHORING MODES (ADR-023)
+
+Three modes — always respect all three:
+1. **Manual** — guided form with sections: title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
+2. **Integrated AI** — app sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
+3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft
+
+State machine: `draft → generated|imported → approved → published`
+Only `approved` drafts can be published to Etsy.
+Always send ALL non-empty pictures to AI — never generate listing content without full visual context.
+Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/adr/0023-listing-content-generation-modes.md`
+
+---
+
+## 7. ETSY COMPLIANCE — always follow
+
+- Use only the official Etsy API; no scraping
+- OAuth 2.0 PKCE only; never expose tokens to client
+- Respect rate limits; handle HTTP 429 + Retry-After gracefully
+- Display trademark disclaimer: "The term 'Etsy' is a trademark of Etsy, Inc. This application uses the Etsy API but is not endorsed or certified by Etsy, Inc."
+- No implied endorsement; app name clearly distinct from Etsy
+- Full rules: `documents/etsy-compliance.md`
+
+---
+
+## 8. REPORTS
+
+- All reports: PDF primary + CSV export from same data
+- User gets exactly 4 actions after generation: **Print | Export PDF | Export CSV | Cancel**
+- Global data filter: only `order_status = 'active'` orders in all purchase/revenue reports
+- Layout: 12pt Courier body, 14/16pt title, 1in margins, light grid, page numbers centered
+- Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging
+- Full content spec per report type: `documents/adr/0013-report-output-pdf.md`
+
+---
+
+## 9. PICTURES AND FILE HANDLING
+
+- Directory picker → preview thumbnails from folder → user confirms → import to slots
+- Main pictures: picture_1..picture_10 (picture_1 = primary/hero)
+- Condition pictures: condition_picture_1..condition_picture_5
+- Always show "Why pictures matter" link near any picture import UI
+- Storage: paths stored in DB; files in `uploads/inventory/<item_id>/`
+- Thumbnail: JPEG, 200×200 default; stored at `thumbnail_path`
+- Allow: JPEG, PNG, WebP; reject others
+- Full spec: `documents/adr/0010-inventory-picture-import-process.md`
+
+---
+
+## 10. SHIPPING LABELS
+
+- NO automated connection to any carrier API — ever
+- App generates label from: order ship-to address + stored Shipping Info (from Config)
+- If Shipping Info missing for chosen carrier: block label, tell user "Go to Config → Shipping Info"
+- Shipping Info stored in settings: `shipping_info_usps`, `shipping_info_ups`, etc.
+- Full behavior: `documents/shipping-label-carrier-templates.md`
+
+---
+
+## 11. CODE STYLE
+
+- TypeScript strict mode — no `any` types unless absolutely unavoidable
+- Next.js App Router patterns — no Pages Router patterns
+- All DB access: parameterized queries only — no string interpolation in SQL
+- All API routes: return standard error envelope on failure
+- All user-facing error messages: plain English, actionable, never expose stack traces
+- Tailwind for styling; CSS variables for colors; no hardcoded hex
+- No `console.log` in production paths; use `src/lib/logging.ts` structured logger
+- Never commit secrets; all credentials via env vars
+
+---
+
+## 12. WHAT'S BUILT vs WHAT'S PENDING
+
+### Built and working:
+- OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
+- Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
+- Dashboard (connected/not-connected states, shop selector, receipts table)
+- Frontend decomposition (ADR-024): App Router layout, 8 tab pages, shared context/hooks/UI components
+- Schema reconciliation completed (three-table order model: orders + order_items + purchases)
+- Listing readiness check, content generation, export/import, approve/reject, publish-to-Etsy
+- Full CRUD for inventory, customers, orders, purchases, addresses, other-costs
+- All 9 report endpoints (PDF + CSV)
+- AI settings API with masked values and connection test
+- Global API error model + structured logging
+- Migration system + seed data
+
+### Pending (priority order per `documents/no-developer-questions-build.md`):
+- Priority 4: Etsy sync full flow (receipt → customer + address + order + order_items per ADR-019)
+- Priority 5: Outstanding panel and context-in-place (per ADR-020)
+- Priority 6: Picture storage and thumbnails (per ADR-026)
+- Priority 7: Report edge cases (empty/failure/date behavior per ADR-013)
+- Priority 8: Backup system (per ADR-027)
+- Priority 9: Remaining UI (Config, Tutorial, Shipping labels)
+- Priority 10: Shipping Info schema and currency mapping
+
+---
+
+## 13. NEVER DO THESE
+
+- Never use hardcoded hex colors — use CSS variables
+- Never expose OAuth tokens, API keys, or session secrets to the client
+- Never delete purchase/order rows — void/cancel by status change only
+- Never generate listing content without sending ALL item pictures to the AI
+- Never allow publish-to-Etsy unless listing_draft_state = 'approved'
+- Never allow Mark as shipped without paid check (or explicit override + audit flag)
+- Never connect to carrier APIs (USPS, UPS, FedEx, DHL) — label generation is local only
+- Never cache Etsy API responses (per Etsy API Terms)
+- Never scrape Etsy or bypass the official API
+- Never use string interpolation in SQL queries
+- Never expose stack traces or DB errors in user-facing messages
+- Never break the standard API error envelope shape

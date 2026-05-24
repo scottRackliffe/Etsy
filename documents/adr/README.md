@@ -45,3 +45,7 @@ We use a standard format for all ADRs:
 | [ADR-021](0021-validation-and-business-rules.md)                   | Validation and business rules (no ambiguity)                                            |
 | [ADR-022](0022-referential-integrity-and-delete-behavior.md)       | Referential integrity and delete behavior (no ambiguity)                                |
 | [ADR-023](0023-listing-content-generation-modes.md)                | Listing content generation modes — manual, integrated AI, and portable AI handoff       |
+| [ADR-024](0024-frontend-component-architecture.md)                 | Frontend component architecture — routing, layout, and component structure              |
+| [ADR-025](0025-token-refresh-middleware.md)                         | Token refresh middleware — deterministic behavior (no ambiguity)                        |
+| [ADR-026](0026-picture-storage-and-thumbnails.md)                   | Picture storage layout and thumbnail specification (no ambiguity)                       |
+| [ADR-027](0027-backup-and-restore.md)                               | Backup and restore — automated backups with rolling retention                           |

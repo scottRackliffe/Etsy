@@ -6,14 +6,24 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getShops } from "@/lib/etsy";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
-import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
+import { EtsyApiError } from "@/lib/etsy";
 import { getSetting } from "@/lib/settings-store";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const token = await resolveEtsyAccessToken(cookieStore);
-    const shops = await getShops(token);
+    const token = await getValidAccessToken(cookieStore);
+    let shops: { shop_id: number; shop_name: string }[];
+    try {
+      shops = await getShops(token);
+    } catch (err) {
+      if (err instanceof EtsyApiError && err.status === 401) {
+        shops = await refreshAndRetry(cookieStore, "/users/me/shops", (t) => getShops(t));
+      } else {
+        throw err;
+      }
+    }
     const activeShopIdRaw = getSetting("etsy.active_shop_id");
     const activeShopId = activeShopIdRaw ? Number(activeShopIdRaw) : null;
     return NextResponse.json({ ok: true, shops, active_shop_id: activeShopId });

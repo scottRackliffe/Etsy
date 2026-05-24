@@ -131,7 +131,39 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 - **Positive:** Implementer can build the outstanding list with exact queries; no ambiguity.
 - **Negative:** “New Etsy not synced” requires an Etsy API call; implementer must cache or fetch when the Outstanding view loads (and respect rate limits per ADR-011).
 
+---
+
+### Caching and performance (no ambiguity)
+
+**Etsy receipt fetch depth:** For type 3 (new Etsy orders not synced), fetch at most **200 receipts** (limit=200) from the Etsy API. This matches the sync fetch depth. Only the receipt_id list is needed (not full receipt details) for the outstanding check.
+
+**Cache invalidation triggers:**
+- After a successful Etsy sync (`POST /api/sync/etsy`), invalidate the cached receipt-id set immediately.
+- After the user marks an order paid or shipped, re-evaluate outstanding items for that order (remove from list if no longer qualifying).
+- After inventory or customer changes that affect outstanding types (e.g. setting `date_listed`, completing an address), re-evaluate the affected item.
+- On manual panel refresh (user clicks Refresh or the 60-second auto-refresh fires), re-query all types.
+
+**429/timeout fallback UX:**
+- If the Etsy API returns 429 or times out when fetching receipt IDs for type 3, keep showing the last cached result.
+- Display a subtle note below the outstanding panel: "Etsy sync status may be delayed" (info badge, not error).
+- If no cached result exists (first load, never connected), omit type 3 from the list entirely with no error message.
+- Retry the Etsy fetch on the next auto-refresh cycle (60 seconds).
+
+**Sort-field definitions:**
+
+| Field key | Label | Source | Sort value |
+|-----------|-------|--------|------------|
+| `date` | Date | `date_of_purchase` for orders; `created_at` for inventory/customers; `creation_tsz` for Etsy receipts | ISO 8601 string (lexicographic sort) |
+| `type` | Type | Outstanding type name (e.g. "Paid not shipped", "Not listed") | Alphabetical by type label |
+| `customer_name` | Customer | `ship_to_last_name, ship_to_first_name` for orders; `last_name, first_name` for customers; "Etsy order" for type 3 | Alphabetical (last name first) |
+| `order_id` | Order ID | `order_id` for orders; `item_number` for inventory; `receipt_id` for Etsy | String sort |
+| `age_days` | Age | Days since the `date` field value | Numeric |
+
+**Null sorting:** Null values sort **last** in ascending order and **first** in descending order. This ensures items with missing dates appear at the bottom of "newest first" views rather than at the top.
+
 ## Notes
 
 - Panel and full-page tab show the same data; only the count or cap may differ (e.g. panel top 20, tab full list).
 - Sort order is user-configurable: three levels, date default first; see "Sort order (user-configurable)" above and ADR-017 settings keys.
+- The outstanding panel auto-refreshes every 60 seconds when visible. The full-page Outstanding tab refreshes on mount and every 60 seconds.
+- Outstanding items are aggregated client-side from API responses; there is no single `/api/outstanding` endpoint. The `useOutstanding` hook (ADR-024) orchestrates the fetch and merge.

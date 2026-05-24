@@ -21,11 +21,26 @@ async function getOrderId(context: { params: Promise<{ order_id: string }> }): P
   return id;
 }
 
-export async function POST(_request: Request, context: { params: Promise<{ order_id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ order_id: string }> }) {
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getOrderId(context);
-    const order = markOrderShipped(id);
+
+    const body = (await request.json().catch(() => ({}))) as {
+      shipper?: string;
+      shipping_date?: string;
+      seller_shipping_cost?: number;
+      force_unpaid?: boolean;
+    };
+
+    const order = markOrderShipped(id, {
+      shipper: typeof body.shipper === "string" ? body.shipper : undefined,
+      shipping_date: typeof body.shipping_date === "string" ? body.shipping_date : undefined,
+      seller_shipping_cost:
+        typeof body.seller_shipping_cost === "number" ? body.seller_shipping_cost : undefined,
+      force_unpaid: body.force_unpaid === true,
+    });
+
     if (!order) {
       throw new ApiRouteError({
         status: 404,

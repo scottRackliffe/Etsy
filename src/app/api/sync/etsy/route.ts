@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { getShopReceipts } from "@/lib/etsy";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
-import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
+import { EtsyApiError } from "@/lib/etsy";
 import { upsertEtsyReceipt } from "@/lib/records";
 
 export async function POST(request: NextRequest) {
   try {
-    const token = await resolveEtsyAccessToken(await cookies());
+    const cookieStore = await cookies();
+    const token = await getValidAccessToken(cookieStore);
     const body = (await request.json().catch(() => ({}))) as {
       shop_id?: number | string;
       limit?: number;
@@ -30,7 +32,19 @@ export async function POST(request: NextRequest) {
 
     const limit = Number.isFinite(body.limit) ? Math.max(1, Math.min(200, Number(body.limit))) : 50;
     const offset = Number.isFinite(body.offset) ? Math.max(0, Number(body.offset)) : 0;
-    const data = await getShopReceipts(token, shopId, { limit, offset });
+    const receiptOpts = { limit, offset };
+    let data;
+    try {
+      data = await getShopReceipts(token, shopId, receiptOpts);
+    } catch (err) {
+      if (err instanceof EtsyApiError && err.status === 401) {
+        data = await refreshAndRetry(cookieStore, `/shops/${shopId}/receipts`, (t) =>
+          getShopReceipts(t, shopId, receiptOpts)
+        );
+      } else {
+        throw err;
+      }
+    }
 
     for (const receipt of data.results ?? []) {
       upsertEtsyReceipt({

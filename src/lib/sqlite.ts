@@ -86,6 +86,45 @@ function ensureInventorySchema(db: Database.Database): void {
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_item_number ON inventory(item_number);");
 }
 
+const ORDERS_RECONCILIATION_COLUMNS: Record<string, string> = {
+  was_paid: "INTEGER DEFAULT 0",
+  shipper: "TEXT",
+  seller_shipping_cost: "REAL",
+  shipped_without_paid_override: "INTEGER DEFAULT 0",
+  etsy_receipt_id: "TEXT",
+  shipping_date: "TEXT",
+  ship_to_first_name: "TEXT",
+  ship_to_last_name: "TEXT",
+  ship_to_address_line_1: "TEXT",
+  ship_to_address_line_2: "TEXT",
+  ship_to_city: "TEXT",
+  ship_to_state_province: "TEXT",
+  ship_to_country: "TEXT",
+  ship_to_postal_code: "TEXT",
+};
+
+const CUSTOMERS_RECONCILIATION_COLUMNS: Record<string, string> = {
+  default_address_id: "INTEGER REFERENCES addresses(id)",
+  currency_code: "TEXT DEFAULT 'USD'",
+  is_active: "INTEGER DEFAULT 1",
+};
+
+function ensureTableColumns(
+  db: Database.Database,
+  table: string,
+  requiredColumns: Record<string, string>
+): void {
+  const existing = (
+    db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+  ).map((row) => row.name);
+
+  for (const [column, typeDef] of Object.entries(requiredColumns)) {
+    if (!existing.includes(column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDef};`);
+    }
+  }
+}
+
 function ensureCoreTables(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -108,6 +147,9 @@ function ensureCoreTables(db: Database.Database): void {
       state TEXT,
       postal_code TEXT,
       country TEXT,
+      default_address_id INTEGER,
+      currency_code TEXT DEFAULT 'USD',
+      is_active INTEGER DEFAULT 1,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -149,8 +191,22 @@ function ensureCoreTables(db: Database.Database): void {
       order_number TEXT UNIQUE,
       customer_id INTEGER,
       order_date TEXT,
-      order_status TEXT,
+      order_status TEXT DEFAULT 'active',
       payment_status TEXT,
+      was_paid INTEGER DEFAULT 0,
+      shipper TEXT,
+      seller_shipping_cost REAL,
+      shipped_without_paid_override INTEGER DEFAULT 0,
+      etsy_receipt_id TEXT,
+      shipping_date TEXT,
+      ship_to_first_name TEXT,
+      ship_to_last_name TEXT,
+      ship_to_address_line_1 TEXT,
+      ship_to_address_line_2 TEXT,
+      ship_to_city TEXT,
+      ship_to_state_province TEXT,
+      ship_to_country TEXT,
+      ship_to_postal_code TEXT,
       subtotal REAL,
       shipping_total REAL,
       tax_total REAL,
@@ -252,11 +308,32 @@ function ensureCoreTables(db: Database.Database): void {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Ensure reconciliation columns exist on pre-existing databases
+  ensureTableColumns(db, "orders", ORDERS_RECONCILIATION_COLUMNS);
+  ensureTableColumns(db, "customers", CUSTOMERS_RECONCILIATION_COLUMNS);
+
+  // Indexes
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory(status);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_of_sale ON inventory(date_of_sale);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_listed ON inventory(date_listed);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_purchases_inventory_id ON purchases(inventory_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_other_costs_inventory_id ON other_costs(inventory_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_was_paid ON orders(was_paid);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_shipping_date ON orders(shipping_date);");
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);"
+  );
   db.exec("CREATE INDEX IF NOT EXISTS idx_addresses_customer_id ON addresses(customer_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_customers_is_active ON customers(is_active);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_order_items_inventory_id ON order_items(inventory_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_etsy_receipts_shop_id ON etsy_receipts(shop_id);");

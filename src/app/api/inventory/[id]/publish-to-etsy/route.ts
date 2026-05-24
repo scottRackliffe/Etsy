@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
-import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getValidAccessToken } from "@/lib/auth-session";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
@@ -51,7 +51,7 @@ async function sleep(ms: number): Promise<void> {
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const token = await resolveEtsyAccessToken(await cookies());
+    const token = await getValidAccessToken(await cookies());
     const body = (await _request.json().catch(() => ({}))) as { preview_hash?: unknown };
     const providedPreviewHash =
       typeof body.preview_hash === "string" ? body.preview_hash.trim() : "";

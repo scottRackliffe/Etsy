@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
-import { resolveEtsyAccessToken } from "@/lib/auth-session";
+import { getValidAccessToken } from "@/lib/auth-session";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
 import { getSetting } from "@/lib/settings-store";
 import { computePreviewHash, savePublishPreview } from "@/lib/listing-review";
@@ -40,7 +40,7 @@ function parseIntSetting(key: string, fallback: number): number {
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    await resolveEtsyAccessToken(await cookies());
+    await getValidAccessToken(await cookies());
     const id = parsePositiveInt((await context.params).id);
     if (!id) {
       throw new ApiRouteError({

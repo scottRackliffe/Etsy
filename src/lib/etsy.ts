@@ -94,28 +94,75 @@ export async function exchangeCodeForToken(
   return data;
 }
 
-export async function refreshAccessToken(
-  refreshToken: string
-): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
-  const { clientId } = getEtsyConfig();
-  const res = await fetch("https://api.etsy.com/v3/public/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: clientId,
-      refresh_token: refreshToken,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy token refresh failed: ${res.status} ${text}`);
+export type RefreshResult = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+};
+
+export class EtsyRefreshError extends Error {
+  readonly status: number;
+  readonly retryAfter: number | null;
+  readonly body: string;
+
+  constructor(status: number, body: string, retryAfter: number | null) {
+    super(`Etsy token refresh failed: ${status}`);
+    this.status = status;
+    this.body = body;
+    this.retryAfter = retryAfter;
   }
-  return (await res.json()) as {
-    access_token: string;
-    refresh_token?: string;
-    expires_in: number;
-  };
+
+  get isRevoked(): boolean {
+    return this.status === 400 || this.status === 401;
+  }
+
+  get isRateLimited(): boolean {
+    return this.status === 429;
+  }
+
+  get isServerError(): boolean {
+    return this.status >= 500;
+  }
+}
+
+export async function refreshAccessToken(
+  refreshToken: string,
+  timeoutMs?: number
+): Promise<RefreshResult> {
+  const { clientId } = getEtsyConfig();
+  const controller = new AbortController();
+  const timeout = timeoutMs ?? (Number(process.env.ETSY_TOKEN_TIMEOUT_MS) || 15_000);
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch("https://api.etsy.com/v3/public/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        refresh_token: refreshToken,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      const retryAfterHeader = res.headers.get("retry-after");
+      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) || null : null;
+      throw new EtsyRefreshError(res.status, text, retryAfter);
+    }
+    return (await res.json()) as RefreshResult;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export class EtsyApiError extends Error {
+  readonly status: number;
+  constructor(path: string, status: number, body: string) {
+    super(`Etsy API ${path}: ${status} ${body}`);
+    this.status = status;
+  }
 }
 
 /** Etsy API request with API key + Bearer token */
@@ -126,20 +173,29 @@ export async function etsyApi<T>(
 ): Promise<T> {
   const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
   if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
-  const res = await fetch(`${ETSY_API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "x-api-key": key,
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy API ${path}: ${res.status} ${text}`);
+  const timeout = Number(process.env.ETSY_API_TIMEOUT_MS) || 30_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(`${ETSY_API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "x-api-key": key,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(path, res.status, text);
+    }
+    return res.json() as Promise<T>;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<T>;
 }
 
 export async function createDraftListing(

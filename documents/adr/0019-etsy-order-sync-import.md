@@ -50,11 +50,18 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers â€
 
 4. **Response:** Return a summary, e.g. { synced: number of receipts processed (new), created_orders: number of new order_ids, created_purchases: number of new purchase rows }.
 
-**Edge cases:**
+**Edge cases (no ambiguity):**
 
-- **Receipt with no line items:** Skip receipt (or create zero purchase rows and still create customer/address for consistency; prefer skip if Etsy never sends empty receipts).
+- **Receipt with no line items:** Skip receipt entirely. Do not create customer or address rows for receipts with zero line items.
 - **Same buyer, multiple receipts:** Each receipt gets its own order_id (etsy_receipt_id). Customer and address are reused when matched.
-- **Token expired during sync:** Return 401; client should prompt re-connect (token refresh per ADR-007 when implemented).
+- **Token expired during sync:** Use token refresh middleware (ADR-025) to refresh automatically. If refresh fails (revoked token), abort the sync and return 401 to the client with `ETSY_TOKEN_REVOKED`.
+- **Matching rules for `etsy_listing_id`:** Exact string match. The `etsy_listing_id` column on `inventory` is the canonical link. If multiple inventory rows have the same `etsy_listing_id`, use the first match by `id ASC` (oldest). The user should resolve duplicates manually.
+- **Placeholder inventory field defaults:** When creating a placeholder inventory row for an unrecognized Etsy listing_id, use: `item_number = "etsy-" + listing_id`, `description = listing title from Etsy API (or "Imported from Etsy (listing_id â€¦)" if title unavailable)`, `status = "Listed"`, `quantity = 1`, `is_listed = 1`, `etsy_listing_id = the Etsy listing_id`, `listing_draft_state = NULL`, all other fields = NULL. The placeholder is editable by the user.
+- **Update policy for already-synced receipts:** Receipts that match an existing `purchase.etsy_receipt_id` are skipped entirely. No fields on existing purchase rows are updated during sync. If the user wants updated data from Etsy (e.g. a status change), they must manually edit the local record. Re-sync does not overwrite. This is intentional: the local database is the system of record once data is imported.
+- **Partial-failure handling:** Sync processes receipts sequentially. If one receipt fails to import (e.g. database constraint error, unexpected data shape), log the error with receipt_id, skip that receipt, and continue with the next. The response includes a `skipped` array with `{ receipt_id, reason }` for each failed receipt alongside the `synced` count. The sync is successful if at least one receipt was processed; it is a failure only if zero receipts could be processed (return 500 with user-actionable error).
+- **Etsy API pagination during sync:** If `has_more` is true in the Etsy response, fetch the next page (up to 5 pages or 1000 receipts per sync run). Stop early if all remaining receipts are already synced (check `etsy_receipt_id` before fetching next page).
+- **Duplicate buyer email handling:** Email match is case-insensitive (LOWER comparison). If email is null or empty on the receipt, fall back to name match: LOWER(first_name) + LOWER(last_name). If no name or email match, create a new customer.
+- **Concurrent sync protection:** Only one sync may run at a time. The sync endpoint sets a `sync_in_progress` key in `settings` at the start and clears it at the end (in a `finally` block). If a second sync request arrives while one is in progress, return 409 with `user_message`: "A sync is already in progress. Please wait for it to complete."
 
 ## Consequences
 

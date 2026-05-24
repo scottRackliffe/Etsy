@@ -213,21 +213,38 @@ export function getOrder(id: number) {
 
 export function markOrderPaid(id: number) {
   const db = getDb();
-  db.prepare("UPDATE orders SET payment_status = ?, updated_at = ? WHERE id = ?").run(
-    "paid",
-    nowIso(),
-    id
-  );
+  db.prepare(
+    "UPDATE orders SET was_paid = 1, payment_status = ?, updated_at = ? WHERE id = ?"
+  ).run("paid", nowIso(), id);
   return getOrder(id);
 }
 
-export function markOrderShipped(id: number) {
+export function markOrderShipped(
+  id: number,
+  input?: { shipper?: string; shipping_date?: string; seller_shipping_cost?: number; force_unpaid?: boolean }
+) {
   const db = getDb();
-  db.prepare("UPDATE orders SET order_status = ?, updated_at = ? WHERE id = ?").run(
-    "shipped",
-    nowIso(),
-    id
-  );
+  const order = getOrder(id) as Record<string, unknown> | null;
+  if (!order) return null;
+
+  const now = nowIso();
+  const shippingDate = input?.shipping_date ?? now.slice(0, 10);
+  const shipper = input?.shipper ?? null;
+  const cost = input?.seller_shipping_cost ?? null;
+
+  const overrideFlag =
+    !order.was_paid && input?.force_unpaid ? 1 : 0;
+
+  db.prepare(
+    `UPDATE orders SET
+      order_status = 'shipped',
+      shipping_date = ?,
+      shipper = COALESCE(?, shipper),
+      seller_shipping_cost = COALESCE(?, seller_shipping_cost),
+      shipped_without_paid_override = CASE WHEN ? = 1 THEN 1 ELSE shipped_without_paid_override END,
+      updated_at = ?
+    WHERE id = ?`
+  ).run(shippingDate, shipper, cost, overrideFlag, now, id);
   return getOrder(id);
 }
 
