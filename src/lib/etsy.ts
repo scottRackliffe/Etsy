@@ -466,12 +466,22 @@ export async function getShops(
 }
 
 /** Get shop receipts (orders) – paginated */
+export type ReceiptTransaction = {
+  transaction_id: number;
+  listing_id: number;
+  title: string;
+  quantity: number;
+  price: { amount: number; divisor: number; currency_code: string };
+  shipping_cost: { amount: number; divisor: number; currency_code: string } | null;
+};
+
 export type Receipt = {
   receipt_id: number;
   receipt_type: number;
   order_id: number;
   seller_user_id: number;
   buyer_user_id: number;
+  buyer_email: string | null;
   creation_tsz: number;
   last_modified_tsz: number;
   name: string;
@@ -486,16 +496,17 @@ export type Receipt = {
   message: string | null;
   was_paid: boolean;
   was_shipped: boolean;
-  total_tax_cost: string;
-  total_vat_cost: string;
-  total_price: string;
-  total_shipping_cost: string;
+  total_tax_cost: { amount: number; divisor: number; currency_code: string } | string;
+  total_vat_cost: { amount: number; divisor: number; currency_code: string } | string;
+  total_price: { amount: number; divisor: number; currency_code: string } | string;
+  total_shipping_cost: { amount: number; divisor: number; currency_code: string } | string;
   currency_code: string;
   message_from_seller: string | null;
   message_from_buyer: string | null;
   was_digital: boolean;
   needs_gift_wrap: boolean;
   is_gift_wrap: boolean;
+  transactions: ReceiptTransaction[];
 };
 
 export type ShopReceiptsResponse = {

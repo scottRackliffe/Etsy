@@ -1,23 +1,27 @@
+/**
+ * POST /api/sync/etsy
+ *
+ * Full Etsy receipt sync per ADR-019: fetches receipts from Etsy, creates/matches
+ * customers, addresses, orders, and order_items in the local database.
+ * Idempotent by etsy_receipt_id. Concurrent sync protection via settings lock.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getShopReceipts } from "@/lib/etsy";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
-import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
-import { EtsyApiError } from "@/lib/etsy";
-import { upsertEtsyReceipt } from "@/lib/records";
+import { syncEtsyReceipts } from "@/lib/etsy-sync";
+import { getSetting } from "@/lib/settings-store";
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const token = await getValidAccessToken(cookieStore);
     const body = (await request.json().catch(() => ({}))) as {
       shop_id?: number | string;
-      limit?: number;
-      offset?: number;
     };
 
-    const shopId = parsePositiveInt(body.shop_id != null ? String(body.shop_id) : null);
+    const shopId = parsePositiveInt(body.shop_id != null ? String(body.shop_id) : null)
+      ?? parsePositiveInt(getSetting("etsy.active_shop_id"));
+
     if (!shopId) {
       throw new ApiRouteError({
         status: 400,
@@ -30,37 +34,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const limit = Number.isFinite(body.limit) ? Math.max(1, Math.min(200, Number(body.limit))) : 50;
-    const offset = Number.isFinite(body.offset) ? Math.max(0, Number(body.offset)) : 0;
-    const receiptOpts = { limit, offset };
-    let data;
-    try {
-      data = await getShopReceipts(token, shopId, receiptOpts);
-    } catch (err) {
-      if (err instanceof EtsyApiError && err.status === 401) {
-        data = await refreshAndRetry(cookieStore, `/shops/${shopId}/receipts`, (t) =>
-          getShopReceipts(t, shopId, receiptOpts)
-        );
-      } else {
-        throw err;
-      }
-    }
+    const result = await syncEtsyReceipts(cookieStore, shopId);
 
-    for (const receipt of data.results ?? []) {
-      upsertEtsyReceipt({
-        receipt_id: String(receipt.receipt_id),
-        shop_id: String(shopId),
-        receipt_json: JSON.stringify(receipt),
-      });
+    if (result.synced === 0 && result.skipped_already_imported === 0 && result.skipped_errors.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "ETSY_API_FAILED",
+            message: "All receipts failed to import",
+            user_message: "We could not import any receipts. Check that your Etsy shop has orders.",
+            actions: ["Review the skipped receipts below.", "Retry in a moment."],
+            can_retry: true,
+          },
+          sync_result: result,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       ok: true,
-      imported: data.results?.length ?? 0,
-      total_from_etsy: data.count ?? 0,
-      shop_id: shopId,
-      limit,
-      offset,
+      ...result,
+      last_synced_at: getSetting("last_etsy_sync_at"),
     });
   } catch (error) {
     return errorResponse(
