@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape, Order } from "@/types";
 
-export default function SalesPage() {
+function SalesPageInner() {
   const {
     orders, setOrders, selectedOrderId, setSelectedOrderId,
     selectedShopId, busyAction, setBusyAction, setApiError, setError,
@@ -14,6 +15,18 @@ export default function SalesPage() {
   const [newOrderTotal, setNewOrderTotal] = useState("");
 
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const raw = searchParams.get("orderId");
+    if (!raw) return;
+    const id = Number(raw);
+    if (!Number.isFinite(id)) return;
+    if (orders.some((row) => row.id === id)) {
+      setSelectedOrderId(id);
+    }
+  }, [searchParams, orders, setSelectedOrderId]);
 
   const syncEtsyOrders = async () => {
     if (!selectedShopId) return;
@@ -55,8 +68,8 @@ export default function SalesPage() {
         body: JSON.stringify({
           order_number: newOrderNumber.trim(),
           grand_total: Number(newOrderTotal || "0"),
-          payment_status: "pending",
-          order_status: "open",
+          payment_status: "unpaid",
+          order_status: "active",
           source_channel: "manual",
           order_date: new Date().toISOString().slice(0, 10),
         }),
@@ -99,12 +112,24 @@ export default function SalesPage() {
   };
 
   const markSelectedOrderShipped = async () => {
-    if (!selectedOrderId) return;
+    if (!selectedOrderId || !selectedOrder) return;
+
+    const unpaid = Number(selectedOrder.was_paid) !== 1;
+    let shippedWithoutPaidOverride = false;
+    if (unpaid) {
+      const ok = window.confirm(
+        "This order is not paid yet. Ship anyway? This will be recorded as shipping without payment confirmation."
+      );
+      if (!ok) return;
+      shippedWithoutPaidOverride = true;
+    }
+
     setBusyAction("mark-shipped");
     try {
       const response = await fetch(`/api/orders/${selectedOrderId}/mark-shipped`, {
         method: "POST",
-        headers: { Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ shipped_without_paid_override: shippedWithoutPaidOverride }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
@@ -207,8 +232,9 @@ export default function SalesPage() {
           {selectedOrder && (
             <p className="text-xs text-[var(--ui-muted)]">
               Selected: {selectedOrder.order_number ?? selectedOrder.id} | Payment:{" "}
-              {selectedOrder.payment_status ?? "unknown"} | Status:{" "}
-              {selectedOrder.order_status ?? "unknown"}
+              {selectedOrder.payment_status ?? "unknown"} | Fulfillment:{" "}
+              {selectedOrder.shipping_date ? "Shipped" : "Not shipped"} | Order status:{" "}
+              {selectedOrder.order_status ?? "active"}
             </p>
           )}
         </div>
@@ -219,5 +245,19 @@ export default function SalesPage() {
         </p>
       )}
     </section>
+  );
+}
+
+export default function SalesPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">
+          Loading sales...
+        </section>
+      }
+    >
+      <SalesPageInner />
+    </Suspense>
   );
 }

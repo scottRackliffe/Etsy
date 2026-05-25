@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { getOrder, patchOrder } from "@/lib/records";
 
 async function getOrderId(context: { params: Promise<{ order_id: string }> }): Promise<number> {
@@ -54,7 +55,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     requireEtsyAccessToken(await cookies());
     const id = await getOrderId(context);
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const order = patchOrder(id, body);
+    let payload: Record<string, unknown>;
+    try {
+      payload = prepareOrderPayload(body);
+    } catch (err) {
+      if (err instanceof OrderValidationError) {
+        throw new ApiRouteError({
+          status: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid order payload",
+          userMessage: "Please correct the order fields.",
+          actions: ["Fix the highlighted fields and retry."],
+          fields: err.fields,
+          canRetry: false,
+        });
+      }
+      throw err;
+    }
+    const order = patchOrder(id, payload);
     if (!order) {
       throw new ApiRouteError({
         status: 404,

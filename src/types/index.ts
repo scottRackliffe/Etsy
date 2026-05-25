@@ -119,6 +119,7 @@ export type Order = {
   was_paid: number | null;
   shipper: string | null;
   seller_shipping_cost: number | null;
+  tracking_number: string | null;
   shipped_without_paid_override: number | null;
   etsy_receipt_id: string | null;
   shipping_date: string | null;

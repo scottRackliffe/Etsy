@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { createOrder, listOrders } from "@/lib/records";
 
 export async function GET(request: NextRequest) {
@@ -48,7 +49,24 @@ export async function POST(request: Request) {
         canRetry: false,
       });
     }
-    const order = createOrder(body);
+    let payload: Record<string, unknown>;
+    try {
+      payload = prepareOrderPayload(body, { forCreate: true });
+    } catch (err) {
+      if (err instanceof OrderValidationError) {
+        throw new ApiRouteError({
+          status: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid order payload",
+          userMessage: "Please correct the order fields.",
+          actions: ["Fix the highlighted fields and retry."],
+          fields: err.fields,
+          canRetry: false,
+        });
+      }
+      throw err;
+    }
+    const order = createOrder(payload);
     return NextResponse.json({ ok: true, order }, { status: 201 });
   } catch (error) {
     return errorResponse(

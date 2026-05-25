@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { OrderShipBlockedError } from "@/lib/order-validation";
 import { markOrderShipped } from "@/lib/records";
 
 async function getOrderId(context: { params: Promise<{ order_id: string }> }): Promise<number> {
@@ -30,14 +31,21 @@ export async function POST(request: Request, context: { params: Promise<{ order_
       shipper?: string;
       shipping_date?: string;
       seller_shipping_cost?: number;
+      tracking_number?: string;
+      shipped_without_paid_override?: boolean;
       force_unpaid?: boolean;
     };
+
+    const override =
+      body.shipped_without_paid_override === true || body.force_unpaid === true;
 
     const order = markOrderShipped(id, {
       shipper: typeof body.shipper === "string" ? body.shipper : undefined,
       shipping_date: typeof body.shipping_date === "string" ? body.shipping_date : undefined,
       seller_shipping_cost:
         typeof body.seller_shipping_cost === "number" ? body.seller_shipping_cost : undefined,
+      tracking_number: typeof body.tracking_number === "string" ? body.tracking_number : undefined,
+      shipped_without_paid_override: override,
       force_unpaid: body.force_unpaid === true,
     });
 
@@ -53,6 +61,19 @@ export async function POST(request: Request, context: { params: Promise<{ order_
     }
     return NextResponse.json({ ok: true, order });
   } catch (error) {
+    if (error instanceof OrderShipBlockedError) {
+      return errorResponse(
+        new ApiRouteError({
+          status: 400,
+          code: "VALIDATION_ERROR",
+          message: error.message,
+          userMessage: "This order is not paid yet. Mark it paid first, or choose Ship anyway.",
+          actions: ["Mark the order paid, then mark shipped.", "Retry with shipped_without_paid_override set to true."],
+          fields: { was_paid: ["Order must be paid unless shipping without payment is explicitly confirmed"] },
+          canRetry: true,
+        })
+      );
+    }
     return errorResponse(
       fromUnknownError(error, {
         code: "INTERNAL_ERROR",

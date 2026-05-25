@@ -1,3 +1,4 @@
+import { OrderShipBlockedError } from "@/lib/order-validation";
 import { getDb } from "@/lib/sqlite";
 
 type SqlValue = string | number | null;
@@ -221,30 +222,63 @@ export function markOrderPaid(id: number) {
 
 export function markOrderShipped(
   id: number,
-  input?: { shipper?: string; shipping_date?: string; seller_shipping_cost?: number; force_unpaid?: boolean }
+  input?: {
+    shipper?: string;
+    shipping_date?: string;
+    seller_shipping_cost?: number;
+    tracking_number?: string;
+    shipped_without_paid_override?: boolean;
+    force_unpaid?: boolean;
+  }
 ) {
   const db = getDb();
   const order = getOrder(id) as Record<string, unknown> | null;
   if (!order) return null;
 
+  const wasPaid = Number(order.was_paid) === 1;
+  const override =
+    input?.shipped_without_paid_override === true || input?.force_unpaid === true;
+
+  if (!wasPaid && !override) {
+    throw new OrderShipBlockedError();
+  }
+
   const now = nowIso();
   const shippingDate = input?.shipping_date ?? now.slice(0, 10);
   const shipper = input?.shipper ?? null;
   const cost = input?.seller_shipping_cost ?? null;
+  const tracking =
+    typeof input?.tracking_number === "string" && input.tracking_number.trim()
+      ? input.tracking_number.trim()
+      : null;
+  const overrideFlag = !wasPaid && override ? 1 : 0;
 
-  const overrideFlag =
-    !order.was_paid && input?.force_unpaid ? 1 : 0;
+  const tableInfo = db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
+  const hasTracking = tableInfo.some((row) => row.name === "tracking_number");
 
-  db.prepare(
-    `UPDATE orders SET
-      order_status = 'shipped',
-      shipping_date = ?,
-      shipper = COALESCE(?, shipper),
-      seller_shipping_cost = COALESCE(?, seller_shipping_cost),
-      shipped_without_paid_override = CASE WHEN ? = 1 THEN 1 ELSE shipped_without_paid_override END,
-      updated_at = ?
-    WHERE id = ?`
-  ).run(shippingDate, shipper, cost, overrideFlag, now, id);
+  if (hasTracking) {
+    db.prepare(
+      `UPDATE orders SET
+        shipping_date = ?,
+        shipper = COALESCE(?, shipper),
+        seller_shipping_cost = COALESCE(?, seller_shipping_cost),
+        tracking_number = COALESCE(?, tracking_number),
+        shipped_without_paid_override = CASE WHEN ? = 1 THEN 1 ELSE shipped_without_paid_override END,
+        updated_at = ?
+      WHERE id = ?`
+    ).run(shippingDate, shipper, cost, tracking, overrideFlag, now, id);
+  } else {
+    db.prepare(
+      `UPDATE orders SET
+        shipping_date = ?,
+        shipper = COALESCE(?, shipper),
+        seller_shipping_cost = COALESCE(?, seller_shipping_cost),
+        shipped_without_paid_override = CASE WHEN ? = 1 THEN 1 ELSE shipped_without_paid_override END,
+        updated_at = ?
+      WHERE id = ?`
+    ).run(shippingDate, shipper, cost, overrideFlag, now, id);
+  }
+
   return getOrder(id);
 }
 

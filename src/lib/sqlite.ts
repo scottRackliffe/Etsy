@@ -101,6 +101,7 @@ const ORDERS_RECONCILIATION_COLUMNS: Record<string, string> = {
   ship_to_state_province: "TEXT",
   ship_to_country: "TEXT",
   ship_to_postal_code: "TEXT",
+  tracking_number: "TEXT",
 };
 
 const CUSTOMERS_RECONCILIATION_COLUMNS: Record<string, string> = {
@@ -207,6 +208,7 @@ function ensureCoreTables(db: Database.Database): void {
       ship_to_state_province TEXT,
       ship_to_country TEXT,
       ship_to_postal_code TEXT,
+      tracking_number TEXT,
       subtotal REAL,
       shipping_total REAL,
       tax_total REAL,
@@ -332,6 +334,7 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);"
   );
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_shipper ON orders(shipper);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_addresses_customer_id ON addresses(customer_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_customers_is_active ON customers(is_active);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);");
@@ -358,6 +361,7 @@ export function getDb(): Database.Database {
 
   dbInstance = new Database(databasePath);
   dbInstance.pragma("journal_mode = WAL");
+  dbInstance.pragma("foreign_keys = ON");
 
   if (!schemaReady) {
     ensureInventorySchema(dbInstance);

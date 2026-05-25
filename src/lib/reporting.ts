@@ -245,7 +245,7 @@ function buildOutstandingItemsReport(): ReportResult {
         COALESCE(is_listed, 0) AS is_listed,
         COALESCE(description, '') AS description
       FROM inventory
-      WHERE COALESCE(status, '') NOT IN ('sold', 'archived')
+      WHERE COALESCE(status, '') NOT IN ('Sold', 'Retired')
         AND COALESCE(is_listed, 0) = 0
       ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC
       LIMIT 200

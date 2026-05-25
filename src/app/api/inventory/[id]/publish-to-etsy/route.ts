@@ -315,7 +315,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       UPDATE inventory
       SET listing_draft_state = 'published',
           listing_published_at = @published_at,
-          status = 'listed',
+          status = 'Listed',
           is_listed = 1,
           date_listed = COALESCE(date_listed, @date_listed),
           etsy_listing_id = @etsy_listing_id,

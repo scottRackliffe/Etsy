@@ -323,9 +323,9 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 ## 7) Phase 2 — Documentation vs code compliance audit
 
-**Status:** Complete (2026-05-24). See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md).
+**Status:** Complete (2026-05-24). See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) and [`DEEP_AUDIT_2026-05-24.md`](DEEP_AUDIT_2026-05-24.md).
 
-**Summary:** No critical **documentation** contradictions. **3 Critical** and **24 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, ship-until-paid not enforced, missing `tracking_number`/`activity_log`/`customer_notes`, ADR-018 §12–28 routes largely absent).
+**Summary:** No critical **documentation** contradictions. **5 Critical** and **28 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, unpaid ship allowed without 400, missing `tracking_number`/`activity_log`/`customer_notes`, ~37% ADR-018 routes absent, ADR-070 v1 UI largely unbuilt).
 
 **Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures.
 

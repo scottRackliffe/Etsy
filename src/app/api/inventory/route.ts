@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { InventoryValidationError, prepareInventoryPayload } from "@/lib/inventory-validation";
 import { createInventory, listInventory } from "@/lib/records";
 
 export async function GET(request: NextRequest) {
@@ -49,7 +50,24 @@ export async function POST(request: Request) {
       });
     }
 
-    const created = createInventory(body);
+    let payload: Record<string, unknown>;
+    try {
+      payload = prepareInventoryPayload(body, { forCreate: true });
+    } catch (err) {
+      if (err instanceof InventoryValidationError) {
+        throw new ApiRouteError({
+          status: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid inventory payload",
+          userMessage: "Please correct the inventory fields.",
+          actions: ["Fix the highlighted fields and retry."],
+          fields: err.fields,
+          canRetry: false,
+        });
+      }
+      throw err;
+    }
+    const created = createInventory(payload);
     return NextResponse.json({ ok: true, item: created }, { status: 201 });
   } catch (error) {
     return errorResponse(

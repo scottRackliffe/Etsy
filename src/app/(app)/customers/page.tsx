@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape, Customer, CustomerAddress } from "@/types";
 
-export default function CustomersPage() {
+function CustomersPageInner() {
   const {
     customers, setCustomers, selectedCustomerId, setSelectedCustomerId,
     customerAddresses, setCustomerAddresses,
@@ -18,6 +19,18 @@ export default function CustomersPage() {
   const [newAddressCity, setNewAddressCity] = useState("");
   const [newAddressPostalCode, setNewAddressPostalCode] = useState("");
   const [newAddressCountry, setNewAddressCountry] = useState("US");
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const raw = searchParams.get("customerId");
+    if (!raw) return;
+    const id = Number(raw);
+    if (!Number.isFinite(id)) return;
+    if (customers.some((row) => row.id === id)) {
+      setSelectedCustomerId(id);
+    }
+  }, [searchParams, customers, setSelectedCustomerId]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
 
@@ -265,5 +278,13 @@ export default function CustomersPage() {
         </p>
       )}
     </section>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={<section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">Loading customers...</section>}>
+      <CustomersPageInner />
+    </Suspense>
   );
 }

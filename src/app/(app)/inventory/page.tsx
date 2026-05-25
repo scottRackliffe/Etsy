@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
 
@@ -18,7 +19,7 @@ type PublishHistory = {
   exports: Array<{ export_id: string; created_at: string }>;
 };
 
-export default function InventoryPage() {
+function InventoryPageInner() {
   const {
     inventory, setInventory,
     selectedItemId, setSelectedItemId,
@@ -28,6 +29,18 @@ export default function InventoryPage() {
     aiConfig, setAiConfig, publishConfig, setPublishConfig,
     busyAction, setBusyAction, setApiError, setError,
   } = useApp();
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const raw = searchParams.get("itemId");
+    if (!raw) return;
+    const id = Number(raw);
+    if (!Number.isFinite(id)) return;
+    if (inventory.some((row) => row.id === id)) {
+      setSelectedItemId(id);
+    }
+  }, [searchParams, inventory, setSelectedItemId]);
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
@@ -300,7 +313,7 @@ export default function InventoryPage() {
         body: JSON.stringify({
           item_number: newInventoryItemNumber.trim(),
           description: newInventoryDescription.trim(),
-          status: "draft",
+          status: "Draft",
         }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
@@ -752,5 +765,13 @@ export default function InventoryPage() {
         <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>
       )}
     </section>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={<section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">Loading inventory...</section>}>
+      <InventoryPageInner />
+    </Suspense>
   );
 }

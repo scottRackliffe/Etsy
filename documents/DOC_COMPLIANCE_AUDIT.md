@@ -1,11 +1,13 @@
 # Documentation vs code compliance audit
 
-**Date:** 2026-05-24  
-**Branch reviewed:** `feature/final-system-completion` (post Phase 1 doc gate)  
+**Date:** 2026-05-24 (refreshed deep pass)  
+**Branch reviewed:** `feature/final-system-completion` (post Phase 1b sign-off)  
 **Principle:** Documentation is canonical ([ADR-017](adr/0017-database-schema.md), [ADR-018](adr/0018-api-surface-endpoints.md), feature ADRs). **Default action for every gap: implement or fix code to match the doc.** Amend docs only when the spec was wrong.
 
 **Phase 1 documentation:** Complete per [no-developer-questions-build.md](no-developer-questions-build.md) §4.  
-**This artifact:** Phase 2 exit deliverable (§7).
+**Phase 1b:** Signed off 2026-05-24.  
+**This artifact:** Phase 2 exit deliverable (§7).  
+**Full-board audit:** [DEEP_AUDIT_2026-05-24.md](DEEP_AUDIT_2026-05-24.md) (schema + API coverage % + UI + tests + ADR-070 scope vs code).
 
 ---
 
@@ -13,10 +15,10 @@
 
 | Severity | Count | Meaning |
 |----------|------:|---------|
-| **Critical** | 3 | Code contradicts canonical enums or core business rules; reports/data integrity risk |
-| **High** | 24 | Missing schema tables/columns, missing API surface (ADR-018 §12–28), or major feature ADRs not wired |
-| **Medium** | 12 | Partial implementation (pagination without search/sort, API field names, UI shells) |
-| **Low** | 8 | Polish, optional v1 extensions, or doc-only gaps (shipping JSON schema) |
+| **Critical** | 5 | Invalid enums, ship-until-paid not enforced (unpaid ships allowed), report exclusion |
+| **High** | 28 | Missing schema objects, ~37% ADR-018 routes absent, ADR-031 UI stub, deep-link broken |
+| **Medium** | 14 | Partial lists, outstanding shape, dual bootstrap, limited ADR-028 adoption |
+| **Low** | 10 | Extra routes, health shape, doc-only shipping JSON schema |
 
 **No critical doc contradictions remain** between ADRs after the 2026-05-24 doc pass. Remaining issues are **code lagging spec**.
 
@@ -60,7 +62,7 @@ Present under `src/app/api/`: auth, shop, receipts, sync/etsy, inventory CRUD + 
 | `GET /api/inventory` profitability fields | ADR-018 §26, ADR-038 | Not computed in API | **High** | Add rollup in list/detail handlers |
 | `PATCH` with `If-Match` / 409 | ADR-018, ADR-046 | No optimistic locking | **Medium** | Compare `updated_at` on PATCH orders/inventory/customers |
 | Mark-shipped body | `{ shipper, tracking_number?, shipping_date?, shipped_without_paid_override? }` | `{ shipper, shipping_date, seller_shipping_cost, force_unpaid }`; no tracking | **High** | Align request/response with Appendix B B3; map override flag name |
-| Ship until paid | ADR-021: block unless override | `markOrderShipped` never checks `was_paid` | **Critical** | Return 400 unless paid or `shipped_without_paid_override: true` |
+| Ship until paid | ADR-021: block unless override | `markOrderShipped` allows unpaid ship; `force_unpaid` only sets flag, no 400 | **Critical** | Return 400 unless `was_paid` or `shipped_without_paid_override: true` (rename from `force_unpaid`) |
 | Create order enums | `order_status: active`, `payment_status: unpaid` | Sales UI sends `open`, `pending` | **Critical** | Validate in API + fix `sales/page.tsx` |
 | Vendor `GET/POST /api/purchases` | ADR-017 buy-side | **Match** | — | — |
 
