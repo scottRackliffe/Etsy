@@ -482,6 +482,280 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 
 ---
 
+### Appendix B: Extension endpoint schemas (§12–§28, ADR-027–069)
+
+Concrete request/response shapes for extension routes. Global contract (§ Global API contract) applies unless noted. Feature ADRs remain authoritative for UI and business rules; this appendix is the implementer’s JSON reference.
+
+**B1) List query params (§12, ADR-029)** — no body. Example: `GET /api/orders?search=smith&sort_by=order_date&sort_dir=desc&limit=50&offset=0` → paginated list per §3.
+
+**B2) `GET /api/outstanding` (§13, ADR-020)**
+
+Query: `type?` — filter by outstanding type key (e.g. `paid_not_shipped`).
+
+```json
+{
+  "items": [
+    {
+      "type": "paid_not_shipped",
+      "type_label": "Paid but not shipped",
+      "entity_type": "order",
+      "entity_id": 9001,
+      "record": 9001,
+      "summary": "Order R-10001 — Jane Doe — not shipped",
+      "date": "2026-02-16",
+      "age_days": 12
+    }
+  ]
+}
+```
+
+- `record` = deep-link id (ADR-035): `orders.id`, `inventory.id`, `customers.id`, or Etsy `receipt_id` for type 3.
+- No pagination in v1 (full union list); panel may cap display client-side.
+
+**B3) `POST /api/orders/[id]/mark-shipped` (§14, ADR-031)**
+
+Request:
+
+```json
+{
+  "shipper": "USPS",
+  "shipping_date": "2026-05-24",
+  "tracking_number": "9400111899223344556677",
+  "shipped_without_paid_override": false
+}
+```
+
+- `shipper` required; `shipping_date` required (`YYYY-MM-DD`); `tracking_number` optional.
+- If order unpaid and override false → **400** with actionable message; user may retry with `shipped_without_paid_override: true` (ADR-021).
+- **200:** full `orders` object (includes `updated_at` for If-Match on later PATCH).
+
+**B4) `POST /api/orders/[id]/link-customer` (§15, ADR-031)**
+
+Request: `{ "customer_id": 77 }`. **200:** updated order. **404** if customer missing.
+
+**B5) `GET /api/uploads/[...path]` (§16, ADR-033)** — binary response; **404** if path invalid or outside `uploads/`.
+
+**B6) Per-order reports (§17, ADR-036)** — `GET /api/reports/invoice/[orderId]?format=pdf|csv` and thank-you note equivalent. Same as §9 with path param; **404** if order not found.
+
+**B7) `GET /api/activity` (§18, ADR-037)**
+
+Query: `entity_type?`, `entity_id?`, `action?`, `limit?` (default 50), `offset?`.
+
+```json
+{
+  "items": [
+    {
+      "id": 501,
+      "action": "order.marked_shipped",
+      "entity_type": "order",
+      "entity_id": 9001,
+      "entity_label": "R-10001",
+      "detail_json": { "shipper": "USPS", "tracking_number": "9400…" },
+      "source": "user",
+      "created_at": "2026-05-24T18:00:00Z"
+    }
+  ],
+  "pagination": { "limit": 50, "offset": 0, "total": 120, "has_more": true }
+}
+```
+
+**B8) Backup (§19, ADR-027)**
+
+`POST /api/backup` → **200:**
+
+```json
+{ "ok": true, "filename": "backup_20260524_180000.sqlite", "size_bytes": 2457600, "backup_count": 12 }
+```
+
+Or **202** + `job_id` for large backups (§8). `GET /api/backup` → `{ "backups": [ { "filename", "created_at", "size_bytes" } ], "total": 12 }`. `DELETE /api/backup/[filename]` → **204**. `POST /api/backup/restore` body `{ "filename": "backup_20260524_180000.sqlite" }` → **200:** `{ "ok": true, "pre_restore_backup": "backup_pre_restore_….sqlite" }`.
+
+**B9) `GET /api/search` (§20, ADR-041)**
+
+Query: `q` (required, min 2 chars), `limit?` (default 5 per group, max 20).
+
+```json
+{
+  "ok": true,
+  "orders": { "items": [ { "id": 42, "order_number": "ORD-2024-0042", "ship_to_first_name": "John", "ship_to_last_name": "Smith", "grand_total": 125.0, "order_status": "active", "order_date": "2026-05-20" } ], "total": 12 },
+  "inventory": { "items": [ { "id": 15, "item_number": "TCT-0042", "description": "Vintage brass lamp", "status": "Listed" } ], "total": 3 },
+  "customers": { "items": [ { "id": 7, "first_name": "John", "last_name": "Smith", "email": "john@example.com" } ], "total": 2 }
+}
+```
+
+**400** if `q` length &lt; 2: `code: "QUERY_TOO_SHORT"`.
+
+**B10) Batch (§21, ADR-040)**
+
+`POST /api/orders/batch` (inventory/customers analogous):
+
+Request:
+
+```json
+{
+  "action": "mark_shipped",
+  "ids": [1, 2, 3],
+  "params": {
+    "shipper": "USPS",
+    "shipping_date": "2026-05-24",
+    "tracking_number": null,
+    "shipped_without_paid_override": true
+  }
+}
+```
+
+Response (**200** even on partial success):
+
+```json
+{
+  "ok": true,
+  "succeeded": 2,
+  "failed": [ { "id": 3, "reason": "Order is void and cannot be updated" } ],
+  "total": 3
+}
+```
+
+Valid actions: orders — `mark_paid`, `mark_shipped`, `void`; inventory — `change_status`, `delete`; customers — `delete`. **400** if `ids.length > 100` (`BATCH_TOO_LARGE`) or invalid `action`.
+
+**B11) Jobs (§22, ADR-043)**
+
+**202** start: `{ "ok": true, "job_id": "job_abc123", "status": "running" }`.
+
+`GET /api/jobs/[job_id]` running:
+
+```json
+{
+  "ok": true,
+  "job_id": "job_abc123",
+  "status": "running",
+  "progress": { "current": 15, "total": 42, "message": "Processing receipt #1234567890" },
+  "started_at": "2026-05-24T19:30:00Z",
+  "elapsed_ms": 12000
+}
+```
+
+Completed: `status: "completed"`, `result` object (action-specific, e.g. sync `{ synced, created_orders, skipped?, errors? }`). Failed: `status: "failed"`, `error` envelope. Cancelled: `status: "cancelled"`. `DELETE /api/jobs/[job_id]` → **200** or **204**. SSE `GET /api/jobs/[job_id]/stream`: events `progress`, `completed`, `failed` with same JSON payloads.
+
+**B12) `GET /api/health` (§23, ADR-050)**
+
+```json
+{ "ok": true, "timestamp": "2026-05-24T20:00:00Z" }
+```
+
+No auth required.
+
+**B13) CSV import (§24, ADR-047)**
+
+`POST /api/inventory/import/preview` — `multipart/form-data`, field `file`. **200:**
+
+```json
+{
+  "columns": ["item_number", "description", "purchase_cost"],
+  "rows": [
+    { "row": 1, "valid": true, "data": { "item_number": "A001", "description": "Vase" }, "errors": [] },
+    { "row": 2, "valid": false, "data": {}, "errors": [{ "field": "status", "message": "Invalid status value 'unknown'" }] }
+  ],
+  "total_rows": 142
+}
+```
+
+`POST /api/inventory/import` — same upload; **200:** `{ "imported": 138, "skipped": 4, "errors": [ { "row": 12, "field": "item_number", "message": "Item number already exists" } ] }`. Large files → **202** + `job_id`. **413** if file &gt; 5 MB.
+
+**B14) Duplicates and listing score (§24, ADR-048, ADR-068)**
+
+`GET /api/inventory/check-duplicate?description=...` (min 5 chars) → `{ "duplicates": [ { "id", "item_number", "description" } ] }` (max 5).
+
+`GET /api/customers/check-duplicate?first_name=&last_name=&email?` → `{ "duplicates": [ { "id", "first_name", "last_name", "email" } ] }`.
+
+`GET /api/inventory/[id]/listing-score` → `{ "score", "grade", "tips": [], "breakdown": { ... } }` per ADR-068.
+
+**B15) Customer extensions (§25, ADR-052, ADR-053, ADR-065)**
+
+`GET /api/customers/[id]/orders?limit=25&offset=0`:
+
+```json
+{
+  "summary": { "total_orders": 12, "total_spent": 1456.78, "first_order_date": "2024-03-15", "last_order_date": "2026-05-20" },
+  "items": [ { "id": 42, "order_number": "ORD-2026-042", "order_date": "2026-05-20", "order_status": "active", "payment_status": "paid", "source_channel": "etsy", "grand_total": 89.99, "shipped": true, "items": [ { "inventory_id": 101, "description": "Blue ceramic vase", "quantity": 1, "unit_price": 89.99 } ] } ],
+  "pagination": { "limit": 25, "offset": 0, "total": 12, "has_more": false }
+}
+```
+
+`GET /api/customers/duplicates` → `{ "groups": [ { "customers": [ ... ], "match_reason": "Same last name, similar first name" } ] }`.
+
+`POST /api/customers/merge` — see ADR-053; **200:** `{ "ok": true, "merged_customer_id": 1, "orders_moved": 3, "addresses_moved": 1 }`. **400** if `primary_id === secondary_id`; **404** if not found.
+
+Notes: `GET/POST /api/customers/[id]/notes`, `DELETE /api/customer-notes/[id]` — shapes in ADR-065 (paginated list, create body `{ note_text, note_type? }`, **201** note, **204** delete).
+
+**B16) Inventory computed fields (§26, ADR-038)**
+
+List/detail inventory items include when applicable:
+
+```json
+{
+  "id": 42,
+  "item_number": "TCT-0042",
+  "purchase_cost": 25.0,
+  "shipping_cost": 8.5,
+  "sale_revenue": 75.0,
+  "other_costs_total": 5.0,
+  "total_cost": 38.5,
+  "net_profit": 36.5,
+  "margin_pct": 48.67,
+  "roi_pct": 94.81
+}
+```
+
+`GET /api/reports/profit-by-item?from_date=&to_date=&format=pdf|csv` — PDF/CSV per ADR-013; accepts `start_date`/`end_date` as aliases.
+
+**B17) Dashboard (§10, ADR-016/038/064/066)**
+
+`GET /api/dashboard`:
+
+```json
+{
+  "connected": true,
+  "shop": { "shop_id": "12345", "shop_name": "Trudy's Classic Treasures" },
+  "last_etsy_sync_at": "2026-05-24T17:00:00Z",
+  "receipts_preview": [],
+  "avg_margin_this_month": 42.3,
+  "avg_margin_this_month_count": 15,
+  "total_profit_this_month": 634.5,
+  "total_profit_ytd": 4280.0
+}
+```
+
+`GET /api/dashboard/inventory-value` → `{ "at_cost", "at_sale_price", "potential_margin", "potential_margin_pct", "item_count" }` (ADR-064).
+
+`GET /api/dashboard/stats` → `{ "repeat_customers_this_month": 8 }` (ADR-066).
+
+**B18) Sample data (§27, ADR-069)**
+
+`POST /api/seed/sample-data` → **201:** `{ "ok": true, "items_created": 10, "customers_created": 5, "orders_created": 8 }`. **409** `SAMPLE_DATA_EXISTS` if `SAMPLE-%` items exist. `DELETE /api/seed/sample-data` → **204** or **404** `NO_SAMPLE_DATA`.
+
+**B19) Reports — tax, aging, accounting (ADR-039, ADR-054, ADR-056)**
+
+- `GET /api/reports/sales-tax-summary?from_date=&to_date=&format=pdf|csv` — monthly buckets per ADR-039; `start_date`/`end_date` aliases allowed.
+- `GET /api/reports/inventory-aging?from_date=&to_date=&format=pdf|csv` — default export via `format=` (canonical per §6). JSON preview optional: `{ items, summary: { total_items, total_cost, avg_days_in_stock, buckets } }`.
+- `GET /api/reports/accounting-export?from_date=&to_date=&format=csv` — **400** if `format` ≠ `csv`; CSV attachment per ADR-056.
+
+**B20) `POST /api/sync/etsy` (ADR-019)** — may return **200** or **202** + `job_id`.
+
+```json
+{
+  "synced": 5,
+  "created_orders": 5,
+  "created_order_items": 7,
+  "skipped": [ { "receipt_id": "999", "reason": "No line items" } ],
+  "errors": 0
+}
+```
+
+**409** if `sync_in_progress` already set.
+
+**B21) Inventory list (§28)** — `GET /api/inventory?status=Listed&search=&sort_by=margin_pct&sort_dir=desc` — paginated; `status` filter optional; computed profitability fields per B16.
+
+---
+
 ## Consequences
 
 - **Positive:** Single place for all endpoints; no ambiguity for implementers.
@@ -493,7 +767,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 - File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation mode strategy (manual vs integrated AI vs portable handoff) is governed by **ADR-023**. Listing endpoints are in section 4; extensions §24–§28 cover ADR-038–069.
-- **Full extension index:** §12–§28 (ADR-027–069). Feature ADRs remain authoritative for request/response field detail; this ADR is the route catalog.
+- **Full extension index:** §12–§28 (ADR-027–069). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
 - **Print shipping label:** Sales UI command (no separate API required). **No automated connection to any shipping service.** App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md`. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first. See `ui-design.md` and `design-decisions-implementation.md` §1.
 
 ### Extensions (updated 2026-05-24)

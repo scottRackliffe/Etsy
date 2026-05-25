@@ -66,12 +66,11 @@ Summary row at bottom: total item count, total purchase_cost invested, average d
 ### API
 
 ```
-GET /api/reports/inventory-aging?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
+GET /api/reports/inventory-aging?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=pdf|csv
 ```
 
-- `from_date` / `to_date`: optional; filter by `date_purchased` (or fallback date) range
-- Response: `{ items: [...], summary: { total_items, total_cost, avg_days_in_stock, buckets: { "0-30": N, "31-60": N, ... } } }`
-- Accepts `Accept: application/pdf` or `Accept: text/csv` header to select output format; defaults to JSON
+- `from_date` / `to_date`: optional; filter by `date_purchased` (or fallback date) range per § Aging calculation
+- **Output format (ADR-018 §6, ADR-013):** Query param `format=pdf` or `format=csv` returns the report file (`Content-Type` application/pdf or text/csv). Omit `format` only if the implementation exposes a JSON preview for the Reports UI: `{ items: [...], summary: { total_items, total_cost, avg_days_in_stock, buckets: { "0-30": N, "31-60": N, ... } } }` — not used for Print/Export actions.
 - Standard error envelope on failure (ADR-018)
 
 ## Consequences

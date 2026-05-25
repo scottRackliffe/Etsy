@@ -38,9 +38,9 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 5. Customer inactivate / reactivate (maintenance)
 
-**Summary:** Inactivate by years of inactivity (activity = latest of last purchase, customer/address updated_at); reactivate when new customer matches (first_name+last_name+email) or by name in maintenance. Inactive excluded from current reports; date-range reports include all in range. Schema: customer.is_active.
+**Summary:** Inactivate by years of inactivity (activity = latest of last `orders.order_date` for that customer, or `customers`/`addresses` `updated_at`); reactivate when new customer matches (first_name+last_name+email) or by name in maintenance. Inactive excluded from current reports; date-range reports include all in range. Schema: `customers.is_active`.
 
-**SSOT:** Schema: [ADR-017](adr/0017-database-schema.md) (customer.is_active). Full behavior (activity definition, match rule, report rules): this document only—no other canonical source; implement from this summary and ADR-017.
+**SSOT:** Schema: [ADR-017](adr/0017-database-schema.md) (`customers.is_active`). Full behavior (activity definition, match rule, report rules): this document only—no other canonical source; implement from this summary and ADR-017.
 
 ---
 

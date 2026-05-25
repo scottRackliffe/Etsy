@@ -50,8 +50,9 @@ A new report type added to the reports system.
 **Report name:** "Sales Tax Summary"
 
 **API endpoint:**
-- `GET /api/reports/sales-tax-summary?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&format=pdf` → PDF
-- `GET /api/reports/sales-tax-summary?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&format=csv` → CSV
+- `GET /api/reports/sales-tax-summary?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=pdf` → PDF
+- `GET /api/reports/sales-tax-summary?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=csv` → CSV
+- **Date params (ADR-018 §6):** Canonical `from_date` / `to_date`. Aliases `start_date` / `end_date` accepted and normalized server-side.
 - Default date range: current calendar year if no dates provided
 
 **Data filter:** Only orders with `order_status = 'active'` are included (void and cancelled orders are excluded per ADR-013 global rule).

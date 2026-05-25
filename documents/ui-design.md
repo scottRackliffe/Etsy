@@ -2,6 +2,8 @@
 
 This document defines the application layout: **tabs** (top), **commands** (left or right), **outstanding / to-do** (right), and the **processes** that drive them. No code here—scope and behavior only.
 
+> **Data model (2026-05-24):** Customer sales = `orders` + `order_items`. Vendor sourcing = `purchases` table only. **v1 layout:** header + tab bar + full-width content (side commands/outstanding panels deferred per § Implementation notes). Canonical schema: ADR-017; API: ADR-018.
+
 ---
 
 ## Intuitive design (guiding principle)
@@ -41,8 +43,8 @@ Proposed top-level tabs. Order can change; names are placeholders.
 | **Dashboard**         | Home. Snapshot of today: recent activity, quick stats (e.g. orders this week, revenue MTD), and a feed or summary.               | Summary cards, recent orders, link into “outstanding” items.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **Sales / Orders**    | Everything about orders and completing a sale.                                                                                   | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (Draft, In stock, Listed, Sold, etc.). When date listed is entered, item is In stock / Listed.                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View purchases per customer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **Reports**           | Run and view reports.                                                                                                            | Chooser: Thank you note, Invoice, Sales, Costs, Income (MTD/YTD), Postal costs by vendor. Options (date range, order/customer). Preview or download.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View order history per customer (ADR-052). Notes log (ADR-065).                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **Reports**           | Run and view reports.                                                                                                            | Chooser per ADR-006: Thank you note, Invoice, Sales, Costs, Income MTD/YTD, Postal by vendor, Outstanding items, AR aging, Profit by item (038), Sales tax summary (039), Inventory aging (054), Accounting export (056). Date range + `format=pdf\|csv` (ADR-036). Actions: Print \| Export PDF \| Export CSV \| Cancel (ADR-013).                                                                                                                                                                                                                                                          |
 | **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to tips-folder files. | **Search** (over in-app content and tips-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, tips-folder files). **Links to files in the tips folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md).                                                                                                                                                                                                                                                                                           |
 | **Outstanding**       | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab.                                | Same items as the “outstanding” panel, but full-page so user can work through the list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Config / Settings** | Etsy connection, preferences, defaults.                                                                                          | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. **Business details:** name, address, **user logo** (upload or select; stored in system for use in invoices, thank-you notes, reports, labels). **Shipping Info:** per-carrier data needed for labels (account numbers, return address, etc.); user adds/edits here; required when Printing shipping label if label cannot be complete without it. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
@@ -91,7 +93,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 - **Add customer** (new customer record).
 - **Edit** (selected customer).
-- **View purchases** (filter orders by this customer).
+- **View order history** (orders for this customer; ADR-052 timeline).
 - **Add sale for this customer** — Record another sale for the currently selected customer. Item sold is chosen from a **pick list** (picture icon + item name); user can **scroll** or **type the item name** to filter and narrow the list, then select. Multiple sales can be recorded for the same customer in sequence.
 
 ### Reports
@@ -102,7 +104,13 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Costs** (date range → list/summary).
 - **Income MTD / YTD** (run and show).
 - **Postal costs by vendor** (run and show).
-- **Export** (CSV/PDF where applicable).
+- **Outstanding items** (snapshot report; ADR-020).
+- **AR aging** (unpaid orders by bucket).
+- **Profit by item** (ADR-038; date range).
+- **Sales tax summary** (ADR-039; date range).
+- **Inventory aging** (ADR-054; slow movers).
+- **Accounting export** (ADR-056; CSV).
+- Per ADR-013: after generation — **Print | Export PDF | Export CSV | Cancel** (not a generic Export only).
 
 ### Tutorial and tips (knowledge base)
 
@@ -291,7 +299,7 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 | Dashboard         | Refresh, Connect Etsy                                                              | Unshipped orders, new orders |
 | Sales             | New order, Sync, Mark paid/shipped, Label, Thank you, Invoice, Record in inventory | Same                         |
 | Inventory         | Add, Edit, Pictures, Mark listed/sold, Retire                                      | Items to list                |
-| Customers         | Add, Edit, View purchases                                                          | Incomplete addresses         |
+| Customers         | Add, Edit, View order history, Add sale                                            | Incomplete addresses         |
 | Reports           | Each report type, Export                                                           | —                            |
 | Tutorial and tips | Search, Index, links to tips-folder files                                          | —                            |
 | Config            | Connect Etsy, Default shipper, Business details, optional guide links              | —                            |
@@ -325,7 +333,7 @@ See ADR-009 "Implementation status" and ADR-024 for the v1 component architectur
 
 ### Schema terminology
 
-This document uses the original data model terms ("purchase", "customer_address"). The implementation uses a three-table order model: `orders` (header) + `order_items` (line items) + `purchases` (vendor buy-side only). Ship-to addresses are in the `addresses` table. See ADR-003 and ADR-017 schema mapping notes.
+**Customer sale** = one `orders` row + `order_items` line(s). **Vendor buy** = `purchases` (inventory sourcing). Ship-to convenience rows = `addresses`; billing address on `customers`. UI copy should say **order** / **sale**, not “purchase,” unless referring to vendor buys or `date_purchased` on inventory. See ADR-003, ADR-017, ADR-019.
 
 ### Features ADR-038–069 (UX index)
 

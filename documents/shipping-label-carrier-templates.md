@@ -33,7 +33,7 @@ If a carrier workflow needs additional fields (for example phone, service class,
 ## Print shipping label — behavior
 
 1. User selects an order and chooses **Print shipping label** (Sales tab / commands).
-2. **Precondition — order:** The order must have (a) **Shipper** set (USPS, UPS, FedEx, DHL, or Other), and (b) **Full ship-to address**: ship_to_first_name, ship_to_last_name, ship_to_address_line_1, ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code (ship_to_address_line_2 optional). If the order is missing any of this, show a message in user terms (e.g. "Please set the shipper and ship-to address for this order first") and stop.
+2. **Precondition — order:** The selected `orders` row must have (a) **`shipper`** set (USPS, UPS, FedEx, DHL, or Other), and (b) **full ship-to snapshot**: `ship_to_first_name`, `ship_to_last_name`, `ship_to_address_line_1`, `ship_to_city`, `ship_to_state_province`, `ship_to_country`, `ship_to_postal_code` (`ship_to_address_line_2` optional). If missing, show a message in user terms (e.g. "Please set the shipper and ship-to address for this order first") and stop.
 3. **Precondition — Shipping Info:** The system must know what Shipping Info is required for the selected shipper to produce a complete label. If that Shipping Info is not stored or is incomplete, **do not** generate or print the label. Show a message that Shipping Info is needed and how to navigate to it (e.g. "Shipping Info is needed for [Shipper] labels. Go to Config → Shipping Info to add it."). Stop.
 4. **Generate and print:** Using the order’s ship-to data and the stored Shipping Info for that shipper, the app generates the label and prints it. No connection to any carrier. The user gets a printed label from the app.
 
