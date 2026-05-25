@@ -5,13 +5,21 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
+import { Button } from "@/components/ui/Button";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
+import { Modal } from "@/components/ui/Modal";
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { ProgressModal } from "@/components/ui/ProgressModal";
 import { OrderDetailPanel } from "@/components/sales/OrderDetailPanel";
+import { useBatchOperation } from "@/hooks/useBatchOperation";
+import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
+import { addNotificationEntry } from "@/lib/notifications";
+import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
 import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -46,7 +54,10 @@ function SalesPageInner() {
   const [shippingFilter, setShippingFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "order_date", dir: "desc" });
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const batch = useBatchSelection(orders, listTotal);
+  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+  const [printQueueOpen, setPrintQueueOpen] = useState(false);
+  const [printQueueType, setPrintQueueType] = useState<PrintQueueDocType>("invoice");
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [shipModalMode, setShipModalMode] = useState<"single" | "batch">("single");
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
@@ -77,27 +88,34 @@ function SalesPageInner() {
   };
 
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
-  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
-  const allVisibleSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o.id));
-  const someVisibleSelected = orders.some((o) => selectedIds.has(o.id));
+
+  const orderBatchFilter = useMemo(
+    () => ({
+      search: debouncedOrderSearch.trim() || undefined,
+      payment_status: paymentFilter ?? undefined,
+      shipping_status: shippingFilter ?? undefined,
+      source_channel: sourceFilter ?? undefined,
+    }),
+    [debouncedOrderSearch, paymentFilter, shippingFilter, sourceFilter]
+  );
+
+  const buildOrderBatchBody = useCallback(
+    (action: string, params?: Record<string, unknown>) =>
+      batch.selectAllMatching
+        ? { action, filter: orderBatchFilter, params }
+        : { action, ids: batch.selectedIdList, params },
+    [batch.selectAllMatching, batch.selectedIdList, orderBatchFilter]
+  );
+
+  const applyBatchFeedback = useCallback(
+    (feedback: { title: string; message: string; variant: string }) => {
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
+    },
+    [setError]
+  );
 
   const orderColumns = useMemo(
     () => [
-      {
-        key: "select",
-        header: "",
-        className: "w-8",
-        render: (order: Order) => (
-          <div onClick={(e) => e.stopPropagation()} role="presentation">
-            <input
-              type="checkbox"
-              checked={selectedIds.has(order.id)}
-              onChange={() => toggleRow(order.id)}
-              aria-label={`Select order ${order.order_number ?? order.id}`}
-            />
-          </div>
-        ),
-      },
       {
         key: "order_number",
         header: "Order",
@@ -113,7 +131,7 @@ function SalesPageInner() {
         render: (order: Order) => (order.shipping_date ? "Yes" : "No"),
       },
     ],
-    [selectedIds]
+    []
   );
 
   const reloadOrders = useCallback(
@@ -205,23 +223,6 @@ function SalesPageInner() {
     setDetailRefresh((n) => n + 1);
   };
 
-  const toggleRow = (id: number) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAllVisible = () => {
-    if (allVisibleSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(orders.map((o) => o.id)));
-    }
-  };
-
   const syncEtsyOrders = async () => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
@@ -306,7 +307,7 @@ function SalesPageInner() {
 
   const openShipModal = (mode: "single" | "batch") => {
     if (mode === "single" && !selectedOrder) return;
-    if (mode === "batch" && selectedIds.size === 0) return;
+    if (mode === "batch" && batch.selectionCount === 0) return;
     setShipModalMode(mode);
     setShipForm({
       shipper: selectedOrder?.shipper ?? "USPS",
@@ -352,35 +353,25 @@ function SalesPageInner() {
 
     setBusyAction("batch-ship");
     try {
-      const unpaidCount = orders.filter((o) => selectedIds.has(o.id) && Number(o.was_paid) !== 1).length;
-      const response = await fetch("/api/orders/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          action: "mark_shipped",
-          ids: selectedIdList,
-          params: {
-            shipper: shipForm.shipper,
-            shipping_date: shipForm.shipping_date,
-            tracking_number: shipForm.tracking_number.trim() || undefined,
-            shipped_without_paid_override: unpaidCount > 0 && shipForm.ship_anyway,
-          },
+      const unpaidCount = batch.selectAllMatching
+        ? orders.filter((o) => Number(o.was_paid) !== 1).length
+        : orders.filter((o) => batch.selectedIds.has(o.id) && Number(o.was_paid) !== 1).length;
+      const { ok, feedback } = await runBatch(
+        "/api/orders/batch",
+        buildOrderBatchBody("mark_shipped", {
+          shipper: shipForm.shipper,
+          shipping_date: shipForm.shipping_date,
+          tracking_number: shipForm.tracking_number.trim() || undefined,
+          shipped_without_paid_override: unpaidCount > 0 && shipForm.ship_anyway,
         }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        succeeded?: number;
-        failed?: Array<{ id: number; reason: string }>;
-      };
-      if (!response.ok) throw data;
+        { entity: "order", actionPast: "marked shipped", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
       await reloadOrders();
       setDetailRefresh((n) => n + 1);
       setShipModalOpen(false);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch ship complete",
-        message: `${data.succeeded ?? 0} order(s) marked shipped.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} skipped or failed.` : ""}`,
-        actions: ["Review orders in the list."],
-      });
+      batch.clearSelection();
+      applyBatchFeedback(feedback);
     } catch (err) {
       setApiError("Batch ship failed", "We could not mark selected orders as shipped.", err);
     } finally {
@@ -410,24 +401,19 @@ function SalesPageInner() {
   };
 
   const batchMarkPaid = async () => {
-    if (selectedIds.size === 0) return;
+    if (batch.selectionCount === 0) return;
     setBusyAction("batch-paid");
     try {
-      const response = await fetch("/api/orders/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "mark_paid", ids: selectedIdList }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { succeeded?: number };
-      if (!response.ok) throw data;
+      const { ok, feedback } = await runBatch(
+        "/api/orders/batch",
+        buildOrderBatchBody("mark_paid"),
+        { entity: "order", actionPast: "marked paid", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
       await reloadOrders();
       setDetailRefresh((n) => n + 1);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch mark paid complete",
-        message: `${data.succeeded ?? 0} order(s) marked paid.`,
-        actions: ["Review orders in the list."],
-      });
+      batch.clearSelection();
+      applyBatchFeedback(feedback);
     } catch (err) {
       setApiError("Batch mark paid failed", "We could not mark selected orders as paid.", err);
     } finally {
@@ -436,25 +422,20 @@ function SalesPageInner() {
   };
 
   const batchVoid = async () => {
-    if (selectedIds.size === 0) return;
+    if (batch.selectionCount === 0) return;
     setBusyAction("batch-void");
     try {
-      const response = await fetch("/api/orders/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "void", ids: selectedIdList }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { succeeded?: number };
-      if (!response.ok) throw data;
+      const { ok, feedback } = await runBatch(
+        "/api/orders/batch",
+        buildOrderBatchBody("void"),
+        { entity: "order", actionPast: "voided", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
       await reloadOrders();
       setDetailRefresh((n) => n + 1);
       setBatchVoidConfirmOpen(false);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch void complete",
-        message: `${data.succeeded ?? 0} order(s) voided.`,
-        actions: ["Voided orders are excluded from active reports."],
-      });
+      batch.clearSelection();
+      applyBatchFeedback(feedback);
     } catch (err) {
       setApiError("Batch void failed", "We could not void selected orders.", err);
     } finally {
@@ -462,7 +443,29 @@ function SalesPageInner() {
     }
   };
 
-  const batchUnpaidCount = orders.filter((o) => selectedIds.has(o.id) && Number(o.was_paid) !== 1).length;
+  const addSelectedToPrintQueue = () => {
+    const targets = batch.selectAllMatching
+      ? orders
+      : orders.filter((o) => batch.selectedIds.has(o.id));
+    const { added, duplicate, full } = addOrdersToPrintQueue(targets, printQueueType);
+    if (full) {
+      addNotificationEntry({
+        type: "error",
+        message: "Print queue is full (50 max). Print or clear some items first.",
+      });
+    } else {
+      addNotificationEntry({
+        type: "success",
+        message: `Added ${added} document(s) to print queue${duplicate > 0 ? ` (${duplicate} already queued)` : ""}.`,
+      });
+    }
+    setPrintQueueOpen(false);
+    batch.clearSelection();
+  };
+
+  const batchUnpaidCount = batch.selectAllMatching
+    ? orders.filter((o) => Number(o.was_paid) !== 1).length
+    : orders.filter((o) => batch.selectedIds.has(o.id) && Number(o.was_paid) !== 1).length;
   const shipModalUnpaid =
     shipModalMode === "single"
       ? selectedOrder && Number(selectedOrder.was_paid) !== 1
@@ -482,39 +485,37 @@ function SalesPageInner() {
         </button>
       </div>
 
-      {selectedIds.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2">
-          <span className="text-sm text-[var(--ui-body)]">{selectedIds.size} selected</span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void batchMarkPaid()}
-              disabled={busyAction != null}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60"
-            >
-              Mark paid
-            </button>
-            <button
-              type="button"
-              onClick={() => openShipModal("batch")}
-              disabled={busyAction != null}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60"
-            >
-              Mark shipped…
-            </button>
-            <button
-              type="button"
-              onClick={() => setBatchVoidConfirmOpen(true)}
-              disabled={busyAction != null}
-              className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-1.5 text-sm text-[var(--ui-red)] disabled:opacity-60"
-            >
-              Void
-            </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm text-[var(--ui-accent)]">
-              Clear
-            </button>
-          </div>
-        </div>
+      {batch.selectionCount > 0 ? (
+        <BatchActionsBar
+          selectionLabel={
+            batch.selectAllMatching
+              ? `All ${batch.selectionCount} matching selected`
+              : `${batch.selectionCount} selected`
+          }
+          onClear={batch.clearSelection}
+          selectAllMatching={
+            batch.canSelectAllMatching && !batch.selectAllMatching
+              ? {
+                  total: listTotal,
+                  onSelect: batch.selectAllMatchingRows,
+                  tooLarge: batch.selectAllMatchingTooLarge,
+                }
+              : undefined
+          }
+        >
+          <Button variant="secondary" size="sm" busy={busyAction === "batch-paid" || batchBusy} onClick={() => void batchMarkPaid()}>
+            Mark paid
+          </Button>
+          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => openShipModal("batch")}>
+            Mark shipped…
+          </Button>
+          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => setPrintQueueOpen(true)}>
+            Add to print queue…
+          </Button>
+          <Button variant="danger" size="sm" busy={busyAction === "batch-void" || batchBusy} onClick={() => setBatchVoidConfirmOpen(true)}>
+            Void
+          </Button>
+        </BatchActionsBar>
       ) : null}
 
       <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-[1fr_auto_auto]">
@@ -557,19 +558,6 @@ function SalesPageInner() {
               placeholder="Search order #, name, city…"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
-            {orders.length > 0 ? (
-              <label className="flex items-center gap-1 text-xs text-[var(--ui-muted)]">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
-                  }}
-                  onChange={toggleAllVisible}
-                />
-                Select page
-              </label>
-            ) : null}
           </div>
           <div className="mb-3 space-y-2">
             <FilterChipRow
@@ -613,6 +601,13 @@ function SalesPageInner() {
             columns={orderColumns}
             data={orders}
             selectedId={selectedOrderId}
+            selection={{
+              selectedIds: batch.selectedIds,
+              onToggleRow: batch.toggleRow,
+              onToggleAllVisible: batch.toggleAllVisible,
+              allVisibleSelected: batch.allVisibleSelected,
+              indeterminate: batch.headerIndeterminate,
+            }}
             onRowClick={(order) => selectOrder(order.id)}
             sort={sort}
             onSortChange={(next) => {
@@ -673,7 +668,7 @@ function SalesPageInner() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
-              {shipModalMode === "batch" ? `Mark ${selectedIds.size} orders shipped` : "Mark order shipped"}
+              {shipModalMode === "batch" ? `Mark ${batch.selectionCount} orders shipped` : "Mark order shipped"}
             </h4>
             <label className="mb-2 block text-sm">
               Carrier
@@ -750,11 +745,41 @@ function SalesPageInner() {
         open={batchVoidConfirmOpen}
         onClose={() => setBatchVoidConfirmOpen(false)}
         onConfirm={() => void batchVoid()}
-        title={`Void ${selectedIds.size} orders?`}
+        title={`Void ${batch.selectionCount} orders?`}
         description="Voided orders are excluded from active reports. This cannot be undone."
         confirmLabel="Void orders"
         confirmVariant="danger"
         busy={busyAction === "batch-void"}
+      />
+      <Modal open={printQueueOpen} onClose={() => setPrintQueueOpen(false)} title="Add to print queue">
+        <p className="mb-3 text-sm text-[var(--ui-muted)]">
+          Choose a document type for {batch.selectionCount} selected order(s).
+        </p>
+        <select
+          value={printQueueType}
+          onChange={(e) => setPrintQueueType(e.target.value as PrintQueueDocType)}
+          className="mb-4 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+        >
+          <option value="invoice">Invoice</option>
+          <option value="thank-you">Thank-you note</option>
+          <option value="label">Shipping label</option>
+        </select>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setPrintQueueOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={addSelectedToPrintQueue}>
+            Add to queue
+          </Button>
+        </div>
+      </Modal>
+      <ProgressModal
+        open={progressOpen}
+        title={progressTitle}
+        statusText={progressTitle}
+        mode="indeterminate"
+        total={progressTotal}
+        onClose={() => undefined}
       />
       <ConfirmDialog
         open={discardOrderDirtyOpen}

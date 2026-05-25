@@ -6,7 +6,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
+import { Button } from "@/components/ui/Button";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { useBatchOperation } from "@/hooks/useBatchOperation";
+import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
@@ -100,7 +105,6 @@ function InventoryPageInner() {
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
@@ -151,10 +155,24 @@ function InventoryPageInner() {
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
+  const batch = useBatchSelection(inventory, listTotal);
+  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
 
-  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
-  const allVisibleSelected = inventory.length > 0 && inventory.every((row) => selectedIds.has(row.id));
-  const someVisibleSelected = inventory.some((row) => selectedIds.has(row.id));
+  const inventoryBatchFilter = useMemo(
+    () => ({
+      search: debouncedInventorySearch.trim() || undefined,
+      status: statusFilter ?? undefined,
+    }),
+    [debouncedInventorySearch, statusFilter]
+  );
+
+  const buildInventoryBatchBody = useCallback(
+    (action: string, params?: Record<string, unknown>) =>
+      batch.selectAllMatching
+        ? { action, filter: inventoryBatchFilter, params }
+        : { action, ids: batch.selectedIdList, params },
+    [batch.selectAllMatching, batch.selectedIdList, inventoryBatchFilter]
+  );
 
   const handlePictureItemUpdated = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -214,40 +232,8 @@ function InventoryPageInner() {
     );
   }, [reloadInventory, setApiError]);
 
-  const toggleInventoryRow = (id: number) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAllVisibleInventory = () => {
-    if (allVisibleSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(inventory.map((row) => row.id)));
-    }
-  };
-
   const inventoryColumns = useMemo(
     () => [
-      {
-        key: "select",
-        header: "",
-        className: "w-8",
-        render: (item: InventoryItem) => (
-          <div onClick={(e) => e.stopPropagation()} role="presentation">
-            <input
-              type="checkbox"
-              checked={selectedIds.has(item.id)}
-              onChange={() => toggleInventoryRow(item.id)}
-              aria-label={`Select ${item.item_number ?? item.id}`}
-            />
-          </div>
-        ),
-      },
       {
         key: "item_number",
         header: "Item #",
@@ -262,31 +248,23 @@ function InventoryPageInner() {
       },
       { key: "status", header: "Status", sortable: true },
     ],
-    [selectedIds]
+    []
   );
 
   const batchChangeStatus = async (status: string) => {
-    if (selectedIds.size === 0) return;
+    if (batch.selectionCount === 0) return;
     setBusyAction("batch-status");
     try {
-      const response = await fetch("/api/inventory/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "change_status", ids: selectedIdList, params: { status } }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        succeeded?: number;
-        failed?: Array<{ id: number; reason: string }>;
-      };
-      if (!response.ok) throw data;
+      const { ok, feedback } = await runBatch(
+        "/api/inventory/batch",
+        buildInventoryBatchBody("change_status", { status }),
+        { entity: "item", actionPast: `set to ${status}`, count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
       await reloadInventory();
       setBatchStatusOpen(false);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch status updated",
-        message: `${data.succeeded ?? 0} item(s) set to ${status}.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} failed.` : ""}`,
-        actions: ["Review items in the list."],
-      });
+      batch.clearSelection();
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
     } catch (err) {
       setApiError("Batch status failed", "We could not update selected items.", err);
     } finally {
@@ -295,32 +273,34 @@ function InventoryPageInner() {
   };
 
   const batchDeleteInventory = async () => {
-    if (selectedIds.size === 0) return;
+    if (batch.selectionCount === 0) return;
     setBusyAction("batch-delete");
     try {
-      const response = await fetch("/api/inventory/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "delete", ids: selectedIdList }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        succeeded?: number;
-        failed?: Array<{ id: number; reason: string }>;
-      };
-      if (!response.ok) throw data;
-      setInventory((current) => current.filter((row) => !selectedIds.has(row.id)));
-      if (selectedItemId && selectedIds.has(selectedItemId)) {
-        const remaining = inventory.filter((row) => !selectedIds.has(row.id));
-        setSelectedItemId(remaining[0]?.id ?? null);
-        setSelectedItem(remaining[0] ?? null);
+      const { ok, feedback, result } = await runBatch(
+        "/api/inventory/batch",
+        buildInventoryBatchBody("delete"),
+        { entity: "item", actionPast: "deleted", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
+      const removed = new Set(
+        batch.selectAllMatching
+          ? []
+          : batch.selectedIdList.filter(
+              (id) => !(result?.failed ?? []).some((f) => f.id === id)
+            )
+      );
+      if (batch.selectAllMatching) await reloadInventory();
+      else {
+        setInventory((current) => current.filter((row) => !removed.has(row.id)));
+        if (selectedItemId && removed.has(selectedItemId)) {
+          const remaining = inventory.filter((row) => !removed.has(row.id));
+          setSelectedItemId(remaining[0]?.id ?? null);
+          setSelectedItem(remaining[0] ?? null);
+        }
       }
       setBatchDeleteOpen(false);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch delete complete",
-        message: `${data.succeeded ?? 0} item(s) deleted.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} skipped (have orders).` : ""}`,
-        actions: ["Items with orders cannot be deleted."],
-      });
+      batch.clearSelection();
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
     } catch (err) {
       setApiError("Batch delete failed", "We could not delete selected items.", err);
     } finally {
@@ -733,24 +713,30 @@ function InventoryPageInner() {
         ) : null}
       </div>
 
-      {selectedIds.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2">
-          <span className="text-sm text-[var(--ui-body)]">{selectedIds.size} selected</span>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setBatchStatusOpen(true)} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
-              Change status…
-            </button>
-            <button type="button" onClick={() => void batchChangeStatus("Retired")} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
-              Retire
-            </button>
-            <button type="button" onClick={() => setBatchDeleteOpen(true)} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-1.5 text-sm text-[var(--ui-red)] disabled:opacity-60">
-              Delete
-            </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm text-[var(--ui-accent)]">
-              Clear
-            </button>
-          </div>
-        </div>
+      {batch.selectionCount > 0 ? (
+        <BatchActionsBar
+          selectionLabel={
+            batch.selectAllMatching
+              ? `All ${batch.selectionCount} matching selected`
+              : `${batch.selectionCount} selected`
+          }
+          onClear={batch.clearSelection}
+          selectAllMatching={
+            batch.canSelectAllMatching && !batch.selectAllMatching
+              ? { total: listTotal, onSelect: batch.selectAllMatchingRows, tooLarge: batch.selectAllMatchingTooLarge }
+              : undefined
+          }
+        >
+          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => setBatchStatusOpen(true)}>
+            Change status…
+          </Button>
+          <Button variant="secondary" size="sm" busy={busyAction === "batch-status" || batchBusy} onClick={() => void batchChangeStatus("Retired")}>
+            Retire
+          </Button>
+          <Button variant="danger" size="sm" busy={busyAction === "batch-delete" || batchBusy} onClick={() => setBatchDeleteOpen(true)}>
+            Delete
+          </Button>
+        </BatchActionsBar>
       ) : null}
 
       <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
@@ -809,6 +795,13 @@ function InventoryPageInner() {
               columns={inventoryColumns}
               data={inventory}
               selectedId={selectedItemId}
+              selection={{
+                selectedIds: batch.selectedIds,
+                onToggleRow: batch.toggleRow,
+                onToggleAllVisible: batch.toggleAllVisible,
+                allVisibleSelected: batch.allVisibleSelected,
+                indeterminate: batch.headerIndeterminate,
+              }}
               onRowClick={(item) => selectInventoryItem(item.id)}
               sort={sort}
               onSortChange={(next) => {
@@ -1035,11 +1028,18 @@ function InventoryPageInner() {
         </div>
       ) : null}
 
+      <ProgressModal
+        open={progressOpen}
+        title={progressTitle}
+        statusText={progressTitle}
+        mode="indeterminate"
+        total={progressTotal}
+      />
       <ConfirmDialog
         open={batchDeleteOpen}
         onClose={() => setBatchDeleteOpen(false)}
         onConfirm={() => void batchDeleteInventory()}
-        title={`Delete ${selectedIds.size} items?`}
+        title={`Delete ${batch.selectionCount} items?`}
         description="Items with associated orders cannot be deleted and will be skipped."
         confirmLabel="Delete items"
         confirmVariant="danger"

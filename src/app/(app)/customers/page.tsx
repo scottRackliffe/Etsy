@@ -4,7 +4,12 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
+import { Button } from "@/components/ui/Button";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { useBatchOperation } from "@/hooks/useBatchOperation";
+import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
@@ -63,7 +68,6 @@ function CustomersPageInner() {
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteType, setNewNoteType] = useState("general");
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
@@ -100,6 +104,24 @@ function CustomersPageInner() {
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [activeFilter, setActiveFilter] = useState<string | null>("1");
   const [sort, setSort] = useState<SortState>({ key: "last_name", dir: "asc" });
+  const batch = useBatchSelection(customers, listTotal);
+  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+
+  const customerBatchFilter = useMemo(
+    () => ({
+      search: debouncedCustomerSearch.trim() || undefined,
+      is_active: activeFilter === "1" ? 1 : activeFilter === "0" ? 0 : undefined,
+    }),
+    [debouncedCustomerSearch, activeFilter]
+  );
+
+  const buildCustomerBatchBody = useCallback(
+    (action: string) =>
+      batch.selectAllMatching
+        ? { action, filter: customerBatchFilter }
+        : { action, ids: batch.selectedIdList },
+    [batch.selectAllMatching, batch.selectedIdList, customerBatchFilter]
+  );
 
   const reloadCustomers = useCallback(async () => {
     const params = new URLSearchParams({
@@ -129,27 +151,8 @@ function CustomersPageInner() {
     );
   }, [reloadCustomers, setApiError]);
 
-  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
-  const allVisibleSelected = customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
-  const someVisibleSelected = customers.some((c) => selectedIds.has(c.id));
-
   const customerColumns = useMemo(
     () => [
-      {
-        key: "select",
-        header: "",
-        className: "w-8",
-        render: (customer: Customer) => (
-          <div onClick={(e) => e.stopPropagation()} role="presentation">
-            <input
-              type="checkbox"
-              checked={selectedIds.has(customer.id)}
-              onChange={() => toggleCustomerRow(customer.id)}
-              aria-label={`Select customer ${customer.id}`}
-            />
-          </div>
-        ),
-      },
       {
         key: "name",
         header: "Name",
@@ -165,7 +168,7 @@ function CustomersPageInner() {
       { key: "email", header: "Email", sortable: true },
       { key: "phone", header: "Phone", sortable: true },
     ],
-    [selectedIds]
+    []
   );
 
   const searchParams = useSearchParams();
@@ -434,46 +437,27 @@ function CustomersPageInner() {
     }
   };
 
-  const toggleCustomerRow = (id: number) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAllVisibleCustomers = () => {
-    if (allVisibleSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(customers.map((c) => c.id)));
-  };
-
   const batchDeleteCustomers = async () => {
-    if (selectedIds.size === 0) return;
+    if (batch.selectionCount === 0) return;
     setBusyAction("batch-delete-customers");
     try {
-      const response = await fetch("/api/customers/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "delete", ids: selectedIdList }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        succeeded?: number;
-        failed?: Array<{ id: number; reason: string }>;
-      };
-      if (!response.ok) throw data;
-      setCustomers((current) => current.filter((row) => !selectedIds.has(row.id)));
-      if (selectedCustomerId && selectedIds.has(selectedCustomerId)) {
-        const remaining = customers.filter((row) => !selectedIds.has(row.id));
-        setSelectedCustomerId(remaining[0]?.id ?? null);
+      const { ok, feedback } = await runBatch(
+        "/api/customers/batch",
+        buildCustomerBatchBody("delete"),
+        { entity: "customer", actionPast: "deleted", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
+      if (batch.selectAllMatching) await reloadCustomers();
+      else {
+        setCustomers((current) => current.filter((row) => !batch.selectedIds.has(row.id)));
+        if (selectedCustomerId && batch.selectedIds.has(selectedCustomerId)) {
+          const remaining = customers.filter((row) => !batch.selectedIds.has(row.id));
+          setSelectedCustomerId(remaining[0]?.id ?? null);
+        }
       }
       setBatchDeleteOpen(false);
-      setSelectedIds(new Set());
-      setError({
-        title: "Batch delete complete",
-        message: `${data.succeeded ?? 0} customer(s) deleted.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} skipped (have orders).` : ""}`,
-        actions: ["Customers with orders cannot be deleted."],
-      });
+      batch.clearSelection();
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
     } catch (err) {
       setApiError("Batch delete failed", "We could not delete selected customers.", err);
     } finally {
@@ -508,23 +492,24 @@ function CustomersPageInner() {
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Customers</h3>
-      {selectedIds.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2">
-          <span className="text-sm text-[var(--ui-body)]">{selectedIds.size} selected</span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setBatchDeleteOpen(true)}
-              disabled={busyAction != null}
-              className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-1.5 text-sm text-[var(--ui-red)] disabled:opacity-60"
-            >
-              Delete
-            </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm text-[var(--ui-accent)]">
-              Clear
-            </button>
-          </div>
-        </div>
+      {batch.selectionCount > 0 ? (
+        <BatchActionsBar
+          selectionLabel={
+            batch.selectAllMatching
+              ? `All ${batch.selectionCount} matching selected`
+              : `${batch.selectionCount} selected`
+          }
+          onClear={batch.clearSelection}
+          selectAllMatching={
+            batch.canSelectAllMatching && !batch.selectAllMatching
+              ? { total: listTotal, onSelect: batch.selectAllMatchingRows, tooLarge: batch.selectAllMatchingTooLarge }
+              : undefined
+          }
+        >
+          <Button variant="danger" size="sm" busy={busyAction === "batch-delete-customers" || batchBusy} onClick={() => setBatchDeleteOpen(true)}>
+            Delete
+          </Button>
+        </BatchActionsBar>
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 lg:col-span-2">
@@ -555,6 +540,13 @@ function CustomersPageInner() {
             columns={customerColumns}
             data={customers}
             selectedId={selectedCustomerId}
+            selection={{
+              selectedIds: batch.selectedIds,
+              onToggleRow: batch.toggleRow,
+              onToggleAllVisible: batch.toggleAllVisible,
+              allVisibleSelected: batch.allVisibleSelected,
+              indeterminate: batch.headerIndeterminate,
+            }}
             onRowClick={(customer) => setSelectedCustomerId(customer.id)}
             sort={sort}
             onSortChange={(next) => {
@@ -763,11 +755,18 @@ function CustomersPageInner() {
         />
       ) : null}
 
+      <ProgressModal
+        open={progressOpen}
+        title={progressTitle}
+        statusText={progressTitle}
+        mode="indeterminate"
+        total={progressTotal}
+      />
       <ConfirmDialog
         open={batchDeleteOpen}
         onClose={() => setBatchDeleteOpen(false)}
         onConfirm={() => void batchDeleteCustomers()}
-        title={`Delete ${selectedIds.size} customers?`}
+        title={`Delete ${batch.selectionCount} customers?`}
         description="Customers with existing orders cannot be deleted and will be skipped."
         confirmLabel="Delete customers"
         confirmVariant="danger"

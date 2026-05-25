@@ -13,11 +13,20 @@ export type Column<T> = {
 
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
 
+export type DataTableSelection = {
+  selectedIds: Set<number>;
+  onToggleRow: (id: number) => void;
+  onToggleAllVisible: () => void;
+  allVisibleSelected: boolean;
+  indeterminate: boolean;
+};
+
 export function DataTable<T extends { id?: number | string }>({
   columns,
   data,
   onRowClick,
   selectedId,
+  selection,
   emptyMessage = "No records found.",
   rowKey,
   sort,
@@ -30,6 +39,7 @@ export function DataTable<T extends { id?: number | string }>({
   data: T[];
   onRowClick?: (row: T) => void;
   selectedId?: number | string | null;
+  selection?: DataTableSelection;
   emptyMessage?: string;
   rowKey?: (row: T, index: number) => string | number;
   sort?: SortState;
@@ -117,6 +127,19 @@ export function DataTable<T extends { id?: number | string }>({
       <table className="w-full text-sm" role="table">
         <thead>
           <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)]">
+            {selection ? (
+              <th scope="col" className="w-10 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={selection.allVisibleSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selection.indeterminate;
+                  }}
+                  onChange={selection.onToggleAllVisible}
+                  aria-label="Select all rows on this page"
+                />
+              </th>
+            ) : null}
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -144,7 +167,10 @@ export function DataTable<T extends { id?: number | string }>({
         <tbody>
           {data.map((row, idx) => {
             const key = rowKey ? rowKey(row, idx) : row.id ?? idx;
+            const rowId = typeof row.id === "number" ? row.id : null;
+            const isMultiSelected = rowId != null && selection?.selectedIds.has(rowId);
             const isSelected =
+              isMultiSelected ||
               (selectedId != null && row.id === selectedId) ||
               (keyboardNav && idx === focusIndex);
             return (
@@ -165,13 +191,25 @@ export function DataTable<T extends { id?: number | string }>({
                 className={`border-b border-[var(--ui-border)] transition-colors ${
                   onRowClick ? "cursor-pointer" : ""
                 } ${
-                  isSelected
+                  isMultiSelected
+                    ? "bg-[var(--ui-accent)]/10"
+                    : isSelected
                     ? "bg-[var(--ui-accent)]/15"
                     : idx % 2 === 0
                       ? "bg-[var(--ui-list-dark)]"
                       : "bg-[var(--ui-list-light)]"
                 } hover:bg-[var(--ui-list-hover)]`}
               >
+                {selection && rowId != null ? (
+                  <td className="w-10 px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selection.selectedIds.has(rowId)}
+                      onChange={() => selection.onToggleRow(rowId)}
+                      aria-label={`Select row ${rowId}`}
+                    />
+                  </td>
+                ) : null}
                 {columns.map((col) => (
                   <td key={col.key} className={`px-3 py-2 text-[var(--ui-body)] ${col.className ?? ""}`}>
                     {col.render

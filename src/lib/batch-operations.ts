@@ -83,11 +83,12 @@ export function batchOrders(
     }
   }
 
-  if (succeeded > 0) {
+  if (succeeded > 0 || failed.length > 0) {
     logActivity({
       action: `order.batch_${action}`,
       entityType: "order",
-      detail: { succeeded, failed: failed.length, action },
+      entityLabel: `Batch: ${idList.length} orders`,
+      detail: { ids: idList, succeeded, failed, params },
       source: "user",
     });
   }
@@ -134,11 +135,12 @@ export function batchInventory(
     }
   }
 
-  if (succeeded > 0) {
+  if (succeeded > 0 || failed.length > 0) {
     logActivity({
       action: `inventory.batch_${action}`,
       entityType: "inventory",
-      detail: { succeeded, failed: failed.length, action },
+      entityLabel: `Batch: ${idList.length} items`,
+      detail: { ids: idList, succeeded, failed, params },
       source: "user",
     });
   }
@@ -170,11 +172,12 @@ export function batchCustomers(action: string, ids: unknown): BatchResult {
     }
   }
 
-  if (succeeded > 0) {
+  if (succeeded > 0 || failed.length > 0) {
     logActivity({
       action: "customer.batch_delete",
       entityType: "customer",
-      detail: { succeeded, failed: failed.length },
+      entityLabel: `Batch: ${idList.length} customers`,
+      detail: { ids: idList, succeeded, failed },
       source: "user",
     });
   }

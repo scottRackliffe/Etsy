@@ -377,4 +377,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 22 (2026-05-24) — implemented:** ADR-050 connection states (`online` / `offline` / `server-unreachable`) via `navigator.onLine` + 30s `/api/health` ping; `OfflineBanner` and `StaleDataBadge`; `apiFetch` with 30s timeout, transient retry, and `esm_mutation_queue` localStorage replay on reconnect; `useApi` options; order/inventory/customer PATCH and Etsy sync use `apiFetch`.
 
+**Wave 23 (2026-05-24) — implemented:** ADR-040 bulk/batch operations — `DataTable` built-in selection column + row highlight; sticky `BatchActionsBar` with select-all-matching (filter → batch APIs); `POST /api/*/batch` accepts `filter` or `ids`; partial-success feedback via `summarizeBatchResult` + `ProgressModal` for 10+ items; sales batch print-queue stub (`print-queue.ts`); inventory/customer batch delete and status actions.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
