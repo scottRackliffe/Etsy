@@ -308,6 +308,108 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 ---
 
+## 1b. Global application header (v1)
+
+**Canonical detail:** ADR-071 §3.2, ADR-028, ADR-041, 051, 055, 063.
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [App name]              [Connected ●] [Shop ▼]  [🕐] [🖨] [🔔] [Search] │
+└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Dashboard | Sales | Inventory | Customers | Reports | … | Config        │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+| Control | Behavior |
+|---------|----------|
+| App name | `settings.business_name` or “Trudy’s Etsy Sales Manager”; links to Dashboard |
+| Etsy status | Badge: Connected (`success`) / Not connected (`warning`) |
+| Shop selector | Dropdown when connected; drives sync and receipts scope |
+| Recent (🕐) | ADR-063 — dropdown of last viewed orders/items/customers |
+| Print queue (🖨) | ADR-055 — badge with count; opens queue drawer |
+| Notifications (🔔) | ADR-051 — unread count; panel lists sync/errors/outstanding |
+| Search | ADR-041 — opens command palette; `Cmd/Ctrl+K` |
+| Connect / Disconnect | When disconnected: **Connect Etsy** `Button variant="accent"` in header; when connected: **Disconnect** in Config or header menu (secondary) |
+
+**Mobile (ADR-061):** Icon-only cluster on right; app name truncates; tab bar scrolls horizontally.
+
+---
+
+## 1c. Dashboard layout (v1)
+
+**Canonical detail:** ADR-016, ADR-016 extensions, ADR-037, ADR-038, ADR-064, ADR-044, ADR-071.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Dashboard                                               │
+├────────────────────────────┬────────────────────────────┤
+│ KPI cards (4-up grid)      │ Etsy connection card       │
+│ Revenue MTD | Orders month │ Status, last sync, Sync    │
+│ Listed count | Outstanding │ Reconnect if needed        │
+├────────────────────────────┴────────────────────────────┤
+│ Recent local orders (DataTable, 10 rows) → Sales deep link│
+├─────────────────────────────────────────────────────────┤
+│ Recent activity feed (ADR-037, 20 entries)              │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Widget | Data source | Empty / not connected |
+|--------|-------------|------------------------|
+| KPI cards | `GET /api/dashboard`, inventory-value, stats | Show “—” or prompt Connect |
+| Recent orders | Local `orders` (not Etsy receipts-only long term) | EmptyState → Sales or Connect |
+| Activity feed | `GET /api/activity?limit=20` | Hidden if empty |
+| Setup wizard overlay | ADR-044 when `setup.completed` absent | Blocks interaction until skip/complete |
+
+**Not connected state:** Hide KPIs and orders table; show single card: message + **Connect with Etsy** (ADR-016).
+
+---
+
+## 1d. List views — search, filters, and sort (v1)
+
+**Canonical detail:** ADR-029, ADR-071, ADR-028 DataTable.
+
+Each list tab (Sales, Inventory, Customers) uses a **toolbar** above the table:
+
+```
+[ Search……………… ]  [Status ▼] [More filters ▼]  [Clear]     [Primary action]
+```
+
+| Tab | Filter chips (toggle) | Sort default |
+|-----|----------------------|--------------|
+| Sales | All, Unpaid, Paid, Not shipped, Shipped, Etsy, Manual, Void | `order_date` desc |
+| Inventory | All, Draft, In stock, Listed, Sold, Reserved, Retired | `item_number` asc |
+| Customers | All, Active, Has orders, Incomplete address | `last_name` asc |
+
+- **Search:** Debounced 300ms; placeholder plain language (“Search orders, customers, items…”).
+- **Clear filters:** Resets chips + search; restores default sort.
+- **Pagination:** Bottom of table; page size from `settings.ui.page_size` (ADR-034).
+- **Loading:** Skeleton rows (5) then data per ADR-071 §7.
+
+---
+
+## 5.9 Print shipping label (preview UX)
+
+**Canonical detail:** shipping-label-carrier-templates.md, ADR-031, ADR-070 (no carrier API).
+
+1. User selects order → **Print shipping label** (Sales detail or command).
+2. **Precheck:** If `ship_to_*` incomplete → modal: “Complete ship-to address on this order first” + **Edit order** (stays on Sales).
+3. **Precheck:** If `shipper` empty → prompt to choose carrier (same as mark-shipped).
+4. **Precheck:** If `shipping_info_{carrier}` missing in settings → modal: “Shipping Info for {carrier} is not set up.” Actions: **Go to Config** (navigate `/config#shipping`) | **Cancel**.
+5. **Preview modal:** Title “Shipping label — Order {order_number}”; embedded preview (PDF or HTML print view); ship-to + return address from settings + order snapshot.
+6. Actions: **Print** (browser print dialog) | **Close**.
+7. **Optional:** After print, toast info: “Mark this order shipped when you’ve dropped it off?” with **Mark shipped** shortcut.
+
+No automatic tracking number submission to carriers.
+
+---
+
+## 5.10 Visual consistency
+
+All screens follow **ADR-071** (badges, toasts, colors, order fulfillment progress) and **System_Colors.md** (hex tokens). Implementers run the per-screen checklist in ADR-071 §9 before marking a tab complete.
+
+---
+
 ## 7. Next steps
 
 - **Layout decided:** Config + icon (left = commands, right = outstanding to-do's, or the reverse).

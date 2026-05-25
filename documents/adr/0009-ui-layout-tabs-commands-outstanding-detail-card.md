@@ -14,6 +14,8 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 
 ## Decision
 
+**v1 implementation note (2026-05-24):** The structural decisions below (tabs, intuitive design, context-in-place on outstanding click) remain in force. **Side commands panel, side outstanding panel, and layout flip are deferred to post-v1** — see "Implementation status" at end of this ADR. v1 uses full-width content, inline actions (ADR-028), and the Outstanding **tab** with deep links (ADR-035).
+
 **Layout**
 
 - **Tabs (top):** Primary navigation. Full tab set: **Dashboard**, **Sales**, **Inventory**, **Customers**, **Reports**, **Tutorial and tips**, **Outstanding**, **Config** (see [ui-design.md](../ui-design.md) §2 for purpose and content of each). One tab active at a time; main content area shows that section’s list/form/report.

@@ -1,6 +1,8 @@
 # Etsy Sales Manager — System Colors
 
-UI color palette aligned to **Cursor blue UI** (deep navy surfaces, cool blue accents). Same scheme as NSLS for consistency. Semantic colors used for status (paid/shipped, errors, warnings).
+UI color palette aligned to **Cursor blue UI** (deep navy surfaces, cool blue accents). Same scheme as NSLS for consistency.
+
+**How to apply colors (mandatory):** [ADR-071](adr/0071-visual-design-system-and-ui-consistency.md) — semantic usage, badges, navigation, and success/error feedback. This file is **hex/token reference only**; do not duplicate badge rules here.
 
 ## Screen & typography
 
@@ -59,4 +61,5 @@ Example:
 ## Reference
 
 - Source: NSLS `documents/System_Colors.md` (Cursor blue UI).
-- Etsy app: `src/app/globals.css`, `src/app/page.tsx`.
+- Implementation: `src/app/globals.css` — all UI must use `var(--ui-*)` per ADR-071.
+- Badge/status mapping: ADR-071 §4 (not duplicated in this file).

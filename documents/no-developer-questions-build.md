@@ -212,9 +212,9 @@ Phase 1 is complete only when every box below is checked. Phase 2 ([`DOC_COMPLIA
 
 ### 4.6 Cross-reference map and verification (items 7–8 of doc pass)
 
-- [ ] `.cursorrules` §1b — full impacted-by map for ADR-028–069
-- [ ] Contradiction grep suite (Decision sections: no live `PATCH /api/purchases`, `customer_address` table, `inventory_other_cost` as table name; no `order_items.shipped_without_paid_override`; `setup.completed` not `setup_completed` in ADR-044)
-- [ ] Manual: `documents/adr/README.md` lists all 69 ADRs; each §5 priority 8–52 has ADR + ui-design/018 cross-ref
+- [x] `.cursorrules` §1b — impacted-by map for ADR-023–069 (2026-05-24)
+- [x] Contradiction grep suite (2026-05-24): legacy terms only in schema-mapping tables (`PATCH /api/purchases` → orders in ADR-021; `customer_address`/`inventory_other_cost` in ADR-019/020/022 Notes); `shipped_without_paid_override` on **orders** only; ADR-044 uses `setup.completed` (no `setup_completed`)
+- [x] Manual (2026-05-24): `documents/adr/README.md` index lists ADR-001–069 (69 files on disk); priorities 8–52 in §5 cite feature ADRs; `ui-design.md` §338 indexes ADR-038–069 UX; ADR-018 Extensions §12–§28 catalog API routes
 
 ### 4.7 Remaining spec-only gaps (documented, not blocking Phase 1 sign-off)
 
@@ -222,13 +222,29 @@ Tracked in **§6** below. Code must not invent behavior for these; use ADR-017/0
 
 ### Phase 1 sign-off
 
-When **§4.1–4.5** are checked and **§4.6** is checked, Phase 1 documentation is complete. Proceed to Phase 2 compliance audit.
+When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation is complete. **Status (2026-05-24): done.**
+
+### 4.8 Phase 1b — Store-owner functional & modern UI completeness (blocking code)
+
+**Goal:** A developer implementing the app has **no significant questions**; every capability an Etsy vintage/antique store owner would reasonably expect is either **fully specified for v1** or **explicitly excluded** with rationale ([DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md)).
+
+- [x] **ADR-070** — Product scope matrix (v1 / post-v1 / Etsy-only / never) — 2026-05-24
+- [x] **ADR-071** — Visual design system (typography, spacing, navigation, badges, transaction-complete) — 2026-05-24
+- [x] **ui-design.md** — §1b Global header, §1c Dashboard, §1d List filters, §5.9 Label preview, §5.10 Visual consistency — 2026-05-24
+- [x] **ADR-031** — Line items add/remove, PickList, canonical create enums, buyer message — 2026-05-24
+- [x] **Vendor sourcing UI** — ADR-030 “Where I bought this” section — 2026-05-24
+- [x] **ADR-009** — v1 implementation note at top of Decision — 2026-05-24
+- [x] **ADR README + System_Colors + frontend-architecture** — index and cross-refs to ADR-070/071 — 2026-05-24
+- [x] **.cursorrules** — canonical table rows for ADR-070, ADR-071 — 2026-05-24
+- [ ] **Phase 1b review** — walk store-owner journey: acquire → list → sell → ship → report → backup (user sign-off)
+
+**Phase 1b sign-off:** Documentation items above checked; pending user approval → then code (compliance fixes, then §5 priorities).
 
 ---
 
 ## 5) Priority Order (updated 2026-05-24)
 
-**Blocked until:** §4 Documentation completion gate (all checkboxes) + §7 Phase 2 compliance audit sign-off.
+**Blocked until:** §4.8 Phase 1b complete + §7 audit acknowledged + user sign-off. (§4.1–4.6 and §7 Phase 2 are done; they do not unblock implementation alone.)
 
 1. **Schema reconciliation** — Execute migration to align DB with ADR-017; update ADR-017 canonical DDL. (`documents/database/SCHEMA_RECONCILIATION.md`)
 2. **Frontend decomposition** — Break `page.tsx` into components per ADR-024 and `documents/frontend-architecture.md`.
@@ -307,10 +323,16 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 ## 7) Phase 2 — Documentation vs code compliance audit
 
-**Status:** Not started.
+**Status:** Complete (2026-05-24). See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md).
 
-**Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — for each area (schema, API routes, business rules, reports, `.cursorrules` “built” claims): **Spec (ADR/doc)** | **Code (`src/`, migrations)** | **Action** (code must match doc by default).
+**Summary:** No critical **documentation** contradictions. **3 Critical** and **24 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, ship-until-paid not enforced, missing `tracking_number`/`activity_log`/`customer_notes`, ADR-018 §12–28 routes largely absent).
 
-**Exit criterion:** No **Critical** doc contradictions; all **High** code gaps enumerated with ADR links. Implementation scheduling is §5 priorities 8–52, not during the audit pass.
+**Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures.
+
+**Exit criterion:** Met — Critical doc issues none; High code gaps enumerated with ADR links. Implementation scheduling is §5 priorities 8–52.
 
 **Rule:** If spec was wrong, fix the doc first, then re-audit. Do not change ADR-017/018 to match bootstrap lag without an explicit ADR amendment.
+
+**Recommended before bulk UI (priorities 11+):** Critical batch in audit §8 step 1–3 (mark-shipped semantics, order enums, migration 003, `/api/uploads`, seed API).
+
+**Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — core vintage reseller workflow is documented; optional Phase 1b doc items (ADR-070 scope, ADR-071 design system, header/dashboard ui-design sections) before polish UI.

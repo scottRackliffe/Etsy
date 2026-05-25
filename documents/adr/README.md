@@ -91,3 +91,5 @@ We use a standard format for all ADRs:
 | [ADR-067](0067-undo-redo.md)                                        | Undo/redo for last N operations                                                         |
 | [ADR-068](0068-listing-quality-score.md)                            | Listing quality score and SEO hints                                                     |
 | [ADR-069](0069-sample-demo-data.md)                                 | Sample/demo data for new users                                                          |
+| [ADR-070](0070-product-scope-and-non-goals.md)                      | Product scope matrix — v1 / post-v1 / Etsy-only / never (store owner capabilities)        |
+| [ADR-071](0071-visual-design-system-and-ui-consistency.md)          | Visual design system — colors, navigation, badges, transaction-complete feedback        |

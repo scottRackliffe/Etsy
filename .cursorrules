@@ -66,6 +66,9 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Undo/redo | `documents/adr/0067-undo-redo.md` |
 | Listing quality score and SEO hints | `documents/adr/0068-listing-quality-score.md` |
 | Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
+| Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
+| Visual design system and UI consistency | `documents/adr/0071-visual-design-system-and-ui-consistency.md` |
+| UI color tokens (hex) | `documents/System_Colors.md` (usage rules: ADR-071) |
 | Validation and business rules | `documents/adr/0021-validation-and-business-rules.md` |
 | Delete / referential integrity | `documents/adr/0022-referential-integrity-and-delete-behavior.md` |
 | Outstanding list definitions and queries | `documents/adr/0020-outstanding-list-definitions-and-queries.md` |
@@ -122,12 +125,54 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
 | **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory two-panel), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). |
-| **ADR-027** (Backup) | ADR-034 (Config page UI for backup/restore section). |
-| **ADR-028** (Shared components) | ADR-024, 032, 045, 059, 060 |
-| **ADR-029** (Search/pagination) | ADR-018 §12, ADR-041 |
-| **ADR-030–031** (Detail UIs) | ADR-024, 033, 035, 046 |
-| **ADR-034** (Config) | ADR-027, 039 (`tax.default_rate`), 044 (`setup.completed`), 069 (sample data) |
-| **ADR-038–069** (Features) | SSOT per ADR; UI index in `ui-design.md`; API in ADR-018 Extensions |
+| **ADR-023** (Listing modes) | ADR-002, 010/026 pictures, 017 listing_* columns, 068 quality score |
+| **ADR-025** (Token refresh) | ADR-007 OAuth, 019 sync, 018 auth proxy routes |
+| **ADR-026** (Picture storage) | ADR-010, 033 upload UI, 018 §16 `/api/uploads` |
+| **ADR-027** (Backup) | ADR-034 Config UI, 018 §19, 043 jobs, 058 integrity |
+| **ADR-028** (Shared components) | ADR-024, 032, 045, 059, 060, 061 |
+| **ADR-029** (Search/pagination) | ADR-018 §12, 041 global search, 034 `ui.page_size` |
+| **ADR-030** (Inventory detail) | ADR-024 two-panel, 033 pictures, 038 profit row, 042 drafts, 046 `If-Match` |
+| **ADR-031** (Order detail) | ADR-003/004 ship fields, 021 mark-shipped, 035 deep links, 018 §14–15 |
+| **ADR-032** (ConfirmDialog) | ADR-028 Modal, 040 batch, 069 remove sample data |
+| **ADR-033** (Image upload grid) | ADR-010, 026 storage, 030 inventory panel |
+| **ADR-034** (Config) | ADR-027 backup, 039 `tax.default_rate`, 044 `setup.completed`, 057 sync, 069 sample data |
+| **ADR-035** (Deep links) | ADR-020 outstanding, 024 routing query params, 063 recent |
+| **ADR-036** (Reports date picker) | ADR-006, 013 PDF/CSV, 018 §17 per-order docs |
+| **ADR-037** (Activity log) | ADR-017 `activity_log`, 016 dashboard feed, 018 §18, 069 load/remove |
+| **ADR-038** (Profit/margin) | ADR-002/017 `other_costs`, 006 reports, 018 §26, 054 aging |
+| **ADR-039** (Tax) | ADR-006 tax report, 013 output, 034/017 `tax.default_rate`, orders `tax_total` |
+| **ADR-040** (Bulk batch) | ADR-021 ship override on **orders**, 032 confirm, 055 print queue, 018 §21 |
+| **ADR-041** (Global search) | ADR-018 §20, 029 list filters |
+| **ADR-042** (Unsaved guard) | ADR-030, 031, 024 navigation |
+| **ADR-043** (Progress/jobs) | ADR-018 §22 SSE, 019 sync, 047 import, 027 restore |
+| **ADR-044** (Setup wizard) | ADR-034 `setup.completed`, 007 OAuth, 069 optional sample load |
+| **ADR-045** (Accessibility) | ADR-028 primitives, 049 shortcuts, 009 focus order |
+| **ADR-046** (Concurrent edit) | ADR-017 `updated_at`, 018 `If-Match`/409, 030/031 PATCH |
+| **ADR-047** (CSV import) | ADR-018 §24, 043 job progress, 048 duplicates |
+| **ADR-048** (Duplicate detect) | ADR-018 §24, inventory/customer create |
+| **ADR-049** (Shortcuts) | ADR-045 a11y, 041 search, ui-design |
+| **ADR-050** (Network retry) | ADR-018 §23 health, 019 Etsy calls, 051 notifications |
+| **ADR-051** (Notification center) | ADR-037 events, 050 offline queue |
+| **ADR-052** (Customer timeline) | ADR-031 orders, customers tab, 066 repeat badge |
+| **ADR-053** (Customer merge) | ADR-018 §25, 022 delete rules, 003 model |
+| **ADR-054** (Inventory aging) | ADR-006, 013 `format=pdf|csv`, 038 slow movers |
+| **ADR-055** (Print queue) | ADR-040 batch add, 036 reports; client `localStorage` only |
+| **ADR-056** (Accounting export) | ADR-006, 013 CSV, 018 report route |
+| **ADR-057** (Auto-sync) | ADR-019 sync, 025 tokens, 034 `sync.auto_interval` |
+| **ADR-058** (SQLite hardening) | ADR-012, 017, 027 backup integrity settings |
+| **ADR-059** (Empty states) | ADR-028 EmptyState, all list tabs |
+| **ADR-060** (Help tooltips) | ADR-028 FormField, 031/030 fields |
+| **ADR-061** (Responsive) | ADR-024 layout, 009 tabs |
+| **ADR-062** (Inline edit) | ADR-029 DataTable, 038 inventory list |
+| **ADR-063** (Recently viewed) | ADR-035 navigation, header |
+| **ADR-064** (Inventory value) | ADR-038 costs, 016 dashboard, 018 §10 |
+| **ADR-065** (Customer notes) | ADR-017 `customer_notes`, 052 timeline, 018 §25 |
+| **ADR-066** (Repeat badge) | ADR-003 customers, 016/052 lists, settings threshold |
+| **ADR-067** (Undo/redo) | ADR-037 audit optional, 021 mutation scope |
+| **ADR-068** (Listing quality) | ADR-023 workshop, 030 inventory, 018 §24 |
+| **ADR-069** (Sample data) | ADR-044 wizard, 034 Config, `fixtures/sample-data.sql`, 018 §27 |
+| **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
+| **ADR-071** (Design system) | ADR-028, 045, 059, 060, System_Colors.md, ui-design §1b–1d |
 
 ### Canonical enum values (authoritative — never use alternatives)
 

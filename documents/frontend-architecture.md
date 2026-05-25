@@ -128,7 +128,7 @@ File: `src/app/(app)/layout.tsx`
 #### `Badge`
 - **File:** `src/components/ui/Badge.tsx`
 - **Props:** `{ label: string; variant: "success" | "warning" | "error" | "neutral" | "info" }`
-- **Variants map:** Paid=success, Shipped=success, Draft=neutral, Listed=info, Not Paid=warning, Not Shipped=error
+- **Variants map:** Canonical full tables in **ADR-071 §4** (orders, inventory, listing, Etsy connection). Quick reference: Paid/Shipped/Sold=success; Unpaid/Not shipped/In stock=warning; Listed/Etsy=info; Void/Cancelled/Draft=neutral
 
 #### `PictureGrid`
 - **File:** `src/components/ui/PictureGrid.tsx`

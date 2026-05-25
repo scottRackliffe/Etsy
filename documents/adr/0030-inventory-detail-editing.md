@@ -82,6 +82,40 @@ All fields use `FormField` + `TextInput` or `SelectInput`. Changes are saved via
 |-------|-------|------------|-------|
 | `notes` | Internal notes | `TextArea` | Free text; never shown to customers |
 
+---
+
+### Vendor sourcing section (`purchases` table)
+
+**Purpose:** Record what Trudy paid **vendors** (flea markets, estate sales) for an item — distinct from `purchase_cost` on the inventory row (summary) and from customer **orders**.
+
+**UI label:** “Where I bought this” (not “Purchase” alone — avoid confusion with customer sales).
+
+```
+┌─────────────────────────────────────────┐
+│ Where I bought this        [+ Add buy]  │
+├─────────────────────────────────────────┤
+│ DataTable: Date | Vendor | Price | Ship │
+│            | Ref # | Notes | [Edit][Del]│
+└─────────────────────────────────────────┘
+```
+
+| Column | Source field |
+|--------|----------------|
+| Date | `purchases.purchase_date` |
+| Vendor | `purchases.vendor_name` |
+| Price | `purchases.purchase_price` |
+| Shipping | `purchases.shipping_price` |
+| Reference | `purchases.reference_number` |
+| Notes | `purchases.notes` |
+
+- **API:** `GET/POST /api/purchases?inventory_id=` (filter by inventory) or nested `GET/POST /api/inventory/[id]/purchases` per ADR-018 catalog pattern; `PATCH/DELETE /api/purchases/[id]`.
+- **Add buy modal:** Vendor name (required), purchase date (default today), purchase price, shipping price, reference #, notes.
+- **Delete:** ConfirmDialog (ADR-032).
+- **Empty state:** “No vendor purchases recorded. Add where you bought this item.” + **Add buy** CTA.
+- **Optional rollup:** Show sum of `purchase_price + shipping_price` and compare to inventory `purchase_cost` (informational only).
+
+Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 (toasts on save).
+
 **Read-only metadata (displayed, not editable):**
 
 - `id` — shown as "Item ID" in header

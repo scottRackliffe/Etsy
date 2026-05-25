@@ -61,7 +61,14 @@ On screens < `lg`, panels stack vertically.
 - Columns: Item (inventory `item_number` or `description`), Quantity, Unit price, Line total.
 - Footer row: Subtotal.
 - If no line items: `EmptyState` with message "No line items. Add items from inventory."
-- "Add item" button: opens a modal with inventory pick list (filtered to `in_stock` items per ADR-015).
+- **Add line item:** `Button variant="secondary"` opens modal with `PickList` (ADR-015) — inventory with `status` in `In stock`, `Listed`, or `Reserved`; excludes `Sold` and `Retired`.
+- **Remove line item:** Row action with ConfirmDialog if line is last item warning: “Orders should have at least one line item.”
+- **Edit quantity / unit price:** Inline edit per ADR-062 or modal; `PATCH` line via order update API.
+- On add: `POST` creates `order_items` row; recalculate `orders.subtotal` and `grand_total` server-side.
+- On remove: delete `order_items` row; recalculate totals.
+- Linking inventory item does **not** auto-change inventory `status` to Sold until user runs **Record sale** or sync — document in tooltip (ADR-060).
+
+**Buyer message (Etsy):** Read-only section below ship-to when `notes` or Etsy receipt gift message is present (ADR-070).
 
 **Ship-to address section:**
 
@@ -116,8 +123,8 @@ All use `Button` component. Destructive actions require confirmation per ADR-032
 | Action | Button | Behavior |
 |--------|--------|----------|
 | Save changes | `<Button variant="accent">Save changes</Button>` | `PATCH /api/orders/[id]` with changed fields |
-| Mark paid | `<Button variant="primary">Mark paid</Button>` | `POST /api/orders/[id]/mark-paid` |
-| Mark shipped | `<Button variant="primary">Mark shipped</Button>` | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
+| Mark paid | `<Button variant="accent">Mark paid</Button>` | `POST /api/orders/[id]/mark-paid` |
+| Mark shipped | `<Button variant="accent">Mark shipped</Button>` | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
 | Void order | `<Button variant="danger">Void order</Button>` | Confirmation dialog. Sets `order_status = 'void'` |
 | Print invoice | `<Button variant="secondary">Print invoice</Button>` | Opens `/api/reports/invoice?order_id={id}&format=pdf` (per ADR-036) |
 | Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you-note?order_id={id}&format=pdf` (per ADR-036) |
@@ -145,7 +152,9 @@ Instead of a single button click, "Mark shipped" opens a small modal:
 Replace the current inline form with a Modal:
 
 - Title: "Create order"
-- Fields: Order number (required), Customer (optional, searchable select), Grand total, Source channel (default: Manual).
+- Fields: Order number (required), Customer (optional, searchable select), Source channel (default: `manual`), `order_status` default `active`, `payment_status` default `unpaid`.
+- After create: user adds line items in detail panel (minimum one line before mark-paid/shipped).
+- **Canonical enums:** `order_status`: `active` | `void` | `cancelled`; `payment_status`: `unpaid` | `paid` | `refunded` (ADR-017, ADR-071). Never `open` or `pending`.
 - Buttons: "Create" (accent) + "Cancel" (secondary).
 - On success: select new order, open detail panel.
 
