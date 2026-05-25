@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { addNotificationEntry } from "@/lib/notifications";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -16,6 +17,7 @@ export function useToast() {
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
     const id = nextId.current++;
+    addNotificationEntry({ type, message });
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));

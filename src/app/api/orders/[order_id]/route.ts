@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
+import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { getOrder, patchOrder } from "@/lib/records";
 
 async function getOrderId(context: { params: Promise<{ order_id: string }> }): Promise<number> {
@@ -54,6 +55,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getOrderId(context);
+    assertRecordNotStale("orders", id, getIfMatchHeader(request));
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     let payload: Record<string, unknown>;
     try {

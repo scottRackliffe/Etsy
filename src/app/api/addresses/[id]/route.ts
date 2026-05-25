@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { getDb } from "@/lib/sqlite";
 
 async function getAddressId(context: { params: Promise<{ id: string }> }): Promise<number> {
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getAddressId(context);
+    assertRecordNotStale("addresses", id, getIfMatchHeader(request));
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const allowed = [
       "label",

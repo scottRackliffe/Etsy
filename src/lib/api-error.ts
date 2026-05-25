@@ -13,7 +13,8 @@ export type ApiErrorCode =
   | "SAMPLE_DATA_EXISTS"
   | "NO_SAMPLE_DATA"
   | "QUERY_TOO_SHORT"
-  | "BATCH_TOO_LARGE";
+  | "BATCH_TOO_LARGE"
+  | "CONFLICT_STALE_RECORD";
 
 export type ApiErrorPayload = {
   ok: false;

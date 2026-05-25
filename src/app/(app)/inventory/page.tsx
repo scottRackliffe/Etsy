@@ -166,6 +166,18 @@ function InventoryPageInner() {
     setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
   };
 
+  const reloadSelectedInventoryItem = useCallback(async () => {
+    if (!selectedItemId) return;
+    const response = await fetch(`/api/inventory/${selectedItemId}`, {
+      headers: { Accept: "application/json" },
+    });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      item?: InventoryItemDetail;
+    };
+    if (!response.ok || !data.item) throw data;
+    handleDetailItemUpdated(data.item);
+  }, [selectedItemId]);
+
   const selectInventoryItem = (id: number) => {
     if (detailDirty && id !== selectedItemId) {
       setPendingItemId(id);
@@ -817,6 +829,7 @@ function InventoryPageInner() {
         onItemUpdated={handleDetailItemUpdated}
         onError={(title, message, err) => setApiError(title, message, err)}
         onSuccess={(title, message) => setError({ title, message, actions: [] })}
+        onReloadItem={reloadSelectedInventoryItem}
         onDirtyChange={setDetailDirty}
       />
 

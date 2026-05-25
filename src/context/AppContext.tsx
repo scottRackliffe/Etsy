@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { addNotificationEntry } from "@/lib/notifications";
 import type { Shop, InventoryItem, Receipt, Customer, CustomerAddress, Order, UiError, ApiErrorShape, AiConfig, ListingReadiness, PublishPreview } from "@/types";
 
 type PublishConfig = {
@@ -181,11 +182,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [urlError] = useState<UiError | null>(parseUrlError);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
+  const setErrorWithNotify: React.Dispatch<React.SetStateAction<UiError | null>> = useCallback(
+    (value) => {
+      setError((prev) => {
+        const next = typeof value === "function" ? value(prev) : value;
+        if (next) {
+          const isSuccess = /complete|saved|created|loaded|removed|success/i.test(next.title);
+          addNotificationEntry({
+            type: isSuccess ? "success" : "info",
+            message: next.message ? `${next.title}: ${next.message}` : next.title,
+          });
+        }
+        return next;
+      });
+    },
+    []
+  );
+
   const setApiError = useCallback((title: string, fallbackMessage: string, payload: unknown) => {
     const data = payload as ApiErrorShape;
     const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
     setError({ title, message, actions });
+    addNotificationEntry({ type: "error", message: `${title}: ${message}` });
   }, []);
 
   const connect = useCallback(() => {
@@ -457,7 +476,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInventory, setSelectedItemId, setSelectedItem, setSelectedOrderId,
     setSelectedCustomerId, setCustomerAddresses, setListingReadiness,
     setPublishPreview, setPublishHistory, setAiConfig, setPublishConfig,
-    setIconConfig, setCount, setError, setBusyAction, setApiError,
+    setIconConfig, setCount, setError: setErrorWithNotify, setBusyAction, setApiError,
     connect, logout,
   };
 

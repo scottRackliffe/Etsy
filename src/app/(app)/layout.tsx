@@ -10,6 +10,7 @@ import { KeyboardShortcutsModal } from "@/components/shell/KeyboardShortcutsModa
 import { TabBar } from "@/components/shell/TabBar";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { GlobalSearchModal } from "@/components/search/GlobalSearchModal";
+import { SkipLink } from "@/components/shell/SkipLink";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
@@ -122,11 +123,16 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]">
+      <SkipLink />
       {setupChecked && showSetup ? <SetupWizard onDone={() => setShowSetup(false)} /> : null}
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} pathname={pathname} />
-      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 outline-none"
+      >
         {urlError && (
           <div className="rounded-xl border border-[var(--ui-yellow)]/50 bg-[var(--ui-yellow)]/10 px-4 py-3">
             <p className="font-semibold text-[var(--ui-yellow)]">{urlError.title}</p>

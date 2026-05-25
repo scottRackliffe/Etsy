@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { deleteCustomer, getCustomer, patchCustomer } from "@/lib/records";
 import { getCustomerActiveOrderCount } from "@/lib/customer-orders";
 
@@ -60,6 +61,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getCustomerId(context);
+    assertRecordNotStale("customers", id, getIfMatchHeader(request));
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const customer = patchCustomer(id, body);
     if (!customer) {

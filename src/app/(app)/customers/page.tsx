@@ -13,6 +13,7 @@ import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
+import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
 type CustomerNote = {
@@ -234,17 +235,40 @@ function CustomersPageInner() {
     void loadCustomerNotes(selectedCustomerId);
   }, [selectedCustomerId, loadCustomerNotes]);
 
-  const updateSelectedCustomer = async (payload: Record<string, unknown>) => {
+  const reloadSelectedCustomer = async () => {
     if (!selectedCustomerId) return;
+    const response = await fetch(`/api/customers/${selectedCustomerId}`, {
+      headers: { Accept: "application/json" },
+    });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
+    if (!response.ok || !data.customer) throw data;
+    setCustomers((current) =>
+      current.map((row) => (row.id === selectedCustomerId ? data.customer! : row))
+    );
+  };
+
+  const updateSelectedCustomer = async (payload: Record<string, unknown>) => {
+    if (!selectedCustomerId || !selectedCustomer) return;
     setBusyAction("update-customer");
     try {
       const response = await fetch(`/api/customers/${selectedCustomerId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: patchHeaders(selectedCustomer.updated_at),
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        if (response.status === 409 && isStaleConflictPayload(data)) {
+          await reloadSelectedCustomer();
+          setApiError(
+            "Record changed elsewhere",
+            "This customer was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
+            data
+          );
+          return;
+        }
+        throw data;
+      }
       if (data.customer) {
         setCustomers((current) =>
           current.map((row) => (row.id === selectedCustomerId ? data.customer! : row))
