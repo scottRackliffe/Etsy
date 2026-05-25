@@ -55,7 +55,7 @@ Accidental saves are permanent. There is no undo mechanism anywhere in the appli
 ### Scope and limitations
 - **In scope:** Field updates via PATCH (status changes, price edits, note edits, etc.).
 - **Out of scope:** `POST` (creates) and `DELETE` (deletes) are NOT undoable — they involve too many side effects (order items, activity log entries, file operations) to reverse safely.
-- The undo/redo stacks are **cleared on page navigation** (React Router transition) to prevent stale undo operations across different contexts.
+- The undo/redo stacks are **cleared on Next.js route or tab change** (e.g. leaving Sales for Inventory) to prevent stale undo across contexts.
 - Inline edits (ADR-062) participate in the undo stack — each inline cell save pushes an entry.
 
 ## Consequences

@@ -14,7 +14,9 @@ The application must support several reports for daily operations and financial 
 
 ## Decision
 
-The following **reports** will be supported; all are backed by the database and the data models described in ADR-001–005.
+> **Implementation model (2026-05-24):** Customer sales use `orders` + `order_items` (not legacy per-row `purchase` records). Vendor buys use `purchases`. See schema mapping in Notes.
+
+The following **reports** will be supported; all are backed by the database and the data models described in ADR-001–005 and ADR-017.
 
 | Report                     | Purpose                                                                      | Main data source                                                                                                          |
 | -------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -26,7 +28,11 @@ The following **reports** will be supported; all are backed by the database and 
 | **Income — year to date**  | Revenue for the current year.                                                | Same as above for the current year.                                                                                       |
 | **Postal costs by vendor** | Shipping spend by carrier.                                                   | Sum of seller's shipping cost grouped by shipper (USPS, UPS, FedEx, DHL, Other). See ADR-005.                             |
 | **Outstanding items**      | All current outstanding to-dos (same as outstanding panel/tab).              | Union of outstanding item types per ADR-020; snapshot at run time. See ADR-013.                                           |
-| **AR aging**               | Unpaid orders by age bucket (0–30, 31–60, 61–90, 90+ days).                  | purchase with was_paid = 0; exclude void/cancelled; group by order_id and age bucket. See ADR-013.                        |
+| **AR aging**               | Unpaid orders by age bucket (0–30, 31–60, 61–90, 90+ days).                  | `orders` with `was_paid = 0`; exclude `order_status` void/cancelled; age from `order_date`. See ADR-013.                  |
+| **Profit by item**         | Per-item cost, revenue, margin, and profit for a date range.                 | `inventory` + `other_costs` + sold `order_items` / `orders.order_date`. See ADR-038, ADR-013.                             |
+| **Sales tax summary**      | Tax collected by period for filing reference.                                  | `orders.tax_total`, `orders.order_date`; active orders only. See ADR-039, ADR-013.                                        |
+| **Inventory aging**        | Slow movers and days-in-stock / days-listed.                                   | `inventory.date_purchased`, `date_listed`, `status`. See ADR-054, ADR-013.                                                |
+| **Accounting export**      | CSV journal-style export for external accounting tools.                        | `orders`, `order_items`, `inventory`, `other_costs`. See ADR-056. Primary format CSV.                                     |
 
 Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-pdf.md)). All reports support both; PDF for print/share, CSV for data export. The scope of _what_ each report contains is fixed above.
 

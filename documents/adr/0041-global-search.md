@@ -203,4 +203,4 @@ The search modal closes immediately on click.
 - Cross-references: ADR-029 (search fields per entity — global search uses the same fields), ADR-035 (deep-link navigation — click result navigates with query param), ADR-028 (Badge component for status badges in results), ADR-014 (database indexes), ADR-045 (accessibility — modal focus trap, keyboard navigation, ARIA roles)
 - The search modal component should be implemented as a shared component (e.g., `SearchModal`) since it is used globally
 - Future consideration: full-text search (FTS5 in SQLite) could replace `LIKE` for better performance at scale, but is not needed for expected data volumes
-- Cross-ref to ADR-049 mentioned in the user's spec does not yet exist; the keyboard shortcut `Cmd/Ctrl+K` is defined here as the canonical binding
+- Keyboard shortcuts: ADR-049 (`Cmd/Ctrl+K` opens this modal; must not steal Cmd+Z from focused inputs)

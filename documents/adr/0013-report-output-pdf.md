@@ -14,7 +14,9 @@ ADR-006 defines the set of reports (thank you note, invoice, sales, costs, incom
 
 ## Decision
 
-**Primary report output is PDF, with CSV export for the same report data.** All reports listed in ADR-006 (thank you note, invoice, sales, costs, income month-to-date, income year-to-date, postal costs by vendor) are generated with a printable PDF view and support CSV export from the same filtered dataset.
+> **Data model (2026-05-24):** Queries use `orders` + `order_items`; global filter `orders.order_status = 'active'`. Legacy "purchase row" wording in this section maps per Notes schema table.
+
+**Primary report output is PDF, with CSV export for the same report data.** All reports listed in ADR-006 (including profit-by-item, sales tax summary, inventory aging, and accounting export per ADR-038/039/054/056) are generated with a printable PDF view and support CSV export from the same filtered dataset.
 
 - **Generation:** Use a PDF library (e.g. a Node/JS PDF library such as PDFKit, jsPDF, or React-PDF) to produce PDFs from report data. Report output is **not cached**; each run generates from current data (see ADR-008).
 - **User choices after a report is generated:** The user is offered exactly four actions: **Print** (send to printer), **Export PDF** (save/download as PDF file), **Export CSV** (save/download as comma-delimited file), **Cancel** (close without printing or exporting). All reports support both export formats. No other actions are required; the user chooses what to do next.

@@ -253,7 +253,7 @@ export type ApiError = { ok: false; error: { code?: string; message: string; use
 | 8 | Inventory tab: extract item list, detail, pictures, listing, condition | Steps 4–5 + `PictureGrid`, `ListingAuthoringPanel` | Inventory CRUD + listing workflow works |
 | 9 | Customers tab: extract customer list, detail, addresses | Steps 4–5 | Customer CRUD works |
 | 10 | Outstanding panel + full-page tab | Step 5 + `useOutstanding` | Outstanding items display; click navigates correctly |
-| 11 | Reports tab | Steps 4–5 + `PdfPreview` | All 8 reports generate and display |
+| 11 | Reports tab | Steps 4–5 + `PdfPreview` | All core reports + ADR-038/039/054/056 types generate and display |
 | 12 | Config tab | Steps 4–5 | All settings editable; Etsy connect/disconnect works |
 | 13 | Tutorial tab | `SearchInput`, `TutorialIndex` | Search and index work; tips folder links open files |
 | 14 | Commands panel *(deferred to post-v1)* | Steps 6–13 | Context-sensitive commands work for all tabs |
@@ -267,8 +267,29 @@ Each step is independently deployable. The monolithic page.tsx can coexist durin
 
 - Continue using **Tailwind CSS** utility classes (no CSS modules, no styled-components).
 - Color palette from `documents/System_Colors.md` is defined as CSS custom properties in `globals.css`.
-- Responsive breakpoints: mobile (<768px), tablet (768–1024px), desktop (>1024px).
+- **Responsive layout:** full spec in **ADR-061** (breakpoints, stacked master-detail, card vs table per page). This section is a summary only.
 - On mobile: tab bar scrolls horizontally.
+
+---
+
+## 8. Components for ADR-038–069 (add during priorities 21–52)
+
+| Component | ADR | Used on |
+|-----------|-----|---------|
+| `SearchModal` | 041 | App shell (Cmd/Ctrl+K) |
+| `NotificationCenter` | 051 | App header |
+| `PrintQueuePanel` | 055 | App header |
+| `SetupWizardModal` | 044 | Dashboard overlay |
+| `BatchActionsBar` | 040 | Sales, Inventory, Customers lists |
+| `ProgressModal` / job polling | 043 | Sync, import, backup, batch |
+| `CustomerNotesSection` | 065 | Customer detail |
+| `CustomerMergeModal` | 053 | Customers tab |
+| `ProfitabilityRow` | 038 | Inventory detail |
+| `ListingScoreWidget` | 068 | Inventory listing workshop |
+| `InventoryValueCard` | 064 | Dashboard |
+| `OfflineBanner` / retry queue UI | 050 | App shell |
+
+API routes for these features: **ADR-018** Extensions §12–§28.
 
 ---
 

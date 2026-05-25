@@ -98,7 +98,7 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 | discount_amount | Optional. If present, number >= 0.                          | “Discount must be zero or greater.”      |
 | was_paid        | Optional. If present, 0 or 1.                               | —                                        |
 
-**Ship until paid or override:** The system **does not allow** "Mark as shipped" (or equivalent) until the order is **paid** (all purchase rows in the order have was_paid = 1), **unless** the user **explicitly overrides** (e.g. "Ship anyway" or "Mark as shipped even though not paid" with a confirmation). No silent ship-when-unpaid. When the user attempts to mark an order as shipped and it is not paid, show a clear message in user terms (e.g. "This order is not marked paid. Mark as paid first, or choose 'Ship anyway' to record shipping."). If the user chooses "Ship anyway," record the override: set purchase.shipped_without_paid_override = 1 for each purchase row in the order (schema: ADR-017). This provides an audit trail that shipment was recorded without paid.
+**Ship until paid or override:** The system **does not allow** "Mark as shipped" until the **order** is paid (`orders.was_paid = 1`), **unless** the user explicitly chooses "Ship anyway" with confirmation (ADR-031, ADR-040). No silent ship-when-unpaid. On override, set `orders.shipped_without_paid_override = 1` on the order header (ADR-017) — not on `order_items`. Applies to `POST /api/orders/[id]/mark-shipped` and batch `mark_shipped`.
 
 ---
 

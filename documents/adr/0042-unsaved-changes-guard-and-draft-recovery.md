@@ -52,7 +52,7 @@ When `isDirty` is true and the user attempts to navigate away, a confirmation di
 1. **Tab navigation:** User clicks a different tab in the app header → intercept via the tab change handler
 2. **In-page navigation:** User clicks a different record in a list (e.g., different order in Sales) → intercept via the list selection handler
 3. **Browser navigation:** User clicks browser back/forward, types a new URL, or closes the tab → intercept via `beforeunload` event
-4. **Route change:** Next.js route change → intercept via `router.events` or `useBeforeUnload` hook
+4. **Route change:** Next.js App Router — use tab/list handlers (items 1–2) for in-app navigation; use `beforeunload` for browser close/refresh. Do not use Pages Router `router.events` (not available in App Router).
 
 **Dialog content (using ConfirmDialog from ADR-032):**
 - Title: "Unsaved Changes"

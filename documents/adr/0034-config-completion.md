@@ -88,6 +88,18 @@ Actions:
 
 ---
 
+### Section 2b: Tax settings (NEW — ADR-039)
+
+| Setting key | Label | Input type | Notes |
+|-------------|-------|------------|-------|
+| `tax.default_rate` | Default sales tax rate | `TextInput` type="number" step="0.0001" | Decimal fraction (e.g. `0.0825` = 8.25%). Used when creating manual orders; Etsy-synced orders use `orders.tax_total` from receipt. |
+
+Save: "Save tax settings" button. See ADR-039 for report `sales-tax-summary`.
+
+Also in this section (ADR-069): **Sample data** — "Load sample data" / "Remove sample data" buttons calling `POST` / `DELETE /api/seed/sample-data` with ConfirmDialog (ADR-032).
+
+---
+
 ### Section 3: Shipping defaults (NEW)
 
 | Setting key | Label | Input type | Notes |

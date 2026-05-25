@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 |--------|------|-------------|
 | `id` | INTEGER PK | Auto-increment |
 | `action` | TEXT NOT NULL | Action identifier (see action catalog below) |
-| `entity_type` | TEXT | Type of record affected: `inventory`, `order`, `customer`, `address`, `setting`, `listing`, `sync`, `backup` |
+| `entity_type` | TEXT | `inventory`, `order`, `customer`, `address`, `setting`, `listing`, `sync`, `backup`, `system` (scheduled sync, integrity, sample data per ADR-057, ADR-058, ADR-069) |
 | `entity_id` | INTEGER | ID of the affected record (nullable for system-wide actions) |
 | `entity_label` | TEXT | Human-readable label for the record (e.g., item number, order number, customer name) |
 | `detail_json` | TEXT | JSON object with action-specific details (changed fields, old/new values, error messages) |
@@ -93,6 +93,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `order.marked_paid` | `order` | Order marked as paid |
 | `order.marked_shipped` | `order` | Order marked as shipped. `detail_json`: `{ shipper, tracking_number }` |
 | `order.voided` | `order` | Order voided |
+| `order.batch_mark_paid` | `order` | Batch mark paid (ADR-040). `detail_json`: `{ count, ids }` |
+| `order.batch_mark_shipped` | `order` | Batch mark shipped (ADR-040) |
+| `order.batch_void` | `order` | Batch void (ADR-040) |
 
 **Customer actions:**
 
@@ -101,6 +104,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `customer.created` | `customer` | Customer created |
 | `customer.updated` | `customer` | Customer fields changed |
 | `customer.deleted` | `customer` | Customer deleted |
+| `customer.merged` | `customer` | Merge completed (ADR-053). `detail_json`: `{ primary_id, secondary_id }` |
+| `customer.note_added` | `customer` | Note created (ADR-065) |
+| `customer.note_deleted` | `customer` | Note deleted (ADR-065) |
 | `address.created` | `address` | Address added |
 | `address.deleted` | `address` | Address deleted |
 
@@ -111,6 +117,8 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `sync.started` | `sync` | Etsy sync initiated |
 | `sync.completed` | `sync` | Sync finished. `detail_json`: `{ receipts_processed, orders_created, orders_updated, errors }` |
 | `sync.failed` | `sync` | Sync failed. `detail_json`: `{ error }` |
+| `sync.auto_started` | `system` | Scheduled sync started (ADR-057) |
+| `sync.auto_completed` | `system` | Scheduled sync finished (ADR-057) |
 
 **System actions:**
 
@@ -123,6 +131,11 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `backup.restored` | `backup` | Backup restored. `detail_json`: `{ file_path }` |
 | `settings.updated` | `setting` | Settings changed. `detail_json`: `{ key, old_value, new_value }` (API keys are masked) |
 | `report.generated` | `setting` | Report generated. `detail_json`: `{ report_name, format }` |
+| `system.sample_data_loaded` | `system` | Sample data loaded (ADR-069) |
+| `system.sample_data_removed` | `system` | Sample data removed (ADR-069) |
+| `system.integrity_check_failed` | `system` | SQLite integrity check failed (ADR-058) |
+| `inventory.batch_status_changed` | `inventory` | Batch status change (ADR-040) |
+| `inventory.batch_deleted` | `inventory` | Batch delete (ADR-040) |
 
 ---
 

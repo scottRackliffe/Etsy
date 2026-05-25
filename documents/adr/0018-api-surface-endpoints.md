@@ -6,15 +6,17 @@ Accepted
 
 ## Date
 
-2025-02-15
+2025-02-15 (extended through ADR-069, 2026-05-24)
 
 ## Context
 
-The application exposes a set of API routes (Next.js App Router or equivalent). Every endpoint must be specified so an implementer knows exactly what to build: method, path, purpose, request shape (if any), response shape or behavior, and error handling. No endpoint may be left implied.
+The application exposes a set of API routes (Next.js App Router). Every endpoint must be specified so an implementer knows exactly what to build: method, path, purpose, request shape (if any), response shape or behavior, and error handling. No endpoint may be left implied.
+
+Schema: **ADR-017**. Customer sales: **`/api/orders`** + **`order_items`**. Vendor buys: **`/api/purchases`** (buy-side only). Deprecated: **`/api/purchases`** paths for customer sales (pre-reconciliation).
 
 ## Decision
 
-The following endpoints constitute the full API surface. All routes are relative to the app base (e.g. `/api` for backend routes). Request/response bodies are JSON unless stated otherwise. Authentication: where “Etsy auth” is required, the server resolves auth via SQLite-backed auth/session records (session id in HTTP-only cookie). Unauthenticated requests to protected routes return 401. Where “none” is stated, the route is public.
+The following endpoints constitute the **full API surface** (sections 1–10 and Extensions §11–§35). All routes are relative to the app base (`/api`). Request/response bodies are JSON unless stated otherwise. Authentication: where “Etsy auth” is required, the server resolves auth via SQLite-backed auth/session records (session id in HTTP-only cookie). Unauthenticated requests to protected routes return 401. Where “none” is stated, the route is public.
 
 ---
 
@@ -48,11 +50,13 @@ All JSON error responses use this shape:
 
 - 200: successful read/update action.
 - 201: resource created.
+- 202: accepted; long-running work started (returns `job_id` per §8).
 - 204: successful delete/no-content action.
 - 400: validation or malformed request.
 - 401: not authenticated.
 - 404: resource not found.
-- 409: conflict (for example delete blocked by referential-integrity rule in ADR-022).
+- 409: conflict (referential integrity ADR-022, concurrent edit ADR-046, duplicate key).
+- 413: request entity too large (e.g. CSV import per ADR-047).
 - 429: rate-limited upstream/dependency response when surfaced by proxy endpoints.
 - 500: unexpected server error.
 - 503: upstream temporarily unavailable (optional where dependency outage is explicit).
@@ -93,7 +97,23 @@ List endpoints return:
 
 - Date-only fields use `YYYY-MM-DD` (ADR-017).
 - Timestamps use ISO 8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`).
-- Date filtering (`from_date`, `to_date`) is inclusive on both bounds unless endpoint table states otherwise.
+- **Report and list date filters:** canonical query params are `from_date` and `to_date` (inclusive on both bounds). Endpoints introduced in ADR-038/039 may also accept `start_date`/`end_date` as aliases; servers should normalize to `from_date`/`to_date`.
+
+**7) Concurrent edit — `If-Match` (ADR-046)**
+
+- Protected **PATCH** requests for `inventory`, `orders`, `customers`, and `addresses` should include header `If-Match: "<updated_at>"` (ISO 8601 from last GET).
+- If the row’s current `updated_at` differs: **409** with error code `CONCURRENT_EDIT` and `user_message` prompting reload.
+- Excluded: POST create, DELETE, batch POST (ADR-040), CSV import POST (ADR-047), settings PUT, undo-driven PATCH without If-Match (ADR-067 — client must reload on 409).
+
+**8) Long-running operations — jobs (ADR-043)**
+
+Operations that may exceed ~3s (Etsy sync, large batch, backup, CSV import, combined print queue) return **202**:
+
+```json
+{ "ok": true, "job_id": "job_<opaque>", "status": "running" }
+```
+
+Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (SSE). Cancel: `DELETE /api/jobs/[job_id]`. Completed jobs include `result` JSON; failed jobs include error envelope in `result` or `error`.
 
 ---
 
@@ -137,7 +157,7 @@ List endpoints return:
 | POST   | /api/inventory/[id]/listing-import           | App  | Import portable AI draft                              | Path: id; Body: portable package output JSON                                                           | Validates schema_version/item_id and required listing fields, stores import audit, updates listing draft fields, marks draft source as portable import. 200 updated item; 400 for schema/validation errors.                                                                                                                                                                                                                                                                                                                |
 | POST   | /api/inventory/[id]/listing-approve          | App  | Approve listing draft                                 | Path: id                                                                                               | Requires readiness checks and non-empty listing title/description/tags. Sets listing draft state to approved. 200 updated item.                                                                                                                                                                                                                                                                                                                                                                                           |
 | POST   | /api/inventory/[id]/publish-to-etsy          | App  | Publish approved listing to Etsy                      | Path: id                                                                                               | Requires approved draft and Etsy publish settings (`etsy.active_shop_id`, taxonomy/shipping/readiness settings; image ids optional). Calls Etsy `createDraftListing`, uploads local item pictures one-by-one with retry policy, activates listing state, persists `etsy_listing_id`, marks draft state `published`. Default behavior blocks publish if any local image upload fails (quality-first); override is optional via settings flag. 409 if not approved; 400 if required publish settings missing; 409 if no listing images are available for activation.                                                                                      |
-| DELETE | /api/inventory/[id]                          | App  | Delete or retire inventory                            | Path: id. Query or body: action = "delete" \| "retire" if both supported                               | Behavior per ADR-022 (referential integrity). If delete: 204 or 200. If inventory has purchases: 409 or 400 with message per ADR-022.                                                                                                                                                                                                                                                                                                                                                                                       |
+| DELETE | /api/inventory/[id]                          | App  | Delete or retire inventory                            | Path: id. Query or body: action = "delete" \| "retire" if both supported                               | Behavior per ADR-022. If delete: 204 or 200. If inventory has **order_items** (customer sales): 409 per ADR-022; retire instead.                                                                                                                                                                                                                                                                                                                                                                                             |
 | POST   | /api/inventory/[id]/pictures                 | App  | Add or replace pictures                               | Multipart: files and/or slot numbers; or JSON with directory path for “import from folder” per ADR-010 | Store files per ADR-010; update picture_1…picture_10; generate and store thumbnail per ADR-002/015. 200: { picture_slots: [...] }. 400 if invalid.                                                                                                                                                                                                                                                                                                                                                                          |
 | PATCH  | /api/inventory/[id]/pictures/reorder         | App  | Reorder picture slots                                 | Body: { order: [ slot indices or picture ids ] }                                                       | Update picture_1…picture_10 order. 200: updated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | DELETE | /api/inventory/[id]/pictures/[slot]          | App  | Remove picture from slot                              | Path: id, slot (1–10 or 1–5 for condition)                                                             | Set picture_N or condition_picture_N to null. 200 or 204.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -147,14 +167,14 @@ List endpoints return:
 
 ---
 
-### 5. Inventory other costs (ADR-002)
+### 5. Inventory other costs (ADR-002, ADR-017 `other_costs`)
 
-| Method | Path                            | Auth | Purpose                      | Request                                           | Response / behavior                                                             |
-| ------ | ------------------------------- | ---- | ---------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
-| GET    | /api/inventory/[id]/other-costs | App  | List other costs for an item | Path: id                                          | 200: { costs: [ { id, inventory_id, amount, description, created_at }, ... ] }. |
-| POST   | /api/inventory/[id]/other-costs | App  | Add other cost line          | Body: { amount, description }; validation ADR-021 | 201: created row. 400 if validation fails.                                      |
-| PATCH  | /api/other-costs/[id]           | App  | Update other cost line       | Body: { amount?, description? }                   | 200: updated. 404 if not found.                                                 |
-| DELETE | /api/other-costs/[id]           | App  | Delete other cost line       | Path: id                                          | 204. 404 if not found.                                                          |
+| Method | Path                            | Auth | Purpose                      | Request                                                    | Response / behavior                                                                                  |
+| ------ | ------------------------------- | ---- | ---------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | /api/inventory/[id]/other-costs | App  | List other costs for an item | Path: id                                                   | 200: `{ items: [ { id, inventory_id, cost_type, amount, note, created_at, updated_at } ] }` or equivalent list wrapper. |
+| POST   | /api/inventory/[id]/other-costs | App  | Add other cost line          | Body: { amount, cost_type?, note? }; validation ADR-021    | 201: created row. 400 if validation fails.                                                           |
+| PATCH  | /api/other-costs/[id]           | App  | Update other cost line       | Body: { amount?, cost_type?, note? }                       | 200: updated. 404 if not found.                                                                      |
+| DELETE | /api/other-costs/[id]           | App  | Delete other cost line       | Path: id                                                   | 204. 404 if not found.                                                                               |
 
 ---
 
@@ -166,11 +186,11 @@ List endpoints return:
 | GET    | /api/customers/[id]           | App  | Get customer with addresses and purchase count | Path: id                                                                                                          | 200: customer + addresses[] + purchaseCount or purchases[]. 404 if not found.     |
 | POST   | /api/customers                | App  | Create customer                                | Body: { first_name?, last_name?, email? }; validation ADR-021                                                     | 201: created. 400 if validation fails.                                            |
 | PATCH  | /api/customers/[id]           | App  | Update customer                                | Body: partial; validation ADR-021                                                                                 | 200: updated. 404/400.                                                            |
-| DELETE | /api/customers/[id]           | App  | Delete customer                                | Path: id                                                                                                          | Behavior ADR-022. If has purchases: 409 with message. Else 204.                   |
+| DELETE | /api/customers/[id]           | App  | Delete customer                                | Path: id                                                                                                          | Behavior ADR-022. If customer has **orders**: 409 with message. Else 204.         |
 | GET    | /api/customers/[id]/addresses | App  | List addresses for customer                    | Path: id                                                                                                          | 200: { addresses: [ ... ] }.                                                      |
 | POST   | /api/customers/[id]/addresses | App  | Add address                                    | Body: { address_line_1, address_line_2?, city, state_province, country, postal_code, label? }; validation ADR-021 | 201: created. 400 if validation fails.                                            |
 | PATCH  | /api/addresses/[id]           | App  | Update address                                 | Body: partial                                                                                                     | 200: updated. 404.                                                                |
-| DELETE | /api/addresses/[id]           | App  | Delete address                                 | Path: id                                                                                                          | ADR-022. If used in purchase: 409 or allow (snapshot on purchase). 204 otherwise. |
+| DELETE | /api/addresses/[id]           | App  | Delete address                                 | Path: id                                                                                                          | ADR-022. Orders use ship-to snapshot only; address delete allowed if not referenced as `default_address_id`. 204 on success. |
 
 ---
 
@@ -188,7 +208,7 @@ List endpoints return:
 
 No DELETE for orders: we do not support deleting order rows (audit trail). Void/cancel by setting `order_status` to ‘void’ or ‘cancelled’. Corrections are done via PATCH.
 
-**Note (updated 2026-05-24):** The original ADR-018 used `/api/purchases` paths from the single-purchase-table design. The implementation uses `/api/orders` and `/api/orders/[id]` for the three-table model (orders + order_items + purchases). The `/api/purchases` paths are deprecated and should not be used for new development. Mark-shipped and link-customer endpoints are defined in section "Additional endpoints and changes" (§13, §14).
+**Note (updated 2026-05-24):** Customer sales use `/api/orders` (not deprecated `/api/purchases` sale paths). Vendor buy-side records use `/api/purchases` per ADR-017. Mark-shipped: Extensions §14; link-customer: §15.
 
 ---
 
@@ -220,10 +240,27 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 | GET or POST | /api/reports/postal-by-vendor  | App  | Postal costs by vendor                 | Query or body: from_date?, to_date?, format? (pdf \| csv, default pdf) | 200: PDF or CSV. Content per ADR-013.                                     |
 | GET or POST | /api/reports/outstanding-items | App  | Outstanding items (all to-dos)         | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013 (Outstanding items).                 |
 | GET or POST | /api/reports/ar-aging          | App  | AR aging (unpaid orders by age bucket) | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013 (AR aging).                          |
+| GET or POST | /api/reports/profit-by-item    | App  | Per-item profit and margin (ADR-038)   | Query: from_date?, to_date? (aliases start_date/end_date), format?     | 200: PDF or CSV. Active orders filter per ADR-006/013.                    |
+| GET or POST | /api/reports/sales-tax-summary | App  | Sales tax summary (ADR-039)          | Query: from_date?, to_date? (aliases start_date/end_date), format?     | 200: PDF or CSV.                                                            |
+| GET or POST | /api/reports/inventory-aging   | App  | Inventory aging / slow movers (ADR-054)| Query: from_date?, to_date?, format?                                   | 200: PDF or CSV.                                                            |
+| GET or POST | /api/reports/accounting-export | App  | Accounting CSV export (ADR-056)      | Query: from_date?, to_date?, format=csv                                | 200: CSV (primary).                                                         |
+| POST       | /api/reports/print-queue       | App  | Combined print PDF for queue (ADR-055)| Body: `{ items: [ { type, orderId } ] }`                              | 200: combined PDF; opens for browser print.                                 |
+
+Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope: ADR-006.
 
 ---
 
-### 10. Pick list (ADR-015)
+### 10. Dashboard (ADR-016, ADR-038, ADR-064, ADR-066)
+
+| Method | Path                           | Auth | Purpose                         | Request | Response / behavior |
+| ------ | ------------------------------ | ---- | ------------------------------- | ------- | ------------------- |
+| GET    | /api/dashboard                 | App  | Dashboard summary + KPIs        | None    | 200: `{ connected, shop?, receipts_preview?, avg_margin_this_month?, total_profit_this_month?, total_profit_ytd?, ... }` per ADR-016/038. |
+| GET    | /api/dashboard/inventory-value | App  | Inventory value widget (ADR-064)  | None    | 200: `{ total_items, total_cost_basis, total_list_price, ... }`. |
+| GET    | /api/dashboard/stats           | App  | Aggregate stats (ADR-066)       | None    | 200: `{ repeat_customers_this_month, ... }`. |
+
+---
+
+### 11. Pick list (ADR-015)
 
 | Method | Path                     | Auth | Purpose                                              | Request                                                                      | Response / behavior                                                                                                                                                                     |
 | ------ | ------------------------ | ---- | ---------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -275,8 +312,14 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 
 ```json
 {
-  "error": "Validation failed",
-  "code": "VALIDATION_ERROR",
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "user_message": "Please fix the highlighted fields.",
+    "actions": [],
+    "can_retry": false
+  },
   "fields": {
     "item_number": ["Item number is required"],
     "status": ["Status must be one of: Draft, In stock, Listed, Sold, Reserved, Retired"]
@@ -301,12 +344,14 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
   "items": [
     {
       "id": 9001,
-      "order_id": "R-10001",
+      "order_number": "R-10001",
       "customer_id": 77,
-      "inventory_id": 101,
-      "date_of_purchase": "2026-02-16",
+      "order_date": "2026-02-16",
       "was_paid": 1,
-      "order_status": "active"
+      "order_status": "active",
+      "payment_status": "paid",
+      "grand_total": 98.0,
+      "line_item_count": 2
     }
   ],
   "pagination": {
@@ -323,11 +368,10 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 ```json
 {
   "customer_id": 77,
-  "customer_address_id": 300,
-  "date_of_purchase": "2026-02-16",
+  "order_date": "2026-02-16",
   "items": [
-    { "inventory_id": 101, "discount_amount": 0 },
-    { "inventory_id": 102, "discount_amount": 5.0 }
+    { "inventory_id": 101, "quantity": 1, "unit_price": 98.0 },
+    { "inventory_id": 102, "quantity": 1, "unit_price": 45.0 }
   ]
 }
 ```
@@ -336,29 +380,40 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 
 ```json
 {
-  "order_id": "f9f6d8e8-9a9c-4f8e-9f7e-7f6bb4c6ef8c",
-  "purchases": [
-    { "id": 9001, "inventory_id": 101, "was_paid": 0, "order_status": "active" },
-    { "id": 9002, "inventory_id": 102, "was_paid": 0, "order_status": "active" }
-  ]
+  "id": 9001,
+  "order_number": "MAN-2026-00042",
+  "customer_id": 77,
+  "order_date": "2026-02-16",
+  "order_status": "active",
+  "was_paid": 0,
+  "items": [
+    { "id": 1, "order_id": 9001, "inventory_id": 101, "quantity": 1, "line_total": 98.0 },
+    { "id": 2, "order_id": 9001, "inventory_id": 102, "quantity": 1, "line_total": 45.0 }
+  ],
+  "created_at": "2026-02-16T17:22:10Z",
+  "updated_at": "2026-02-16T17:22:10Z"
 }
 ```
 
-**8) POST `/api/orders/[order_id]/mark-paid` success (200)**
+**8) POST `/api/orders/[id]/mark-paid` success (200)**
 
 ```json
 {
-  "updated": 2
+  "id": 9001,
+  "was_paid": 1,
+  "payment_status": "paid",
+  "updated_at": "2026-02-16T18:00:00Z"
 }
 ```
 
-**9) POST `/api/sync/etsy` success (200)**
+**9) POST `/api/sync/etsy` success (200 or 202 + job_id)**
 
 ```json
 {
   "synced": 5,
   "created_orders": 5,
-  "created_purchases": 7
+  "updated_orders": 0,
+  "errors": 0
 }
 ```
 
@@ -393,8 +448,29 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 
 ```json
 {
-  "error": "Authentication required",
-  "code": "UNAUTHORIZED"
+  "ok": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required",
+    "user_message": "Connect your Etsy shop to continue.",
+    "actions": ["Go to Dashboard and connect Etsy"],
+    "can_retry": false
+  }
+}
+```
+
+**13) Concurrent edit (409, ADR-046)**
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "CONCURRENT_EDIT",
+    "message": "Record was modified elsewhere",
+    "user_message": "This record changed in another tab. Reload to see the latest version.",
+    "actions": ["Reload"],
+    "can_retry": true
+  }
 }
 ```
 
@@ -416,14 +492,15 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 - “App” auth: for single-user app, use the same Etsy cookie when the user is connected; no separate session mechanism is required; protected routes must return 401 when not authenticated.
 - File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
-- Listing generation mode strategy (manual vs integrated AI vs portable handoff) is governed by **ADR-023**. Any API additions for export/import/approve flow must be added here before implementation is considered complete.
+- Listing generation mode strategy (manual vs integrated AI vs portable handoff) is governed by **ADR-023**. Listing endpoints are in section 4; extensions §24–§28 cover ADR-038–069.
+- **Full extension index:** §12–§28 (ADR-027–069). Feature ADRs remain authoritative for request/response field detail; this ADR is the route catalog.
 - **Print shipping label:** Sales UI command (no separate API required). **No automated connection to any shipping service.** App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md`. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first. See `ui-design.md` and `design-decisions-implementation.md` §1.
 
-### Additional endpoints and changes (updated 2026-05-24)
+### Extensions (updated 2026-05-24)
 
-The following endpoints and modifications are specified by ADRs 029-037. They extend the API surface defined in sections 1-10 above.
+The following extend sections 1–11 above. ADRs **027**, **029–037**, and **038–069** are indexed here so this ADR remains the single API catalog.
 
-**11. List endpoint query parameters (ADR-029)**
+**§12. List endpoint query parameters (ADR-029)**
 
 All list endpoints (`GET /api/inventory`, `GET /api/customers`, `GET /api/orders`) accept these additional optional query parameters:
 
@@ -435,31 +512,31 @@ All list endpoints (`GET /api/inventory`, `GET /api/customers`, `GET /api/orders
 
 The existing `limit`/`offset` pagination contract (section "Pagination contract") applies unchanged.
 
-**12. Outstanding endpoint (ADR-020 implementation)**
+**§13. Outstanding endpoint (ADR-020)**
 
 | Method | Path              | Auth | Purpose                    | Request                          | Response / behavior                                                          |
 | ------ | ----------------- | ---- | -------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
-| GET    | /api/outstanding  | App  | Aggregated outstanding list | Query: type? (filter by type)   | 200: `{ items: [ { type, type_label, entity_id, summary, date, ... } ] }`. All 6 outstanding types aggregated server-side. |
+| GET    | /api/outstanding  | App  | Aggregated outstanding list | Query: type? (filter by type)   | 200: `{ items: [ { type, type_label, entity_id, summary, date, ... } ] }`. Types per ADR-020 (v1 may omit future-only types). |
 
-**13. Mark shipped (ADR-031)**
+**§14. Mark shipped (ADR-031)**
 
 | Method | Path                              | Auth | Purpose          | Request                                                      | Response / behavior                    |
 | ------ | --------------------------------- | ---- | ---------------- | ------------------------------------------------------------ | -------------------------------------- |
 | POST   | /api/orders/[id]/mark-shipped     | App  | Mark order shipped | Body: `{ shipper, tracking_number?, shipping_date? }`       | 200: updated order. Sets shipping_date, shipper, tracking_number on the order row. |
 
-**14. Link customer to order (ADR-031)**
+**§15. Link customer to order (ADR-031)**
 
 | Method | Path                              | Auth | Purpose              | Request                           | Response / behavior                    |
 | ------ | --------------------------------- | ---- | -------------------- | --------------------------------- | -------------------------------------- |
 | POST   | /api/orders/[id]/link-customer    | App  | Assign customer to order | Body: `{ customer_id }`         | 200: updated order.                    |
 
-**15. Image serving (ADR-033)**
+**§16. Image serving (ADR-033)**
 
 | Method | Path                    | Auth | Purpose                                   | Request        | Response / behavior                                                         |
 | ------ | ----------------------- | ---- | ----------------------------------------- | -------------- | --------------------------------------------------------------------------- |
 | GET    | /api/uploads/[...path]  | App  | Serve uploaded images and thumbnails      | Path segments  | 200: image binary with correct Content-Type. 404 if file not found. Serves from `uploads/` directory per ADR-026. |
 
-**16. Per-order report documents (ADR-036)**
+**§17. Per-order report documents (ADR-036)**
 
 | Method | Path                                  | Auth | Purpose                          | Request                        | Response / behavior                         |
 | ------ | ------------------------------------- | ---- | -------------------------------- | ------------------------------ | ------------------------------------------- |
@@ -468,8 +545,85 @@ The existing `limit`/`offset` pagination contract (section "Pagination contract"
 
 These are convenience aliases for the existing `/api/reports/invoice?order_id=X` and `/api/reports/thank-you-note?order_id=X` endpoints in section 9 above. Both patterns are valid; the path-based routes are preferred for per-order documents.
 
-**17. Activity log (ADR-037)**
+**§18. Activity log (ADR-037)**
 
 | Method | Path           | Auth | Purpose              | Request                                                                 | Response / behavior                                                |
 | ------ | -------------- | ---- | -------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| GET    | /api/activity  | App  | Activity log entries | Query: entity_type?, entity_id?, action?, limit? (default 50), offset? | 200: `{ items: [ { id, action, entity_type, entity_id, entity_label, detail_json, source, created_at } ], pagination }`. |
+| GET    | /api/activity  | App  | Activity log entries | Query: entity_type?, entity_id?, action?, limit? (default 50), offset? | 200: `{ items: [ { id, action, entity_type, entity_id, entity_label, detail_json, source, created_at } ], pagination }`. `source`: user, system, etsy_sync. |
+
+**§19. Backup and restore (ADR-027)**
+
+| Method | Path                    | Auth | Purpose              | Request / response |
+| ------ | ----------------------- | ---- | -------------------- | ------------------ |
+| POST   | /api/backup             | App  | Trigger backup now   | 200: `{ ok, filename, size_bytes, backup_count }`. May return 202 + job_id for large backups. |
+| GET    | /api/backup             | App  | List backup files    | 200: `{ backups: [ { filename, created_at, size_bytes } ], total }`. |
+| DELETE | /api/backup/[filename]  | App  | Delete one backup    | 204. |
+| POST   | /api/backup/restore     | App  | Restore from backup  | Body: `{ filename }`. 200: `{ ok, pre_restore_backup }`. |
+
+**§20. Global search (ADR-041)**
+
+| Method | Path         | Auth | Purpose        | Request                          | Response |
+| ------ | ------------ | ---- | -------------- | -------------------------------- | -------- |
+| GET    | /api/search  | App  | Cross-entity search | Query: `q` (required), `limit?` (default 5 per group) | 200: `{ ok: true, inventory: [], orders: [], customers: [] }` (shape per ADR-041). |
+
+**§21. Batch operations (ADR-040)**
+
+| Method | Path                   | Auth | Purpose | Request | Response |
+| ------ | ---------------------- | ---- | ------- | ------- | -------- |
+| POST   | /api/orders/batch      | App  | Batch order actions | `{ action, ids, params? }` — actions: `mark_paid`, `mark_shipped`, `void`. Max 100 ids. | 200: `{ succeeded, failed, results[] }`. >10 items: progress UI per ADR-043. |
+| POST   | /api/inventory/batch   | App  | Batch inventory | `{ action, ids, params? }` — `change_status`, `delete` | Same partial-success shape. |
+| POST   | /api/customers/batch   | App  | Batch customers | `{ action, ids }` — `delete` only | Same. |
+
+Optional v1 extension: `{ action, filter }` without `ids` for “select all matching current list filter” (ADR-040 Notes) — if implemented, document max cap and audit log entries.
+
+**§22. Jobs (ADR-043)**
+
+| Method | Path                         | Auth | Purpose |
+| ------ | ---------------------------- | ---- | ------- |
+| GET    | /api/jobs/[job_id]           | App  | Poll job status/progress/result |
+| GET    | /api/jobs/[job_id]/stream    | App  | SSE progress stream |
+| DELETE | /api/jobs/[job_id]           | App  | Cancel running job |
+
+**§23. Health (ADR-050)**
+
+| Method | Path         | Auth | Purpose |
+| ------ | ------------ | ---- | ------- |
+| GET    | /api/health  | None | Liveness: `{ ok: true, timestamp }` — no session required |
+
+**§24. Inventory import and duplicates (ADR-047, ADR-048, ADR-068)**
+
+| Method | Path                              | Auth | Purpose |
+| ------ | --------------------------------- | ---- | ------- |
+| POST   | /api/inventory/import/preview     | App  | CSV preview/validation |
+| POST   | /api/inventory/import             | App  | CSV create rows (202 + job_id if large) |
+| GET    | /api/inventory/check-duplicate    | App  | Query: `description` |
+| GET    | /api/inventory/[id]/listing-score | App  | Listing quality score (ADR-068) |
+
+**§25. Customer extensions (ADR-052, ADR-053, ADR-065)**
+
+| Method | Path                              | Auth | Purpose |
+| ------ | --------------------------------- | ---- | ------- |
+| GET    | /api/customers/[id]/orders        | App  | Purchase timeline with summaries (ADR-052) |
+| GET    | /api/customers/duplicates         | App  | Suggested duplicate pairs (ADR-053) |
+| POST   | /api/customers/merge              | App  | Body: `{ primary_id, secondary_id }` — irreversible merge |
+| GET    | /api/customers/[id]/notes         | App  | Paginated customer notes (ADR-065) |
+| POST   | /api/customers/[id]/notes         | App  | Create note |
+| DELETE | /api/customer-notes/[id]          | App  | Delete one note |
+| GET    | /api/customers/check-duplicate    | App  | Query: `first_name`, `last_name`, `email?` |
+
+List/detail `GET /api/customers` responses include `order_count` (ADR-066).
+
+**§26. Computed inventory fields (ADR-038)**
+
+`GET /api/inventory` and `GET /api/inventory/[id]` include computed profitability fields when applicable: `total_cost`, `net_profit`, `margin_pct`, `roi_pct` (formulas in ADR-038). List may support `sort_by=margin_pct` per ADR-029 naming.
+
+**§27. Sample data (ADR-069)**
+
+| Method | Path                      | Auth | Purpose |
+| ------ | ------------------------- | ---- | ------- |
+| POST   | /api/seed/sample-data     | App  | Load demo dataset (ConfirmDialog ADR-032) |
+| DELETE | /api/seed/sample-data     | App  | Remove demo data |
+
+**§28. Inventory list extensions**
+
+`GET /api/inventory` supports ADR-029 `search`, `sort_by`, `sort_dir`, `limit`, `offset`, plus optional `status` filter (section 4).

@@ -326,3 +326,24 @@ See ADR-009 "Implementation status" and ADR-024 for the v1 component architectur
 ### Schema terminology
 
 This document uses the original data model terms ("purchase", "customer_address"). The implementation uses a three-table order model: `orders` (header) + `order_items` (line items) + `purchases` (vendor buy-side only). Ship-to addresses are in the `addresses` table. See ADR-003 and ADR-017 schema mapping notes.
+
+### Features ADR-038–069 (UX index)
+
+Detailed UI spec lives in each feature ADR; this index ties tabs to ADRs for implementers.
+
+| Area | Feature | ADR |
+|------|---------|-----|
+| Header | Global search (Cmd/Ctrl+K) | 041 |
+| Header | Notification bell | 051 |
+| Header | Print queue | 055 |
+| Header | Recently viewed | 063 |
+| Dashboard | Profit KPIs, inventory value, repeat customers | 038, 064, 066 |
+| Dashboard | Setup wizard overlay | 044 |
+| Sales | Batch bar, inline edit, timeline | 040, 062, 052 |
+| Sales | Print queue add | 055 |
+| Inventory | CSV import, listing score, profitability row | 047, 068, 038 |
+| Customers | Notes log, merge tool, duplicate warnings | 065, 053, 048 |
+| Reports | Profit, tax, aging, accounting export | 038, 039, 054, 056 |
+| All tabs | Empty-state CTAs, help tooltips, mobile layout | 059, 060, 061 |
+| Config | Tax, sample data, auto-sync | 039, 069, 057 |
+| Cross-cutting | Unsaved guard, progress/jobs, undo, a11y, shortcuts | 042, 043, 067, 045, 049 |

@@ -14,7 +14,9 @@ When the user deletes a customer, an inventory item, an address, or another enti
 
 ## Decision
 
-The following rules apply. “Restrict” means the delete is rejected with an HTTP 409 (Conflict) or 400 and a clear message. “Cascade” means related rows are deleted (or updated) as part of the operation. “Snapshot” means the purchase (or other row) keeps a copy of data at time of sale; we do not change that snapshot when the source is deleted.
+> **Implementation (2026-05-24):** Customer sales = `orders` + `order_items`; ship-to snapshot on `orders`; vendor buys = `purchases` table only. See schema mapping in Notes.
+
+The following rules apply. “Restrict” means the delete is rejected with an HTTP 409 (Conflict) or 400 and a clear message. “Cascade” means related rows are deleted (or updated) as part of the operation. “Snapshot” means the order keeps ship-to fields at time of sale; we do not change that snapshot when the source address is deleted.
 
 ---
 

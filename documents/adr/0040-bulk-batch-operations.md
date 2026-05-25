@@ -52,6 +52,7 @@ When ≥ 1 row is selected, a batch actions bar appears between the search/filte
 | Mark paid | "Mark Paid" | Sets `payment_status = 'paid'` and `was_paid = 1` on all selected orders. Skips orders already paid (no error). |
 | Mark shipped | "Mark Shipped" | Opens a modal: carrier dropdown (USPS/UPS/FedEx/DHL/Other), shipping date (default: today), optional tracking number prefix. Sets `shipping_date` and `shipper` on all selected orders. Skips orders already shipped. **Paid check:** If any selected order has `payment_status = 'unpaid'`, the modal shows a warning: "N orders are unpaid. Ship anyway?" with a checkbox "Ship unpaid orders (override)" — if checked, sets `shipped_without_paid_override = 1` on those orders. |
 | Void | "Void" | Confirmation dialog (ADR-032): "Void N orders? This cannot be undone." On confirm, sets `order_status = 'void'` on all selected. Skips already-void orders. |
+| Add to print queue | "Add to Print Queue" | Opens sub-choice: document type (Invoice, Thank-you, Label). Adds each selected order to the client print queue (ADR-055). No server batch endpoint — queue is `localStorage`. Toast per ADR-055. |
 
 **Inventory tab batch actions:**
 
@@ -99,7 +100,7 @@ Batch operations use a single POST endpoint per entity type. The request body sp
 
 | Endpoint | Valid actions |
 |---|---|
-| `/api/orders/batch` | `mark_paid`, `mark_shipped`, `void` |
+| `/api/orders/batch` | `mark_paid`, `mark_shipped`, `void` (print queue is client-only per ADR-055) |
 | `/api/inventory/batch` | `change_status`, `delete` |
 | `/api/customers/batch` | `delete` |
 

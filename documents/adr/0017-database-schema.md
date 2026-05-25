@@ -6,11 +6,13 @@ Accepted
 
 ## Date
 
-2025-02-15
+2025-02-15 (canonical DDL reconciled 2026-05-24; extended for ADR-038–069)
 
 ## Context
 
-The application stores all data in a SQLite database (ADR-001, ADR-012). The data model is defined across ADR-002 (inventory), ADR-003 (customer, address, purchase), ADR-004 (shipper and shipping cost on purchase), ADR-007 (auth/session), and ADR-008 (storage scope). There must be a single, unambiguous schema so implementers build exactly one structure with no guessing. This ADR is the **canonical schema** for the whole system, including Etsy linkage and auth/session persistence.
+The application stores all data in a SQLite database (ADR-001, ADR-012). The data model is defined across ADR-002 (inventory), ADR-003 (customer, address, orders), ADR-004 (shipper and shipping cost on orders), ADR-007 (auth/session), ADR-008 (storage scope), and feature ADRs through **ADR-069**. There must be a single, unambiguous schema so implementers build exactly one structure with no guessing. This ADR is the **canonical schema** for the whole system, including Etsy linkage and auth/session persistence.
+
+**Customer sales** use `orders` + `order_items`. **Vendor sourcing** (what Trudy bought to resell) uses `purchases`. Do not use `purchases` for Etsy/customer sales.
 
 ## Decision
 
@@ -60,30 +62,44 @@ One row per inventory item. Source: ADR-002.
 | listing_title       | TEXT    | —                         | Etsy listing title (AI-generated or manual); required before List on Etsy.                                      |
 | listing_description | TEXT    | —                         | Etsy listing description (AI-generated or manual); required before List on Etsy.                                |
 | listing_tags        | TEXT    | —                         | Etsy listing tags (comma-separated or equivalent); required before List on Etsy.                                |
-| is_listed           | INTEGER | DEFAULT 0                | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
+| listing_category_path | TEXT  | —                         | Etsy category path (ADR-023).                                                                                   |
+| listing_title_strategy | TEXT | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_product_story | TEXT  | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_condition_clarity | TEXT | —                      | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_attributes  | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_pricing_shipping_notes | TEXT | —                  | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_quality_checklist | TEXT | —                       | Manual/AI listing workshop field (ADR-023).                                                                       |
+| listing_draft_state | TEXT    | —                         | One of: draft, generated, imported, approved, published (ADR-023).                                              |
+| listing_draft_source | TEXT   | —                         | One of: manual, integrated_ai, portable_import (ADR-023).                                                       |
+| listing_export_id   | TEXT    | —                         | Last portable export id (ADR-023).                                                                              |
+| listing_approved_at | TEXT    | —                         | ISO 8601 timestamp when draft approved.                                                                           |
+| listing_published_at | TEXT | —                          | ISO 8601 timestamp when published to Etsy.                                                                      |
+| is_listed           | INTEGER | DEFAULT 0                 | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
 | notes               | TEXT    | —                         | Optional.                                                                                                       |
 | created_at          | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
 | updated_at          | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
 
 ---
 
-### 2. Table: `inventory_other_cost`
+### 2. Table: `other_costs`
 
-One row per “other cost” line for an inventory item (e.g. Repair $5, Cleaning $2). Source: ADR-002.
+One row per additional cost line for an inventory item (e.g. repair, cleaning). Source: ADR-002, ADR-038. **Canonical table name is `other_costs`** (not `inventory_other_cost`).
 
-| Column       | Type    | Constraints                        | Source / notes             |
-| ------------ | ------- | ---------------------------------- | -------------------------- |
-| id           | INTEGER | PRIMARY KEY AUTOINCREMENT          | Surrogate key.             |
-| inventory_id | INTEGER | NOT NULL, REFERENCES inventory(id) | FK to inventory.           |
-| amount       | REAL    | NOT NULL                           | Cost amount.               |
-| description  | TEXT    | NOT NULL                           | e.g. "Repair", "Cleaning". |
-| created_at   | TEXT    | —                                  | Optional (ADR-002).        |
+| Column       | Type    | Constraints                        | Source / notes                                      |
+| ------------ | ------- | ---------------------------------- | --------------------------------------------------- |
+| id           | INTEGER | PRIMARY KEY AUTOINCREMENT          | Surrogate key.                                      |
+| inventory_id | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE CASCADE | FK to inventory.                         |
+| cost_type    | TEXT    | —                                  | Category label (e.g. "Repair", "Cleaning").        |
+| amount       | REAL    | NOT NULL DEFAULT 0                 | Cost amount.                                        |
+| note         | TEXT    | —                                  | Optional detail.                                    |
+| created_at   | TEXT    | NOT NULL                           | ISO 8601 timestamp.                                 |
+| updated_at   | TEXT    | NOT NULL                           | ISO 8601 timestamp.                                 |
 
 ---
 
 ### 3. Table: `customers`
 
-One row per person (not per order). Source: ADR-003. Customer country = billing address country; if no billing address, US. Currency = from billing country mapping; default USD (design-decisions-implementation §2, §3). **Note:** Implementation uses table name `customers` (plural); ADR-017 originally used `customer`.
+One row per person (not per order). Source: ADR-003, ADR-053. Primary/billing address is stored **flat on this row** in v1; additional ship-to addresses use `addresses`.
 
 | Column             | Type    | Constraints                     | Source / notes                                                                 |
 | ------------------ | ------- | ------------------------------- | ------------------------------------------------------------------------------ |
@@ -91,33 +107,40 @@ One row per person (not per order). Source: ADR-003. Customer country = billing 
 | first_name         | TEXT    | —                               | Customer first name.                                                           |
 | last_name          | TEXT    | —                               | Customer last name.                                                            |
 | email              | TEXT    | —                               | Optional (e.g. from Etsy).                                                     |
-| default_address_id | INTEGER | REFERENCES customer_address(id) | Billing/default address; customer country = that address’s country; null → US. |
-| currency_code      | TEXT    | —                               | Effective currency (e.g. USD); set from billing country; default USD.          |
-| is_active          | INTEGER | —                               | 1 = active, 0 = inactive (inactivated by maintenance). Default 1.              |
-| created_at         | TEXT    | —                               | ISO 8601 timestamp.                                                            |
-| updated_at         | TEXT    | —                               | ISO 8601 timestamp.                                                            |
-
-**Implementation note (updated 2026-05-24):** The live database schema uses a flat address structure on the `customers` table (`address_1`, `address_2`, `city`, `state`, `postal_code`, `country`) for the customer's primary/billing address, plus `phone` and `notes` fields. The `default_address_id` and `currency_code` columns from the original design remain in the DDL below but may not be populated in v1. The `addresses` table provides additional ship-to addresses per customer. For v1, currency is USD only (per ADR-006 Notes).
+| phone              | TEXT    | —                               | Optional phone.                                                                |
+| address_1          | TEXT    | —                               | Primary/billing address line 1.                                                |
+| address_2          | TEXT    | —                               | Primary/billing address line 2.                                                |
+| city               | TEXT    | —                               | City.                                                                          |
+| state              | TEXT    | —                               | State or province.                                                             |
+| postal_code        | TEXT    | —                               | Postal code.                                                                   |
+| country            | TEXT    | —                               | Country; default US when empty (ADR-006).                                      |
+| notes              | TEXT    | —                               | Freeform customer notes (distinct from `customer_notes` log, ADR-065).           |
+| default_address_id | INTEGER | REFERENCES addresses(id)        | Optional link to default row in `addresses`; may be null in v1.                |
+| currency_code      | TEXT    | DEFAULT 'USD'                   | Display currency; v1 operations use USD only.                                  |
+| is_active          | INTEGER | DEFAULT 1                       | 1 = active, 0 = inactive.                                                    |
+| created_at         | TEXT    | NOT NULL                        | ISO 8601 timestamp.                                                            |
+| updated_at         | TEXT    | NOT NULL                        | ISO 8601 timestamp.                                                            |
 
 ---
 
 ### 4. Table: `addresses`
 
-Multiple rows per customer; each row is one ship-to address. Source: ADR-003. **Note:** Implementation uses table name `addresses` with column names `first_line`/`second_line`/`state` (vs. ADR-017 original `address_line_1`/`address_line_2`/`state_province`). The implementation column names are canonical.
+Multiple rows per customer; each row is one ship-to (or labeled) address. Source: ADR-003, ADR-031.
 
-| Column         | Type    | Constraints                       | Source / notes                 |
-| -------------- | ------- | --------------------------------- | ------------------------------ |
-| id             | INTEGER | PRIMARY KEY AUTOINCREMENT         | Surrogate key.                 |
-| customer_id    | INTEGER | NOT NULL, REFERENCES customer(id) | FK to customer.                |
-| address_line_1 | TEXT    | —                                 | Address line 1.                |
-| address_line_2 | TEXT    | —                                 | Address line 2; optional.      |
-| city           | TEXT    | —                                 | City.                          |
-| state_province | TEXT    | —                                 | State or province.             |
-| country        | TEXT    | —                                 | Country.                       |
-| postal_code    | TEXT    | —                                 | Postal code.                   |
-| label          | TEXT    | —                                 | Optional; e.g. "Home", "Work". |
-| created_at     | TEXT    | —                                 | ISO 8601 timestamp.            |
-| updated_at     | TEXT    | —                                 | ISO 8601 timestamp.            |
+| Column         | Type    | Constraints                              | Source / notes                 |
+| -------------- | ------- | ---------------------------------------- | ------------------------------ |
+| id             | INTEGER | PRIMARY KEY AUTOINCREMENT                | Surrogate key.                 |
+| customer_id    | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE | FK to customers.     |
+| label          | TEXT    | —                                        | Optional; e.g. "Home", "Work". |
+| first_line     | TEXT    | —                                        | Address line 1.                |
+| second_line    | TEXT    | —                                        | Address line 2; optional.      |
+| city           | TEXT    | —                                        | City.                          |
+| state          | TEXT    | —                                        | State or province.             |
+| postal_code    | TEXT    | —                                        | Postal code.                   |
+| country        | TEXT    | —                                        | Country.                       |
+| is_default     | INTEGER | NOT NULL DEFAULT 0                       | 1 = default ship-to for customer. |
+| created_at     | TEXT    | NOT NULL                                 | ISO 8601 timestamp.            |
+| updated_at     | TEXT    | NOT NULL                                 | ISO 8601 timestamp.            |
 
 ---
 
@@ -159,6 +182,86 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 | notes                         | TEXT    | —                                                  | Optional.                                                                                                                                              |
 | created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
 | updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
+
+---
+
+### 5b. Table: `order_items`
+
+Line items for a sales order. Source: ADR-003, ADR-019.
+
+| Column        | Type    | Constraints                                              | Source / notes        |
+| ------------- | ------- | -------------------------------------------------------- | --------------------- |
+| id            | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key.        |
+| order_id      | INTEGER | NOT NULL, REFERENCES orders(id) ON DELETE CASCADE        | Parent order.         |
+| inventory_id  | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT    | Sold inventory item.  |
+| quantity      | INTEGER | NOT NULL DEFAULT 1                                       | Line quantity.        |
+| unit_price    | REAL    | —                                                        | Price per unit.       |
+| line_total    | REAL    | —                                                        | quantity × unit_price |
+| created_at    | TEXT    | NOT NULL                                                 | ISO 8601 timestamp.   |
+| updated_at    | TEXT    | NOT NULL                                                 | ISO 8601 timestamp.   |
+
+---
+
+### 5c. Table: `purchases` (vendor sourcing only)
+
+What Trudy **bought from vendors** to resell — not customer sales. Source: ADR-002.
+
+| Column           | Type    | Constraints                                              | Source / notes   |
+| ---------------- | ------- | -------------------------------------------------------- | ---------------- |
+| id               | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key.   |
+| inventory_id     | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT    | FK to inventory. |
+| vendor_name      | TEXT    | —                                                        | Vendor name.     |
+| purchase_date    | TEXT    | —                                                        | YYYY-MM-DD.      |
+| purchase_price   | REAL    | —                                                        | Item cost.       |
+| shipping_price   | REAL    | —                                                        | Inbound shipping.|
+| reference_number | TEXT    | —                                                        | Optional ref.    |
+| notes            | TEXT    | —                                                        | Optional.        |
+| created_at       | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
+| updated_at       | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
+
+---
+
+### 5d. Table: `customer_notes`
+
+Chronological interaction notes per customer. Source: ADR-065.
+
+| Column      | Type    | Constraints                                              | Source / notes |
+| ----------- | ------- | -------------------------------------------------------- | -------------- |
+| id          | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key. |
+| customer_id | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE       | FK to customers. |
+| note_text   | TEXT    | NOT NULL                                                 | Note body.     |
+| note_type   | TEXT    | NOT NULL DEFAULT 'general'                               | One of: general, shipping_preference, communication, follow_up, complaint. |
+| created_at  | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
+
+---
+
+### 5e. Table: `activity_log`
+
+Persistent audit trail. Source: ADR-037.
+
+| Column       | Type    | Constraints           | Source / notes |
+| ------------ | ------- | --------------------- | -------------- |
+| id           | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
+| action       | TEXT    | NOT NULL              | Action id (see ADR-037 catalog). |
+| entity_type  | TEXT    | —                     | inventory, order, customer, address, setting, listing, sync, backup, system. |
+| entity_id    | INTEGER | —                     | Affected record id. |
+| entity_label | TEXT    | —                     | Human-readable label. |
+| detail_json  | TEXT    | —                     | JSON details. |
+| source       | TEXT    | NOT NULL DEFAULT 'user' | user, system, etsy_sync. |
+| created_at   | TEXT    | NOT NULL              | ISO 8601 timestamp. |
+
+---
+
+### 5f. Supporting tables (Etsy, listing workflow, reports)
+
+| Table | Purpose | Source |
+| ----- | ------- | ------ |
+| `etsy_receipts` | Raw Etsy receipt JSON cache (`receipt_id`, `shop_id`, `receipt_json`, `synced_at`) | ADR-019 |
+| `listing_exports` | Portable AI export audit (`export_id`, `inventory_id`, `payload_json`) | ADR-023 |
+| `listing_imports` | Portable AI import audit | ADR-023 |
+| `listing_publish_previews` | Pre-publish payload snapshots | ADR-023 |
+| `report_artifacts` | Generated report metadata (`report_name`, `report_params_json`, paths) | ADR-013 |
+| `schema_migrations` | Applied migration versions | migrations |
 
 ---
 
@@ -211,30 +314,48 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | ui.page_size                 | Records per page in lists (ADR-029, ADR-034)                                                     | "25"                                                                                |
 | ui.currency_code             | Display currency (ADR-034)                                                                       | "USD"                                                                               |
 | activity_log.retention_days  | Days to retain activity log entries (ADR-037)                                                    | "365"                                                                               |
+| tax.default_rate             | Default sales tax rate for manual orders (ADR-039)                                               | e.g. "0.0825"                                                                       |
+| setup.completed              | First-run wizard completed or skipped (ADR-044)                                                  | "true" or absent                                                                    |
+| sync.auto_interval           | Scheduled Etsy sync interval minutes; absent = disabled (ADR-057)                                | e.g. "60"                                                                           |
+| last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                | ISO 8601                                                                            |
+| integrity_warning            | Set when last integrity check failed (ADR-058)                                                   | "true" or absent                                                                    |
+| repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                     | "2"                                                                                 |
+| etsy.active_shop_id          | Selected Etsy shop id (ADR-007)                                                                  | Shop id string                                                                      |
+| etsy.oauth.state             | OAuth PKCE state (ADR-007)                                                                       | Opaque string                                                                       |
+| etsy.oauth.verifier          | OAuth PKCE verifier (ADR-007)                                                                    | Opaque string                                                                       |
 | etsy_access_token_encrypted  | Current Etsy access token (encrypted)                                                            | Encrypted string/blob                                                               |
 | etsy_refresh_token_encrypted | Current Etsy refresh token (encrypted)                                                           | Encrypted string/blob                                                               |
 | etsy_token_expires_at        | Access token expiry timestamp (ISO 8601)                                                         | "2026-02-16T10:30:00Z"                                                              |
-| session_id_current           | Current opaque session id bound to auth/session record                                           | Opaque id string                                                                    |
+| app.session.current_id       | Current opaque session id (ADR-007)                                                              | Opaque id string                                                                    |
 
 ---
 
 ### 7. Indexes (ADR-014)
 
-Indexes are part of the initial schema. Index names are defined in the DDL below (e.g. `idx_orders_order_date`); the following columns must be indexed.
+Indexes are part of the initial schema. Index names are defined in the DDL below.
 
-- **orders:** `order_date` (date-range reports, MTD/YTD); `customer_id` (orders by customer, thank-you/invoice); `shipper` (postal-by-vendor report); `etsy_receipt_id` (Etsy sync dedup). **order_items:** `order_id` (join to orders); `inventory_id` (join to inventory).
-- **inventory:** `date_of_sale` (or equivalent date column used in reports); `id` is primary key (joins). Optionally `item_number` (unique already gives lookup).
-- **customer:** `id` is primary key. Optionally `first_name`, `last_name`, or `email` if search by name/email is implemented.
-- **inventory_other_cost:** `inventory_id` (FK; joins to inventory).
+- **orders:** `order_date`, `customer_id`, `was_paid`, `shipping_date`, `etsy_receipt_id`, `shipper` (postal-by-vendor).
+- **order_items:** `order_id`, `inventory_id`.
+- **inventory:** `item_number` (unique), `status`, `date_of_sale`, `date_listed`.
+- **customers:** `is_active`; optional search indexes on name/email per ADR-029/041.
+- **other_costs:** `inventory_id`.
+- **addresses:** `customer_id`.
+- **customer_notes:** `customer_id`.
+- **activity_log:** `created_at`, `(entity_type, entity_id)`, `action`.
+- **purchases:** `inventory_id`.
 
 ---
 
 ### 8. SQLite DDL (exact, no ambiguity)
 
-The following SQL is the canonical schema. Implementations must create the same tables and indexes (names and types may not be changed without updating this ADR).
+The following SQL is the **canonical schema**. Section §1–§7 narrative tables match this DDL. Implementations must create the same tables and indexes (names and types may not be changed without updating this ADR).
+
+**Implementation note (2026-05-24):** The app bootstraps via `src/lib/sqlite.ts` and `migrations/`. Some columns/tables here (e.g. `tracking_number`, `activity_log`, `customer_notes`) may require a migration before use — add migrations rather than diverging from this DDL.
 
 ```sql
--- 1. inventory (ADR-002)
+PRAGMA foreign_keys = ON;
+
+-- 1. inventory (ADR-002, ADR-023)
 CREATE TABLE inventory (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_number TEXT NOT NULL UNIQUE,
@@ -272,31 +393,54 @@ CREATE TABLE inventory (
   listing_title TEXT,
   listing_description TEXT,
   listing_tags TEXT,
+  listing_category_path TEXT,
+  listing_title_strategy TEXT,
+  listing_product_story TEXT,
+  listing_condition_clarity TEXT,
+  listing_attributes TEXT,
+  listing_pricing_shipping_notes TEXT,
+  listing_quality_checklist TEXT,
+  listing_draft_state TEXT,
+  listing_draft_source TEXT,
+  listing_export_id TEXT,
+  listing_approved_at TEXT,
+  listing_published_at TEXT,
+  is_listed INTEGER DEFAULT 0,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT
 );
 
--- 2. inventory_other_cost (ADR-002)
-CREATE TABLE inventory_other_cost (
+-- 2. other_costs (ADR-002, ADR-038)
+CREATE TABLE other_costs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  inventory_id INTEGER NOT NULL REFERENCES inventory(id),
-  amount REAL NOT NULL,
-  description TEXT NOT NULL,
-  created_at TEXT
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+  cost_type TEXT,
+  amount REAL NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 3. customer (ADR-003)
-CREATE TABLE customer (
+-- 3. customers (ADR-003)
+CREATE TABLE customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   first_name TEXT,
   last_name TEXT,
   email TEXT,
-  default_address_id INTEGER REFERENCES customer_address(id),
-  currency_code TEXT,
+  phone TEXT,
+  address_1 TEXT,
+  address_2 TEXT,
+  city TEXT,
+  state TEXT,
+  postal_code TEXT,
+  country TEXT,
+  notes TEXT,
+  default_address_id INTEGER REFERENCES addresses(id),
+  currency_code TEXT DEFAULT 'USD',
   is_active INTEGER DEFAULT 1,
-  created_at TEXT,
-  updated_at TEXT
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- 4. addresses (ADR-003)
@@ -315,7 +459,7 @@ CREATE TABLE addresses (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5. orders (ADR-003, ADR-004, ADR-019)
+-- 5. orders (ADR-003, ADR-004, ADR-019, ADR-031)
 CREATE TABLE orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_number TEXT UNIQUE,
@@ -361,7 +505,7 @@ CREATE TABLE order_items (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5c. purchases — vendor sourcing (ADR-002)
+-- 5c. purchases — vendor sourcing only (ADR-002)
 CREATE TABLE purchases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
@@ -375,7 +519,73 @@ CREATE TABLE purchases (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 6. settings (ADR-008, ADR-009)
+-- 5d. customer_notes (ADR-065)
+CREATE TABLE customer_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  note_text TEXT NOT NULL,
+  note_type TEXT NOT NULL DEFAULT 'general',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5e. activity_log (ADR-037)
+CREATE TABLE activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_id INTEGER,
+  entity_label TEXT,
+  detail_json TEXT,
+  source TEXT NOT NULL DEFAULT 'user',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5f. Etsy receipt cache (ADR-019)
+CREATE TABLE etsy_receipts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  receipt_id TEXT UNIQUE NOT NULL,
+  shop_id TEXT NOT NULL,
+  receipt_json TEXT NOT NULL,
+  synced_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5g. Listing workflow audit (ADR-023)
+CREATE TABLE listing_exports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  export_id TEXT UNIQUE NOT NULL,
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE listing_imports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+  export_id TEXT,
+  payload_json TEXT NOT NULL,
+  source_label TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE listing_publish_previews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+  preview_hash TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5h. Report artifacts (ADR-013)
+CREATE TABLE report_artifacts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  report_name TEXT NOT NULL,
+  report_params_json TEXT NOT NULL,
+  artifact_path TEXT,
+  artifact_json TEXT,
+  generated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 6. settings (ADR-008)
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -389,6 +599,14 @@ CREATE TABLE schema_migrations (
 );
 
 -- Indexes (ADR-014)
+CREATE INDEX idx_inventory_item_number ON inventory(item_number);
+CREATE INDEX idx_inventory_status ON inventory(status);
+CREATE INDEX idx_inventory_date_of_sale ON inventory(date_of_sale);
+CREATE INDEX idx_inventory_date_listed ON inventory(date_listed);
+CREATE INDEX idx_other_costs_inventory_id ON other_costs(inventory_id);
+CREATE INDEX idx_customers_is_active ON customers(is_active);
+CREATE INDEX idx_addresses_customer_id ON addresses(customer_id);
+CREATE INDEX idx_customer_notes_customer_id ON customer_notes(customer_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_order_date ON orders(order_date);
 CREATE INDEX idx_orders_was_paid ON orders(was_paid);
@@ -397,24 +615,10 @@ CREATE INDEX idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_inventory_id ON order_items(inventory_id);
 CREATE INDEX idx_purchases_inventory_id ON purchases(inventory_id);
-CREATE INDEX idx_addresses_customer_id ON addresses(customer_id);
-CREATE INDEX idx_customers_is_active ON customers(is_active);
-CREATE INDEX idx_inventory_date_of_sale ON inventory(date_of_sale);
-CREATE INDEX idx_inventory_date_listed ON inventory(date_listed);
-CREATE INDEX idx_other_costs_inventory_id ON other_costs(inventory_id);
-
--- 10. activity_log (ADR-037)
-CREATE TABLE activity_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  action TEXT NOT NULL,
-  entity_type TEXT,
-  entity_id INTEGER,
-  entity_label TEXT,
-  detail_json TEXT,
-  source TEXT NOT NULL DEFAULT 'user',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
+CREATE INDEX idx_etsy_receipts_shop_id ON etsy_receipts(shop_id);
+CREATE INDEX idx_listing_exports_inventory_id ON listing_exports(inventory_id);
+CREATE INDEX idx_listing_imports_inventory_id ON listing_imports(inventory_id);
+CREATE INDEX idx_listing_publish_previews_inventory_id ON listing_publish_previews(inventory_id);
 CREATE INDEX idx_activity_log_created_at ON activity_log(created_at);
 CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
@@ -442,7 +646,9 @@ CREATE INDEX idx_activity_log_action ON activity_log(action);
 
 ## Notes
 
-- This ADR is the **authoritative** schema. Implementation migrations (e.g. SQLite CREATE TABLE and CREATE INDEX statements) must match this definition. Any divergence (e.g. extra columns for internal use) should be documented and not conflict with this definition.
+- This ADR is the **authoritative** schema. Implementation migrations and `src/lib/sqlite.ts` bootstrap must converge to this definition. Any temporary divergence requires a tracked migration in `migrations/` and `documents/database/SCHEMA_RECONCILIATION.md`.
+- **`payment_status` on orders:** Typical values `unpaid`, `paid`, `refunded` (ADR-039). Stored as TEXT; validate per ADR-021.
+- **`entity_type` in activity_log:** Includes `system` for scheduled sync and integrity events (ADR-057, ADR-058) in addition to ADR-037 catalog types.
 - Date/time format: use consistent ISO 8601 TEXT so sorting and reporting are correct across the app.
 - Currency: app default/reporting currency is `settings.ui.currency_code` (default USD). For v1, all operations use USD only; multi-currency per customer is a future enhancement. MTD/YTD and other app-wide monetary aggregates use the app default reporting currency (ADR-006, ADR-008).
 - **User logo:** When the user sets or uploads a logo in Config, the app stores the logo file in the **system** (e.g. `system/logo.png` or `system/assets/logo.png`) and sets `settings.business_logo_path` to that path. The logo can then be placed on invoices, thank-you notes, reports, and labels. If unset or missing file, documents render without a logo.

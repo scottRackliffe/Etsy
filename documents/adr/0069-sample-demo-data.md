@@ -18,7 +18,7 @@ New users see an empty application with no data. They cannot explore the workflo
 
 ### Sample dataset
 
-The dataset is defined in `fixtures/sample-data.sql` and contains:
+The dataset is defined in ``fixtures/sample-data.sql` (placeholder — seed route may inline SQL until fixture is populated)` and contains:
 
 #### 10 inventory items
 All `item_number` values are prefixed with `SAMPLE-` (e.g., `SAMPLE-001`, `SAMPLE-002`, …, `SAMPLE-010`).
@@ -126,6 +126,6 @@ Orders include realistic `order_date`, `subtotal`, `shipping_total`, `tax_total`
 
 ## Notes
 - Cross-ref: ADR-044 (first-run wizard), ADR-032 (ConfirmDialog for destructive actions), ADR-037 (activity log entries).
-- The `fixtures/sample-data.sql` file must be updated whenever the schema changes (new columns, renamed tables, etc.).
+- The ``fixtures/sample-data.sql` (placeholder — seed route may inline SQL until fixture is populated)` file must be updated whenever the schema changes (new columns, renamed tables, etc.).
 - All sample customer emails use the `@example.com` domain (RFC 2606 reserved) to ensure they are clearly fake.
 - The delete logic uses both the `SAMPLE-` prefix AND `@example.com` email as guards to prevent accidental deletion of real data.

@@ -234,9 +234,15 @@ When all priorities are complete, the build is ready for autonomous implementati
 | Gap | Where to specify | Priority |
 |-----|-----------------|----------|
 | ~~Report empty/failure/date behavior~~ | ~~ADR-013 addendum~~ | **Done** (ADR-013 edge cases section, ADR-036) |
+| ~~ADR-017 / ADR-018 hub drift (038–069)~~ | ADR-017 §8 DDL, ADR-018 Extensions §12–28 | **Done** (2026-05-24 doc pass) |
+| ~~ADR-006 report catalog (profit, tax, aging, accounting)~~ | ADR-006 | **Done** (2026-05-24 doc pass) |
+| ~~Cross-ADR conflicts (044/069 wizard, 021 ship override, 040/055 print queue)~~ | ADR-044, 021, 040, 037 | **Done** (2026-05-24 doc pass) |
 | Currency mapping (country → code) | New doc or ADR-017 Notes | Low (USD-only for v1) |
 | Shipping Info JSON schema per carrier | `shipping-label-carrier-templates.md` | Medium |
-| Mobile/responsive breakpoint behavior | `frontend-architecture.md` §7 (done, but needs testing spec) | Low |
-| ~~Bulk operations (bulk mark-shipped, bulk list)~~ | ~~New ADR or ui-design addendum~~ | **Done** (ADR-040; priorities 23, 38) |
-| ~~Accounting/QuickBooks export~~ | ~~EBC roadmap (future)~~ | **Done** (ADR-056; priority 39) |
+| Mobile/responsive testing spec | ADR-061 (+ manual test scenarios) | Low |
+| ~~Bulk operations~~ | ADR-040 | **Done** |
+| ~~Accounting export~~ | ADR-056 | **Done** |
+| Full JSON schemas for every API endpoint | ADR-018 + per-feature ADRs | Medium (§1 still open) |
+| Schema migrations for `activity_log`, `customer_notes`, `tracking_number` | migrations + ADR-017 | Medium (DDL canonical; bootstrap may lag) |
+| `fixtures/sample-data.sql` for ADR-069 | `fixtures/` | Medium |
 | Catalog generator | EBC roadmap (future) | Future |

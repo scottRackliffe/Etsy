@@ -14,6 +14,8 @@ The outstanding panel and full-page Outstanding tab (ADR-009) show a data-driven
 
 ## Decision
 
+> **Queries (2026-05-24):** Implement against `orders`, `order_items`, `inventory`, `customers` — not legacy `purchase` rows. See schema mapping in Notes.
+
 The outstanding list is the **union** of the following item types. Each type has an exact definition and a query rule (SQL or equivalent). The list is ordered by user-configurable sort (ADR-020 sort order; default date first). The panel may show a capped number (e.g. top 20); the full-page Outstanding tab shows the full list. Clicking an item puts context in place (navigate to tab and select record) per ADR-009.
 
 **Exclude void/cancelled orders:** For every outstanding type that is **order-based** (types 1, 2, 6 — orders paid but not shipped, orders not yet paid, orders missing shipping cost), include **only** orders where **every** purchase row in that order has **order_status = 'active'**. Do not show void or cancelled orders on the outstanding list; they need no action. (ADR-017: order_status one of active, void, cancelled.)
