@@ -255,7 +255,7 @@ After P0–P1, an implementer can build a **cohesive modern shell** without inve
 | Core Etsy vintage store manager functions documented? | **Yes** |
 | Every store-owner need either specified or explicitly scoped? | **Yes** — ADR-070 (2026-05-24) |
 | Modern easy UI fully specified? | **Yes** — ADR-071 + ui-design §1b–1d, §5.9–5.10 (2026-05-24) |
-| Ready for code (compliance + build)? | **After user Phase 1b sign-off** — then [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) fixes |
+| Ready for code (compliance + build)? | **Yes (2026-05-24)** — Phase 1b signed off; start [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) critical fixes, then §5 |
 
 ---
 

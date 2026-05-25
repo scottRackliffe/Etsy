@@ -236,15 +236,15 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 - [x] **ADR-009** — v1 implementation note at top of Decision — 2026-05-24
 - [x] **ADR README + System_Colors + frontend-architecture** — index and cross-refs to ADR-070/071 — 2026-05-24
 - [x] **.cursorrules** — canonical table rows for ADR-070, ADR-071 — 2026-05-24
-- [ ] **Phase 1b review** — walk store-owner journey: acquire → list → sell → ship → report → backup (user sign-off)
+- [x] **Phase 1b review** — walk store-owner journey: acquire → list → sell → ship → report → backup (user sign-off) — 2026-05-24
 
-**Phase 1b sign-off:** Documentation items above checked; pending user approval → then code (compliance fixes, then §5 priorities).
+**Phase 1b sign-off:** **Complete (2026-05-24).** Next: acknowledge [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md), then code per §5 priorities.
 
 ---
 
 ## 5) Priority Order (updated 2026-05-24)
 
-**Blocked until:** §4.8 Phase 1b complete + §7 audit acknowledged + user sign-off. (§4.1–4.6 and §7 Phase 2 are done; they do not unblock implementation alone.)
+**Blocked until:** §7 [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) acknowledged and critical compliance fixes started. Phase 1b sign-off complete 2026-05-24.
 
 1. **Schema reconciliation** — Execute migration to align DB with ADR-017; update ADR-017 canonical DDL. (`documents/database/SCHEMA_RECONCILIATION.md`)
 2. **Frontend decomposition** — Break `page.tsx` into components per ADR-024 and `documents/frontend-architecture.md`.
