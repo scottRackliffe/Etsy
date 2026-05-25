@@ -335,4 +335,4 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 **Recommended before bulk UI (priorities 11+):** Critical batch in audit §8 step 1–3 (mark-shipped semantics, order enums, migration 003, `/api/uploads`, seed API).
 
-**Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — core vintage reseller workflow is documented; optional Phase 1b doc items (ADR-070 scope, ADR-071 design system, header/dashboard ui-design sections) before polish UI.
+**Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — Phase 1b complete (ADR-070/071, ui-design §1b–1d); signed off 2026-05-24.
