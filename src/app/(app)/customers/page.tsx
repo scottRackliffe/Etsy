@@ -48,9 +48,16 @@ const NOTE_TYPES = [
 
 function CustomersPageInner() {
   const {
-    customers, setCustomers, selectedCustomerId, setSelectedCustomerId,
-    customerAddresses, setCustomerAddresses,
-    busyAction, setBusyAction, setApiError, setError,
+    customers,
+    setCustomers,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    customerAddresses,
+    setCustomerAddresses,
+    busyAction,
+    setBusyAction,
+    setApiError,
+    setError,
     shops,
     selectedShopId,
   } = useApp();
@@ -128,7 +135,13 @@ function CustomersPageInner() {
   const [activeFilter, setActiveFilter] = useState<string | null>("1");
   const [sort, setSort] = useState<SortState>({ key: "last_name", dir: "asc" });
   const batch = useBatchSelection(customers, listTotal);
-  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+  const {
+    runBatch,
+    busy: batchBusy,
+    progressOpen,
+    progressTitle,
+    progressTotal,
+  } = useBatchOperation();
 
   const customerBatchFilter = useMemo(
     () => ({
@@ -158,7 +171,9 @@ function CustomersPageInner() {
       params.set("sort_by", sort.key);
       params.set("sort_dir", sort.dir);
     }
-    const response = await fetch(`/api/customers?${params}`, { headers: { Accept: "application/json" } });
+    const response = await fetch(`/api/customers?${params}`, {
+      headers: { Accept: "application/json" },
+    });
     const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
       items?: Customer[];
       pagination?: PaginationInfo;
@@ -183,7 +198,8 @@ function CustomersPageInner() {
         sortKey: "last_name",
         render: (customer: Customer) => (
           <span className="inline-flex items-center gap-1.5">
-            {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`}
+            {[customer.first_name, customer.last_name].filter(Boolean).join(" ") ||
+              `Customer ${customer.id}`}
             <RepeatCustomerBadge orderCount={customer.order_count} />
           </span>
         ),
@@ -210,8 +226,12 @@ function CustomersPageInner() {
         return;
       }
       try {
-        const response = await fetch(`/api/customers/${id}`, { headers: { Accept: "application/json" } });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
+        const response = await fetch(`/api/customers/${id}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          customer?: Customer;
+        };
         if (!response.ok || !data.customer) {
           setError({
             title: "Customer not found",
@@ -233,7 +253,16 @@ function CustomersPageInner() {
     };
 
     void applyDeepLink();
-  }, [searchParams, customers, setSelectedCustomerId, setCustomers, router, pathname, setError, setApiError]);
+  }, [
+    searchParams,
+    customers,
+    setSelectedCustomerId,
+    setCustomers,
+    router,
+    pathname,
+    setError,
+    setApiError,
+  ]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
   useTrackRecentlyViewed(
@@ -251,22 +280,27 @@ function CustomersPageInner() {
     setSelectedCustomerId(id);
   };
 
-  const loadCustomerNotes = useCallback(async (customerId: number) => {
-    setNotesLoading(true);
-    try {
-      const response = await fetch(`/api/customers/${customerId}/notes?limit=50`, {
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: CustomerNote[] };
-      if (!response.ok) throw data;
-      setCustomerNotes(data.items ?? []);
-    } catch (err) {
-      setApiError("Could not load notes", "We could not load customer notes.", err);
-      setCustomerNotes([]);
-    } finally {
-      setNotesLoading(false);
-    }
-  }, [setApiError]);
+  const loadCustomerNotes = useCallback(
+    async (customerId: number) => {
+      setNotesLoading(true);
+      try {
+        const response = await fetch(`/api/customers/${customerId}/notes?limit=50`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          items?: CustomerNote[];
+        };
+        if (!response.ok) throw data;
+        setCustomerNotes(data.items ?? []);
+      } catch (err) {
+        setApiError("Could not load notes", "We could not load customer notes.", err);
+        setCustomerNotes([]);
+      } finally {
+        setNotesLoading(false);
+      }
+    },
+    [setApiError]
+  );
 
   useEffect(() => {
     if (!selectedCustomerId) {
@@ -281,7 +315,9 @@ function CustomersPageInner() {
     const response = await fetch(`/api/customers/${selectedCustomerId}`, {
       headers: { Accept: "application/json" },
     });
-    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      customer?: Customer;
+    };
     if (!response.ok || !data.customer) throw data;
     setCustomers((current) =>
       current.map((row) => (row.id === selectedCustomerId ? data.customer! : row))
@@ -354,11 +390,15 @@ function CustomersPageInner() {
           email: newCustomerEmail.trim(),
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        customer?: Customer;
+      };
       if (!response.ok) throw data;
       if (data.customer) {
         setCustomers((current) =>
-          [data.customer!, ...current.filter((row) => row.id !== data.customer!.id)].sort((a, b) => b.id - a.id)
+          [data.customer!, ...current.filter((row) => row.id !== data.customer!.id)].sort(
+            (a, b) => b.id - a.id
+          )
         );
         setSelectedCustomerId(data.customer.id);
       }
@@ -388,7 +428,9 @@ function CustomersPageInner() {
           country: newAddressCountry.trim() || "US",
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: CustomerAddress };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        item?: CustomerAddress;
+      };
       if (!response.ok) throw data;
       if (data.item) {
         setCustomerAddresses((current) => [data.item!, ...current]);
@@ -437,7 +479,9 @@ function CustomersPageInner() {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ note_text: newNoteText.trim(), note_type: newNoteType }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { note?: CustomerNote };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        note?: CustomerNote;
+      };
       if (!response.ok) throw data;
       if (data.note) {
         setCustomerNotes((current) => [data.note!, ...current]);
@@ -548,11 +592,20 @@ function CustomersPageInner() {
           onClear={batch.clearSelection}
           selectAllMatching={
             batch.canSelectAllMatching && !batch.selectAllMatching
-              ? { total: listTotal, onSelect: batch.selectAllMatchingRows, tooLarge: batch.selectAllMatchingTooLarge }
+              ? {
+                  total: listTotal,
+                  onSelect: batch.selectAllMatchingRows,
+                  tooLarge: batch.selectAllMatchingTooLarge,
+                }
               : undefined
           }
         >
-          <Button variant="danger" size="sm" busy={busyAction === "batch-delete-customers" || batchBusy} onClick={() => setBatchDeleteOpen(true)}>
+          <Button
+            variant="danger"
+            size="sm"
+            busy={busyAction === "batch-delete-customers" || batchBusy}
+            onClick={() => setBatchDeleteOpen(true)}
+          >
             Delete
           </Button>
         </BatchActionsBar>
@@ -613,8 +666,9 @@ function CustomersPageInner() {
           {selectedCustomer && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-[var(--ui-title)]">
-                {[selectedCustomer.first_name, selectedCustomer.last_name].filter(Boolean).join(" ") ||
-                  `Customer ${selectedCustomer.id}`}
+                {[selectedCustomer.first_name, selectedCustomer.last_name]
+                  .filter(Boolean)
+                  .join(" ") || `Customer ${selectedCustomer.id}`}
               </p>
               <RepeatCustomerBadge orderCount={selectedCustomer.order_count} />
             </div>
@@ -632,9 +686,13 @@ function CustomersPageInner() {
               <p className="mb-2 text-sm font-semibold">Addresses</p>
               <div className="space-y-2">
                 {customerAddresses.map((address) => (
-                  <div key={address.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] px-2 py-1.5 text-xs">
+                  <div
+                    key={address.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] px-2 py-1.5 text-xs"
+                  >
                     <span>
-                      {address.first_line ?? "-"}, {address.city ?? "-"} {address.postal_code ?? "-"} {address.country ?? "-"}
+                      {address.first_line ?? "-"}, {address.city ?? "-"}{" "}
+                      {address.postal_code ?? "-"} {address.country ?? "-"}
                     </span>
                     <button
                       type="button"
@@ -648,12 +706,32 @@ function CustomersPageInner() {
                 ))}
               </div>
               <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4">
-                <input value={newAddressFirstLine} onChange={(e) => setNewAddressFirstLine(e.target.value)} placeholder="Address line" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs md:col-span-2" />
-                <input value={newAddressCity} onChange={(e) => setNewAddressCity(e.target.value)} placeholder="City" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs" />
-                <input value={newAddressPostalCode} onChange={(e) => setNewAddressPostalCode(e.target.value)} placeholder="Postal" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs" />
+                <input
+                  value={newAddressFirstLine}
+                  onChange={(e) => setNewAddressFirstLine(e.target.value)}
+                  placeholder="Address line"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs md:col-span-2"
+                />
+                <input
+                  value={newAddressCity}
+                  onChange={(e) => setNewAddressCity(e.target.value)}
+                  placeholder="City"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
+                <input
+                  value={newAddressPostalCode}
+                  onChange={(e) => setNewAddressPostalCode(e.target.value)}
+                  placeholder="Postal"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <input value={newAddressCountry} onChange={(e) => setNewAddressCountry(e.target.value)} placeholder="Country" className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs" />
+                <input
+                  value={newAddressCountry}
+                  onChange={(e) => setNewAddressCountry(e.target.value)}
+                  placeholder="Country"
+                  className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
                 <button
                   type="button"
                   onClick={createCustomerAddress}
@@ -679,12 +757,16 @@ function CustomersPageInner() {
               ) : (
                 <ul className="mb-3 max-h-40 space-y-2 overflow-auto">
                   {customerNotes.map((note) => (
-                    <li key={note.id} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs">
+                    <li
+                      key={note.id}
+                      className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-[var(--ui-body)]">{note.note_text}</p>
                           <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">
-                            {note.note_type.replace(/_/g, " ")} · {new Date(note.created_at).toLocaleString()}
+                            {note.note_type.replace(/_/g, " ")} ·{" "}
+                            {new Date(note.created_at).toLocaleString()}
                           </p>
                         </div>
                         <button
@@ -734,9 +816,27 @@ function CustomersPageInner() {
         </div>
         <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <p className="text-sm font-semibold">Add customer</p>
-          <input value={newCustomerFirstName} onChange={(e) => setNewCustomerFirstName(e.target.value)} placeholder="First name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input value={newCustomerLastName} onChange={(e) => setNewCustomerLastName(e.target.value)} onBlur={() => void checkCustomerDuplicate()} placeholder="Last name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input ref={createEmailRef} value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} onBlur={() => void checkCustomerDuplicate()} placeholder="Email" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input
+            value={newCustomerFirstName}
+            onChange={(e) => setNewCustomerFirstName(e.target.value)}
+            placeholder="First name"
+            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <input
+            value={newCustomerLastName}
+            onChange={(e) => setNewCustomerLastName(e.target.value)}
+            onBlur={() => void checkCustomerDuplicate()}
+            placeholder="Last name"
+            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <input
+            ref={createEmailRef}
+            value={newCustomerEmail}
+            onChange={(e) => setNewCustomerEmail(e.target.value)}
+            onBlur={() => void checkCustomerDuplicate()}
+            placeholder="Email"
+            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
           {customerDuplicates.length > 0 ? (
             <DuplicateWarning
               message="A similar customer may already exist."
@@ -762,7 +862,11 @@ function CustomersPageInner() {
       </div>
       {listTotal === 0 ? (
         <EmptyState
-          message={customerSearch.trim() || activeFilter !== "1" ? "No customers match your filters." : "No customers yet. Customers are created automatically when you sync Etsy orders or add manual orders."}
+          message={
+            customerSearch.trim() || activeFilter !== "1"
+              ? "No customers match your filters."
+              : "No customers yet. Customers are created automatically when you sync Etsy orders or add manual orders."
+          }
           primaryAction={
             customerSearch.trim() || activeFilter !== "1"
               ? {
@@ -775,9 +879,16 @@ function CustomersPageInner() {
                 }
               : shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+                : {
+                    label: "Connect Etsy first",
+                    onClick: () => router.push("/config#etsy-connection"),
+                    variant: "secondary",
+                  }
           }
-          secondaryAction={{ label: "Add customer", onClick: () => createEmailRef.current?.focus() }}
+          secondaryAction={{
+            label: "Add customer",
+            onClick: () => createEmailRef.current?.focus(),
+          }}
         />
       ) : null}
 
@@ -873,7 +984,13 @@ function CustomersPageInner() {
 
 export default function CustomersPage() {
   return (
-    <Suspense fallback={<section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">Loading customers...</section>}>
+    <Suspense
+      fallback={
+        <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">
+          Loading customers...
+        </section>
+      }
+    >
       <CustomersPageInner />
     </Suspense>
   );

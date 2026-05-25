@@ -7,10 +7,7 @@ import {
   setConnectionState,
   type ConnectionState,
 } from "@/lib/connection-state";
-import {
-  MUTATION_QUEUE_CHANGED_EVENT,
-  mutationQueueLength,
-} from "@/lib/mutation-queue";
+import { MUTATION_QUEUE_CHANGED_EVENT, mutationQueueLength } from "@/lib/mutation-queue";
 import { addNotificationEntry } from "@/lib/notifications";
 import { replayMutationQueue } from "@/lib/replay-mutation-queue";
 

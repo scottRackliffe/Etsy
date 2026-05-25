@@ -49,23 +49,23 @@ Every confirmation dialog uses the `Modal` component with these elements:
 
 **Destructive (data loss) — `variant="danger"` confirm button:**
 
-| Action | Page | Title | Description | Confirm label |
-|--------|------|-------|-------------|---------------|
-| Delete inventory item | Inventory | "Delete item?" | "This will permanently delete item {item_number}. Items linked to orders cannot be deleted." | "Delete" |
-| Delete customer address | Customers | "Delete address?" | "This will remove the address at {first_line}, {city}." | "Delete" |
-| Delete customer | Customers | "Delete customer?" | "This will permanently delete {first_name} {last_name} and all their addresses. Customers linked to orders cannot be deleted." | "Delete" |
-| Void order | Sales | "Void order?" | "This will void order {order_number}. Voided orders are excluded from active reports." | "Void order" |
-| Reject listing draft | Inventory | "Reject draft?" | "This will reset the listing draft for item {item_number} back to draft state." | "Reject" |
-| Disconnect Etsy | Header | "Disconnect Etsy?" | "This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings." | "Disconnect" |
-| Clear all data (future) | Config | "Erase all data?" | "This will delete all inventory, orders, customers, and settings. This cannot be undone." | "Erase everything" |
+| Action                  | Page      | Title              | Description                                                                                                                    | Confirm label      |
+| ----------------------- | --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| Delete inventory item   | Inventory | "Delete item?"     | "This will permanently delete item {item_number}. Items linked to orders cannot be deleted."                                   | "Delete"           |
+| Delete customer address | Customers | "Delete address?"  | "This will remove the address at {first_line}, {city}."                                                                        | "Delete"           |
+| Delete customer         | Customers | "Delete customer?" | "This will permanently delete {first_name} {last_name} and all their addresses. Customers linked to orders cannot be deleted." | "Delete"           |
+| Void order              | Sales     | "Void order?"      | "This will void order {order_number}. Voided orders are excluded from active reports."                                         | "Void order"       |
+| Reject listing draft    | Inventory | "Reject draft?"    | "This will reset the listing draft for item {item_number} back to draft state."                                                | "Reject"           |
+| Disconnect Etsy         | Header    | "Disconnect Etsy?" | "This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings."                             | "Disconnect"       |
+| Clear all data (future) | Config    | "Erase all data?"  | "This will delete all inventory, orders, customers, and settings. This cannot be undone."                                      | "Erase everything" |
 
 **Significant but not destructive — `variant="accent"` confirm button:**
 
-| Action | Page | Title | Description | Confirm label |
-|--------|------|-------|-------------|---------------|
-| Publish to Etsy | Inventory | "Publish to Etsy?" | "This will create a live listing on Etsy for item {item_number}. Review the preview below before confirming." | "Publish" |
-| Mark order shipped | Sales | "Ship order?" | (Handled by the mark-shipped modal in ADR-031 — the modal itself serves as confirmation.) | "Confirm shipment" |
-| Restore backup | Config | "Restore from backup?" | "This will replace all current data with the backup from {date}. A safety-net backup will be created first." | "Restore" |
+| Action             | Page      | Title                  | Description                                                                                                   | Confirm label      |
+| ------------------ | --------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Publish to Etsy    | Inventory | "Publish to Etsy?"     | "This will create a live listing on Etsy for item {item_number}. Review the preview below before confirming." | "Publish"          |
+| Mark order shipped | Sales     | "Ship order?"          | (Handled by the mark-shipped modal in ADR-031 — the modal itself serves as confirmation.)                     | "Confirm shipment" |
+| Restore backup     | Config    | "Restore from backup?" | "This will replace all current data with the backup from {date}. A safety-net backup will be created first."  | "Restore"          |
 
 **Actions that do NOT need confirmation:**
 

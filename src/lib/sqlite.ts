@@ -126,9 +126,9 @@ function ensureTableColumns(
   table: string,
   requiredColumns: Record<string, string>
 ): void {
-  const existing = (
-    db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
-  ).map((row) => row.name);
+  const existing = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+    (row) => row.name
+  );
 
   for (const [column, typeDef] of Object.entries(requiredColumns)) {
     if (!existing.includes(column)) {
@@ -365,9 +365,7 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_was_paid ON orders(was_paid);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_shipping_date ON orders(shipping_date);");
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);"
-  );
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_etsy_receipt_id ON orders(etsy_receipt_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_shipper ON orders(shipper);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_addresses_customer_id ON addresses(customer_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_customers_is_active ON customers(is_active);");
@@ -384,9 +382,13 @@ function ensureCoreTables(db: Database.Database): void {
     "CREATE INDEX IF NOT EXISTS idx_listing_publish_previews_inventory_id ON listing_publish_previews(inventory_id);"
   );
   db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at);");
-  db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);");
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);"
+  );
   db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);");
-  db.exec("CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);");
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);"
+  );
 }
 
 function configureDatabasePragmas(db: Database.Database): void {

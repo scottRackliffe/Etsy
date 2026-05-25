@@ -1,15 +1,19 @@
 # ADR-052: Customer purchase history timeline
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 The customer detail view shows name, contact info, and addresses but provides no visual history of purchases. Repeat customers are the most valuable segment for a vintage/antique business — their purchase history should be visible at a glance to inform communication and sales decisions.
 
 ## Decision
+
 Add a purchase history timeline section to the customer detail panel, showing all orders associated with the customer in reverse chronological order.
 
 ### Location in UI
@@ -31,6 +35,7 @@ Query parameters:
 | `offset` | number | 0 | Pagination offset |
 
 Response:
+
 ```json
 {
   "summary": {
@@ -50,7 +55,12 @@ Response:
       "grand_total": 89.99,
       "shipped": true,
       "items": [
-        { "inventory_id": 101, "description": "Blue ceramic vase", "quantity": 1, "unit_price": 89.99 }
+        {
+          "inventory_id": 101,
+          "description": "Blue ceramic vase",
+          "quantity": 1,
+          "unit_price": 89.99
+        }
       ]
     }
   ],
@@ -83,14 +93,14 @@ Displayed at the top of the Order History section as a compact stats row:
 
 Vertical list of order cards, each showing:
 
-| Element | Content |
-|---------|---------|
-| Date | `order_date` formatted per app settings |
-| Order number | Clickable link |
-| Items | Comma-separated list of `inventory.description` values (truncated to 80 chars total with "...") |
-| Total | `grand_total` formatted as currency |
-| Status badges | Payment status badge (green "Paid" / yellow "Unpaid") + Source badge (grey "Etsy" / blue "Manual") |
-| Shipped indicator | Green checkmark if shipped; grey clock if not |
+| Element           | Content                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| Date              | `order_date` formatted per app settings                                                            |
+| Order number      | Clickable link                                                                                     |
+| Items             | Comma-separated list of `inventory.description` values (truncated to 80 chars total with "...")    |
+| Total             | `grand_total` formatted as currency                                                                |
+| Status badges     | Payment status badge (green "Paid" / yellow "Unpaid") + Source badge (grey "Etsy" / blue "Manual") |
+| Shipped indicator | Green checkmark if shipped; grey clock if not                                                      |
 
 ### Visual treatment for void/cancelled orders
 
@@ -106,6 +116,7 @@ Vertical list of order cards, each showing:
 ### Empty state
 
 When the customer has no orders:
+
 - Show: "No orders yet for this customer."
 - No stats bar displayed.
 
@@ -122,10 +133,12 @@ When the customer has no orders:
 - Index on `orders.customer_id` + `orders.order_date` ensures efficient lookup.
 
 ## Consequences
+
 - **Positive**: Gives immediate visibility into customer value and purchase patterns. Helps identify repeat customers. Enables quick navigation to related orders. Summary stats provide at-a-glance customer lifetime value.
 - **Negative**: Additional API endpoint and query complexity. Large customers (100+ orders) require pagination. Joining through order_items to inventory adds query cost (mitigated by limit).
 
 ## Notes
+
 - Cross-references: ADR-003 (customer data model — customer ↔ orders relationship), ADR-031 (order detail view — the target when clicking an order), ADR-035 (deep links — navigation from timeline to sales page), ADR-024 (frontend architecture — inline detail panel, no sub-routes)
 - The endpoint does NOT duplicate `GET /api/orders?customer_id=<id>` — it adds the `summary` object and includes inline `items` descriptions for display without requiring a second request per order.
 - Future consideration: add a "Reorder" button that pre-fills a new order with the same items. Not in scope for v1.

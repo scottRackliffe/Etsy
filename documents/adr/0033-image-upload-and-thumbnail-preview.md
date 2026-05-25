@@ -47,6 +47,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 ### Slot states
 
 **Filled slot:**
+
 - Displays the image thumbnail. Source: `thumbnail_path` for slot 1; for other slots, the picture path itself served via a static route or API.
 - Thumbnail loading: show a small `LoadingSpinner` centered in the card until the image loads.
 - Overlay on hover: semi-transparent dark overlay with two action buttons:
@@ -56,6 +57,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 - Draggable: the card can be dragged to another slot position to reorder.
 
 **Empty slot:**
+
 - Shows a dashed border with a `+` icon and text "Drop image" (or "Click to upload" on mobile).
 - Drop target: accepts files dragged from the OS file manager.
 - Click: opens the native file picker (`<input type="file" accept="image/jpeg,image/png,image/webp,image/gif">`).

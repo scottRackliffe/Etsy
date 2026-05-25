@@ -26,7 +26,11 @@ export function DuplicateWarning({
         </ul>
       ) : null}
       {onDismiss ? (
-        <button type="button" onClick={onDismiss} className="mt-1 text-[var(--ui-muted)] hover:underline">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="mt-1 text-[var(--ui-muted)] hover:underline"
+        >
           Dismiss
         </button>
       ) : null}

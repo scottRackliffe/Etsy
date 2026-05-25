@@ -12,11 +12,14 @@ export function useDirtyTracking<T>(initialValues: T | null) {
     setCurrent(next);
   }, []);
 
-  const markClean = useCallback((next?: T) => {
-    const value = next ?? current;
-    setSavedState(value);
-    if (next !== undefined) setCurrent(next);
-  }, [current]);
+  const markClean = useCallback(
+    (next?: T) => {
+      const value = next ?? current;
+      setSavedState(value);
+      if (next !== undefined) setCurrent(next);
+    },
+    [current]
+  );
 
   const isDirty = useMemo(() => {
     if (savedState == null || current == null) return false;

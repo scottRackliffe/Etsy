@@ -1,12 +1,15 @@
 # ADR-041: Global search
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Users must navigate to the correct tab (Sales, Inventory, Customers) before they can search for a specific record. This adds friction when the user doesn't know which tab contains the record they're looking for, or when they need to quickly jump to a specific order, item, or customer from any page. A global search accessible from anywhere in the app would let users find any record instantly.
 
 ## Decision
@@ -21,6 +24,7 @@ Users must navigate to the correct tab (Sales, Inventory, Customers) before they
 ### 2. Search modal
 
 **Layout:**
+
 ```
 ┌────────────────────────────────────────────────────┐
 │  🔍  Search orders, inventory, customers...    [×] │
@@ -51,6 +55,7 @@ Users must navigate to the correct tab (Sales, Inventory, Customers) before they
 ```
 
 **Modal behavior:**
+
 - Centered overlay with backdrop (click backdrop to close)
 - Width: `max-w-xl` (560px)
 - Max height: 70vh with scroll
@@ -78,11 +83,11 @@ If all groups have zero results, show: "No results for '[query]'"
 
 **Result row format per entity:**
 
-| Entity | Icon | Primary text | Secondary text | Badge |
-|---|---|---|---|---|
-| Order | 📦 (or order icon) | `order_number` | `ship_to_first_name ship_to_last_name` + `grand_total` formatted | `order_status` badge |
-| Inventory | 📋 (or item icon) | `item_number` | `description` (truncated to 50 chars) | `status` badge |
-| Customer | 👤 (or person icon) | `first_name last_name` | `email` (or `phone` if no email) | — |
+| Entity    | Icon                | Primary text           | Secondary text                                                   | Badge                |
+| --------- | ------------------- | ---------------------- | ---------------------------------------------------------------- | -------------------- |
+| Order     | 📦 (or order icon)  | `order_number`         | `ship_to_first_name ship_to_last_name` + `grand_total` formatted | `order_status` badge |
+| Inventory | 📋 (or item icon)   | `item_number`          | `description` (truncated to 50 chars)                            | `status` badge       |
+| Customer  | 👤 (or person icon) | `first_name last_name` | `email` (or `phone` if no email)                                 | —                    |
 
 **Badge styling:** Uses the `Badge` component (ADR-028) with the same color coding as list views.
 
@@ -90,11 +95,11 @@ If all groups have zero results, show: "No results for '[query]'"
 
 The global search queries the same fields as the per-page search defined in ADR-029:
 
-| Entity | Fields searched |
-|---|---|
-| Orders | `order_number`, `ship_to_first_name`, `ship_to_last_name`, `notes`, `tracking_number` |
-| Inventory | `item_number`, `description`, `listing_title`, `notes`, `category_tags` |
-| Customers | `first_name`, `last_name`, `email`, `phone`, `notes` |
+| Entity    | Fields searched                                                                       |
+| --------- | ------------------------------------------------------------------------------------- |
+| Orders    | `order_number`, `ship_to_first_name`, `ship_to_last_name`, `notes`, `tracking_number` |
+| Inventory | `item_number`, `description`, `listing_title`, `notes`, `category_tags`               |
+| Customers | `first_name`, `last_name`, `email`, `phone`, `notes`                                  |
 
 All searches use case-insensitive `LIKE '%term%'` matching, consistent with ADR-029.
 
@@ -103,6 +108,7 @@ All searches use case-insensitive `LIKE '%term%'` matching, consistent with ADR-
 `GET /api/search?q=<term>&limit=5`
 
 **Query parameters:**
+
 - `q` (required): search term, minimum 2 characters
 - `limit` (optional): max results per entity group, default `5`, max `20`
 
@@ -118,7 +124,7 @@ All searches use case-insensitive `LIKE '%term%'` matching, consistent with ADR-
         "order_number": "ORD-2024-0042",
         "ship_to_first_name": "John",
         "ship_to_last_name": "Smith",
-        "grand_total": 125.00,
+        "grand_total": 125.0,
         "order_status": "active",
         "order_date": "2026-05-20"
       }
@@ -158,11 +164,11 @@ All searches use case-insensitive `LIKE '%term%'` matching, consistent with ADR-
 
 Clicking a search result navigates to the entity's page with a deep-link query parameter (ADR-035):
 
-| Entity | Navigation target |
-|---|---|
-| Order | `/sales?orderId=<id>` |
-| Inventory | `/inventory?itemId=<id>` |
-| Customer | `/customers?customerId=<id>` |
+| Entity    | Navigation target            |
+| --------- | ---------------------------- |
+| Order     | `/sales?orderId=<id>`        |
+| Inventory | `/inventory?itemId=<id>`     |
+| Customer  | `/customers?customerId=<id>` |
 
 The target page reads the query param, selects/scrolls to the record, highlights it, and cleans the URL (per ADR-035).
 
@@ -200,6 +206,7 @@ The search modal closes immediately on click.
 - **Negative:** `LIKE '%term%'` is O(n) per entity table (no index acceleration for infix matches); the global search endpoint adds a new API surface that queries three tables; stored recent searches in localStorage are device-specific and not synced.
 
 ## Notes
+
 - Cross-references: ADR-029 (search fields per entity — global search uses the same fields), ADR-035 (deep-link navigation — click result navigates with query param), ADR-028 (Badge component for status badges in results), ADR-014 (database indexes), ADR-045 (accessibility — modal focus trap, keyboard navigation, ARIA roles)
 - The search modal component should be implemented as a shared component (e.g., `SearchModal`) since it is used globally
 - Future consideration: full-text search (FTS5 in SQLite) could replace `LIKE` for better performance at scale, but is not needed for expected data volumes

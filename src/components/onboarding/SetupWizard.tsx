@@ -61,7 +61,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
   const loadBusiness = useCallback(async () => {
     try {
-      const response = await fetch("/api/settings?limit=500", { headers: { Accept: "application/json" } });
+      const response = await fetch("/api/settings?limit=500", {
+        headers: { Accept: "application/json" },
+      });
       const data = (await response.json().catch(() => ({}))) as {
         items?: Array<{ key: string; value: string }>;
       };
@@ -108,7 +110,11 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
       }
       setStep(2);
     } catch (err) {
-      setApiError("Could not save business profile", "We could not save your business details.", err);
+      setApiError(
+        "Could not save business profile",
+        "We could not save your business details.",
+        err
+      );
     }
   };
 
@@ -175,10 +181,12 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
         {step === 0 ? (
           <>
-            <h2 className="text-xl font-semibold text-[var(--ui-title)]">Welcome to Etsy Sales Manager</h2>
+            <h2 className="text-xl font-semibold text-[var(--ui-title)]">
+              Welcome to Etsy Sales Manager
+            </h2>
             <p className="mt-2 text-sm text-[var(--ui-body)]">
-              Your personal tool for managing inventory, orders, customers, and Etsy listings for your vintage and
-              antique business.
+              Your personal tool for managing inventory, orders, customers, and Etsy listings for
+              your vintage and antique business.
             </p>
             <p className="mt-2 text-sm text-[var(--ui-muted)]">
               Let&apos;s get you set up in just a few steps. This will take about 2 minutes.
@@ -211,7 +219,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                 Address line 1
                 <input
                   value={business.business_address_line_1}
-                  onChange={(e) => setBusiness((b) => ({ ...b, business_address_line_1: e.target.value }))}
+                  onChange={(e) =>
+                    setBusiness((b) => ({ ...b, business_address_line_1: e.target.value }))
+                  }
                   className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
                 />
               </label>
@@ -228,7 +238,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   State / province
                   <input
                     value={business.business_state_province}
-                    onChange={(e) => setBusiness((b) => ({ ...b, business_state_province: e.target.value }))}
+                    onChange={(e) =>
+                      setBusiness((b) => ({ ...b, business_state_province: e.target.value }))
+                    }
                     className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
                   />
                 </label>
@@ -238,7 +250,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   Postal code
                   <input
                     value={business.business_postal_code}
-                    onChange={(e) => setBusiness((b) => ({ ...b, business_postal_code: e.target.value }))}
+                    onChange={(e) =>
+                      setBusiness((b) => ({ ...b, business_postal_code: e.target.value }))
+                    }
                     className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
                   />
                 </label>
@@ -246,7 +260,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   Country
                   <input
                     value={business.business_country}
-                    onChange={(e) => setBusiness((b) => ({ ...b, business_country: e.target.value }))}
+                    onChange={(e) =>
+                      setBusiness((b) => ({ ...b, business_country: e.target.value }))
+                    }
                     className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
                   />
                 </label>
@@ -313,7 +329,9 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   {connectedShop ? "Sync Etsy Orders" : "Explore Sales"}
                 </p>
                 <p className="text-xs text-[var(--ui-muted)]">
-                  {connectedShop ? "Import your recent Etsy sales" : "Manually add your first order"}
+                  {connectedShop
+                    ? "Import your recent Etsy sales"
+                    : "Manually add your first order"}
                 </p>
               </button>
               <button

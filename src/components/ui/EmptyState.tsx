@@ -20,7 +20,12 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center py-16 text-[var(--ui-muted)]">
       {icon ?? (
-        <svg className="mb-3 h-12 w-12 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg
+          className="mb-3 h-12 w-12 opacity-40"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -38,7 +43,10 @@ export function EmptyState({
             </Button>
           ) : null}
           {secondaryAction ? (
-            <Button variant={secondaryAction.variant ?? "secondary"} onClick={secondaryAction.onClick}>
+            <Button
+              variant={secondaryAction.variant ?? "secondary"}
+              onClick={secondaryAction.onClick}
+            >
               {secondaryAction.label}
             </Button>
           ) : null}

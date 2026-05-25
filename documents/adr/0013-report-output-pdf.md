@@ -56,7 +56,7 @@ The following specifies the **exact content** that each report must include. Dat
 **Invoice** (per order)
 
 - **Data filter:** Per global rule above (active orders only).
-- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business_name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to_*` snapshot fields. (5) Date: `orders.order_date`. (6) Table of line items: for each `order_items` row — inventory description (or item_number), `quantity`, unit price (`order_items.unit_price` or `inventory.sale_revenue` per implementation), `line_total`. (7) Subtotal (`orders.subtotal` or sum of line totals). (8) Discount: if `orders.discount_total` > 0, show and subtract. (9) Shipping: `orders.seller_shipping_cost`; show `orders.shipper` if set. (10) Total (`orders.grand_total` or subtotal − discount + shipping). (11) Payment/shipping status from `orders.was_paid`, `orders.shipping_date`, `orders.shipper`.
+- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business*name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to*\*`snapshot fields. (5) Date:`orders.order_date`. (6) Table of line items: for each `order_items`row — inventory description (or item_number),`quantity`, unit price (`order_items.unit_price`or`inventory.sale_revenue`per implementation),`line_total`. (7) Subtotal (`orders.subtotal`or sum of line totals). (8) Discount: if`orders.discount_total`> 0, show and subtract. (9) Shipping:`orders.seller_shipping_cost`; show `orders.shipper` if set. (10) Total (`orders.grand_total`or subtotal − discount + shipping). (11) Payment/shipping status from`orders.was_paid`, `orders.shipping_date`, `orders.shipper`.
 - **Data:** `orders` + `order_items` joined to `inventory`; ship-to from order snapshot only.
 
 ---
@@ -154,12 +154,12 @@ ADR-036 adds a date range picker UI to the Reports page: From/To date inputs wit
 
 The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 
-| ADR-013 term | Implementation | Notes |
-|-------------|----------------|-------|
-| purchase row(s) | `orders` + `order_items` | Invoice line items come from `order_items` joined to `inventory` |
-| date_of_purchase | `orders.order_date` | |
-| purchase.shipping_cost | `orders.seller_shipping_cost` | |
-| purchase.discount_amount | `orders.discount_total` | |
-| purchase.was_paid | `orders.was_paid` | |
-| ship_to_* fields | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table |
-| sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper` | Postal costs by vendor report |
+| ADR-013 term                             | Implementation                                                | Notes                                                            |
+| ---------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| purchase row(s)                          | `orders` + `order_items`                                      | Invoice line items come from `order_items` joined to `inventory` |
+| date_of_purchase                         | `orders.order_date`                                           |                                                                  |
+| purchase.shipping_cost                   | `orders.seller_shipping_cost`                                 |                                                                  |
+| purchase.discount_amount                 | `orders.discount_total`                                       |                                                                  |
+| purchase.was_paid                        | `orders.was_paid`                                             |                                                                  |
+| ship*to*\* fields                        | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                  |
+| sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                    |

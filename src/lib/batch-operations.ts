@@ -2,7 +2,13 @@ import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
 import { prepareInventoryPayload } from "@/lib/inventory-validation";
 import { getDb } from "@/lib/sqlite";
-import { deleteCustomer, deleteInventory, getOrder, markOrderPaid, markOrderShipped } from "@/lib/records";
+import {
+  deleteCustomer,
+  deleteInventory,
+  getOrder,
+  markOrderPaid,
+  markOrderShipped,
+} from "@/lib/records";
 
 export type BatchResult = {
   succeeded: number;
@@ -14,7 +20,11 @@ const MAX_BATCH = 100;
 
 function normalizeIds(ids: unknown): number[] {
   if (!Array.isArray(ids)) return [];
-  return [...new Set(ids.filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0))];
+  return [
+    ...new Set(
+      ids.filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0)
+    ),
+  ];
 }
 
 export function batchOrders(
@@ -49,7 +59,9 @@ export function batchOrders(
         if (order.shipping_date) continue;
         const shipper = typeof params.shipper === "string" ? params.shipper : "USPS";
         const shippingDate =
-          typeof params.shipping_date === "string" ? params.shipping_date : new Date().toISOString().slice(0, 10);
+          typeof params.shipping_date === "string"
+            ? params.shipping_date
+            : new Date().toISOString().slice(0, 10);
         markOrderShipped(id, {
           shipper,
           shipping_date: shippingDate,
@@ -76,7 +88,10 @@ export function batchOrders(
       }
     } catch (err) {
       if (err instanceof OrderShipBlockedError) {
-        failed.push({ id, reason: "Order is not paid; use shipped_without_paid_override to ship anyway" });
+        failed.push({
+          id,
+          reason: "Order is not paid; use shipped_without_paid_override to ship anyway",
+        });
       } else {
         failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
       }

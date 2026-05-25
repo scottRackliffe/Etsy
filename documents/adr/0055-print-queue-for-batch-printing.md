@@ -1,12 +1,15 @@
 # ADR-055: Print Queue for Batch Printing
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Processing multiple orders requires printing invoices, thank-you notes, and shipping labels individually — one print dialog per document. For a seller processing 10+ orders, this is tedious and error-prone. A batch print queue allows collecting documents and printing them all at once.
 
 ## Decision
@@ -17,9 +20,24 @@ Processing multiple orders requires printing invoices, thank-you notes, and ship
 - Data structure: JSON array of queue entries:
   ```json
   [
-    { "type": "invoice", "orderId": 123, "orderNumber": "ORD-0001", "addedAt": "2026-05-24T12:00:00Z" },
-    { "type": "thank-you", "orderId": 123, "orderNumber": "ORD-0001", "addedAt": "2026-05-24T12:00:01Z" },
-    { "type": "label", "orderId": 124, "orderNumber": "ORD-0002", "addedAt": "2026-05-24T12:01:00Z" }
+    {
+      "type": "invoice",
+      "orderId": 123,
+      "orderNumber": "ORD-0001",
+      "addedAt": "2026-05-24T12:00:00Z"
+    },
+    {
+      "type": "thank-you",
+      "orderId": 123,
+      "orderNumber": "ORD-0001",
+      "addedAt": "2026-05-24T12:00:01Z"
+    },
+    {
+      "type": "label",
+      "orderId": 124,
+      "orderNumber": "ORD-0002",
+      "addedAt": "2026-05-24T12:01:00Z"
+    }
   ]
   ```
 - `type`: `"invoice"` | `"thank-you"` | `"label"`
@@ -41,12 +59,12 @@ Processing multiple orders requires printing invoices, thank-you notes, and ship
 
 ### Queue actions
 
-| Action | Behavior |
-|--------|----------|
-| **Print all** | `POST /api/reports/print-queue` with `{ items: [{ type, orderId }] }` — returns a combined PDF with all documents concatenated, each starting on a new page. Opens PDF in a new browser tab for the native print dialog. Clears the queue on success. |
-| **Print selected** | User checks a subset of items; same API call with only checked items. Removes only printed items from queue. |
-| **Clear queue** | Removes all items from `localStorage`. Requires confirmation via `ConfirmDialog` (ADR-032): "Clear all 8 items from print queue?" |
-| **Remove single** | Removes one entry from the queue array. No confirmation needed. |
+| Action             | Behavior                                                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Print all**      | `POST /api/reports/print-queue` with `{ items: [{ type, orderId }] }` — returns a combined PDF with all documents concatenated, each starting on a new page. Opens PDF in a new browser tab for the native print dialog. Clears the queue on success. |
+| **Print selected** | User checks a subset of items; same API call with only checked items. Removes only printed items from queue.                                                                                                                                          |
+| **Clear queue**    | Removes all items from `localStorage`. Requires confirmation via `ConfirmDialog` (ADR-032): "Clear all 8 items from print queue?"                                                                                                                     |
+| **Remove single**  | Removes one entry from the queue array. No confirmation needed.                                                                                                                                                                                       |
 
 ### API endpoint
 
@@ -75,10 +93,12 @@ Content-Type: application/json
 3. Header on each page identifies the document type and order number
 
 ## Consequences
+
 - **Positive:** Dramatically reduces print friction for multi-order processing. Single print dialog instead of N dialogs. Queue persists across page refreshes via localStorage.
 - **Negative:** localStorage is per-browser — queue doesn't sync across browsers/devices (acceptable for single-user app). Combined PDF generation for 50 documents may take a few seconds; should show a loading spinner.
 
 ## Notes
+
 - Cross-references: ADR-013 (PDF format and report templates), ADR-036 (per-order document endpoints — invoice, thank-you, label), ADR-040 (batch operations — batch add to queue), ADR-032 (confirmation dialog for clear queue)
 - The print queue icon in the header uses a standard printer icon from the existing icon set
 - Badge count uses `--ui-accent` (#2f80ed) background with white text

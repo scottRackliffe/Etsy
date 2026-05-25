@@ -15,7 +15,8 @@ export async function patchInlineRecord<T extends { updated_at?: string | null }
       headers: patchHeaders(updatedAt),
       body: JSON.stringify(body),
     });
-    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & Record<string, unknown>;
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape &
+      Record<string, unknown>;
     if (!response.ok) {
       if (response.status === 409 && isStaleConflictPayload(data)) {
         return { status: "stale" };

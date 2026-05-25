@@ -75,24 +75,36 @@ export function InventoryValueWidget() {
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-1 text-lg font-semibold text-[var(--ui-title)]">Inventory value</h3>
       <p className="mb-4 text-sm text-[var(--ui-muted)]">
-        {loading ? "Loading…" : value ? `${value.item_count} unsold items` : "Could not load inventory value"}
+        {loading
+          ? "Loading…"
+          : value
+            ? `${value.item_count} unsold items`
+            : "Could not load inventory value"}
       </p>
       {value ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">At cost</p>
-            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">{formatMoney(value.at_cost)}</p>
+            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">
+              {formatMoney(value.at_cost)}
+            </p>
           </article>
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">At sale price</p>
-            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">{formatMoney(value.at_sale_price)}</p>
+            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">
+              {formatMoney(value.at_sale_price)}
+            </p>
           </article>
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Potential margin</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
+              Potential margin
+            </p>
             <p className={`mt-2 text-xl font-semibold ${marginColor}`}>
               {formatMoney(value.potential_margin)}
               {value.potential_margin_pct != null ? (
-                <span className="ml-1 text-sm font-normal">({value.potential_margin_pct.toFixed(1)}%)</span>
+                <span className="ml-1 text-sm font-normal">
+                  ({value.potential_margin_pct.toFixed(1)}%)
+                </span>
               ) : null}
             </p>
           </article>
@@ -102,13 +114,16 @@ export function InventoryValueWidget() {
         <div className="mt-4 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 text-sm text-[var(--ui-body)]">
           <p className="font-medium text-[var(--ui-title)]">
             Avg margin this month:{" "}
-            {profit.avg_margin_this_month != null ? `${profit.avg_margin_this_month.toFixed(1)}%` : "—"}
+            {profit.avg_margin_this_month != null
+              ? `${profit.avg_margin_this_month.toFixed(1)}%`
+              : "—"}
             <span className="ml-1 font-normal text-[var(--ui-muted)]">
               ({profit.avg_margin_this_month_count} items sold)
             </span>
           </p>
           <p className="mt-1 text-[var(--ui-muted)]">
-            Profit this month {formatMoney(profit.total_profit_this_month)} · Profit YTD {formatMoney(profit.total_profit_ytd)}
+            Profit this month {formatMoney(profit.total_profit_this_month)} · Profit YTD{" "}
+            {formatMoney(profit.total_profit_ytd)}
           </p>
         </div>
       ) : null}

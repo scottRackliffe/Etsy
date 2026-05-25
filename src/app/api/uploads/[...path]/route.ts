@@ -29,10 +29,7 @@ function resolveUploadPath(segments: string[]): string | null {
   return candidate;
 }
 
-export async function GET(
-  _request: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
-) {
+export async function GET(_request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   try {
     requireEtsyAccessToken(await cookies());
     const segments = (await context.params).path ?? [];

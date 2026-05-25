@@ -45,16 +45,16 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 
 **Column definitions:**
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | INTEGER PK | Auto-increment |
-| `action` | TEXT NOT NULL | Action identifier (see action catalog below) |
-| `entity_type` | TEXT | `inventory`, `order`, `customer`, `address`, `setting`, `listing`, `sync`, `backup`, `system` (scheduled sync, integrity, sample data per ADR-057, ADR-058, ADR-069) |
-| `entity_id` | INTEGER | ID of the affected record (nullable for system-wide actions) |
-| `entity_label` | TEXT | Human-readable label for the record (e.g., item number, order number, customer name) |
-| `detail_json` | TEXT | JSON object with action-specific details (changed fields, old/new values, error messages) |
-| `source` | TEXT | `user` (manual action), `system` (automated — scheduled backup), `etsy_sync` (Etsy sync operations) |
-| `created_at` | TEXT | ISO 8601 timestamp |
+| Column         | Type          | Description                                                                                                                                                          |
+| -------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`           | INTEGER PK    | Auto-increment                                                                                                                                                       |
+| `action`       | TEXT NOT NULL | Action identifier (see action catalog below)                                                                                                                         |
+| `entity_type`  | TEXT          | `inventory`, `order`, `customer`, `address`, `setting`, `listing`, `sync`, `backup`, `system` (scheduled sync, integrity, sample data per ADR-057, ADR-058, ADR-069) |
+| `entity_id`    | INTEGER       | ID of the affected record (nullable for system-wide actions)                                                                                                         |
+| `entity_label` | TEXT          | Human-readable label for the record (e.g., item number, order number, customer name)                                                                                 |
+| `detail_json`  | TEXT          | JSON object with action-specific details (changed fields, old/new values, error messages)                                                                            |
+| `source`       | TEXT          | `user` (manual action), `system` (automated — scheduled backup), `etsy_sync` (Etsy sync operations)                                                                  |
+| `created_at`   | TEXT          | ISO 8601 timestamp                                                                                                                                                   |
 
 ---
 
@@ -62,80 +62,80 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 
 **Inventory actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `inventory.created` | `inventory` | New inventory item created |
-| `inventory.updated` | `inventory` | Inventory fields changed. `detail_json` includes `{ changed_fields: ["status", "purchase_cost"] }` |
-| `inventory.deleted` | `inventory` | Inventory item deleted |
-| `inventory.picture_added` | `inventory` | Picture uploaded to a slot. `detail_json`: `{ slot: 3 }` |
-| `inventory.picture_removed` | `inventory` | Picture removed. `detail_json`: `{ slot: 3 }` |
-| `inventory.pictures_reordered` | `inventory` | Pictures reordered |
+| Action                         | entity_type | Logged when                                                                                        |
+| ------------------------------ | ----------- | -------------------------------------------------------------------------------------------------- |
+| `inventory.created`            | `inventory` | New inventory item created                                                                         |
+| `inventory.updated`            | `inventory` | Inventory fields changed. `detail_json` includes `{ changed_fields: ["status", "purchase_cost"] }` |
+| `inventory.deleted`            | `inventory` | Inventory item deleted                                                                             |
+| `inventory.picture_added`      | `inventory` | Picture uploaded to a slot. `detail_json`: `{ slot: 3 }`                                           |
+| `inventory.picture_removed`    | `inventory` | Picture removed. `detail_json`: `{ slot: 3 }`                                                      |
+| `inventory.pictures_reordered` | `inventory` | Pictures reordered                                                                                 |
 
 **Listing actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `listing.draft_saved` | `inventory` | Manual draft saved |
-| `listing.ai_generated` | `inventory` | AI listing content generated |
-| `listing.exported` | `inventory` | Portable AI package exported. `detail_json`: `{ export_id }` |
-| `listing.imported` | `inventory` | Portable AI draft imported. `detail_json`: `{ export_id, source_label }` |
-| `listing.approved` | `inventory` | Draft approved for publishing |
-| `listing.rejected` | `inventory` | Draft rejected back to draft state |
-| `listing.published` | `inventory` | Published to Etsy. `detail_json`: `{ etsy_listing_id }` |
-| `listing.publish_failed` | `inventory` | Publish attempt failed. `detail_json`: `{ error }` |
+| Action                   | entity_type | Logged when                                                              |
+| ------------------------ | ----------- | ------------------------------------------------------------------------ |
+| `listing.draft_saved`    | `inventory` | Manual draft saved                                                       |
+| `listing.ai_generated`   | `inventory` | AI listing content generated                                             |
+| `listing.exported`       | `inventory` | Portable AI package exported. `detail_json`: `{ export_id }`             |
+| `listing.imported`       | `inventory` | Portable AI draft imported. `detail_json`: `{ export_id, source_label }` |
+| `listing.approved`       | `inventory` | Draft approved for publishing                                            |
+| `listing.rejected`       | `inventory` | Draft rejected back to draft state                                       |
+| `listing.published`      | `inventory` | Published to Etsy. `detail_json`: `{ etsy_listing_id }`                  |
+| `listing.publish_failed` | `inventory` | Publish attempt failed. `detail_json`: `{ error }`                       |
 
 **Order actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `order.created` | `order` | Manual order created |
-| `order.updated` | `order` | Order fields changed |
-| `order.marked_paid` | `order` | Order marked as paid |
-| `order.marked_shipped` | `order` | Order marked as shipped. `detail_json`: `{ shipper, tracking_number }` |
-| `order.voided` | `order` | Order voided |
-| `order.batch_mark_paid` | `order` | Batch mark paid (ADR-040). `detail_json`: `{ count, ids }` |
-| `order.batch_mark_shipped` | `order` | Batch mark shipped (ADR-040) |
-| `order.batch_void` | `order` | Batch void (ADR-040) |
+| Action                     | entity_type | Logged when                                                            |
+| -------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `order.created`            | `order`     | Manual order created                                                   |
+| `order.updated`            | `order`     | Order fields changed                                                   |
+| `order.marked_paid`        | `order`     | Order marked as paid                                                   |
+| `order.marked_shipped`     | `order`     | Order marked as shipped. `detail_json`: `{ shipper, tracking_number }` |
+| `order.voided`             | `order`     | Order voided                                                           |
+| `order.batch_mark_paid`    | `order`     | Batch mark paid (ADR-040). `detail_json`: `{ count, ids }`             |
+| `order.batch_mark_shipped` | `order`     | Batch mark shipped (ADR-040)                                           |
+| `order.batch_void`         | `order`     | Batch void (ADR-040)                                                   |
 
 **Customer actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `customer.created` | `customer` | Customer created |
-| `customer.updated` | `customer` | Customer fields changed |
-| `customer.deleted` | `customer` | Customer deleted |
-| `customer.merged` | `customer` | Merge completed (ADR-053). `detail_json`: `{ primary_id, secondary_id }` |
-| `customer.note_added` | `customer` | Note created (ADR-065) |
-| `customer.note_deleted` | `customer` | Note deleted (ADR-065) |
-| `address.created` | `address` | Address added |
-| `address.deleted` | `address` | Address deleted |
+| Action                  | entity_type | Logged when                                                              |
+| ----------------------- | ----------- | ------------------------------------------------------------------------ |
+| `customer.created`      | `customer`  | Customer created                                                         |
+| `customer.updated`      | `customer`  | Customer fields changed                                                  |
+| `customer.deleted`      | `customer`  | Customer deleted                                                         |
+| `customer.merged`       | `customer`  | Merge completed (ADR-053). `detail_json`: `{ primary_id, secondary_id }` |
+| `customer.note_added`   | `customer`  | Note created (ADR-065)                                                   |
+| `customer.note_deleted` | `customer`  | Note deleted (ADR-065)                                                   |
+| `address.created`       | `address`   | Address added                                                            |
+| `address.deleted`       | `address`   | Address deleted                                                          |
 
 **Sync actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `sync.started` | `sync` | Etsy sync initiated |
-| `sync.completed` | `sync` | Sync finished. `detail_json`: `{ receipts_processed, orders_created, orders_updated, errors }` |
-| `sync.failed` | `sync` | Sync failed. `detail_json`: `{ error }` |
-| `sync.auto_started` | `system` | Scheduled sync started (ADR-057) |
-| `sync.auto_completed` | `system` | Scheduled sync finished (ADR-057) |
+| Action                | entity_type | Logged when                                                                                    |
+| --------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| `sync.started`        | `sync`      | Etsy sync initiated                                                                            |
+| `sync.completed`      | `sync`      | Sync finished. `detail_json`: `{ receipts_processed, orders_created, orders_updated, errors }` |
+| `sync.failed`         | `sync`      | Sync failed. `detail_json`: `{ error }`                                                        |
+| `sync.auto_started`   | `system`    | Scheduled sync started (ADR-057)                                                               |
+| `sync.auto_completed` | `system`    | Scheduled sync finished (ADR-057)                                                              |
 
 **System actions:**
 
-| Action | entity_type | Logged when |
-|--------|-------------|-------------|
-| `auth.connected` | `setting` | Etsy OAuth completed |
-| `auth.disconnected` | `setting` | Etsy tokens cleared |
-| `auth.token_refreshed` | `setting` | Access token refreshed |
-| `backup.created` | `backup` | Backup created. `detail_json`: `{ file_path, size_bytes }` |
-| `backup.restored` | `backup` | Backup restored. `detail_json`: `{ file_path }` |
-| `settings.updated` | `setting` | Settings changed. `detail_json`: `{ key, old_value, new_value }` (API keys are masked) |
-| `report.generated` | `setting` | Report generated. `detail_json`: `{ report_name, format }` |
-| `system.sample_data_loaded` | `system` | Sample data loaded (ADR-069) |
-| `system.sample_data_removed` | `system` | Sample data removed (ADR-069) |
-| `system.integrity_check_failed` | `system` | SQLite integrity check failed (ADR-058) |
-| `inventory.batch_status_changed` | `inventory` | Batch status change (ADR-040) |
-| `inventory.batch_deleted` | `inventory` | Batch delete (ADR-040) |
+| Action                           | entity_type | Logged when                                                                            |
+| -------------------------------- | ----------- | -------------------------------------------------------------------------------------- |
+| `auth.connected`                 | `setting`   | Etsy OAuth completed                                                                   |
+| `auth.disconnected`              | `setting`   | Etsy tokens cleared                                                                    |
+| `auth.token_refreshed`           | `setting`   | Access token refreshed                                                                 |
+| `backup.created`                 | `backup`    | Backup created. `detail_json`: `{ file_path, size_bytes }`                             |
+| `backup.restored`                | `backup`    | Backup restored. `detail_json`: `{ file_path }`                                        |
+| `settings.updated`               | `setting`   | Settings changed. `detail_json`: `{ key, old_value, new_value }` (API keys are masked) |
+| `report.generated`               | `setting`   | Report generated. `detail_json`: `{ report_name, format }`                             |
+| `system.sample_data_loaded`      | `system`    | Sample data loaded (ADR-069)                                                           |
+| `system.sample_data_removed`     | `system`    | Sample data removed (ADR-069)                                                          |
+| `system.integrity_check_failed`  | `system`    | SQLite integrity check failed (ADR-058)                                                |
+| `inventory.batch_status_changed` | `inventory` | Batch status change (ADR-040)                                                          |
+| `inventory.batch_deleted`        | `inventory` | Batch delete (ADR-040)                                                                 |
 
 ---
 
@@ -167,6 +167,7 @@ function logActivity(params: LogActivityParams): void;
 **`GET /api/activity`**
 
 Query params:
+
 - `limit` (default: 50, max: 200)
 - `offset` (default: 0)
 - `entity_type` — filter by entity type
@@ -201,18 +202,21 @@ Response:
 ### UI — Activity feed
 
 **Dashboard widget:**
+
 - Add a "Recent activity" section below the KPI cards on the Dashboard page.
 - Shows the latest 10 activity entries.
 - Each entry: icon (based on `entity_type`), action description (human-readable), timestamp (relative: "2 hours ago"), entity label (linked if applicable).
 - "View all →" link opens the full activity log.
 
 **Full activity log page (optional — can be a section within Dashboard or a future page):**
+
 - `DataTable` with columns: Time, Action, Record, Details, Source.
 - Filter chips by entity type: All, Inventory, Orders, Customers, Sync, System.
 - Search by entity label.
 - Pagination (25 per page).
 
 **Record-level activity (on detail panels):**
+
 - Inventory detail panel (ADR-030): show last 5 activity entries for that item at the bottom.
 - Order detail panel (ADR-031): show last 5 activity entries for that order.
 - Fetched via `GET /api/activity?entity_type=inventory&entity_id={id}&limit=5`.
@@ -230,6 +234,7 @@ Response:
 ### Integration points
 
 Activity logging calls are added to:
+
 - All API route handlers that mutate data (POST, PATCH, DELETE).
 - `etsy-sync.ts` — `syncEtsyReceipts` logs start, completion, and failure.
 - `auth-session.ts` — OAuth completion and token refresh.

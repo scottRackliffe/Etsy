@@ -18,83 +18,83 @@ The application serves a **single-user, local** vintage/antique Etsy shop (Trudy
 
 ### Scope classes
 
-| Class | Meaning |
-|-------|---------|
-| **v1** | Specified in an ADR; must be implemented per [no-developer-questions-build.md](../no-developer-questions-build.md) §5 priorities |
-| **post-v1** | Documented intent; not required for first complete UI pass |
-| **etsy-only** | User uses Etsy shop manager or buyer/seller messages on Etsy; app may link or display read-only Etsy data only |
-| **never** | Out of product scope for this codebase |
+| Class         | Meaning                                                                                                                          |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **v1**        | Specified in an ADR; must be implemented per [no-developer-questions-build.md](../no-developer-questions-build.md) §5 priorities |
+| **post-v1**   | Documented intent; not required for first complete UI pass                                                                       |
+| **etsy-only** | User uses Etsy shop manager or buyer/seller messages on Etsy; app may link or display read-only Etsy data only                   |
+| **never**     | Out of product scope for this codebase                                                                                           |
 
 ### Capability matrix (Etsy vintage/antique store owner)
 
 #### Core loop — v1
 
-| Capability | Class | Spec |
-|------------|-------|------|
-| Connect Etsy (OAuth), shop selector | v1 | ADR-007, 016, 034 |
-| Sync orders → customers, addresses, orders, line items | v1 | ADR-019 |
-| Manual orders + multi-line items | v1 | ADR-003, 015, 031 |
-| Mark paid / mark shipped (ship-until-paid + override) | v1 | ADR-021, 031 |
-| Void / cancel order (no row delete) | v1 | ADR-022, design-decisions §4 |
-| Inventory CRUD, statuses, condition, pictures | v1 | ADR-002, 010, 026, 030, 033 |
-| Listing workshop (manual / AI / portable) + approve + publish | v1 | ADR-023, 011 |
-| Customers, addresses, ship-to on orders | v1 | ADR-003, 017 |
-| Outstanding to-do list + deep-link to record | v1 | ADR-020, 035, 009 |
-| Reports (13 types) PDF/CSV, date range | v1 | ADR-006, 013, 036, 038, 039, 054, 056 |
-| Shipping labels (local print, no carrier API) | v1 | shipping-label-carrier-templates, ui-design §5.9 |
-| Config (business, shipping info, AI, backup, tax, sample data) | v1 | ADR-034, 027, 039, 069 |
-| Profit/margin, tax report, aging, accounting export | v1 | ADR-038, 039, 054, 056 |
-| Backup / restore | v1 | ADR-027 |
-| Activity audit log | v1 | ADR-037 |
-| Global search, notifications, print queue, recent items | v1 | ADR-041, 051, 055, 063 |
-| First-run wizard + sample data | v1 | ADR-044, 069 |
-| UI consistency (colors, navigation, feedback) | v1 | ADR-071, System_Colors.md |
+| Capability                                                     | Class | Spec                                             |
+| -------------------------------------------------------------- | ----- | ------------------------------------------------ |
+| Connect Etsy (OAuth), shop selector                            | v1    | ADR-007, 016, 034                                |
+| Sync orders → customers, addresses, orders, line items         | v1    | ADR-019                                          |
+| Manual orders + multi-line items                               | v1    | ADR-003, 015, 031                                |
+| Mark paid / mark shipped (ship-until-paid + override)          | v1    | ADR-021, 031                                     |
+| Void / cancel order (no row delete)                            | v1    | ADR-022, design-decisions §4                     |
+| Inventory CRUD, statuses, condition, pictures                  | v1    | ADR-002, 010, 026, 030, 033                      |
+| Listing workshop (manual / AI / portable) + approve + publish  | v1    | ADR-023, 011                                     |
+| Customers, addresses, ship-to on orders                        | v1    | ADR-003, 017                                     |
+| Outstanding to-do list + deep-link to record                   | v1    | ADR-020, 035, 009                                |
+| Reports (13 types) PDF/CSV, date range                         | v1    | ADR-006, 013, 036, 038, 039, 054, 056            |
+| Shipping labels (local print, no carrier API)                  | v1    | shipping-label-carrier-templates, ui-design §5.9 |
+| Config (business, shipping info, AI, backup, tax, sample data) | v1    | ADR-034, 027, 039, 069                           |
+| Profit/margin, tax report, aging, accounting export            | v1    | ADR-038, 039, 054, 056                           |
+| Backup / restore                                               | v1    | ADR-027                                          |
+| Activity audit log                                             | v1    | ADR-037                                          |
+| Global search, notifications, print queue, recent items        | v1    | ADR-041, 051, 055, 063                           |
+| First-run wizard + sample data                                 | v1    | ADR-044, 069                                     |
+| UI consistency (colors, navigation, feedback)                  | v1    | ADR-071, System_Colors.md                        |
 
 #### Operations — post-v1
 
-| Capability | Class | Spec / notes |
-|------------|-------|----------------|
-| Side commands panel | post-v1 | ADR-009; v1 uses inline actions (ADR-028) |
-| Side outstanding panel (persistent) | post-v1 | ADR-009; v1 uses Outstanding tab + deep links |
-| Panel layout flip | post-v1 | ADR-009 |
-| Outstanding type: Etsy not synced at query time | post-v1 | ADR-020 type 3 |
-| Outstanding type: validation_issue runtime checks | post-v1 | ADR-020 type 7 |
-| Export inventory to CSV | post-v1 | ADR-047 Notes; import is v1 |
-| Bulk merge duplicate groups (3+) | post-v1 | ADR-053 |
-| VIP repeat badge (5+ orders) | post-v1 | ADR-066 |
-| Per-state tax rates | post-v1 | ADR-039 |
-| Off-site backup (S3, Drive) | post-v1 | ADR-027 |
-| Custom keyboard shortcuts | post-v1 | ADR-049 |
-| Undo persisted across refresh | post-v1 | ADR-067 |
-| Service Worker / true offline reads | post-v1 | ADR-050 |
-| Full-text search (FTS5) | post-v1 | ADR-041 |
-| Light theme / theme switcher | post-v1 | ADR-071 (dark only v1) |
-| Reorder from customer history | post-v1 | ADR-052 |
+| Capability                                        | Class   | Spec / notes                                  |
+| ------------------------------------------------- | ------- | --------------------------------------------- |
+| Side commands panel                               | post-v1 | ADR-009; v1 uses inline actions (ADR-028)     |
+| Side outstanding panel (persistent)               | post-v1 | ADR-009; v1 uses Outstanding tab + deep links |
+| Panel layout flip                                 | post-v1 | ADR-009                                       |
+| Outstanding type: Etsy not synced at query time   | post-v1 | ADR-020 type 3                                |
+| Outstanding type: validation_issue runtime checks | post-v1 | ADR-020 type 7                                |
+| Export inventory to CSV                           | post-v1 | ADR-047 Notes; import is v1                   |
+| Bulk merge duplicate groups (3+)                  | post-v1 | ADR-053                                       |
+| VIP repeat badge (5+ orders)                      | post-v1 | ADR-066                                       |
+| Per-state tax rates                               | post-v1 | ADR-039                                       |
+| Off-site backup (S3, Drive)                       | post-v1 | ADR-027                                       |
+| Custom keyboard shortcuts                         | post-v1 | ADR-049                                       |
+| Undo persisted across refresh                     | post-v1 | ADR-067                                       |
+| Service Worker / true offline reads               | post-v1 | ADR-050                                       |
+| Full-text search (FTS5)                           | post-v1 | ADR-041                                       |
+| Light theme / theme switcher                      | post-v1 | ADR-071 (dark only v1)                        |
+| Reorder from customer history                     | post-v1 | ADR-052                                       |
 
 #### Etsy platform — etsy-only (no dedicated app workflow)
 
-| Capability | Class | Rationale |
-|------------|-------|-----------|
-| Buyer/seller **messages** (Conversations) | etsy-only | Etsy inbox; app may show link “Open on Etsy” from order detail |
-| **Shop policies** editor (returns, privacy) | etsy-only | Managed in Etsy shop settings |
-| **Reviews** — read/respond | etsy-only | Etsy Reviews UI |
-| **Etsy Ads** / offsite ads | etsy-only | Etsy Ads manager |
-| **Promotions / sales** (Etsy coupons) | etsy-only | Etsy marketing tools |
-| **Case/dispute** resolution | etsy-only | Etsy resolution center |
-| **Payment account / payouts** | etsy-only | Etsy Payments dashboard |
+| Capability                                      | Class     | Rationale                                                             |
+| ----------------------------------------------- | --------- | --------------------------------------------------------------------- |
+| Buyer/seller **messages** (Conversations)       | etsy-only | Etsy inbox; app may show link “Open on Etsy” from order detail        |
+| **Shop policies** editor (returns, privacy)     | etsy-only | Managed in Etsy shop settings                                         |
+| **Reviews** — read/respond                      | etsy-only | Etsy Reviews UI                                                       |
+| **Etsy Ads** / offsite ads                      | etsy-only | Etsy Ads manager                                                      |
+| **Promotions / sales** (Etsy coupons)           | etsy-only | Etsy marketing tools                                                  |
+| **Case/dispute** resolution                     | etsy-only | Etsy resolution center                                                |
+| **Payment account / payouts**                   | etsy-only | Etsy Payments dashboard                                               |
 | Listing **variations** editor (size/color SKUs) | etsy-only | Complex Etsy listing UI; app tracks single inventory row + `quantity` |
-| **Shop analytics** (traffic, conversion) | etsy-only | Etsy Stats; optional future dashboard link |
+| **Shop analytics** (traffic, conversion)        | etsy-only | Etsy Stats; optional future dashboard link                            |
 
 #### Explicit never
 
-| Capability | Class | Rationale |
-|------------|-------|-----------|
+| Capability                                      | Class | Rationale                                 |
+| ----------------------------------------------- | ----- | ----------------------------------------- |
 | Live **carrier API** rate shop / label purchase | never | ADR-011, shipping-label-carrier-templates |
-| **Scrape** Etsy or bypass official API | never | etsy-compliance.md |
-| **Multi-marketplace** (eBay, Amazon, Shopify) | never | Single Etsy shop app |
-| **Multi-user** roles / permissions | never | Single-user local app |
-| **SaaS multi-tenant** hosting | never | Local SQLite app |
-| Native **iOS/Android** apps | never | Responsive web (ADR-061) |
+| **Scrape** Etsy or bypass official API          | never | etsy-compliance.md                        |
+| **Multi-marketplace** (eBay, Amazon, Shopify)   | never | Single Etsy shop app                      |
+| **Multi-user** roles / permissions              | never | Single-user local app                     |
+| **SaaS multi-tenant** hosting                   | never | Local SQLite app                          |
+| Native **iOS/Android** apps                     | never | Responsive web (ADR-061)                  |
 
 ### Seller workflows — v1 decisions (previously undocumented)
 

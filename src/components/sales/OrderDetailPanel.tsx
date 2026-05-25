@@ -15,6 +15,8 @@ import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
+import { addNotificationEntry } from "@/lib/notifications";
+import { addToPrintQueue, printQueueTypeLabel, type PrintQueueDocType } from "@/lib/print-queue";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -76,11 +78,15 @@ function orderToDraft(order: Order): DraftFields {
 function inventoryLabel(inventoryId: number, items: InventoryItem[]): string {
   const item = items.find((row) => row.id === inventoryId);
   if (!item) return `Item #${inventoryId}`;
-  return item.item_number ? `${item.item_number}` : item.description?.slice(0, 40) || `Item #${inventoryId}`;
+  return item.item_number
+    ? `${item.item_number}`
+    : item.description?.slice(0, 40) || `Item #${inventoryId}`;
 }
 
 function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(value ?? 0);
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
+    value ?? 0
+  );
 }
 
 export function OrderDetailPanel({
@@ -102,13 +108,18 @@ export function OrderDetailPanel({
   const [saving, setSaving] = useState(false);
   const [linkCustomerId, setLinkCustomerId] = useState("");
   const [addItemOpen, setAddItemOpen] = useState(false);
-  const [pickList, setPickList] = useState<Array<{ id: number; item_number: string | null; description: string | null }>>([]);
+  const [pickList, setPickList] = useState<
+    Array<{ id: number; item_number: string | null; description: string | null }>
+  >([]);
   const [pickListLoading, setPickListLoading] = useState(false);
   const [selectedInventoryId, setSelectedInventoryId] = useState("");
   const [lineItemQty, setLineItemQty] = useState("1");
   const [removeLineTarget, setRemoveLineTarget] = useState<OrderItem | null>(null);
   const [lineItemBusy, setLineItemBusy] = useState(false);
-  const [labelError, setLabelError] = useState<{ message: string; isShippingInfo?: boolean } | null>(null);
+  const [labelError, setLabelError] = useState<{
+    message: string;
+    isShippingInfo?: boolean;
+  } | null>(null);
   const [recoveryApplied, setRecoveryApplied] = useState(false);
   const router = useRouter();
 
@@ -144,25 +155,30 @@ export function OrderDetailPanel({
     setRecoveryApplied(false);
   }, [orderId]);
 
-  const loadOrder = useCallback(async (id: number) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/orders/${id}`, { headers: { Accept: "application/json" } });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
-      if (!response.ok) throw data;
-      if (data.order) {
-        setOrder(data.order);
-        setDraft(orderToDraft(data.order));
-        setLinkCustomerId(data.order.customer_id ? String(data.order.customer_id) : "");
+  const loadOrder = useCallback(
+    async (id: number) => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/orders/${id}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+        if (!response.ok) throw data;
+        if (data.order) {
+          setOrder(data.order);
+          setDraft(orderToDraft(data.order));
+          setLinkCustomerId(data.order.customer_id ? String(data.order.customer_id) : "");
+        }
+      } catch (err) {
+        onError("Could not load order", "We could not load order details.", err);
+        setOrder(null);
+        setDraft(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      onError("Could not load order", "We could not load order details.", err);
-      setOrder(null);
-      setDraft(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [onError]);
+    },
+    [onError]
+  );
 
   useEffect(() => {
     if (!orderId) {
@@ -176,7 +192,9 @@ export function OrderDetailPanel({
   const loadPickList = useCallback(async () => {
     setPickListLoading(true);
     try {
-      const response = await fetch("/api/inventory/pick-list", { headers: { Accept: "application/json" } });
+      const response = await fetch("/api/inventory/pick-list", {
+        headers: { Accept: "application/json" },
+      });
       const data = (await response.json().catch(() => ({}))) as {
         items?: Array<{ id: number; item_number: string | null; description: string | null }>;
       };
@@ -245,6 +263,25 @@ export function OrderDetailPanel({
     }
   };
 
+  const queueDocument = (type: PrintQueueDocType) => {
+    if (!order) return;
+    const orderNumber = order.order_number ?? `Order ${order.id}`;
+    const result = addToPrintQueue(type, order.id, orderNumber);
+    if (result === "added") {
+      addNotificationEntry({
+        type: "success",
+        message: `Added ${printQueueTypeLabel(type).toLowerCase()} for ${orderNumber} to print queue.`,
+      });
+    } else if (result === "duplicate") {
+      addNotificationEntry({ type: "info", message: "Already in queue." });
+    } else {
+      addNotificationEntry({
+        type: "error",
+        message: "Print queue is full (50 max). Print or clear some items first.",
+      });
+    }
+  };
+
   const printShippingLabel = async () => {
     if (!orderId) return;
     try {
@@ -287,7 +324,9 @@ export function OrderDetailPanel({
         ship_to_postal_code: draft.ship_to_postal_code.trim() || null,
         ship_to_country: draft.ship_to_country.trim() || null,
         shipping_total: draft.shipping_total.trim() ? Number(draft.shipping_total) : null,
-        seller_shipping_cost: draft.seller_shipping_cost.trim() ? Number(draft.seller_shipping_cost) : null,
+        seller_shipping_cost: draft.seller_shipping_cost.trim()
+          ? Number(draft.seller_shipping_cost)
+          : null,
         tax_total: draft.tax_total.trim() ? Number(draft.tax_total) : null,
         discount_total: draft.discount_total.trim() ? Number(draft.discount_total) : null,
         shipper: draft.shipper.trim() || null,
@@ -402,15 +441,16 @@ export function OrderDetailPanel({
       <input
         type={type}
         value={draft[key]}
-        onChange={(e) => setDraft((current) => (current ? { ...current, [key]: e.target.value } : current))}
+        onChange={(e) =>
+          setDraft((current) => (current ? { ...current, [key]: e.target.value } : current))
+        }
         disabled={busy || saving || isVoid}
         className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)] disabled:opacity-60"
       />
     </label>
   );
 
-  const showRecovery =
-    recovery && recoveryLabel && !recoveryApplied && !isDirty;
+  const showRecovery = recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
   return (
     <div className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
@@ -443,18 +483,21 @@ export function OrderDetailPanel({
         </div>
         <div className="flex flex-wrap gap-1">
           <Badge label={isPaid ? "Paid" : "Unpaid"} variant={isPaid ? "success" : "warning"} />
-          <Badge label={isShipped ? "Shipped" : "Not shipped"} variant={isShipped ? "success" : "neutral"} />
           <Badge
-            label={order.order_status ?? "active"}
-            variant={isVoid ? "error" : "neutral"}
+            label={isShipped ? "Shipped" : "Not shipped"}
+            variant={isShipped ? "success" : "neutral"}
           />
+          <Badge label={order.order_status ?? "active"} variant={isVoid ? "error" : "neutral"} />
         </div>
       </div>
 
       {customerName && order.customer_id ? (
         <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
           <span>Customer:</span>
-          <Link href={`/customers?customerId=${order.customer_id}`} className="text-[var(--ui-accent)] hover:underline">
+          <Link
+            href={`/customers?customerId=${order.customer_id}`}
+            className="text-[var(--ui-accent)] hover:underline"
+          >
             {customerName}
           </Link>
           <RepeatCustomerBadge
@@ -475,7 +518,9 @@ export function OrderDetailPanel({
             <option value="">Select customer…</option>
             {customers.map((c) => (
               <option key={c.id} value={c.id}>
-                {[c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || `Customer ${c.id}`}
+                {[c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                  c.email ||
+                  `Customer ${c.id}`}
               </option>
             ))}
           </select>
@@ -571,11 +616,16 @@ export function OrderDetailPanel({
         <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Financials</h5>
         <div className="grid grid-cols-2 gap-2">
           <p className="text-xs text-[var(--ui-muted)]">
-            Subtotal <span className="block text-sm text-[var(--ui-body)]">{formatMoney(order.subtotal)}</span>
+            Subtotal{" "}
+            <span className="block text-sm text-[var(--ui-body)]">
+              {formatMoney(order.subtotal)}
+            </span>
           </p>
           <p className="text-xs text-[var(--ui-muted)]">
             Grand total{" "}
-            <span className="block text-sm font-semibold text-[var(--ui-title)]">{formatMoney(order.grand_total)}</span>
+            <span className="block text-sm font-semibold text-[var(--ui-title)]">
+              {formatMoney(order.grand_total)}
+            </span>
           </p>
           {field("shipping_total", "Shipping (buyer pays")}
           {field(
@@ -632,7 +682,9 @@ export function OrderDetailPanel({
       </section>
 
       {order.etsy_receipt_id ? (
-        <p className="mb-3 text-xs text-[var(--ui-muted)]">Etsy receipt {order.etsy_receipt_id} · Synced from Etsy</p>
+        <p className="mb-3 text-xs text-[var(--ui-muted)]">
+          Etsy receipt {order.etsy_receipt_id} · Synced from Etsy
+        </p>
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-[var(--ui-border)] pt-4">
@@ -645,12 +697,22 @@ export function OrderDetailPanel({
           {saving ? "Saving…" : "Save changes"}
         </button>
         {!isPaid && !isVoid ? (
-          <button type="button" onClick={onMarkPaid} disabled={busy || saving} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
+          <button
+            type="button"
+            onClick={onMarkPaid}
+            disabled={busy || saving}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+          >
             Mark paid
           </button>
         ) : null}
         {!isShipped && !isVoid ? (
-          <button type="button" onClick={onMarkShipped} disabled={busy || saving} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
+          <button
+            type="button"
+            onClick={onMarkShipped}
+            disabled={busy || saving}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+          >
             Mark shipped…
           </button>
         ) : null}
@@ -664,6 +726,14 @@ export function OrderDetailPanel({
         </button>
         <button
           type="button"
+          onClick={() => queueDocument("label")}
+          disabled={busy || saving || isVoid}
+          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+        >
+          Add label to queue
+        </button>
+        <button
+          type="button"
           onClick={() => window.open(`/api/reports/invoice/${order.id}?format=pdf`, "_blank")}
           className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
         >
@@ -671,13 +741,36 @@ export function OrderDetailPanel({
         </button>
         <button
           type="button"
-          onClick={() => window.open(`/api/reports/thank-you-note/${order.id}?format=pdf`, "_blank")}
+          onClick={() => queueDocument("invoice")}
+          disabled={busy || saving || isVoid}
+          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+        >
+          Add invoice to queue
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            window.open(`/api/reports/thank-you-note/${order.id}?format=pdf`, "_blank")
+          }
           className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
         >
           Thank-you note
         </button>
+        <button
+          type="button"
+          onClick={() => queueDocument("thank-you")}
+          disabled={busy || saving || isVoid}
+          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+        >
+          Add thank-you to queue
+        </button>
         {!isVoid ? (
-          <button type="button" onClick={onVoid} disabled={busy || saving} className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60">
+          <button
+            type="button"
+            onClick={onVoid}
+            disabled={busy || saving}
+            className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
+          >
             Void order
           </button>
         ) : null}
@@ -691,7 +784,11 @@ export function OrderDetailPanel({
       </div>
 
       {addItemOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Add line item</h4>
             {pickListLoading ? (
@@ -726,7 +823,11 @@ export function OrderDetailPanel({
               </>
             )}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setAddItemOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setAddItemOpen(false)}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+              >
                 Cancel
               </button>
               <button

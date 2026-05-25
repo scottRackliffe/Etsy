@@ -111,8 +111,7 @@ export function useApi() {
   );
 
   const del = useCallback(
-    (url: string, config?: ApiFetchConfig) =>
-      request<void>(url, { method: "DELETE", config }),
+    (url: string, config?: ApiFetchConfig) => request<void>(url, { method: "DELETE", config }),
     [request]
   );
 

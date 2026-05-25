@@ -6,10 +6,7 @@ export function pictureDisplayUrl(storedPath: string | null | undefined): string
   return `/api/uploads/${normalized.split("/").map(encodeURIComponent).join("/")}`;
 }
 
-export function getPictureSlotPath(
-  item: Record<string, unknown>,
-  slot: number
-): string | null {
+export function getPictureSlotPath(item: Record<string, unknown>, slot: number): string | null {
   const key = `picture_${slot}`;
   const value = item[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;

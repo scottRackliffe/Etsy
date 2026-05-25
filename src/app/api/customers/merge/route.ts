@@ -3,7 +3,11 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { MERGE_CUSTOMER_FIELDS, mergeCustomers, type MergeCustomerField } from "@/lib/customer-merge";
+import {
+  MERGE_CUSTOMER_FIELDS,
+  mergeCustomers,
+  type MergeCustomerField,
+} from "@/lib/customer-merge";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +19,9 @@ export async function POST(request: NextRequest) {
     };
 
     const primaryId = parsePositiveInt(body.primary_id != null ? String(body.primary_id) : null);
-    const secondaryId = parsePositiveInt(body.secondary_id != null ? String(body.secondary_id) : null);
+    const secondaryId = parsePositiveInt(
+      body.secondary_id != null ? String(body.secondary_id) : null
+    );
 
     if (!primaryId || !secondaryId) {
       throw new ApiRouteError({
@@ -37,8 +43,7 @@ export async function POST(request: NextRequest) {
       for (const key of MERGE_CUSTOMER_FIELDS) {
         if (key in body.field_overrides) {
           const raw = body.field_overrides[key];
-          fieldOverrides[key] =
-            raw == null ? null : typeof raw === "string" ? raw : String(raw);
+          fieldOverrides[key] = raw == null ? null : typeof raw === "string" ? raw : String(raw);
         }
       }
     }

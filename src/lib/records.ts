@@ -1,10 +1,6 @@
 import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
-import {
-  buildSearchClause,
-  parseSortDir,
-  resolveSortColumn,
-} from "@/lib/list-query";
+import { buildSearchClause, parseSortDir, resolveSortColumn } from "@/lib/list-query";
 import { getDb } from "@/lib/sqlite";
 
 type SqlValue = string | number | null;
@@ -377,9 +373,11 @@ export function getOrder(id: number) {
 
 export function markOrderPaid(id: number) {
   const db = getDb();
-  db.prepare(
-    "UPDATE orders SET was_paid = 1, payment_status = ?, updated_at = ? WHERE id = ?"
-  ).run("paid", nowIso(), id);
+  db.prepare("UPDATE orders SET was_paid = 1, payment_status = ?, updated_at = ? WHERE id = ?").run(
+    "paid",
+    nowIso(),
+    id
+  );
   const updated = getOrder(id) as Record<string, unknown> | null;
   if (updated) {
     logActivity({
@@ -408,8 +406,7 @@ export function markOrderShipped(
   if (!order) return null;
 
   const wasPaid = Number(order.was_paid) === 1;
-  const override =
-    input?.shipped_without_paid_override === true || input?.force_unpaid === true;
+  const override = input?.shipped_without_paid_override === true || input?.force_unpaid === true;
 
   if (!wasPaid && !override) {
     throw new OrderShipBlockedError();
@@ -468,7 +465,6 @@ export function markOrderShipped(
   }
   return shipped;
 }
-
 
 export function linkOrderCustomer(orderId: number, customerId: number) {
   const db = getDb();

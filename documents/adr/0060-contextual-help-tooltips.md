@@ -1,12 +1,15 @@
 # ADR-060: Contextual Help Tooltips
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Fields like `condition_code`, `listing_draft_state`, and `seller_shipping_cost` have non-obvious meanings. Users currently have no in-app explanation for these fields — they must either guess or read external documentation. Contextual help tooltips provide just-in-time explanations directly in the form interface.
 
 ## Decision
@@ -33,23 +36,23 @@ Fields like `condition_code`, `listing_draft_state`, and `seller_shipping_cost` 
 
 ### Tooltip definitions
 
-| Field | Location | Tooltip text |
-|-------|----------|-------------|
-| `condition_code` | Inventory detail | "Rate the item's physical condition using standard vintage/antique grading terms." |
-| `has_condition_issue` | Inventory detail | "Check this if the item has notable damage, wear, or defects that a buyer should know about." |
-| `purchase_cost` | Inventory detail | "What you paid to acquire this item from the vendor (not including shipping to you)." |
-| `shipping_cost` (on inventory) | Inventory detail | "Your cost to receive this item from the vendor/seller." |
-| `sale_revenue` | Inventory detail | "The price the buyer paid (or will pay) for this item." |
-| `listing_draft_state` | Listing workshop | "Listing drafts progress through stages: draft → generated/imported → approved → published. Only approved drafts can be published to Etsy." |
-| `seller_shipping_cost` | Order detail | "What you paid the carrier to ship this order to the buyer." |
-| `tracking_number` | Order detail | "The carrier tracking number for this shipment. Customers can use this to track their package." |
-| `order_status` | Order detail | "Active = order is in progress or complete. Void = cancelled by seller. Cancelled = cancelled by buyer." |
-| `tax_total` | Order detail | "Total sales tax collected on this order." |
-| `payment_status` | Order detail | "Whether the buyer has paid for this order. Orders must be paid before shipping (unless overridden)." |
-| `shipped_without_paid_override` | Order detail | "This order was shipped before payment was confirmed. An audit record has been created." |
-| `source_channel` | Order detail | "How this order was created: 'etsy' = synced from Etsy, 'manual' = entered by hand." |
-| `category_tags` | Inventory detail | "Comma-separated tags for organizing inventory (e.g., 'glassware, depression era, pink')." |
-| `listing_tags` | Listing workshop | "Search tags for Etsy. Up to 13 tags, each up to 20 characters. Choose words buyers would search for." |
+| Field                           | Location         | Tooltip text                                                                                                                                |
+| ------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `condition_code`                | Inventory detail | "Rate the item's physical condition using standard vintage/antique grading terms."                                                          |
+| `has_condition_issue`           | Inventory detail | "Check this if the item has notable damage, wear, or defects that a buyer should know about."                                               |
+| `purchase_cost`                 | Inventory detail | "What you paid to acquire this item from the vendor (not including shipping to you)."                                                       |
+| `shipping_cost` (on inventory)  | Inventory detail | "Your cost to receive this item from the vendor/seller."                                                                                    |
+| `sale_revenue`                  | Inventory detail | "The price the buyer paid (or will pay) for this item."                                                                                     |
+| `listing_draft_state`           | Listing workshop | "Listing drafts progress through stages: draft → generated/imported → approved → published. Only approved drafts can be published to Etsy." |
+| `seller_shipping_cost`          | Order detail     | "What you paid the carrier to ship this order to the buyer."                                                                                |
+| `tracking_number`               | Order detail     | "The carrier tracking number for this shipment. Customers can use this to track their package."                                             |
+| `order_status`                  | Order detail     | "Active = order is in progress or complete. Void = cancelled by seller. Cancelled = cancelled by buyer."                                    |
+| `tax_total`                     | Order detail     | "Total sales tax collected on this order."                                                                                                  |
+| `payment_status`                | Order detail     | "Whether the buyer has paid for this order. Orders must be paid before shipping (unless overridden)."                                       |
+| `shipped_without_paid_override` | Order detail     | "This order was shipped before payment was confirmed. An audit record has been created."                                                    |
+| `source_channel`                | Order detail     | "How this order was created: 'etsy' = synced from Etsy, 'manual' = entered by hand."                                                        |
+| `category_tags`                 | Inventory detail | "Comma-separated tags for organizing inventory (e.g., 'glassware, depression era, pink')."                                                  |
+| `listing_tags`                  | Listing workshop | "Search tags for Etsy. Up to 13 tags, each up to 20 characters. Choose words buyers would search for."                                      |
 
 ### Tooltip styling
 
@@ -70,10 +73,12 @@ Fields like `condition_code`, `listing_draft_state`, and `seller_shipping_cost` 
 - Keep tooltip text to 1–2 sentences maximum; link to documentation for longer explanations
 
 ## Consequences
+
 - **Positive:** Users understand non-obvious fields without leaving the form. Reduces support questions and data entry errors. Tooltips are lightweight — no external tooltip library needed. Mobile-friendly via tap-to-toggle.
 - **Negative:** Adds visual clutter (many `?` icons) if overused — should only be applied to genuinely non-obvious fields. Tooltip positioning logic adds minor complexity to `FormField`.
 
 ## Notes
+
 - Cross-references: ADR-028 (FormField shared component — adding `helpText` prop), ADR-024 (frontend component architecture — FormField spec), ADR-045 (accessibility — tooltips must be keyboard-accessible via focus on the `?` icon, with `aria-describedby` linking the tooltip to the field)
 - Tooltips are not shown for fields that are self-explanatory (e.g., `first_name`, `email`, `phone`)
 - The `?` icon should use `role="img"` with `aria-label="Help"` and the tooltip should have `role="tooltip"` for screen readers

@@ -17,9 +17,15 @@ import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
-import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inventory/InventoryDetailPanel";
+import {
+  InventoryDetailPanel,
+  type InventoryItemDetail,
+} from "@/components/inventory/InventoryDetailPanel";
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
-import { ListingQualityScore, ListingQualityScoreBadge } from "@/components/inventory/ListingQualityScore";
+import {
+  ListingQualityScore,
+  ListingQualityScoreBadge,
+} from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
@@ -36,7 +42,14 @@ import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import { computeListingScore } from "@/lib/listing-score";
 import type { InlineEditResult } from "@/components/ui/DataTable";
-import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
+import type {
+  ApiErrorShape,
+  InventoryItem,
+  AiConfig,
+  ListingMode,
+  PublishPreview,
+  PaginationInfo,
+} from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 
@@ -50,19 +63,36 @@ type PublishHistory = {
     etsy_listing_id: string | null;
   };
   previews: Array<{ preview_hash: string; created_at: string; payload_preview: unknown }>;
-  imports: Array<{ id: number; export_id: string | null; source_label: string | null; created_at: string }>;
+  imports: Array<{
+    id: number;
+    export_id: string | null;
+    source_label: string | null;
+    created_at: string;
+  }>;
   exports: Array<{ export_id: string; created_at: string }>;
 };
 
 function InventoryPageInner() {
   const {
-    inventory, setInventory,
-    selectedItemId, setSelectedItemId,
-    selectedItem, setSelectedItem,
-    listingReadiness, publishPreview, setPublishPreview,
-    publishHistory, setPublishHistory,
-    aiConfig, setAiConfig, publishConfig, setPublishConfig,
-    busyAction, setBusyAction, setApiError, setError,
+    inventory,
+    setInventory,
+    selectedItemId,
+    setSelectedItemId,
+    selectedItem,
+    setSelectedItem,
+    listingReadiness,
+    publishPreview,
+    setPublishPreview,
+    publishHistory,
+    setPublishHistory,
+    aiConfig,
+    setAiConfig,
+    publishConfig,
+    setPublishConfig,
+    busyAction,
+    setBusyAction,
+    setApiError,
+    setError,
   } = useApp();
 
   const inventoryRecentRow =
@@ -92,8 +122,12 @@ function InventoryPageInner() {
         return;
       }
       try {
-        const response = await fetch(`/api/inventory/${id}`, { headers: { Accept: "application/json" } });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
+        const response = await fetch(`/api/inventory/${id}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          item?: InventoryItem;
+        };
         if (!response.ok || !data.item) {
           setError({
             title: "Item not found",
@@ -116,7 +150,17 @@ function InventoryPageInner() {
     };
 
     void applyDeepLink();
-  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, router, pathname, setError, setApiError]);
+  }, [
+    searchParams,
+    inventory,
+    setSelectedItemId,
+    setSelectedItem,
+    setInventory,
+    router,
+    pathname,
+    setError,
+    setApiError,
+  ]);
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
@@ -209,7 +253,13 @@ function InventoryPageInner() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
   const batch = useBatchSelection(inventory, listTotal);
-  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+  const {
+    runBatch,
+    busy: batchBusy,
+    progressOpen,
+    progressTitle,
+    progressTotal,
+  } = useBatchOperation();
 
   const inventoryBatchFilter = useMemo(
     () => ({
@@ -306,7 +356,9 @@ function InventoryPageInner() {
       params.set("sort_by", sort.key);
       params.set("sort_dir", sort.dir);
     }
-    const response = await fetch(`/api/inventory?${params}`, { headers: { Accept: "application/json" } });
+    const response = await fetch(`/api/inventory?${params}`, {
+      headers: { Accept: "application/json" },
+    });
     const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
       items?: InventoryItem[];
       pagination?: PaginationInfo;
@@ -396,9 +448,7 @@ function InventoryPageInner() {
       value: string | number | boolean
     ): Promise<InlineEditResult<InventoryItem>> => {
       const body =
-        columnKey === "status"
-          ? { status: String(value) }
-          : { sale_revenue: Number(value) };
+        columnKey === "status" ? { status: String(value) } : { sale_revenue: Number(value) };
       const previousState =
         columnKey === "status"
           ? { status: row.status ?? null }
@@ -455,9 +505,7 @@ function InventoryPageInner() {
       const removed = new Set(
         batch.selectAllMatching
           ? []
-          : batch.selectedIdList.filter(
-              (id) => !(result?.failed ?? []).some((f) => f.id === id)
-            )
+          : batch.selectedIdList.filter((id) => !(result?.failed ?? []).some((f) => f.id === id))
       );
       if (batch.selectAllMatching) await reloadInventory();
       else {
@@ -495,11 +543,15 @@ function InventoryPageInner() {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      item?: InventoryItem;
+    };
     if (!response.ok) throw data;
     if (data.item) {
       setSelectedItem(data.item);
-      setInventory((current) => current.map((row) => (row.id === data.item!.id ? data.item! : row)));
+      setInventory((current) =>
+        current.map((row) => (row.id === data.item!.id ? data.item! : row))
+      );
     }
   };
 
@@ -557,7 +609,9 @@ function InventoryPageInner() {
         method: "POST",
         headers: { Accept: "application/json" },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { package?: unknown };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        package?: unknown;
+      };
       if (!response.ok) throw data;
       setExportPackage(data.package ?? null);
       setError(null);
@@ -659,7 +713,8 @@ function InventoryPageInner() {
         can_publish: Boolean(data.can_publish),
         warnings: Array.isArray(data.warnings) ? data.warnings : [],
         preview_hash: typeof data.preview_hash === "string" ? data.preview_hash : "",
-        preview_generated_at: typeof data.preview_generated_at === "string" ? data.preview_generated_at : "",
+        preview_generated_at:
+          typeof data.preview_generated_at === "string" ? data.preview_generated_at : "",
         staged_flow: Array.isArray(data.staged_flow) ? data.staged_flow : [],
         payload_preview: data.payload_preview ?? null,
       });
@@ -667,7 +722,11 @@ function InventoryPageInner() {
       await loadPublishHistory();
       setError(null);
     } catch (err) {
-      setApiError("Could not build publish review", "We could not prepare the publish review.", err);
+      setApiError(
+        "Could not build publish review",
+        "We could not prepare the publish review.",
+        err
+      );
     } finally {
       setBusyAction(null);
     }
@@ -715,10 +774,15 @@ function InventoryPageInner() {
           status: "Draft",
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        item?: InventoryItem;
+      };
       if (!response.ok) throw data;
       if (data.item) {
-        setInventory((current) => [data.item!, ...current.filter((row) => row.id !== data.item!.id)]);
+        setInventory((current) => [
+          data.item!,
+          ...current.filter((row) => row.id !== data.item!.id),
+        ]);
         setSelectedItemId(data.item.id);
       }
       setNewInventoryItemNumber("");
@@ -772,7 +836,9 @@ function InventoryPageInner() {
           token_budget: aiConfig?.tokenBudget ?? 2000,
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { config?: AiConfig };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        config?: AiConfig;
+      };
       if (!response.ok) throw data;
       if (data.config) setAiConfig(data.config);
       setAiApiKeyDraft("");
@@ -815,11 +881,26 @@ function InventoryPageInner() {
         { key: "etsy.publish.image_ids", value: publishConfig.imageIds.trim() },
         { key: "etsy.publish.who_made", value: publishConfig.whoMade.trim() || "i_did" },
         { key: "etsy.publish.when_made", value: publishConfig.whenMade.trim() || "before_2000" },
-        { key: "etsy.publish.image_max_dimension", value: publishConfig.imageMaxDimension.trim() || "2000" },
-        { key: "etsy.publish.image_target_dpi", value: publishConfig.imageTargetDpi.trim() || "300" },
-        { key: "etsy.publish.image_jpeg_quality", value: publishConfig.imageJpegQuality.trim() || "82" },
-        { key: "etsy.publish.allow_partial_image_upload", value: publishConfig.allowPartialImageUpload.trim() || "false" },
-        { key: "etsy.publish.image_upload_attempts", value: publishConfig.imageUploadAttempts.trim() || "3" },
+        {
+          key: "etsy.publish.image_max_dimension",
+          value: publishConfig.imageMaxDimension.trim() || "2000",
+        },
+        {
+          key: "etsy.publish.image_target_dpi",
+          value: publishConfig.imageTargetDpi.trim() || "300",
+        },
+        {
+          key: "etsy.publish.image_jpeg_quality",
+          value: publishConfig.imageJpegQuality.trim() || "82",
+        },
+        {
+          key: "etsy.publish.allow_partial_image_upload",
+          value: publishConfig.allowPartialImageUpload.trim() || "false",
+        },
+        {
+          key: "etsy.publish.image_upload_attempts",
+          value: publishConfig.imageUploadAttempts.trim() || "3",
+        },
       ];
       for (const update of updates) {
         const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
@@ -836,7 +917,11 @@ function InventoryPageInner() {
         actions: ["You can now publish approved listing drafts to Etsy."],
       });
     } catch (err) {
-      setApiError("Could not save publish settings", "We could not save Etsy publish settings.", err);
+      setApiError(
+        "Could not save publish settings",
+        "We could not save Etsy publish settings.",
+        err
+      );
     } finally {
       setAiSettingsSaving(false);
     }
@@ -855,7 +940,13 @@ function InventoryPageInner() {
 
       <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-          <input ref={createItemRef} value={newInventoryItemNumber} onChange={(e) => setNewInventoryItemNumber(e.target.value)} placeholder="New item number" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input
+            ref={createItemRef}
+            value={newInventoryItemNumber}
+            onChange={(e) => setNewInventoryItemNumber(e.target.value)}
+            placeholder="New item number"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
           <input
             value={newInventoryDescription}
             onChange={(e) => setNewInventoryDescription(e.target.value)}
@@ -864,10 +955,20 @@ function InventoryPageInner() {
             className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
           />
           <div className="flex gap-2">
-            <button type="button" onClick={createInventoryRecord} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            <button
+              type="button"
+              onClick={createInventoryRecord}
+              disabled={busyAction != null}
+              className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
               {busyAction === "create-inventory" ? "Creating..." : "Add item"}
             </button>
-            <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={busyAction != null || !selectedItemId}
+              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+            >
               Delete selected
             </button>
           </div>
@@ -894,17 +995,36 @@ function InventoryPageInner() {
           onClear={batch.clearSelection}
           selectAllMatching={
             batch.canSelectAllMatching && !batch.selectAllMatching
-              ? { total: listTotal, onSelect: batch.selectAllMatchingRows, tooLarge: batch.selectAllMatchingTooLarge }
+              ? {
+                  total: listTotal,
+                  onSelect: batch.selectAllMatchingRows,
+                  tooLarge: batch.selectAllMatchingTooLarge,
+                }
               : undefined
           }
         >
-          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => setBatchStatusOpen(true)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            busy={batchBusy}
+            onClick={() => setBatchStatusOpen(true)}
+          >
             Change status…
           </Button>
-          <Button variant="secondary" size="sm" busy={busyAction === "batch-status" || batchBusy} onClick={() => void batchChangeStatus("Retired")}>
+          <Button
+            variant="secondary"
+            size="sm"
+            busy={busyAction === "batch-status" || batchBusy}
+            onClick={() => void batchChangeStatus("Retired")}
+          >
             Retire
           </Button>
-          <Button variant="danger" size="sm" busy={busyAction === "batch-delete" || batchBusy} onClick={() => setBatchDeleteOpen(true)}>
+          <Button
+            variant="danger"
+            size="sm"
+            busy={busyAction === "batch-delete" || batchBusy}
+            onClick={() => setBatchDeleteOpen(true)}
+          >
             Delete
           </Button>
         </BatchActionsBar>
@@ -941,7 +1061,11 @@ function InventoryPageInner() {
         />
         {listTotal === 0 ? (
           <EmptyState
-            message={inventorySearch.trim() || statusFilter ? "No items match your filters." : "No items yet. Add your first inventory item to get started."}
+            message={
+              inventorySearch.trim() || statusFilter
+                ? "No items match your filters."
+                : "No items yet. Add your first inventory item to get started."
+            }
             primaryAction={
               inventorySearch.trim() || statusFilter
                 ? {
@@ -985,7 +1109,12 @@ function InventoryPageInner() {
               scrollToId={scrollToItemId}
               keyboardNav
             />
-            <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
+            <PaginationBar
+              page={page}
+              pageSize={pageSize}
+              total={listTotal}
+              onPageChange={setPage}
+            />
           </>
         )}
       </div>
@@ -1031,162 +1160,347 @@ function InventoryPageInner() {
           </div>
 
           {workshopOpen ? (
-          <div className="space-y-4">
-          {listingRecovery && listingRecoveryLabel ? (
-            <DraftRecoveryBanner
-              savedAtLabel={listingRecoveryLabel}
-              onRestore={() => applyListingRecovery(listingRecovery.formState)}
-              onDiscard={dismissListingRecovery}
-            />
-          ) : null}
-          <p className="text-xs text-[var(--ui-muted)]">
-            <Link href="/config" className="text-[var(--ui-accent)] hover:underline">
-              Configure AI and publish settings →
-            </Link>
-          </p>
+            <div className="space-y-4">
+              {listingRecovery && listingRecoveryLabel ? (
+                <DraftRecoveryBanner
+                  savedAtLabel={listingRecoveryLabel}
+                  onRestore={() => applyListingRecovery(listingRecovery.formState)}
+                  onDiscard={dismissListingRecovery}
+                />
+              ) : null}
+              <p className="text-xs text-[var(--ui-muted)]">
+                <Link href="/config" className="text-[var(--ui-accent)] hover:underline">
+                  Configure AI and publish settings →
+                </Link>
+              </p>
 
-          <div className="flex flex-wrap gap-2">
-            {(["manual", "integrated_ai", "portable_import"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setListingMode(mode)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                  listingMode === mode ? "bg-[var(--ui-accent)] text-white" : "border border-[var(--ui-border)]"
-                }`}
-              >
-                {mode === "manual" ? "Manual" : mode === "integrated_ai" ? "Generate in app" : "Import AI draft"}
-              </button>
-            ))}
-          </div>
-
-          {listingMode === "manual" && selectedItem && (
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <textarea placeholder="Title strategy" value={selectedItem.listing_title_strategy ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_title_strategy: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <textarea placeholder="Product story/details" value={selectedItem.listing_product_story ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_product_story: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <textarea placeholder="Condition clarity + defect disclosure" value={selectedItem.listing_condition_clarity ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_condition_clarity: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <textarea placeholder="Attributes and category fit" value={selectedItem.listing_attributes ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_attributes: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <textarea placeholder="Pricing and shipping notes" value={selectedItem.listing_pricing_shipping_notes ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_pricing_shipping_notes: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <textarea placeholder="Final quality checklist" value={selectedItem.listing_quality_checklist ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_quality_checklist: e.target.value })} className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <input placeholder="Listing title" value={selectedItem.listing_title ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_title: e.target.value })} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <input placeholder="Listing tags (comma separated)" value={selectedItem.listing_tags ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_tags: e.target.value })} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm" />
-              <input placeholder="Listing category path" value={selectedItem.listing_category_path ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_category_path: e.target.value })} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2" />
-              <textarea placeholder="Listing description" value={selectedItem.listing_description ?? ""} onChange={(e) => setSelectedItem({ ...selectedItem, listing_description: e.target.value })} className="min-h-28 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2" />
-              <div className="lg:col-span-2">
-                <button type="button" onClick={saveManualListing} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                  {busyAction === "save-manual" ? "Saving..." : "Save manual draft"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {listingMode === "integrated_ai" && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm">
-                <p>Provider: <strong>{aiConfig?.provider ?? "openai"}</strong> | Model: <strong>{aiConfig?.model ?? "gpt-4.1-mini"}</strong> | API key: <strong>{aiConfig?.apiKeyConfigured ? "configured" : "missing"}</strong></p>
-              </div>
-              <button type="button" onClick={generateIntegrated} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                {busyAction === "generate-ai" ? "Generating..." : "Generate listing in app"}
-              </button>
-            </div>
-          )}
-
-          {listingMode === "portable_import" && (
-            <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={exportForPortableAi} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-                  {busyAction === "export-ai" ? "Exporting..." : "Export package"}
+                {(["manual", "integrated_ai", "portable_import"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setListingMode(mode)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                      listingMode === mode
+                        ? "bg-[var(--ui-accent)] text-white"
+                        : "border border-[var(--ui-border)]"
+                    }`}
+                  >
+                    {mode === "manual"
+                      ? "Manual"
+                      : mode === "integrated_ai"
+                        ? "Generate in app"
+                        : "Import AI draft"}
+                  </button>
+                ))}
+              </div>
+
+              {listingMode === "manual" && selectedItem && (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <textarea
+                    placeholder="Title strategy"
+                    value={selectedItem.listing_title_strategy ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_title_strategy: e.target.value })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <textarea
+                    placeholder="Product story/details"
+                    value={selectedItem.listing_product_story ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_product_story: e.target.value })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <textarea
+                    placeholder="Condition clarity + defect disclosure"
+                    value={selectedItem.listing_condition_clarity ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({
+                        ...selectedItem,
+                        listing_condition_clarity: e.target.value,
+                      })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <textarea
+                    placeholder="Attributes and category fit"
+                    value={selectedItem.listing_attributes ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_attributes: e.target.value })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <textarea
+                    placeholder="Pricing and shipping notes"
+                    value={selectedItem.listing_pricing_shipping_notes ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({
+                        ...selectedItem,
+                        listing_pricing_shipping_notes: e.target.value,
+                      })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <textarea
+                    placeholder="Final quality checklist"
+                    value={selectedItem.listing_quality_checklist ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({
+                        ...selectedItem,
+                        listing_quality_checklist: e.target.value,
+                      })
+                    }
+                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <input
+                    placeholder="Listing title"
+                    value={selectedItem.listing_title ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_title: e.target.value })
+                    }
+                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <input
+                    placeholder="Listing tags (comma separated)"
+                    value={selectedItem.listing_tags ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_tags: e.target.value })
+                    }
+                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                  />
+                  <input
+                    placeholder="Listing category path"
+                    value={selectedItem.listing_category_path ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_category_path: e.target.value })
+                    }
+                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
+                  />
+                  <textarea
+                    placeholder="Listing description"
+                    value={selectedItem.listing_description ?? ""}
+                    onChange={(e) =>
+                      setSelectedItem({ ...selectedItem, listing_description: e.target.value })
+                    }
+                    className="min-h-28 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
+                  />
+                  <div className="lg:col-span-2">
+                    <button
+                      type="button"
+                      onClick={saveManualListing}
+                      disabled={busyAction != null}
+                      className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      {busyAction === "save-manual" ? "Saving..." : "Save manual draft"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {listingMode === "integrated_ai" && (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm">
+                    <p>
+                      Provider: <strong>{aiConfig?.provider ?? "openai"}</strong> | Model:{" "}
+                      <strong>{aiConfig?.model ?? "gpt-4.1-mini"}</strong> | API key:{" "}
+                      <strong>{aiConfig?.apiKeyConfigured ? "configured" : "missing"}</strong>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateIntegrated}
+                    disabled={busyAction != null}
+                    className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busyAction === "generate-ai" ? "Generating..." : "Generate listing in app"}
+                  </button>
+                </div>
+              )}
+
+              {listingMode === "portable_import" && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={exportForPortableAi}
+                      disabled={busyAction != null}
+                      className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+                    >
+                      {busyAction === "export-ai" ? "Exporting..." : "Export package"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={importPortableAiDraft}
+                      disabled={busyAction != null || importPayload.trim().length === 0}
+                      className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      {busyAction === "import-ai" ? "Importing..." : "Import AI draft"}
+                    </button>
+                  </div>
+                  {exportPackage != null && (
+                    <textarea
+                      readOnly
+                      value={JSON.stringify(exportPackage, null, 2) ?? ""}
+                      className="min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
+                    />
+                  )}
+                  <textarea
+                    placeholder="Paste AI output JSON here for import"
+                    value={importPayload}
+                    onChange={(e) => setImportPayload(e.target.value)}
+                    className="min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={reviewPublishPayload}
+                  disabled={busyAction != null}
+                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+                >
+                  {busyAction === "review-publish" ? "Reviewing..." : "Review"}
                 </button>
-                <button type="button" onClick={importPortableAiDraft} disabled={busyAction != null || importPayload.trim().length === 0} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                  {busyAction === "import-ai" ? "Importing..." : "Import AI draft"}
+                <button
+                  type="button"
+                  onClick={() => setWorkflowStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))}
+                  disabled={busyAction != null || workflowStep === 0}
+                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkflowStep((s) => (s < 2 ? ((s + 1) as 0 | 1 | 2) : s))}
+                  disabled={busyAction != null || workflowStep === 2}
+                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  Continue
+                </button>
+                <button
+                  type="button"
+                  onClick={approveDraft}
+                  disabled={busyAction != null}
+                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+                >
+                  {busyAction === "approve-draft" ? "Approving..." : "Approve draft"}
+                </button>
+                <button
+                  type="button"
+                  onClick={rejectDraft}
+                  disabled={busyAction != null}
+                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+                >
+                  {busyAction === "reject-draft" ? "Rejecting..." : "Reject"}
+                </button>
+                <button
+                  type="button"
+                  onClick={publishApprovedDraft}
+                  disabled={busyAction != null || !canPublish || workflowStep < 2}
+                  className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {busyAction === "publish-draft" ? "Publishing..." : "Publish to Etsy"}
                 </button>
               </div>
-              {exportPackage != null && (
-                <textarea readOnly value={JSON.stringify(exportPackage, null, 2) ?? ""} className="min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs" />
-              )}
-              <textarea placeholder="Paste AI output JSON here for import" value={importPayload} onChange={(e) => setImportPayload(e.target.value)} className="min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs" />
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={reviewPublishPayload} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-              {busyAction === "review-publish" ? "Reviewing..." : "Review"}
-            </button>
-            <button type="button" onClick={() => setWorkflowStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))} disabled={busyAction != null || workflowStep === 0} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-              Back
-            </button>
-            <button type="button" onClick={() => setWorkflowStep((s) => (s < 2 ? ((s + 1) as 0 | 1 | 2) : s))} disabled={busyAction != null || workflowStep === 2} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-              Continue
-            </button>
-            <button type="button" onClick={approveDraft} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-              {busyAction === "approve-draft" ? "Approving..." : "Approve draft"}
-            </button>
-            <button type="button" onClick={rejectDraft} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-              {busyAction === "reject-draft" ? "Rejecting..." : "Reject"}
-            </button>
-            <button type="button" onClick={publishApprovedDraft} disabled={busyAction != null || !canPublish || workflowStep < 2} className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {busyAction === "publish-draft" ? "Publishing..." : "Publish to Etsy"}
-            </button>
-          </div>
-          {!canPublish && (
-            <p className="text-xs text-[var(--ui-yellow)]">Publish is locked until review is completed and this exact draft is approved.</p>
-          )}
-
-          {publishPreview && (
-            <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-              <p className="text-sm">Review status: <strong>{publishPreview.can_publish ? "ready to publish" : "action needed"}</strong></p>
-              <p className="mt-1 text-xs text-[var(--ui-muted)]">Preview hash: {publishPreview.preview_hash || "not available"} | Generated: {publishPreview.preview_generated_at || "unknown"}</p>
-              {publishPreview.warnings.length > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--ui-yellow)]">
-                  {publishPreview.warnings.map((warning) => <li key={warning}>{warning}</li>)}
-                </ul>
-              )}
-              {publishPreview.staged_flow.length > 0 && (
-                <div className="mt-2 text-xs text-[var(--ui-muted)]">Flow: {publishPreview.staged_flow.join(" -> ")}</div>
-              )}
-              <textarea readOnly value={JSON.stringify(publishPreview.payload_preview, null, 2)} className="mt-2 min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 font-mono text-xs" />
-            </div>
-          )}
-
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Publish audit</p>
-              <button
-                type="button"
-                onClick={async () => {
-                  setBusyAction("refresh-history");
-                  try { await loadPublishHistory(); setError(null); } catch (err) { setApiError("Could not refresh publish audit", "We could not refresh publish audit history.", err); } finally { setBusyAction(null); }
-                }}
-                disabled={busyAction != null}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-xs"
-              >
-                {busyAction === "refresh-history" ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
-            {!publishHistory ? (
-              <p className="mt-2 text-xs text-[var(--ui-muted)]">No audit data loaded yet.</p>
-            ) : (
-              <>
-                <p className="mt-2 text-xs text-[var(--ui-muted)]">
-                  Listed: {publishHistory.item?.is_listed ? "yes" : "no"} | Etsy listing id: {publishHistory.item?.etsy_listing_id || "not set"} | Approved: {publishHistory.item?.listing_approved_at || "not approved"} | Published: {publishHistory.item?.listing_published_at || "not published"}
+              {!canPublish && (
+                <p className="text-xs text-[var(--ui-yellow)]">
+                  Publish is locked until review is completed and this exact draft is approved.
                 </p>
-                <div className="mt-2 text-xs text-[var(--ui-muted)]">
-                  Latest previews: {publishHistory.previews.slice(0, 3).map((entry) => `${entry.created_at} (${entry.preview_hash.slice(0, 12)})`).join(" | ") || "none"}
-                </div>
-                <div className="mt-1 text-xs text-[var(--ui-muted)]">
-                  Imports: {publishHistory.imports.length} | Exports: {publishHistory.exports.length}
-                </div>
-              </>
-            )}
-          </div>
+              )}
 
-          </div>
+              {publishPreview && (
+                <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+                  <p className="text-sm">
+                    Review status:{" "}
+                    <strong>
+                      {publishPreview.can_publish ? "ready to publish" : "action needed"}
+                    </strong>
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                    Preview hash: {publishPreview.preview_hash || "not available"} | Generated:{" "}
+                    {publishPreview.preview_generated_at || "unknown"}
+                  </p>
+                  {publishPreview.warnings.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--ui-yellow)]">
+                      {publishPreview.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {publishPreview.staged_flow.length > 0 && (
+                    <div className="mt-2 text-xs text-[var(--ui-muted)]">
+                      Flow: {publishPreview.staged_flow.join(" -> ")}
+                    </div>
+                  )}
+                  <textarea
+                    readOnly
+                    value={JSON.stringify(publishPreview.payload_preview, null, 2)}
+                    className="mt-2 min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 font-mono text-xs"
+                  />
+                </div>
+              )}
+
+              <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">Publish audit</p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setBusyAction("refresh-history");
+                      try {
+                        await loadPublishHistory();
+                        setError(null);
+                      } catch (err) {
+                        setApiError(
+                          "Could not refresh publish audit",
+                          "We could not refresh publish audit history.",
+                          err
+                        );
+                      } finally {
+                        setBusyAction(null);
+                      }
+                    }}
+                    disabled={busyAction != null}
+                    className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-xs"
+                  >
+                    {busyAction === "refresh-history" ? "Refreshing..." : "Refresh"}
+                  </button>
+                </div>
+                {!publishHistory ? (
+                  <p className="mt-2 text-xs text-[var(--ui-muted)]">No audit data loaded yet.</p>
+                ) : (
+                  <>
+                    <p className="mt-2 text-xs text-[var(--ui-muted)]">
+                      Listed: {publishHistory.item?.is_listed ? "yes" : "no"} | Etsy listing id:{" "}
+                      {publishHistory.item?.etsy_listing_id || "not set"} | Approved:{" "}
+                      {publishHistory.item?.listing_approved_at || "not approved"} | Published:{" "}
+                      {publishHistory.item?.listing_published_at || "not published"}
+                    </p>
+                    <div className="mt-2 text-xs text-[var(--ui-muted)]">
+                      Latest previews:{" "}
+                      {publishHistory.previews
+                        .slice(0, 3)
+                        .map((entry) => `${entry.created_at} (${entry.preview_hash.slice(0, 12)})`)
+                        .join(" | ") || "none"}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--ui-muted)]">
+                      Imports: {publishHistory.imports.length} | Exports:{" "}
+                      {publishHistory.exports.length}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           ) : null}
         </div>
       ) : (
-        <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>
+        <p className="text-sm text-[var(--ui-muted)]">
+          Create inventory items first to use listing authoring features.
+        </p>
       )}
-
 
       <InventoryImportModal
         open={importOpen}
@@ -1197,15 +1511,40 @@ function InventoryPageInner() {
       />
 
       {batchStatusOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-sm rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Change status</h4>
-            <select value={batchStatusValue} onChange={(e) => setBatchStatusValue(e.target.value)} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm">
-              {INVENTORY_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
+            <select
+              value={batchStatusValue}
+              onChange={(e) => setBatchStatusValue(e.target.value)}
+              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+            >
+              {INVENTORY_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setBatchStatusOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">Cancel</button>
-              <button type="button" onClick={() => void batchChangeStatus(batchStatusValue)} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Apply</button>
+              <button
+                type="button"
+                onClick={() => setBatchStatusOpen(false)}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void batchChangeStatus(batchStatusValue)}
+                disabled={busyAction != null}
+                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                Apply
+              </button>
             </div>
           </div>
         </div>
@@ -1268,7 +1607,13 @@ function InventoryPageInner() {
 
 export default function InventoryPage() {
   return (
-    <Suspense fallback={<section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">Loading inventory...</section>}>
+    <Suspense
+      fallback={
+        <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 text-sm text-[var(--ui-muted)]">
+          Loading inventory...
+        </section>
+      }
+    >
       <InventoryPageInner />
     </Suspense>
   );

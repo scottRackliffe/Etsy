@@ -138,128 +138,154 @@ export default function ReportsPage() {
   return (
     <>
       <ProgressModal {...progressModal} />
-    <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-      <div className="mb-3 flex items-center gap-3">
-        <Image
-          src={iconConfig.reportHeaderPath || "/icons/report-header.png"}
-          alt="Report header icon"
-          width={reportHeaderIconWidth}
-          height={Math.max(24, Math.floor(reportHeaderIconWidth * 0.22))}
-          className="h-auto max-h-16 w-auto rounded"
-        />
-        <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
-          <span className="mb-1 block text-[var(--ui-muted)]">Report type</span>
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value)}
-            aria-label="Report type"
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-          >
-            {REPORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
-          <span className="mb-1 block text-[var(--ui-muted)]">From</span>
-          <input
-            type="date"
-            value={fromDate}
-            disabled={!supportsDates}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setActivePreset(null);
-            }}
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+      <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <Image
+            src={iconConfig.reportHeaderPath || "/icons/report-header.png"}
+            alt="Report header icon"
+            width={reportHeaderIconWidth}
+            height={Math.max(24, Math.floor(reportHeaderIconWidth * 0.22))}
+            className="h-auto max-h-16 w-auto rounded"
           />
-        </label>
-        <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
-          <span className="mb-1 block text-[var(--ui-muted)]">To</span>
-          <input
-            type="date"
-            value={toDate}
-            disabled={!supportsDates}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setActivePreset(null);
-            }}
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
-          />
-        </label>
-      </div>
-
-      {supportsDates ? (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {[
-            { id: "today", label: "Today" },
-            { id: "week", label: "This week" },
-            { id: "month", label: "This month" },
-            { id: "ytd", label: "YTD" },
-            { id: "all", label: "All time" },
-          ].map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => applyPreset(preset.id === "all" ? "all" : preset.id)}
-              className={`rounded-full border px-3 py-1 text-xs ${
-                activePreset === preset.id || (preset.id === "all" && !fromDate && !toDate && activePreset === "all")
-                  ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
-                  : "border-[var(--ui-border)] text-[var(--ui-body)]"
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
+          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
         </div>
-      ) : (
-        <p className="mb-3 text-xs text-[var(--ui-muted)]">This report does not support date filtering.</p>
-      )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={previewReportCsv} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-          {busyAction === "preview-report" ? "Loading..." : "Preview CSV"}
-        </button>
-        <button type="button" onClick={() => window.open(downloadUrl("csv"), "_blank")} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
-          Download CSV
-        </button>
-        <button
-          type="button"
-          onClick={() => window.open(downloadUrl("pdf"), "_blank")}
-          disabled={reportType === "accounting-export"}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50"
-        >
-          Download PDF
-        </button>
-      </div>
-      {reportCsvPreview.trim().length === 0 ? (
-        <EmptyState
-          message="No data for the selected date range or filters."
-          primaryAction={
-            supportsDates
-              ? { label: "Adjust date range", onClick: () => { setFromDate(""); setToDate(""); setActivePreset(null); } }
-              : { label: "Preview CSV", onClick: () => void previewReportCsv() }
-          }
-          secondaryAction={
-            supportsDates && (fromDate || toDate)
-              ? { label: "Clear filters", onClick: () => { setFromDate(""); setToDate(""); setActivePreset(null); } }
-              : undefined
-          }
-        />
-      ) : (
-      <textarea
-        readOnly
-        value={reportCsvPreview}
-        aria-label="Report CSV preview"
-        className="mt-3 min-h-80 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
-      />
-      )}
-    </section>
+        <div className="mb-3 flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            <span className="mb-1 block text-[var(--ui-muted)]">Report type</span>
+            <select
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+              aria-label="Report type"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            >
+              {REPORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
+            <span className="mb-1 block text-[var(--ui-muted)]">From</span>
+            <input
+              type="date"
+              value={fromDate}
+              disabled={!supportsDates}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setActivePreset(null);
+              }}
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+            />
+          </label>
+          <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
+            <span className="mb-1 block text-[var(--ui-muted)]">To</span>
+            <input
+              type="date"
+              value={toDate}
+              disabled={!supportsDates}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setActivePreset(null);
+              }}
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+            />
+          </label>
+        </div>
+
+        {supportsDates ? (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {[
+              { id: "today", label: "Today" },
+              { id: "week", label: "This week" },
+              { id: "month", label: "This month" },
+              { id: "ytd", label: "YTD" },
+              { id: "all", label: "All time" },
+            ].map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset.id === "all" ? "all" : preset.id)}
+                className={`rounded-full border px-3 py-1 text-xs ${
+                  activePreset === preset.id ||
+                  (preset.id === "all" && !fromDate && !toDate && activePreset === "all")
+                    ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
+                    : "border-[var(--ui-border)] text-[var(--ui-body)]"
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="mb-3 text-xs text-[var(--ui-muted)]">
+            This report does not support date filtering.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={previewReportCsv}
+            disabled={busyAction != null}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+          >
+            {busyAction === "preview-report" ? "Loading..." : "Preview CSV"}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.open(downloadUrl("csv"), "_blank")}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+          >
+            Download CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => window.open(downloadUrl("pdf"), "_blank")}
+            disabled={reportType === "accounting-export"}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50"
+          >
+            Download PDF
+          </button>
+        </div>
+        {reportCsvPreview.trim().length === 0 ? (
+          <EmptyState
+            message="No data for the selected date range or filters."
+            primaryAction={
+              supportsDates
+                ? {
+                    label: "Adjust date range",
+                    onClick: () => {
+                      setFromDate("");
+                      setToDate("");
+                      setActivePreset(null);
+                    },
+                  }
+                : { label: "Preview CSV", onClick: () => void previewReportCsv() }
+            }
+            secondaryAction={
+              supportsDates && (fromDate || toDate)
+                ? {
+                    label: "Clear filters",
+                    onClick: () => {
+                      setFromDate("");
+                      setToDate("");
+                      setActivePreset(null);
+                    },
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <textarea
+            readOnly
+            value={reportCsvPreview}
+            aria-label="Report CSV preview"
+            className="mt-3 min-h-80 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
+          />
+        )}
+      </section>
     </>
   );
 }

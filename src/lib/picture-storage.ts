@@ -75,7 +75,9 @@ export async function validateImageBuffer(
   filename: string
 ): Promise<{ format: string; width: number; height: number } | ValidationError[]> {
   if (buffer.length > MAX_FILE_SIZE) {
-    return [{ slot: 0, message: `${filename}: Image exceeds 15 MB limit. Please use a smaller file.` }];
+    return [
+      { slot: 0, message: `${filename}: Image exceeds 15 MB limit. Please use a smaller file.` },
+    ];
   }
 
   try {
@@ -141,7 +143,9 @@ export async function processAndStorePicture(
   }
 
   if (meta.format === "jpeg") {
-    pipeline = pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true }).withMetadata({ density: TARGET_DPI });
+    pipeline = pipeline
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .withMetadata({ density: TARGET_DPI });
   } else if (meta.format === "png") {
     pipeline = pipeline.png({ compressionLevel: 9 }).withMetadata({ density: TARGET_DPI });
   } else if (meta.format === "webp") {
@@ -283,10 +287,7 @@ async function removeSlotFile(dir: string, slot: number): Promise<void> {
 // Reorder pictures (ADR-026 §6)
 // ---------------------------------------------------------------------------
 
-export async function reorderPictures(
-  itemId: number,
-  newOrder: (string | null)[]
-): Promise<void> {
+export async function reorderPictures(itemId: number, newOrder: (string | null)[]): Promise<void> {
   const db = getDb();
   const dir = getPicturesDir(itemId);
   const now = new Date().toISOString();
@@ -297,9 +298,7 @@ export async function reorderPictures(
     const slotValue = newOrder[i];
     if (!slotValue || /^https?:\/\//i.test(slotValue)) continue;
 
-    const absPath = path.isAbsolute(slotValue)
-      ? slotValue
-      : path.join(process.cwd(), slotValue);
+    const absPath = path.isAbsolute(slotValue) ? slotValue : path.join(process.cwd(), slotValue);
 
     if (fs.existsSync(absPath)) {
       const ext = path.extname(absPath);

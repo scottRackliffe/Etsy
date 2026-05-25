@@ -17,11 +17,11 @@ This file is a **reconciliation history + code compliance checklist**, not an al
 
 Customer **sales** use three tables:
 
-| Role | Table | Notes |
-|------|--------|--------|
-| Order header | `orders` | Ship-to snapshot, `was_paid`, `order_status`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, totals |
-| Line items | `order_items` | `inventory_id`, `quantity`, `unit_price`, `line_total` |
-| Vendor buys | `purchases` | Sourcing only — **not** customer sales |
+| Role         | Table         | Notes                                                                                                      |
+| ------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| Order header | `orders`      | Ship-to snapshot, `was_paid`, `order_status`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, totals |
+| Line items   | `order_items` | `inventory_id`, `quantity`, `unit_price`, `line_total`                                                     |
+| Vendor buys  | `purchases`   | Sourcing only — **not** customer sales                                                                     |
 
 Customers: `customers` (flat billing address + `default_address_id`, `currency_code`, `is_active`) and `addresses` (ship-to rows: `first_line`, `second_line`, `state`, …).
 
@@ -41,17 +41,17 @@ Migration [`migrations/002_schema_reconciliation.sql`](../../migrations/002_sche
 
 ## Name mapping (legacy doc terms → ADR-017 / implementation)
 
-| Legacy term | Canonical |
-|-------------|-----------|
-| `customer` | `customers` |
-| `customer_address` | `addresses` |
-| `address_line_1` / `address_line_2` | `first_line` / `second_line` |
-| `state_province` | `state` |
-| Customer sale “purchase” / `purchase` row | `orders` + `order_items` |
-| `purchase.date_of_purchase` | `orders.order_date` |
-| `purchase.shipping_cost` (seller) | `orders.seller_shipping_cost` |
-| `purchase.discount_amount` | `orders.discount_total` |
-| `inventory_other_cost` | `other_costs` |
+| Legacy term                               | Canonical                     |
+| ----------------------------------------- | ----------------------------- |
+| `customer`                                | `customers`                   |
+| `customer_address`                        | `addresses`                   |
+| `address_line_1` / `address_line_2`       | `first_line` / `second_line`  |
+| `state_province`                          | `state`                       |
+| Customer sale “purchase” / `purchase` row | `orders` + `order_items`      |
+| `purchase.date_of_purchase`               | `orders.order_date`           |
+| `purchase.shipping_cost` (seller)         | `orders.seller_shipping_cost` |
+| `purchase.discount_amount`                | `orders.discount_total`       |
+| `inventory_other_cost`                    | `other_costs`                 |
 
 ---
 
@@ -59,18 +59,18 @@ Migration [`migrations/002_schema_reconciliation.sql`](../../migrations/002_sche
 
 Track gaps in [no-developer-questions-build.md](../no-developer-questions-build.md) §6 and [DOC_COMPLIANCE_AUDIT.md](../DOC_COMPLIANCE_AUDIT.md) (Phase 2 complete 2026-05-24). **Do not remove spec** until code implements it.
 
-| ADR-017 requirement | Expected in code | Status (2026-05-24) |
-|---------------------|------------------|---------------------|
-| Three-table sales model | `orders`, `order_items`, vendor `purchases` | **Implemented** in `sqlite.ts` bootstrap |
-| Order ship-to snapshot, `was_paid`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, override flag | `orders` columns | **Implemented** (002 migration + bootstrap) |
-| `customers.default_address_id`, `currency_code`, `is_active` | `customers` columns | **Implemented** |
-| `other_costs` table | `other_costs` | **Implemented** |
-| `orders.tracking_number` | Column on `orders` | **Spec in ADR-017; bootstrap/migration pending** |
-| `activity_log` table | Full table + indexes | **Spec in ADR-017; bootstrap/migration pending** |
-| `customer_notes` table | Full table + indexes | **Spec in ADR-017; bootstrap/migration pending** |
-| `orders.source_channel` | `etsy` \| `manual` | **Implemented** in bootstrap |
-| Listing `listing_*` columns on `inventory` | All ADR-023 fields | **Implemented** in `sqlite.ts` |
-| `etsy_receipts`, `report_artifacts`, listing workflow tables | Per ADR-017 §8 | **Implemented** in bootstrap |
+| ADR-017 requirement                                                                                     | Expected in code                            | Status (2026-05-24)                              |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| Three-table sales model                                                                                 | `orders`, `order_items`, vendor `purchases` | **Implemented** in `sqlite.ts` bootstrap         |
+| Order ship-to snapshot, `was_paid`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, override flag | `orders` columns                            | **Implemented** (002 migration + bootstrap)      |
+| `customers.default_address_id`, `currency_code`, `is_active`                                            | `customers` columns                         | **Implemented**                                  |
+| `other_costs` table                                                                                     | `other_costs`                               | **Implemented**                                  |
+| `orders.tracking_number`                                                                                | Column on `orders`                          | **Spec in ADR-017; bootstrap/migration pending** |
+| `activity_log` table                                                                                    | Full table + indexes                        | **Spec in ADR-017; bootstrap/migration pending** |
+| `customer_notes` table                                                                                  | Full table + indexes                        | **Spec in ADR-017; bootstrap/migration pending** |
+| `orders.source_channel`                                                                                 | `etsy` \| `manual`                          | **Implemented** in bootstrap                     |
+| Listing `listing_*` columns on `inventory`                                                              | All ADR-023 fields                          | **Implemented** in `sqlite.ts`                   |
+| `etsy_receipts`, `report_artifacts`, listing workflow tables                                            | Per ADR-017 §8                              | **Implemented** in bootstrap                     |
 
 When implementing schema changes: add `migrations/00N_*.sql`, update `sqlite.ts` bootstrap for fresh installs, and re-run compliance audit.
 
@@ -78,8 +78,8 @@ When implementing schema changes: add `migrations/00N_*.sql`, update `sqlite.ts`
 
 ## For implementers
 
-1. Read **ADR-017 §1–§8** for every column and constraint.  
-2. Use this file only for **legacy name mapping** and **open code gaps**.  
+1. Read **ADR-017 §1–§8** for every column and constraint.
+2. Use this file only for **legacy name mapping** and **open code gaps**.
 3. After code catches up, mark rows **Implemented** in the checklist above and in the build doc §5 table.
 
 ---

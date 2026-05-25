@@ -15,7 +15,10 @@ export function FormField({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="flex items-center text-xs font-medium text-[var(--ui-muted)]">
+      <label
+        htmlFor={htmlFor}
+        className="flex items-center text-xs font-medium text-[var(--ui-muted)]"
+      >
         {label}
         {helpText ? <HelpTooltip text={helpText} /> : null}
       </label>

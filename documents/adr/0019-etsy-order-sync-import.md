@@ -86,12 +86,12 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers â€
 
 ### Schema mapping (legacy terms)
 
-| Legacy / ADR-019 shorthand | Canonical (ADR-017) |
-|---------------------------|---------------------|
-| purchase row | `orders` + `order_items` |
-| customer / customer_address | `customers` / `addresses` |
-| purchase.etsy_receipt_id | `orders.etsy_receipt_id` |
-| purchase.order_id | `orders.order_number` |
-| date_of_purchase | `orders.order_date` |
-| purchase.was_paid | `orders.was_paid` |
+| Legacy / ADR-019 shorthand  | Canonical (ADR-017)                             |
+| --------------------------- | ----------------------------------------------- |
+| purchase row                | `orders` + `order_items`                        |
+| customer / customer_address | `customers` / `addresses`                       |
+| purchase.etsy_receipt_id    | `orders.etsy_receipt_id`                        |
+| purchase.order_id           | `orders.order_number`                           |
+| date_of_purchase            | `orders.order_date`                             |
+| purchase.was_paid           | `orders.was_paid`                               |
 | customer_address_id on sale | `orders.ship_to_*` snapshot (no FK required v1) |

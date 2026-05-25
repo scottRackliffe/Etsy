@@ -18,7 +18,6 @@ export function parsePagination(params: URLSearchParams): { limit: number; offse
   };
 }
 
-
 export function parseOptionalString(params: URLSearchParams, key: string): string | undefined {
   const v = params.get(key)?.trim();
   return v ? v : undefined;

@@ -3,11 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePagination, parsePositiveInt } from "@/lib/api-utils";
 import { logActivity } from "@/lib/activity-log";
-import {
-  CUSTOMER_NOTE_TYPES,
-  createCustomerNote,
-  listCustomerNotes,
-} from "@/lib/customer-notes";
+import { CUSTOMER_NOTE_TYPES, createCustomerNote, listCustomerNotes } from "@/lib/customer-notes";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getCustomer } from "@/lib/records";
 

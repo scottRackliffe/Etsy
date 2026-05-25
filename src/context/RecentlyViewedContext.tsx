@@ -49,9 +49,7 @@ export function RecentlyViewedProvider({ children }: { children: ReactNode }) {
     [entries, addRecentlyViewed, clearRecentlyViewed]
   );
 
-  return (
-    <RecentlyViewedContext.Provider value={value}>{children}</RecentlyViewedContext.Provider>
-  );
+  return <RecentlyViewedContext.Provider value={value}>{children}</RecentlyViewedContext.Provider>;
 }
 
 export function useRecentlyViewed(): RecentlyViewedContextValue {

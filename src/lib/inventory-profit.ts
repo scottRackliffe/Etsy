@@ -56,7 +56,7 @@ function otherCostsMap(ids: number[]): Map<number, number> {
 
 export function enrichInventoryItem(item: Record<string, unknown>): Record<string, unknown> {
   const id = Number(item.id);
-  const otherTotal = Number.isInteger(id) ? otherCostsMap([id]).get(id) ?? 0 : 0;
+  const otherTotal = Number.isInteger(id) ? (otherCostsMap([id]).get(id) ?? 0) : 0;
   return {
     ...item,
     ...computeProfitFields({ ...item, other_costs_total: otherTotal }),
@@ -64,9 +64,7 @@ export function enrichInventoryItem(item: Record<string, unknown>): Record<strin
 }
 
 export function enrichInventoryItems(items: Record<string, unknown>[]): Record<string, unknown>[] {
-  const ids = items
-    .map((item) => Number(item.id))
-    .filter((id) => Number.isInteger(id) && id > 0);
+  const ids = items.map((item) => Number(item.id)).filter((id) => Number.isInteger(id) && id > 0);
   const map = otherCostsMap(ids);
   return items.map((item) => {
     const id = Number(item.id);

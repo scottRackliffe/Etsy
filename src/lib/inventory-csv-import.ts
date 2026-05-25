@@ -21,13 +21,7 @@ const SUPPORTED_COLUMNS = new Set([
   "notes",
 ]);
 
-const CONDITION_CODES = new Set([
-  "Mint/Near Mint",
-  "Excellent",
-  "Very Good",
-  "Good",
-  "Fair/As-Is",
-]);
+const CONDITION_CODES = new Set(["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"]);
 
 export type CsvRowError = { field: string; message: string };
 
@@ -106,7 +100,9 @@ export function parseCsvRows(text: string): string[][] {
 function loadExistingItemNumbers(): Set<string> {
   const db = getDb();
   const rows = db
-    .prepare("SELECT item_number FROM inventory WHERE item_number IS NOT NULL AND item_number != ''")
+    .prepare(
+      "SELECT item_number FROM inventory WHERE item_number IS NOT NULL AND item_number != ''"
+    )
     .all() as Array<{ item_number: string }>;
   return new Set(rows.map((r) => r.item_number.trim().toLowerCase()));
 }
@@ -132,10 +128,7 @@ function parseDate(value: string, field: string, errors: CsvRowError[]): string 
   return trimmed;
 }
 
-function rowToPayload(
-  cells: string[],
-  columnIndex: Map<string, number>
-): Record<string, string> {
+function rowToPayload(cells: string[], columnIndex: Map<string, number>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [col, idx] of columnIndex.entries()) {
     if (idx >= cells.length) continue;
@@ -310,7 +303,10 @@ export function previewInventoryCsv(buffer: Buffer): CsvPreviewResult | { error:
   };
 }
 
-export function importInventoryCsv(buffer: Buffer, filename?: string): CsvImportResult | { error: string } {
+export function importInventoryCsv(
+  buffer: Buffer,
+  filename?: string
+): CsvImportResult | { error: string } {
   const parsed = parseInventoryCsvBuffer(buffer);
   if (parsed.parseError) return { error: parsed.parseError };
 

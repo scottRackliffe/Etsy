@@ -13,7 +13,11 @@ type ListingQualityScoreProps = {
   compact?: boolean;
 };
 
-export function ListingQualityScore({ item, score: scoreOverride, compact = false }: ListingQualityScoreProps) {
+export function ListingQualityScore({
+  item,
+  score: scoreOverride,
+  compact = false,
+}: ListingQualityScoreProps) {
   const score = scoreOverride ?? computeListingScore(item);
   const color = listingScoreGradeColor(score.grade);
 
@@ -21,7 +25,10 @@ export function ListingQualityScore({ item, score: scoreOverride, compact = fals
     <div className={compact ? "flex items-center gap-2" : "flex flex-wrap items-start gap-4"}>
       <div
         className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
-        style={{ backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`, border: `2px solid ${color}` }}
+        style={{
+          backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`,
+          border: `2px solid ${color}`,
+        }}
         aria-label={`Listing quality score ${score.score} out of 100`}
       >
         {score.score}

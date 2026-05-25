@@ -21,16 +21,25 @@ import { SkipLink } from "@/components/shell/SkipLink";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useAutoEtsySync } from "@/hooks/useAutoEtsySync";
+import { clearErrorNotifications } from "@/lib/notifications";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useToast } from "@/hooks/useToast";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
-  const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } = useApp();
+  const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } =
+    useApp();
   const { modal: syncModal, runSync } = useEtsySync();
   const toast = useToast();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useAutoEtsySync({ connected: shops.length > 0, shopId: selectedShopId });
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && shops.length === 0) {
+      clearErrorNotifications();
+    }
+  }, [loading, shops.length]);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -53,7 +62,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (shops.length === 0) return;
     const runScheduled = () => {
-      void fetch("/api/backup/scheduled", { method: "POST", headers: { Accept: "application/json" } });
+      void fetch("/api/backup/scheduled", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
     };
     runScheduled();
     const timer = window.setInterval(runScheduled, 60 * 60 * 1000);
@@ -158,7 +170,18 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         enabled: canRedo,
       },
     ],
-    [helpOpen, pathname, searchOpen, selectedShopId, shops.length, syncFromEtsy, undo, redo, canUndo, canRedo]
+    [
+      helpOpen,
+      pathname,
+      searchOpen,
+      selectedShopId,
+      shops.length,
+      syncFromEtsy,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
+    ]
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -172,7 +195,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <OfflineBanner />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <ProgressModal {...syncModal} />
-      <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} pathname={pathname} />
+      <KeyboardShortcutsModal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        pathname={pathname}
+      />
       <main
         id="main-content"
         tabIndex={-1}
@@ -198,29 +225,27 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {!loading && shops.length === 0 && !error && (
-          <div className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-10 text-center shadow-sm">
-            <h2 className="mb-2 text-xl font-semibold text-[var(--ui-title)]">
-              Welcome to your Etsy command center
-            </h2>
-            <p className="mb-6 text-[var(--ui-muted)]">
-              Connect your Etsy account to view recent orders, shipping status, and totals in one clean workspace.
+        {!loading && shops.length === 0 && (
+          <div className="rounded-xl border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 px-4 py-3">
+            <p className="text-sm font-medium text-[var(--ui-yellow)]">
+              Local mode — Etsy not connected
+            </p>
+            <p className="mt-1 text-sm text-[var(--ui-body)]">
+              Your API key may still be pending approval. Use Config → Sample Data to explore
+              inventory, customers, and orders locally. Connect Etsy when your key is active to
+              sync.
             </p>
             <button
               type="button"
               onClick={connect}
-              className="rounded-lg bg-[var(--ui-accent)] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[var(--ui-accent-hover)]"
+              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white"
             >
-              Connect with Etsy
+              Connect Etsy
             </button>
           </div>
         )}
 
-        {error && shops.length === 0 && (
-          <ErrorPanel error={error} onDismiss={() => setError(null)} />
-        )}
-
-        {shops.length > 0 && (
+        {!loading && (
           <>
             <TabBar />
             <div className="flex justify-end">
@@ -229,7 +254,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
             <div className="text-xs text-[var(--ui-muted)]">
-              UI quality baseline: clean hierarchy, fast scanning, clear status, and minimal-friction actions.
+              UI quality baseline: clean hierarchy, fast scanning, clear status, and
+              minimal-friction actions.
             </div>
           </>
         )}

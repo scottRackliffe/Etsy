@@ -62,30 +62,27 @@ export function mergeCustomers(input: {
   }
 
   const db = getDb();
-  const secondaryName = [secondary.first_name, secondary.last_name].filter(Boolean).join(" ") || `Customer ${input.secondaryId}`;
+  const secondaryName =
+    [secondary.first_name, secondary.last_name].filter(Boolean).join(" ") ||
+    `Customer ${input.secondaryId}`;
 
   const run = db.transaction(() => {
-    const ordersMoved = (
-      db
-        .prepare("UPDATE orders SET customer_id = ?, updated_at = ? WHERE customer_id = ?")
-        .run(input.primaryId, new Date().toISOString(), input.secondaryId)
-    ).changes;
+    const ordersMoved = db
+      .prepare("UPDATE orders SET customer_id = ?, updated_at = ? WHERE customer_id = ?")
+      .run(input.primaryId, new Date().toISOString(), input.secondaryId).changes;
 
     const primaryHasDefault = db
       .prepare("SELECT 1 FROM addresses WHERE customer_id = ? AND is_default = 1 LIMIT 1")
       .get(input.primaryId);
     if (primaryHasDefault) {
-      db.prepare("UPDATE addresses SET is_default = 0, updated_at = ? WHERE customer_id = ? AND is_default = 1").run(
-        new Date().toISOString(),
-        input.secondaryId
-      );
+      db.prepare(
+        "UPDATE addresses SET is_default = 0, updated_at = ? WHERE customer_id = ? AND is_default = 1"
+      ).run(new Date().toISOString(), input.secondaryId);
     }
 
-    const addressesMoved = (
-      db
-        .prepare("UPDATE addresses SET customer_id = ?, updated_at = ? WHERE customer_id = ?")
-        .run(input.primaryId, new Date().toISOString(), input.secondaryId)
-    ).changes;
+    const addressesMoved = db
+      .prepare("UPDATE addresses SET customer_id = ?, updated_at = ? WHERE customer_id = ?")
+      .run(input.primaryId, new Date().toISOString(), input.secondaryId).changes;
 
     db.prepare("UPDATE customer_notes SET customer_id = ? WHERE customer_id = ?").run(
       input.primaryId,
@@ -98,11 +95,16 @@ export function mergeCustomers(input: {
     );
     if (keys.length > 0) {
       const sets = keys.map((k) => `${k} = @${k}`).join(", ");
-      const params: Record<string, unknown> = { id: input.primaryId, updated_at: new Date().toISOString() };
+      const params: Record<string, unknown> = {
+        id: input.primaryId,
+        updated_at: new Date().toISOString(),
+      };
       for (const key of keys) {
         params[key] = overrides[key as MergeCustomerField] ?? null;
       }
-      db.prepare(`UPDATE customers SET ${sets}, updated_at = @updated_at WHERE id = @id`).run(params);
+      db.prepare(`UPDATE customers SET ${sets}, updated_at = @updated_at WHERE id = @id`).run(
+        params
+      );
     }
 
     const deleted = db.prepare("DELETE FROM customers WHERE id = ?").run(input.secondaryId).changes;
@@ -126,7 +128,9 @@ export function mergeCustomers(input: {
     action: "customer.merged",
     entityType: "customer",
     entityId: input.primaryId,
-    entityLabel: [primary.first_name, primary.last_name].filter(Boolean).join(" ") || `Customer ${input.primaryId}`,
+    entityLabel:
+      [primary.first_name, primary.last_name].filter(Boolean).join(" ") ||
+      `Customer ${input.primaryId}`,
     detail: {
       secondary_id: input.secondaryId,
       secondary_name: secondaryName,

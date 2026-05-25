@@ -24,13 +24,13 @@ The frontend has a complete set of shared UI components (`Button`, `DataTable`, 
 
 All `<button>` elements across every page must use the `Button` component.
 
-| Current pattern | Replacement |
-|-----------------|-------------|
+| Current pattern                                                                                  | Replacement                                                                  |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `<button className="rounded-lg bg-[var(--ui-accent)] ..." onClick={fn} disabled={busy != null}>` | `<Button variant="accent" busy={busyAction === "action-name"} onClick={fn}>` |
-| `<button className="rounded-lg border border-[var(--ui-border)] ..." ...>` | `<Button variant="secondary" ...>` |
-| Delete/destructive buttons | `<Button variant="danger" ...>` |
-| Primary CTA ("Add item", "Create order", "Create customer") | `<Button variant="accent" size="lg" ...>` |
-| Inline text-only links ("Link customer", "View all") | `<Button variant="ghost" ...>` |
+| `<button className="rounded-lg border border-[var(--ui-border)] ..." ...>`                       | `<Button variant="secondary" ...>`                                           |
+| Delete/destructive buttons                                                                       | `<Button variant="danger" ...>`                                              |
+| Primary CTA ("Add item", "Create order", "Create customer")                                      | `<Button variant="accent" size="lg" ...>`                                    |
+| Inline text-only links ("Link customer", "View all")                                             | `<Button variant="ghost" ...>`                                               |
 
 **Button variants (canonical list):**
 
@@ -64,12 +64,12 @@ All `<input>` and `<select>` elements must wrap in `FormField` for visible label
 
 All plain-text empty messages (e.g., `<p>No local orders yet.</p>`) must use `EmptyState`.
 
-| Page | Current | Replacement |
-|------|---------|-------------|
-| Sales | `"No local orders yet."` | `<EmptyState message="No local orders yet. Create one or sync Etsy receipts." />` |
-| Customers | `"No customers yet."` | `<EmptyState message="No customers yet. Create one from the panel on the right." />` |
-| Dashboard | `"No orders yet."` | `<EmptyState message="No orders found for this shop." />` |
-| Inventory | `"Create inventory items..."` | `<EmptyState message="Create your first inventory item to get started." />` |
+| Page      | Current                       | Replacement                                                                          |
+| --------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| Sales     | `"No local orders yet."`      | `<EmptyState message="No local orders yet. Create one or sync Etsy receipts." />`    |
+| Customers | `"No customers yet."`         | `<EmptyState message="No customers yet. Create one from the panel on the right." />` |
+| Dashboard | `"No orders yet."`            | `<EmptyState message="No orders found for this shop." />`                            |
+| Inventory | `"Create inventory items..."` | `<EmptyState message="Create your first inventory item to get started." />`          |
 
 **Loading → `LoadingSpinner`**
 

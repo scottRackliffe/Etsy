@@ -52,7 +52,9 @@ type NavResult = {
 
 function formatMoney(value: number | null | undefined): string {
   if (value == null || Number.isNaN(Number(value))) return "";
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(Number(value));
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
+    Number(value)
+  );
 }
 
 function truncate(text: string | null | undefined, max: number): string {
@@ -60,7 +62,9 @@ function truncate(text: string | null | undefined, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function badgeVariantForStatus(status: string | undefined): "success" | "warning" | "error" | "info" | "neutral" {
+function badgeVariantForStatus(
+  status: string | undefined
+): "success" | "warning" | "error" | "info" | "neutral" {
   const s = (status ?? "").toLowerCase();
   if (s === "active" || s === "sold" || s === "listed" || s === "paid") return "success";
   if (s === "void" || s === "cancelled" || s === "retired") return "error";
@@ -85,7 +89,9 @@ function ResultSection({
   if (total === 0) return null;
   return (
     <div className="mb-4">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">{title}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+        {title}
+      </p>
       <div className="space-y-1">{children}</div>
       {seeAllHref && total > 0 && onSeeAll ? (
         <button
@@ -252,7 +258,8 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
   const inventory = data?.inventory;
   const customers = data?.customers;
   const hasResults =
-    (orders?.items.length ?? 0) + (inventory?.items.length ?? 0) + (customers?.items.length ?? 0) > 0;
+    (orders?.items.length ?? 0) + (inventory?.items.length ?? 0) + (customers?.items.length ?? 0) >
+    0;
 
   const highlightKey = highlightIndex >= 0 ? navResults[highlightIndex]?.key : null;
 
@@ -313,7 +320,9 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
 
         <div className="max-h-[calc(70vh-3.5rem)] overflow-y-auto px-4 py-3">
           {q.length >= 2 && !loading && !hasResults ? (
-            <p className="py-6 text-center text-sm text-[var(--ui-muted)]">No results for &apos;{q}&apos;</p>
+            <p className="py-6 text-center text-sm text-[var(--ui-muted)]">
+              No results for &apos;{q}&apos;
+            </p>
           ) : null}
 
           {orders && orders.total > 0 ? (
@@ -325,8 +334,12 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
             >
               {orders.items.map((order) => {
                 const key = `order-${order.id}`;
-                const name = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ");
-                const secondary = [name, formatMoney(order.grand_total)].filter(Boolean).join(" • ");
+                const name = [order.ship_to_first_name, order.ship_to_last_name]
+                  .filter(Boolean)
+                  .join(" ");
+                const secondary = [name, formatMoney(order.grand_total)]
+                  .filter(Boolean)
+                  .join(" • ");
                 return (
                   <ResultRow
                     key={order.id}
@@ -334,7 +347,9 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     secondary={secondary}
                     badge={order.order_status}
                     highlighted={highlightKey === key}
-                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
+                    onMouseEnter={() =>
+                      setHighlightIndex(navResults.findIndex((n) => n.key === key))
+                    }
                     onClick={() => navigate(`/sales?orderId=${order.id}`, q)}
                   />
                 );
@@ -358,7 +373,9 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     secondary={truncate(item.description, 50)}
                     badge={item.status}
                     highlighted={highlightKey === key}
-                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
+                    onMouseEnter={() =>
+                      setHighlightIndex(navResults.findIndex((n) => n.key === key))
+                    }
                     onClick={() => navigate(`/inventory?itemId=${item.id}`, q)}
                   />
                 );
@@ -375,7 +392,8 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
             >
               {customers.items.map((customer) => {
                 const key = `cust-${customer.id}`;
-                const name = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Customer";
+                const name =
+                  [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Customer";
                 const secondary = customer.email ?? customer.phone ?? "";
                 return (
                   <ResultRow
@@ -383,7 +401,9 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     primary={name}
                     secondary={secondary}
                     highlighted={highlightKey === key}
-                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
+                    onMouseEnter={() =>
+                      setHighlightIndex(navResults.findIndex((n) => n.key === key))
+                    }
                     onClick={() => navigate(`/customers?customerId=${customer.id}`, q)}
                   />
                 );

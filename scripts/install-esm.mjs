@@ -20,7 +20,10 @@ function parseDotEnv(content) {
     const idx = line.indexOf("=");
     if (idx <= 0) continue;
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
+    const value = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
     result[key] = value;
   }
   return result;
@@ -100,7 +103,10 @@ async function main() {
       existing.ETSY_API_KEY_HEADER ?? ""
     );
     values.OPENAI_API_KEY = await ask("OPENAI_API_KEY (optional)", existing.OPENAI_API_KEY ?? "");
-    values.OPENAI_MODEL = await ask("OPENAI_MODEL (optional)", existing.OPENAI_MODEL ?? "gpt-4.1-mini");
+    values.OPENAI_MODEL = await ask(
+      "OPENAI_MODEL (optional)",
+      existing.OPENAI_MODEL ?? "gpt-4.1-mini"
+    );
     values.SQLITE_PATH = await ask("SQLITE_PATH (optional)", existing.SQLITE_PATH ?? "");
     rl.close();
   }

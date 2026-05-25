@@ -36,8 +36,7 @@ export async function POST(request: Request, context: { params: Promise<{ order_
       force_unpaid?: boolean;
     };
 
-    const override =
-      body.shipped_without_paid_override === true || body.force_unpaid === true;
+    const override = body.shipped_without_paid_override === true || body.force_unpaid === true;
 
     const order = markOrderShipped(id, {
       shipper: typeof body.shipper === "string" ? body.shipper : undefined,
@@ -68,8 +67,15 @@ export async function POST(request: Request, context: { params: Promise<{ order_
           code: "VALIDATION_ERROR",
           message: error.message,
           userMessage: "This order is not paid yet. Mark it paid first, or choose Ship anyway.",
-          actions: ["Mark the order paid, then mark shipped.", "Retry with shipped_without_paid_override set to true."],
-          fields: { was_paid: ["Order must be paid unless shipping without payment is explicitly confirmed"] },
+          actions: [
+            "Mark the order paid, then mark shipped.",
+            "Retry with shipped_without_paid_override set to true.",
+          ],
+          fields: {
+            was_paid: [
+              "Order must be paid unless shipping without payment is explicitly confirmed",
+            ],
+          },
           canRetry: true,
         })
       );

@@ -25,7 +25,9 @@ export function ShippingInfoSection({ onError, onSuccess }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/settings?limit=500", { headers: { Accept: "application/json" } });
+      const response = await fetch("/api/settings?limit=500", {
+        headers: { Accept: "application/json" },
+      });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
         items?: Array<{ key: string; value: string }>;
       };
@@ -73,7 +75,9 @@ export function ShippingInfoSection({ onError, onSuccess }: Props) {
       const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ value: JSON.stringify(byCarrier[activeCarrier] ?? EMPTY_SHIPPING_INFO) }),
+        body: JSON.stringify({
+          value: JSON.stringify(byCarrier[activeCarrier] ?? EMPTY_SHIPPING_INFO),
+        }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
@@ -86,10 +90,14 @@ export function ShippingInfoSection({ onError, onSuccess }: Props) {
   };
 
   return (
-    <div id="shipping" className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
+    <div
+      id="shipping"
+      className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2"
+    >
       <h4 className="mb-1 text-sm font-semibold text-[var(--ui-title)]">Shipping Info (labels)</h4>
       <p className="mb-3 text-xs text-[var(--ui-muted)]">
-        Return address and account details used when printing shipping labels. No carrier API connection.
+        Return address and account details used when printing shipping labels. No carrier API
+        connection.
       </p>
       <div className="mb-3 flex flex-wrap gap-2">
         {CARRIERS.map((carrier) => (
@@ -117,17 +125,67 @@ export function ShippingInfoSection({ onError, onSuccess }: Props) {
             {["UPS", "FedEx", "DHL"].includes(activeCarrier) ? " and account number" : ""}
           </p>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <input value={current.return_name} onChange={(e) => updateField("return_name", e.target.value)} placeholder="Return / sender name" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-            <input value={current.return_address_line_1} onChange={(e) => updateField("return_address_line_1", e.target.value)} placeholder="Address line 1" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-            <input value={current.return_address_line_2} onChange={(e) => updateField("return_address_line_2", e.target.value)} placeholder="Address line 2 (optional)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-            <input value={current.return_city} onChange={(e) => updateField("return_city", e.target.value)} placeholder="City" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            <input value={current.return_state} onChange={(e) => updateField("return_state", e.target.value)} placeholder="State / Province" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            <input value={current.return_postal_code} onChange={(e) => updateField("return_postal_code", e.target.value)} placeholder="Postal code" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            <input value={current.return_country} onChange={(e) => updateField("return_country", e.target.value)} placeholder="Country" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            <input value={current.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="Phone (optional)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            <input value={current.account_number} onChange={(e) => updateField("account_number", e.target.value)} placeholder="Account number (UPS/FedEx/DHL)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
+            <input
+              value={current.return_name}
+              onChange={(e) => updateField("return_name", e.target.value)}
+              placeholder="Return / sender name"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={current.return_address_line_1}
+              onChange={(e) => updateField("return_address_line_1", e.target.value)}
+              placeholder="Address line 1"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={current.return_address_line_2}
+              onChange={(e) => updateField("return_address_line_2", e.target.value)}
+              placeholder="Address line 2 (optional)"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={current.return_city}
+              onChange={(e) => updateField("return_city", e.target.value)}
+              placeholder="City"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={current.return_state}
+              onChange={(e) => updateField("return_state", e.target.value)}
+              placeholder="State / Province"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={current.return_postal_code}
+              onChange={(e) => updateField("return_postal_code", e.target.value)}
+              placeholder="Postal code"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={current.return_country}
+              onChange={(e) => updateField("return_country", e.target.value)}
+              placeholder="Country"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={current.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+              placeholder="Phone (optional)"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={current.account_number}
+              onChange={(e) => updateField("account_number", e.target.value)}
+              placeholder="Account number (UPS/FedEx/DHL)"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
           </div>
-          <button type="button" onClick={() => void save()} disabled={saving} className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
             {saving ? "Saving…" : `Save ${activeCarrier} Shipping Info`}
           </button>
         </>

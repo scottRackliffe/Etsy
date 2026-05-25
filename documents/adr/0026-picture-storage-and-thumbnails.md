@@ -43,24 +43,24 @@ uploads/
 
 ### 2. Filename strategy and collision handling
 
-| Rule | Behavior |
-|------|----------|
-| Naming | Files are renamed to their slot number (e.g. `1.jpg`, `2.png`) upon import |
-| Collision | Importing to an occupied slot **replaces** the existing file (old file is deleted) |
-| Original filename | Not preserved in the filesystem; the database stores only the canonical path |
-| Path stored in DB | Relative path from project root, e.g. `uploads/inventory/42/pictures/1.jpg` |
-| URL pictures | When a picture slot contains a URL (http/https), no local file is stored; the URL string is stored directly in the DB column |
+| Rule              | Behavior                                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Naming            | Files are renamed to their slot number (e.g. `1.jpg`, `2.png`) upon import                                                   |
+| Collision         | Importing to an occupied slot **replaces** the existing file (old file is deleted)                                           |
+| Original filename | Not preserved in the filesystem; the database stores only the canonical path                                                 |
+| Path stored in DB | Relative path from project root, e.g. `uploads/inventory/42/pictures/1.jpg`                                                  |
+| URL pictures      | When a picture slot contains a URL (http/https), no local file is stored; the URL string is stored directly in the DB column |
 
 ### 3. File type and size limits
 
-| Constraint | Value | Behavior on violation |
-|------------|-------|-----------------------|
-| Allowed types | JPEG, PNG, WebP, GIF | Reject with error: "Unsupported image format. Please use JPEG, PNG, WebP, or GIF." |
-| Max file size | 15 MB per image | Reject with error: "Image exceeds 15 MB limit. Please use a smaller file." |
-| Max dimension | 4000 × 4000 px | Resize (proportional, `fit: inside`, `withoutEnlargement: true`) using Sharp before storing |
-| Min dimension | 50 × 50 px | Reject with error: "Image is too small (minimum 50×50 pixels)." |
-| Target DPI | 300 (metadata only; set via Sharp `withMetadata`) | Applied on save |
-| JPEG quality | 85 (when converting or resizing JPEG) | Balances quality and file size |
+| Constraint    | Value                                             | Behavior on violation                                                                       |
+| ------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Allowed types | JPEG, PNG, WebP, GIF                              | Reject with error: "Unsupported image format. Please use JPEG, PNG, WebP, or GIF."          |
+| Max file size | 15 MB per image                                   | Reject with error: "Image exceeds 15 MB limit. Please use a smaller file."                  |
+| Max dimension | 4000 × 4000 px                                    | Resize (proportional, `fit: inside`, `withoutEnlargement: true`) using Sharp before storing |
+| Min dimension | 50 × 50 px                                        | Reject with error: "Image is too small (minimum 50×50 pixels)."                             |
+| Target DPI    | 300 (metadata only; set via Sharp `withMetadata`) | Applied on save                                                                             |
+| JPEG quality  | 85 (when converting or resizing JPEG)             | Balances quality and file size                                                              |
 
 Type detection uses the file's magic bytes (not just extension) via Sharp's metadata reader.
 
@@ -78,16 +78,17 @@ When importing pictures for an item:
 
 ### 5. Thumbnail specification
 
-| Property | Value |
-|----------|-------|
-| Size | 200 × 200 px (default); user-configurable via `settings.thumbnail_size` (100–400 px range) |
-| Fit | `cover` — crop to fill the square; center gravity |
-| Format | JPEG |
-| Quality | 80 |
-| Storage | `uploads/inventory/<item_id>/thumbnail.jpg` |
-| DB column | `inventory.thumbnail_path` |
+| Property  | Value                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------ |
+| Size      | 200 × 200 px (default); user-configurable via `settings.thumbnail_size` (100–400 px range) |
+| Fit       | `cover` — crop to fill the square; center gravity                                          |
+| Format    | JPEG                                                                                       |
+| Quality   | 80                                                                                         |
+| Storage   | `uploads/inventory/<item_id>/thumbnail.jpg`                                                |
+| DB column | `inventory.thumbnail_path`                                                                 |
 
 **Generation triggers:**
+
 - When `picture_1` is set or changed (thumbnail is always derived from the primary picture).
 - When `picture_1` is removed and `picture_2` exists, thumbnail regenerates from `picture_2` (use the first non-null picture slot).
 - When all pictures are removed, delete the thumbnail and set `thumbnail_path = NULL`.

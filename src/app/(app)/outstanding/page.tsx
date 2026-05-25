@@ -152,7 +152,9 @@ export default function OutstandingPage() {
 
       {/* Outstanding items list */}
       {filtered.length === 0 ? (
-        <EmptyState message={filterType ? "No items match this filter." : "No outstanding tasks right now."} />
+        <EmptyState
+          message={filterType ? "No items match this filter." : "No outstanding tasks right now."}
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map((item, idx) => (

@@ -43,7 +43,9 @@ export async function POST(request: Request, context: { params: Promise<{ order_
       unit_price?: number | null;
     };
     const inventoryId =
-      typeof body.inventory_id === "number" && Number.isInteger(body.inventory_id) && body.inventory_id > 0
+      typeof body.inventory_id === "number" &&
+      Number.isInteger(body.inventory_id) &&
+      body.inventory_id > 0
         ? body.inventory_id
         : null;
     if (!inventoryId) {
@@ -73,7 +75,8 @@ export async function POST(request: Request, context: { params: Promise<{ order_
         status: 400,
         code: "VALIDATION_ERROR",
         message: "Could not add line item",
-        userMessage: "We could not add that line item. The order may be void or the inventory item was not found.",
+        userMessage:
+          "We could not add that line item. The order may be void or the inventory item was not found.",
         actions: ["Check the order status and inventory item, then retry."],
         canRetry: false,
       });

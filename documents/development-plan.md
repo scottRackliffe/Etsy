@@ -53,12 +53,12 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 **Goal:** Full layout with tabs; Sales tab with order list and core commands; Etsy sync and mark paid/shipped.
 
-| Order | Deliverable                                                                                                                                                                                                                                                                                                             | References                                    |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| 2.1   | Layout: tabs (top), full-width main content per **ADR-009** / **ADR-024** v1 (side commands/outstanding panels deferred). Outstanding as full tab. Tab set and commands per **ui-design.md** §2 and §3.                                                                                                                    | ADR-009, ADR-024, ui-design §2–3              |
-| 2.2   | Sales tab: order list (from DB and/or Etsy), commands per ui-design — New order, Sync from Etsy, Mark as paid, Mark as shipped. New order and “add sale” use item pick list per **ADR-015**.                                                                                                                            | ADR-015, ADR-018 (Sales/orders), ui-design §3 |
-| 2.3   | Etsy sync: implement **ADR-019** (sync into `customers`, `addresses`, `orders`, `order_items`).                                                                                                                                                                                                                         | ADR-019, ADR-018                              |
-| 2.4   | Mark paid: set `orders.was_paid = 1`. Mark shipped: update `orders` (shipping_date, shipper, tracking_number, etc.); enforce ship-until-paid or override per **ADR-021** (`orders.shipped_without_paid_override`).                                                                                                        | ADR-017, ADR-018, ADR-021                     |
+| Order | Deliverable                                                                                                                                                                                                        | References                                    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| 2.1   | Layout: tabs (top), full-width main content per **ADR-009** / **ADR-024** v1 (side commands/outstanding panels deferred). Outstanding as full tab. Tab set and commands per **ui-design.md** §2 and §3.            | ADR-009, ADR-024, ui-design §2–3              |
+| 2.2   | Sales tab: order list (from DB and/or Etsy), commands per ui-design — New order, Sync from Etsy, Mark as paid, Mark as shipped. New order and “add sale” use item pick list per **ADR-015**.                       | ADR-015, ADR-018 (Sales/orders), ui-design §3 |
+| 2.3   | Etsy sync: implement **ADR-019** (sync into `customers`, `addresses`, `orders`, `order_items`).                                                                                                                    | ADR-019, ADR-018                              |
+| 2.4   | Mark paid: set `orders.was_paid = 1`. Mark shipped: update `orders` (shipping_date, shipper, tracking_number, etc.); enforce ship-until-paid or override per **ADR-021** (`orders.shipped_without_paid_override`). | ADR-017, ADR-018, ADR-021                     |
 
 **Exit criterion:** User can switch tabs, use Sales tab to sync Etsy orders, create new orders (with item pick list), mark orders paid and shipped (with override when not paid). Outstanding panel may be placeholder.
 
@@ -83,12 +83,12 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 **Goal:** Full CRUD for inventory (with pictures) and customers/addresses; validation and delete behavior defined.
 
-| Order | Deliverable                                                                                                                                                                                                                   | References                                           |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| 4.1   | Inventory: CRUD, pictures, thumbnail, other costs per **ADR-002**, **ADR-010**, **ADR-017**, **ADR-018** (inventory endpoints). Validation per **ADR-021**. Delete behavior per **ADR-022**.                                  | ADR-002, ADR-010, ADR-017, ADR-018, ADR-021, ADR-022 |
-| 4.2   | Listing authoring modes per **ADR-023**: (a) manual winning-listing guided form, (b) integrated AI generation, (c) hybrid export/import handoff flow with draft validation + approval gate before publish.                     | ADR-018, ADR-023, etsy-listing-template-and-requirements.md |
-| 4.3   | Integrated AI connection settings: provider/model/auth config + validation + test-connection UX + retry/timeout/token-budget controls in Config/settings and backend settings model.                                           | ADR-017, ADR-018, ADR-023, ADR-021                    |
-| 4.4   | Customers and addresses: CRUD per **ADR-003**, **ADR-017**, **ADR-018**. Validation per **ADR-021**. Delete per **ADR-022**.                                                                                                  | ADR-003, ADR-017, ADR-018, ADR-021, ADR-022          |
+| Order | Deliverable                                                                                                                                                                                                | References                                                  |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 4.1   | Inventory: CRUD, pictures, thumbnail, other costs per **ADR-002**, **ADR-010**, **ADR-017**, **ADR-018** (inventory endpoints). Validation per **ADR-021**. Delete behavior per **ADR-022**.               | ADR-002, ADR-010, ADR-017, ADR-018, ADR-021, ADR-022        |
+| 4.2   | Listing authoring modes per **ADR-023**: (a) manual winning-listing guided form, (b) integrated AI generation, (c) hybrid export/import handoff flow with draft validation + approval gate before publish. | ADR-018, ADR-023, etsy-listing-template-and-requirements.md |
+| 4.3   | Integrated AI connection settings: provider/model/auth config + validation + test-connection UX + retry/timeout/token-budget controls in Config/settings and backend settings model.                       | ADR-017, ADR-018, ADR-023, ADR-021                          |
+| 4.4   | Customers and addresses: CRUD per **ADR-003**, **ADR-017**, **ADR-018**. Validation per **ADR-021**. Delete per **ADR-022**.                                                                               | ADR-003, ADR-017, ADR-018, ADR-021, ADR-022                 |
 
 **Exit criterion:** User can add/edit/delete inventory (with picture import and thumbnail) and customers/addresses. Listing authoring supports manual guided completion, integrated AI generation, and hybrid export/import flow; all paths enforce readiness checks, schema validation, and approval-before-publish. Outstanding “In stock but not Listed” and “customers with no or incomplete address” are backed by real data.
 
@@ -98,8 +98,8 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 **Goal:** `orders` + `order_items` created/updated with ship-to snapshot; validation and ship-without-paid override in place.
 
-| Order | Deliverable                                                                                                                                                   | References                                  |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Order | Deliverable                                                                                                                                                                        | References                                  |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | 5.1   | Orders: create/update via **ADR-003**, **ADR-017**, **ADR-018** (`POST/PATCH /api/orders`). Snapshot ship-to on `orders`; line items in `order_items`. Validation per **ADR-021**. | ADR-003, ADR-004, ADR-017, ADR-018, ADR-021 |
 
 **Exit criterion:** New order flow creates `orders` + `order_items` with full ship-to snapshot; `PATCH /api/orders/[id]` supports shipping_date, shipper, seller_shipping_cost, discount_total, notes, tracking_number; mark-paid and mark-shipped (with override) behave per ADR-021 and ADR-017.
@@ -146,25 +146,25 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 Same as [implementation-guide.md](implementation-guide.md):
 
-| Topic                                      | Where                                                |
-| ------------------------------------------ | ---------------------------------------------------- |
-| Schema, DDL, indexes                       | ADR-017                                              |
-| Schema drift and migration plan            | documents/database/SCHEMA_RECONCILIATION.md          |
-| Every API endpoint                         | ADR-018                                              |
-| Etsy sync step-by-step                     | ADR-019                                              |
-| Outstanding list queries and caching       | ADR-020                                              |
-| Validation rules                           | ADR-021                                              |
-| Delete / integrity                         | ADR-022                                              |
-| Report content (exact)                     | ADR-013                                              |
-| Dashboard                                  | ADR-016                                              |
-| UI layout, tabs, commands                  | ADR-009, ui-design.md                                |
-| Frontend component architecture            | ADR-024, documents/frontend-architecture.md          |
-| Client-side state management               | documents/state-management.md                        |
-| Inventory, customers, orders model         | ADR-002, ADR-003, ADR-004                            |
-| Pictures, thumbnail, storage               | ADR-010, ADR-015, ADR-026                            |
-| Token refresh middleware                   | ADR-025                                              |
-| Backup and restore                         | ADR-027                                              |
-| Etsy compliance                            | ADR-011, etsy-compliance.md                          |
-| Etsy listing content, AI generation        | etsy-listing-template-and-requirements.md            |
-| Listing generation modes and approval flow | ADR-023                                              |
-| Build readiness checklist                  | documents/no-developer-questions-build.md            |
+| Topic                                      | Where                                       |
+| ------------------------------------------ | ------------------------------------------- |
+| Schema, DDL, indexes                       | ADR-017                                     |
+| Schema drift and migration plan            | documents/database/SCHEMA_RECONCILIATION.md |
+| Every API endpoint                         | ADR-018                                     |
+| Etsy sync step-by-step                     | ADR-019                                     |
+| Outstanding list queries and caching       | ADR-020                                     |
+| Validation rules                           | ADR-021                                     |
+| Delete / integrity                         | ADR-022                                     |
+| Report content (exact)                     | ADR-013                                     |
+| Dashboard                                  | ADR-016                                     |
+| UI layout, tabs, commands                  | ADR-009, ui-design.md                       |
+| Frontend component architecture            | ADR-024, documents/frontend-architecture.md |
+| Client-side state management               | documents/state-management.md               |
+| Inventory, customers, orders model         | ADR-002, ADR-003, ADR-004                   |
+| Pictures, thumbnail, storage               | ADR-010, ADR-015, ADR-026                   |
+| Token refresh middleware                   | ADR-025                                     |
+| Backup and restore                         | ADR-027                                     |
+| Etsy compliance                            | ADR-011, etsy-compliance.md                 |
+| Etsy listing content, AI generation        | etsy-listing-template-and-requirements.md   |
+| Listing generation modes and approval flow | ADR-023                                     |
+| Build readiness checklist                  | documents/no-developer-questions-build.md   |

@@ -34,7 +34,9 @@ type Summary = {
 };
 
 function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(value ?? 0);
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
+    value ?? 0
+  );
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -51,9 +53,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function itemSummary(items: OrderLine[]): string {
-  const text = items
-    .map((item) => item.description?.trim() || "Item")
-    .join(", ");
+  const text = items.map((item) => item.description?.trim() || "Item").join(", ");
   if (text.length <= 80) return text;
   return `${text.slice(0, 77)}...`;
 }
@@ -92,7 +92,7 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
         };
         if (!response.ok) throw data;
         setSummary(data.summary ?? null);
-        setOrders((current) => (append ? [...current, ...(data.items ?? [])] : data.items ?? []));
+        setOrders((current) => (append ? [...current, ...(data.items ?? [])] : (data.items ?? [])));
         setHasMore(Boolean(data.pagination?.has_more));
         setOffset(nextOffset + (data.items?.length ?? 0));
       } catch (err) {
@@ -132,8 +132,8 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
         <>
           <p className="mb-3 text-xs text-[var(--ui-muted)]">
             {summary.total_orders} order{summary.total_orders === 1 ? "" : "s"} | Total spent:{" "}
-            {formatMoney(summary.total_spent)} | First: {formatDate(summary.first_order_date)} | Last:{" "}
-            {formatDate(summary.last_order_date)}
+            {formatMoney(summary.total_spent)} | First: {formatDate(summary.first_order_date)} |
+            Last: {formatDate(summary.last_order_date)}
           </p>
           <ul className="space-y-2">
             {orders.map((order) => {
@@ -155,8 +155,12 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
                       >
                         {order.order_number ?? `Order ${order.id}`}
                       </Link>
-                      <p className="text-xs text-[var(--ui-muted)]">{formatDate(order.order_date)}</p>
-                      <p className="mt-1 text-xs text-[var(--ui-body)]">{itemSummary(order.items)}</p>
+                      <p className="text-xs text-[var(--ui-muted)]">
+                        {formatDate(order.order_date)}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--ui-body)]">
+                        {itemSummary(order.items)}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-[var(--ui-title)]">
@@ -189,7 +193,12 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
           </ul>
           {hasMore ? (
             <div className="mt-3">
-              <Button variant="secondary" size="sm" busy={loadingMore} onClick={() => void loadPage(offset, true)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                busy={loadingMore}
+                onClick={() => void loadPage(offset, true)}
+              >
                 Load more
               </Button>
             </div>

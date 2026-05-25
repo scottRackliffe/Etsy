@@ -77,3 +77,31 @@ export function addOrdersToPrintQueue(
   }
   return { added, duplicate, full };
 }
+
+export function printQueueTypeLabel(type: PrintQueueDocType): string {
+  switch (type) {
+    case "invoice":
+      return "Invoice";
+    case "thank-you":
+      return "Thank-you note";
+    case "label":
+      return "Shipping label";
+  }
+}
+
+export function removePrintQueueEntry(type: PrintQueueDocType, orderId: number): void {
+  const next = readQueue().filter((e) => !(e.type === type && e.orderId === orderId));
+  writeQueue(next);
+}
+
+export function removePrintQueueEntries(
+  entries: Array<{ type: PrintQueueDocType; orderId: number }>
+): void {
+  const keys = new Set(entries.map((e) => `${e.type}:${e.orderId}`));
+  const next = readQueue().filter((e) => !keys.has(`${e.type}:${e.orderId}`));
+  writeQueue(next);
+}
+
+export function clearPrintQueue(): void {
+  writeQueue([]);
+}

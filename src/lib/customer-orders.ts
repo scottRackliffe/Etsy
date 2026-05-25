@@ -91,7 +91,9 @@ export function getCustomerOrdersSummary(customerId: number): CustomerOrdersSumm
 export function listCustomerOrders(customerId: number, limit: number, offset: number) {
   const db = getDb();
   const total = (
-    db.prepare("SELECT COUNT(*) AS c FROM orders WHERE customer_id = ?").get(customerId) as { c: number }
+    db.prepare("SELECT COUNT(*) AS c FROM orders WHERE customer_id = ?").get(customerId) as {
+      c: number;
+    }
   ).c;
 
   const rows = db
@@ -132,9 +134,7 @@ export function listCustomerOrders(customerId: number, limit: number, offset: nu
 
 export function getCustomerActiveOrderCount(customerId: number): number {
   const row = getDb()
-    .prepare(
-      `SELECT COUNT(*) AS c FROM orders WHERE customer_id = ? AND order_status = 'active'`
-    )
+    .prepare(`SELECT COUNT(*) AS c FROM orders WHERE customer_id = ? AND order_status = 'active'`)
     .get(customerId) as { c: number };
   return row.c ?? 0;
 }

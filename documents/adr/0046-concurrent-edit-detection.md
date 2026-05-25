@@ -1,15 +1,19 @@
 # ADR-046: Concurrent edit detection
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Two browser tabs editing the same record will silently overwrite each other. Although this is a single-user app, multiple tabs and auto-refresh cycles can conflict. Without protection, a user editing an inventory item in one tab while another tab auto-refreshes and triggers a save will lose changes without any warning.
 
 ## Decision
+
 Implement optimistic locking via the `updated_at` timestamp column already present on all mutable tables.
 
 ### Protocol
@@ -37,6 +41,7 @@ Implement optimistic locking via the `updated_at` timestamp column already prese
 ### Scope
 
 Applies to all PATCH endpoints for:
+
 - `inventory`
 - `orders`
 - `customers`
@@ -44,6 +49,7 @@ Applies to all PATCH endpoints for:
 - `settings` (individual key updates)
 
 Does NOT apply to:
+
 - POST (create) requests — no prior version exists
 - DELETE requests — deletion is idempotent
 - Bulk operations (e.g., CSV import) — these use row-level uniqueness checks instead
@@ -66,10 +72,12 @@ If-Match: 2026-05-24T14:30:00.000Z
 The value is the exact ISO 8601 string as returned by the API in the record's `updated_at` field. No ETag hashing — the raw timestamp is sufficient for a single-user local app.
 
 ## Consequences
+
 - **Positive**: Prevents silent data loss from concurrent tab edits or stale auto-saves. Simple to implement with no additional DB columns. Backwards compatible — existing clients without the header continue working.
 - **Negative**: Users will occasionally see 409 errors and need to reload, losing unsaved edits. No auto-merge of changes — the entire record must be reloaded.
 
 ## Notes
+
 - Cross-references: ADR-018 (API rules — standard error envelope), ADR-021 (validation — error response shape)
 - The `updated_at` column is already set by triggers/application code on every UPDATE. No schema changes needed.
 - Etsy sync operations (ADR-019) do NOT send `If-Match` headers — they always win because sync data is authoritative from Etsy.

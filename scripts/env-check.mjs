@@ -10,7 +10,10 @@ if (fs.existsSync(envPath)) {
     const idx = line.indexOf("=");
     if (idx <= 0) continue;
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
+    const value = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
     if (!(key in process.env)) {
       process.env[key] = value;
     }

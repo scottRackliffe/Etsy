@@ -18,9 +18,9 @@ export function assertRecordNotStale(
   if (!ifMatch) return;
   if (!STALE_TABLES.includes(table)) return;
 
-  const row = getDb()
-    .prepare(`SELECT updated_at FROM ${table} WHERE id = ?`)
-    .get(id) as { updated_at?: string | null } | undefined;
+  const row = getDb().prepare(`SELECT updated_at FROM ${table} WHERE id = ?`).get(id) as
+    | { updated_at?: string | null }
+    | undefined;
 
   if (!row) return;
 

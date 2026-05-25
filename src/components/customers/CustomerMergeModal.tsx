@@ -119,7 +119,9 @@ export function CustomerMergeModal({
         const [pRes, sRes, oRes, aRes] = await Promise.all([
           fetch(`/api/customers/${pId}`, { headers: { Accept: "application/json" } }),
           fetch(`/api/customers/${sId}`, { headers: { Accept: "application/json" } }),
-          fetch(`/api/customers/${sId}/orders?limit=50`, { headers: { Accept: "application/json" } }),
+          fetch(`/api/customers/${sId}/orders?limit=50`, {
+            headers: { Accept: "application/json" },
+          }),
           fetch(`/api/customers/${sId}/addresses`, { headers: { Accept: "application/json" } }),
         ]);
         const pData = (await pRes.json()) as ApiErrorShape & { customer?: Customer };
@@ -142,7 +144,11 @@ export function CustomerMergeModal({
         );
         setStep(1);
       } catch (err) {
-        onError("Could not load customers", "We could not load customer details for merge preview.", err);
+        onError(
+          "Could not load customers",
+          "We could not load customer details for merge preview.",
+          err
+        );
       } finally {
         setBusy(false);
       }
@@ -160,11 +166,7 @@ export function CustomerMergeModal({
       .catch(() => setOptions([]))
       .finally(() => setLoadingOptions(false));
 
-    if (
-      initialPrimaryId &&
-      initialSecondaryId &&
-      initialPrimaryId !== initialSecondaryId
-    ) {
+    if (initialPrimaryId && initialSecondaryId && initialPrimaryId !== initialSecondaryId) {
       void loadPreview(initialPrimaryId, initialSecondaryId);
     }
   }, [open, reset, initialPrimaryId, initialSecondaryId, loadPreview]);
@@ -199,12 +201,17 @@ export function CustomerMergeModal({
 
   const secondaryName = useMemo(() => {
     if (!secondary) return "";
-    return [secondary.first_name, secondary.last_name].filter(Boolean).join(" ") || `Customer ${secondary.id}`;
+    return (
+      [secondary.first_name, secondary.last_name].filter(Boolean).join(" ") ||
+      `Customer ${secondary.id}`
+    );
   }, [secondary]);
 
   const primaryName = useMemo(() => {
     if (!primary) return "";
-    return [primary.first_name, primary.last_name].filter(Boolean).join(" ") || `Customer ${primary.id}`;
+    return (
+      [primary.first_name, primary.last_name].filter(Boolean).join(" ") || `Customer ${primary.id}`
+    );
   }, [primary]);
 
   return (
@@ -218,7 +225,8 @@ export function CustomerMergeModal({
         {step === 0 ? (
           <div className="space-y-4">
             <p className="text-sm text-[var(--ui-muted)]">
-              Choose the customer record to keep (primary) and the duplicate to merge into it (secondary).
+              Choose the customer record to keep (primary) and the duplicate to merge into it
+              (secondary).
             </p>
             {loadingOptions ? (
               <p className="text-sm text-[var(--ui-muted)]">Loading customers…</p>
@@ -285,9 +293,15 @@ export function CustomerMergeModal({
                 <tbody>
                   {MERGE_CUSTOMER_FIELDS.map((field) => (
                     <tr key={field} className="border-b border-[var(--ui-border)]/60">
-                      <td className="px-3 py-2 font-medium text-[var(--ui-title)]">{FIELD_LABELS[field]}</td>
-                      <td className="px-3 py-2 text-[var(--ui-body)]">{fieldValue(primary, field) || "—"}</td>
-                      <td className="px-3 py-2 text-[var(--ui-body)]">{fieldValue(secondary, field) || "—"}</td>
+                      <td className="px-3 py-2 font-medium text-[var(--ui-title)]">
+                        {FIELD_LABELS[field]}
+                      </td>
+                      <td className="px-3 py-2 text-[var(--ui-body)]">
+                        {fieldValue(primary, field) || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-[var(--ui-body)]">
+                        {fieldValue(secondary, field) || "—"}
+                      </td>
                       <td className="px-3 py-2">
                         <select
                           value={choices[field]}
@@ -310,7 +324,9 @@ export function CustomerMergeModal({
               </table>
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--ui-title)]">Orders to move ({secondaryOrders.length})</p>
+              <p className="text-sm font-medium text-[var(--ui-title)]">
+                Orders to move ({secondaryOrders.length})
+              </p>
               {secondaryOrders.length === 0 ? (
                 <p className="text-xs text-[var(--ui-muted)]">No orders on secondary customer.</p>
               ) : (
@@ -328,7 +344,9 @@ export function CustomerMergeModal({
                 Addresses to move ({secondaryAddresses.length})
               </p>
               {secondaryAddresses.length === 0 ? (
-                <p className="text-xs text-[var(--ui-muted)]">No separate addresses on secondary customer.</p>
+                <p className="text-xs text-[var(--ui-muted)]">
+                  No separate addresses on secondary customer.
+                </p>
               ) : (
                 <ul className="mt-1 max-h-28 overflow-y-auto text-xs text-[var(--ui-body)]">
                   {secondaryAddresses.map((a) => (

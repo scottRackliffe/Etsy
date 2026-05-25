@@ -95,7 +95,10 @@ export function formatDraftTime(savedAt: string): string {
   });
 }
 
-export function isDraftStale(draftVersion: string, serverUpdatedAt: string | null | undefined): boolean {
+export function isDraftStale(
+  draftVersion: string,
+  serverUpdatedAt: string | null | undefined
+): boolean {
   if (!serverUpdatedAt) return false;
   const draftMs = new Date(draftVersion).getTime();
   const serverMs = new Date(serverUpdatedAt).getTime();

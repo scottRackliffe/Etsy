@@ -56,9 +56,7 @@ async function applyRetention(dir: string): Promise<number> {
   const max = maxRaw ? parseInt(maxRaw, 10) : 25;
   const maxCount = Number.isFinite(max) && max > 0 ? Math.min(100, max) : 25;
 
-  const files = (await fsp.readdir(dir))
-    .filter((f) => BACKUP_FILE_RE.test(f))
-    .sort();
+  const files = (await fsp.readdir(dir)).filter((f) => BACKUP_FILE_RE.test(f)).sort();
 
   while (files.length > maxCount) {
     const oldest = files.shift();
@@ -107,7 +105,10 @@ export async function createBackup(options?: { source?: "user" | "system" }): Pr
       message: "Database failed quick_check before backup",
       userMessage:
         "Database failed integrity check. Cannot create a reliable backup. Please contact support.",
-      actions: ["Try again later.", "Go to Config → Backup & Restore to restore from a prior backup."],
+      actions: [
+        "Try again later.",
+        "Go to Config → Backup & Restore to restore from a prior backup.",
+      ],
       canRetry: false,
     });
   }

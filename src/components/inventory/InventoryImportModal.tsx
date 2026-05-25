@@ -141,8 +141,9 @@ export function InventoryImportModal({ open, onClose, onImported, onError, onSuc
         {preview ? (
           <>
             <p className="text-sm text-[var(--ui-body)]">
-              {preview.total_rows} total row{preview.total_rows === 1 ? "" : "s"} — {validCount} valid,{" "}
-              {preview.error_count ?? 0} with errors (preview shows first {preview.rows.length}).
+              {preview.total_rows} total row{preview.total_rows === 1 ? "" : "s"} — {validCount}{" "}
+              valid, {preview.error_count ?? 0} with errors (preview shows first{" "}
+              {preview.rows.length}).
             </p>
             <div className="max-h-64 overflow-auto rounded-lg border border-[var(--ui-border)]">
               <table className="w-full text-left text-xs">
@@ -164,9 +165,7 @@ export function InventoryImportModal({ open, onClose, onImported, onError, onSuc
                       <td className="px-2 py-1">{String(row.data.item_number ?? "—")}</td>
                       <td className="px-2 py-1">{String(row.data.status ?? "Draft")}</td>
                       <td className="px-2 py-1">
-                        {row.valid
-                          ? "Valid"
-                          : row.errors.map((e) => e.message).join("; ")}
+                        {row.valid ? "Valid" : row.errors.map((e) => e.message).join("; ")}
                       </td>
                     </tr>
                   ))}

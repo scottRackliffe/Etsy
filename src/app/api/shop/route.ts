@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getShops } from "@/lib/etsy";
-import { errorResponse, fromUnknownError } from "@/lib/api-error";
+import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
 import { EtsyApiError } from "@/lib/etsy";
 import { getSetting } from "@/lib/settings-store";
@@ -28,6 +28,9 @@ export async function GET() {
     const activeShopId = activeShopIdRaw ? Number(activeShopIdRaw) : null;
     return NextResponse.json({ ok: true, shops, active_shop_id: activeShopId });
   } catch (e) {
+    if (e instanceof ApiRouteError && e.code === "UNAUTHORIZED") {
+      return errorResponse(e);
+    }
     console.error("Shops error:", e);
     return errorResponse(
       fromUnknownError(e, {

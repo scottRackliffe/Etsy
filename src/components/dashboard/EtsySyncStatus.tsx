@@ -53,7 +53,11 @@ export function EtsySyncStatus({ connected }: { connected: boolean }) {
       <p className="mt-1 text-xs text-[var(--ui-muted)]">
         Auto-sync:{" "}
         <span className="text-[var(--ui-body)]">
-          {loading ? "…" : interval === "off" ? "off" : autoSyncLabel(interval).replace("Every ", "every ")}
+          {loading
+            ? "…"
+            : interval === "off"
+              ? "off"
+              : autoSyncLabel(interval).replace("Every ", "every ")}
         </span>
       </p>
       <p className="mt-0.5 text-xs text-[var(--ui-muted)]">

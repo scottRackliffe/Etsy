@@ -76,7 +76,9 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
 }
 
 function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(value ?? 0);
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
+    value ?? 0
+  );
 }
 
 function formatPct(value: number | null | undefined): string {
@@ -153,24 +155,31 @@ export function InventoryDetailPanel({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const loadVendorPurchases = useCallback(async (inventoryId: number) => {
-    setPurchasesLoading(true);
-    try {
-      const response = await fetch(`/api/purchases?inventory_id=${inventoryId}&limit=50`, {
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        items?: VendorPurchase[];
-      };
-      if (!response.ok) throw data;
-      setVendorPurchases(data.items ?? []);
-    } catch (err) {
-      onError("Could not load vendor purchases", "We could not load where-you-bought records.", err);
-      setVendorPurchases([]);
-    } finally {
-      setPurchasesLoading(false);
-    }
-  }, [onError]);
+  const loadVendorPurchases = useCallback(
+    async (inventoryId: number) => {
+      setPurchasesLoading(true);
+      try {
+        const response = await fetch(`/api/purchases?inventory_id=${inventoryId}&limit=50`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          items?: VendorPurchase[];
+        };
+        if (!response.ok) throw data;
+        setVendorPurchases(data.items ?? []);
+      } catch (err) {
+        onError(
+          "Could not load vendor purchases",
+          "We could not load where-you-bought records.",
+          err
+        );
+        setVendorPurchases([]);
+      } finally {
+        setPurchasesLoading(false);
+      }
+    },
+    [onError]
+  );
 
   useEffect(() => {
     if (!item?.id) {
@@ -187,9 +196,7 @@ export function InventoryDetailPanel({
     );
   }, [vendorPurchases]);
 
-  const showProfitability =
-    item &&
-    (item.status === "Sold" || (Number(item.sale_revenue ?? 0) > 0));
+  const showProfitability = item && (item.status === "Sold" || Number(item.sale_revenue ?? 0) > 0);
 
   const saveChanges = async () => {
     if (!item || !draft) return;
@@ -315,14 +322,15 @@ export function InventoryDetailPanel({
   if (!item || !draft) {
     return (
       <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-        <p className="text-sm text-[var(--ui-muted)]">Select an inventory item to view and edit details.</p>
+        <p className="text-sm text-[var(--ui-muted)]">
+          Select an inventory item to view and edit details.
+        </p>
       </div>
     );
   }
 
   const inputClass = "w-full";
-  const showRecovery =
-    recovery && recoveryLabel && !recoveryApplied && !isDirty;
+  const showRecovery = recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
   return (
     <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
@@ -359,9 +367,16 @@ export function InventoryDetailPanel({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Identity</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Identity
+          </p>
           <FormField label="Item number">
-            <TextInput value={item.item_number ?? ""} onChange={() => {}} disabled className={inputClass} />
+            <TextInput
+              value={item.item_number ?? ""}
+              onChange={() => {}}
+              disabled
+              className={inputClass}
+            />
           </FormField>
           <FormField label="Description">
             <textarea
@@ -394,31 +409,56 @@ export function InventoryDetailPanel({
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Financials</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Financials
+          </p>
           <div className="grid grid-cols-2 gap-2">
             <FormField
               label="Purchase cost"
               helpText="What you paid to acquire this item from the vendor (not including shipping to you)."
             >
-              <TextInput type="number" value={draft.purchase_cost} onChange={(v) => setDraft((c) => ({ ...c!, purchase_cost: v }))} disabled={busy || saving} className={inputClass} />
+              <TextInput
+                type="number"
+                value={draft.purchase_cost}
+                onChange={(v) => setDraft((c) => ({ ...c!, purchase_cost: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
             </FormField>
             <FormField
               label="Inbound shipping"
               helpText="Your cost to receive this item from the vendor/seller."
             >
-              <TextInput type="number" value={draft.shipping_cost} onChange={(v) => setDraft((c) => ({ ...c!, shipping_cost: v }))} disabled={busy || saving} className={inputClass} />
+              <TextInput
+                type="number"
+                value={draft.shipping_cost}
+                onChange={(v) => setDraft((c) => ({ ...c!, shipping_cost: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
             </FormField>
             <FormField
               label="Sale price"
               helpText="The price the buyer paid (or will pay) for this item."
             >
-              <TextInput type="number" value={draft.sale_revenue} onChange={(v) => setDraft((c) => ({ ...c!, sale_revenue: v }))} disabled={busy || saving} className={inputClass} />
+              <TextInput
+                type="number"
+                value={draft.sale_revenue}
+                onChange={(v) => setDraft((c) => ({ ...c!, sale_revenue: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
             </FormField>
             <FormField
               label="Category / tags"
               helpText="Comma-separated tags for organizing inventory (e.g., 'glassware, depression era, pink')."
             >
-              <TextInput value={draft.category_tags} onChange={(v) => setDraft((c) => ({ ...c!, category_tags: v }))} disabled={busy || saving} className={inputClass} />
+              <TextInput
+                value={draft.category_tags}
+                onChange={(v) => setDraft((c) => ({ ...c!, category_tags: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
             </FormField>
           </div>
           {(showProfitability || (item.total_cost != null && item.total_cost > 0)) && (
@@ -428,7 +468,13 @@ export function InventoryDetailPanel({
               {showProfitability ? (
                 <>
                   {" · "}Net profit{" "}
-                  <span className={Number(item.net_profit ?? 0) >= 0 ? "text-[var(--ui-green)]" : "text-[var(--ui-red)]"}>
+                  <span
+                    className={
+                      Number(item.net_profit ?? 0) >= 0
+                        ? "text-[var(--ui-green)]"
+                        : "text-[var(--ui-red)]"
+                    }
+                  >
                     {formatMoney(item.net_profit)}
                   </span>
                   {" · "}Margin {formatPct(item.margin_pct)}
@@ -440,7 +486,9 @@ export function InventoryDetailPanel({
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Dates</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Dates
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
@@ -464,7 +512,9 @@ export function InventoryDetailPanel({
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Condition</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Condition
+          </p>
           <FormField
             label="Condition"
             helpText="Rate the item's physical condition using standard vintage/antique grading terms."
@@ -472,7 +522,10 @@ export function InventoryDetailPanel({
             <SelectInput
               value={draft.condition_code}
               onChange={(v) => setDraft((c) => ({ ...c!, condition_code: v }))}
-              options={[{ value: "", label: "—" }, ...CONDITIONS.map((c) => ({ value: c, label: c }))]}
+              options={[
+                { value: "", label: "—" },
+                ...CONDITIONS.map((c) => ({ value: c, label: c })),
+              ]}
               disabled={busy || saving}
             />
           </FormField>
@@ -513,7 +566,9 @@ export function InventoryDetailPanel({
             {vendorPurchases.length > 0 ? (
               <p className="text-xs text-[var(--ui-muted)]">
                 Vendor total {formatMoney(vendorRollup)}
-                {item.purchase_cost != null ? ` · Inventory purchase cost ${formatMoney(item.purchase_cost)}` : ""}
+                {item.purchase_cost != null
+                  ? ` · Inventory purchase cost ${formatMoney(item.purchase_cost)}`
+                  : ""}
               </p>
             ) : null}
           </div>
@@ -573,7 +628,11 @@ export function InventoryDetailPanel({
       </section>
 
       <div className="mt-4 flex justify-end">
-        <Button variant="accent" onClick={() => void saveChanges()} disabled={busy || saving || !isDirty}>
+        <Button
+          variant="accent"
+          onClick={() => void saveChanges()}
+          disabled={busy || saving || !isDirty}
+        >
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
@@ -586,32 +645,72 @@ export function InventoryDetailPanel({
       </div>
 
       {addBuyOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
-            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Add vendor purchase</h4>
+            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
+              Add vendor purchase
+            </h4>
             <FormField label="Vendor name">
-              <TextInput value={buyForm.vendor_name} onChange={(v) => setBuyForm((c) => ({ ...c, vendor_name: v }))} className={inputClass} />
+              <TextInput
+                value={buyForm.vendor_name}
+                onChange={(v) => setBuyForm((c) => ({ ...c, vendor_name: v }))}
+                className={inputClass}
+              />
             </FormField>
             <FormField label="Purchase date">
-              <input type="date" value={buyForm.purchase_date} onChange={(e) => setBuyForm((c) => ({ ...c, purchase_date: e.target.value }))} className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm" />
+              <input
+                type="date"
+                value={buyForm.purchase_date}
+                onChange={(e) => setBuyForm((c) => ({ ...c, purchase_date: e.target.value }))}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <FormField label="Purchase price">
-                <TextInput type="number" value={buyForm.purchase_price} onChange={(v) => setBuyForm((c) => ({ ...c, purchase_price: v }))} className={inputClass} />
+                <TextInput
+                  type="number"
+                  value={buyForm.purchase_price}
+                  onChange={(v) => setBuyForm((c) => ({ ...c, purchase_price: v }))}
+                  className={inputClass}
+                />
               </FormField>
               <FormField label="Shipping">
-                <TextInput type="number" value={buyForm.shipping_price} onChange={(v) => setBuyForm((c) => ({ ...c, shipping_price: v }))} className={inputClass} />
+                <TextInput
+                  type="number"
+                  value={buyForm.shipping_price}
+                  onChange={(v) => setBuyForm((c) => ({ ...c, shipping_price: v }))}
+                  className={inputClass}
+                />
               </FormField>
             </div>
             <FormField label="Reference #">
-              <TextInput value={buyForm.reference_number} onChange={(v) => setBuyForm((c) => ({ ...c, reference_number: v }))} className={inputClass} />
+              <TextInput
+                value={buyForm.reference_number}
+                onChange={(v) => setBuyForm((c) => ({ ...c, reference_number: v }))}
+                className={inputClass}
+              />
             </FormField>
             <FormField label="Notes">
-              <textarea value={buyForm.notes} onChange={(e) => setBuyForm((c) => ({ ...c, notes: e.target.value }))} rows={2} className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm" />
+              <textarea
+                value={buyForm.notes}
+                onChange={(e) => setBuyForm((c) => ({ ...c, notes: e.target.value }))}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setAddBuyOpen(false)}>Cancel</Button>
-              <Button variant="accent" onClick={() => void addVendorBuy()} disabled={buyBusy || !buyForm.vendor_name.trim()}>
+              <Button variant="secondary" onClick={() => setAddBuyOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="accent"
+                onClick={() => void addVendorBuy()}
+                disabled={buyBusy || !buyForm.vendor_name.trim()}
+              >
                 {buyBusy ? "Saving…" : "Add buy"}
               </Button>
             </div>

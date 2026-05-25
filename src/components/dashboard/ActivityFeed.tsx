@@ -77,78 +77,93 @@ export function ActivityFeed({
 
   return (
     <>
-    <ProgressModal {...syncModal} />
-    <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Recent activity</h3>
-          <p className="text-sm text-[var(--ui-muted)]">Latest changes across orders, inventory, and customers.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {onViewAll ? (
+      <ProgressModal {...syncModal} />
+      <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--ui-title)]">Recent activity</h3>
+            <p className="text-sm text-[var(--ui-muted)]">
+              Latest changes across orders, inventory, and customers.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onViewAll ? (
+              <button
+                type="button"
+                onClick={onViewAll}
+                className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-accent)]"
+              >
+                View all →
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={onViewAll}
-              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-accent)]"
+              onClick={() => void load()}
+              disabled={loading}
+              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)] disabled:opacity-60"
             >
-              View all →
+              Refresh
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)] disabled:opacity-60"
-          >
-            Refresh
-          </button>
+          </div>
         </div>
-      </div>
 
-      {loading ? (
-        <div className="space-y-2 p-5">
-          {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="h-10 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
-          ))}
-        </div>
-      ) : loadError ? (
-        <p className="p-5 text-sm text-[var(--ui-red)]">{loadError}</p>
-      ) : items.length === 0 ? (
-        <EmptyState
-          message="No recent activity. Start by adding inventory or syncing orders from Etsy."
-          primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
-          secondaryAction={
-            shops.length > 0
-              ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-              : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
-          }
-        />
-      ) : (
-        <ul className="divide-y divide-[var(--ui-border)]/70">
-          {items.map((entry) => {
-            const href = activityEntityHref(entry.entity_type, entry.entity_id);
-            return (
-              <li key={entry.id} className="px-5 py-3 text-sm">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="font-medium text-[var(--ui-title)]">{formatActivityAction(entry.action)}</p>
-                  <time className="text-xs text-[var(--ui-muted)]">{formatActivityTimestamp(entry.created_at)}</time>
-                </div>
-                {entry.entity_label ? (
-                  href ? (
-                    <Link href={href} className="mt-0.5 text-xs text-[var(--ui-accent)] hover:underline">
-                      {entry.entity_label}
-                    </Link>
-                  ) : (
-                    <p className="mt-0.5 text-xs text-[var(--ui-body)]">{entry.entity_label}</p>
-                  )
-                ) : null}
-                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">{entry.source}</p>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+        {loading ? (
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="h-10 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
+            ))}
+          </div>
+        ) : loadError ? (
+          <p className="p-5 text-sm text-[var(--ui-red)]">{loadError}</p>
+        ) : items.length === 0 ? (
+          <EmptyState
+            message="No recent activity. Start by adding inventory or syncing orders from Etsy."
+            primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
+            secondaryAction={
+              shops.length > 0
+                ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
+                : {
+                    label: "Connect Etsy first",
+                    onClick: () => router.push("/config#etsy-connection"),
+                    variant: "secondary",
+                  }
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-[var(--ui-border)]/70">
+            {items.map((entry) => {
+              const href = activityEntityHref(entry.entity_type, entry.entity_id);
+              return (
+                <li key={entry.id} className="px-5 py-3 text-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-medium text-[var(--ui-title)]">
+                      {formatActivityAction(entry.action)}
+                    </p>
+                    <time className="text-xs text-[var(--ui-muted)]">
+                      {formatActivityTimestamp(entry.created_at)}
+                    </time>
+                  </div>
+                  {entry.entity_label ? (
+                    href ? (
+                      <Link
+                        href={href}
+                        className="mt-0.5 text-xs text-[var(--ui-accent)] hover:underline"
+                      >
+                        {entry.entity_label}
+                      </Link>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-[var(--ui-body)]">{entry.entity_label}</p>
+                    )
+                  ) : null}
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">
+                    {entry.source}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </>
   );
 }

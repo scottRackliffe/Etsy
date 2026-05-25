@@ -1,15 +1,19 @@
 # ADR-050: Network loss handling and retry queue
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 The app crashes or hangs if network drops mid-operation. No retry logic exists for failed API calls. Since this is a local Next.js app communicating with its own backend over localhost, true network loss is rare but possible (e.g., the server process crashes, port conflict, or the app is accessed from a remote machine). More commonly, transient errors (500, 503) from heavy operations or Etsy API timeouts need graceful handling.
 
 ## Decision
+
 Implement network detection, an offline banner, a mutation retry queue, and transient error retry logic.
 
 ### Network detection
@@ -73,13 +77,13 @@ When the app transitions from `offline`/`server-unreachable` to `online`:
 
 For requests made while online (not queued), apply automatic retry for transient errors:
 
-| Error | Behavior |
-|-------|----------|
-| Network error (fetch throws) | Retry once after 3 seconds |
-| HTTP 500 | Retry once after 5 seconds |
-| HTTP 503 | Retry once after 5 seconds |
-| HTTP 429 | Wait for `Retry-After` header value (or 60 seconds if absent), then retry once |
-| HTTP 408 (timeout) | Retry once after 5 seconds |
+| Error                        | Behavior                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| Network error (fetch throws) | Retry once after 3 seconds                                                     |
+| HTTP 500                     | Retry once after 5 seconds                                                     |
+| HTTP 503                     | Retry once after 5 seconds                                                     |
+| HTTP 429                     | Wait for `Retry-After` header value (or 60 seconds if absent), then retry once |
+| HTTP 408 (timeout)           | Retry once after 5 seconds                                                     |
 
 - Maximum 1 automatic retry per request (no exponential backoff for simplicity).
 - After retry failure: surface the error normally (toast + error state).
@@ -96,26 +100,30 @@ Add the following options to the existing `useApi` hook:
 
 ```typescript
 interface UseApiOptions {
-  retryOnError?: boolean;    // default: true for mutations, false for reads
-  timeout?: number;          // default: 30000 (ms)
-  queueOnOffline?: boolean;  // default: true for mutations, false for reads
+  retryOnError?: boolean; // default: true for mutations, false for reads
+  timeout?: number; // default: 30000 (ms)
+  queueOnOffline?: boolean; // default: true for mutations, false for reads
 }
 ```
 
 ### Health endpoint
 
 `GET /api/health` — unprotected (no auth required):
+
 ```json
 { "ok": true, "timestamp": "2026-05-24T20:00:00.000Z" }
 ```
+
 - Always returns 200 if the server is running.
 - No database check (just confirms the process is alive).
 
 ## Consequences
+
 - **Positive**: App no longer crashes on network issues. Users can continue working offline for short periods. Transient Etsy/server errors are retried transparently. Clear visual feedback about connection state.
 - **Negative**: Mutation queue adds complexity — stale writes may conflict on replay (mitigated by ADR-046 conflict detection). localStorage has a ~5 MB limit which bounds queue size. No offline read capability (no service worker or local cache of data).
 
 ## Notes
+
 - Cross-references: ADR-025 (Etsy token refresh — has its own retry logic for Etsy API calls; this ADR covers internal app API calls), ADR-046 (concurrent edit detection — 409 on replay is expected and handled gracefully), ADR-051 (notification center — failed sync items are logged as notifications)
 - The health check interval (30s) is chosen to balance responsiveness with avoiding unnecessary requests. It only runs when the browser tab is visible (`document.visibilityState === 'visible'`).
 - Future consideration: Service Worker for true offline support with cached reads. Not in scope for v1.

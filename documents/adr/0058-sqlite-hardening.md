@@ -1,12 +1,15 @@
 # ADR-058: SQLite WAL Mode, Busy Timeout, and Integrity Checks
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 The current SQLite configuration does not explicitly set WAL mode, busy timeout, or foreign key enforcement. Without WAL mode, reads block during writes. Without a busy timeout, concurrent access attempts fail immediately with `SQLITE_BUSY`. Without runtime integrity checks, silent corruption could go undetected until data loss occurs. These are critical for data safety in a production application.
 
 ## Decision
@@ -22,11 +25,11 @@ PRAGMA foreign_keys = ON;
 PRAGMA synchronous = NORMAL;
 ```
 
-| Pragma | Purpose |
-|--------|---------|
-| `journal_mode = WAL` | Write-Ahead Logging — enables concurrent reads during writes. Readers do not block writers and writers do not block readers. |
-| `busy_timeout = 5000` | Wait up to 5000ms for a lock instead of returning `SQLITE_BUSY` immediately. Handles brief contention from concurrent API requests. |
-| `foreign_keys = ON` | Enforce foreign key constraints at runtime. SQLite does not enforce FK constraints by default — they must be enabled per connection. |
+| Pragma                 | Purpose                                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `journal_mode = WAL`   | Write-Ahead Logging — enables concurrent reads during writes. Readers do not block writers and writers do not block readers.                                                                           |
+| `busy_timeout = 5000`  | Wait up to 5000ms for a lock instead of returning `SQLITE_BUSY` immediately. Handles brief contention from concurrent API requests.                                                                    |
+| `foreign_keys = ON`    | Enforce foreign key constraints at runtime. SQLite does not enforce FK constraints by default — they must be enabled per connection.                                                                   |
 | `synchronous = NORMAL` | Balance durability vs. performance. In WAL mode, `NORMAL` is safe against corruption on OS crash (data loss limited to last few transactions, not corruption). `FULL` is unnecessary overhead for WAL. |
 
 ### Integrity check on startup
@@ -77,10 +80,12 @@ PRAGMA synchronous = NORMAL;
 - Do not delete `-wal` or `-shm` files manually
 
 ## Consequences
+
 - **Positive:** WAL mode eliminates read-write blocking, improving perceived performance under concurrent API requests. Busy timeout prevents spurious SQLITE_BUSY errors. FK enforcement catches referential integrity bugs at the database level. Integrity checks detect corruption early, before data loss compounds.
 - **Negative:** WAL mode uses slightly more disk space (WAL file can grow until checkpoint). Integrity check on startup adds a one-time delay (typically < 1 second for databases under 100MB, but scales with DB size). The 7-day check interval means corruption could exist for up to 7 days before detection.
 
 ## Notes
+
 - Cross-references: ADR-012 (SQLite as database choice), ADR-017 (database schema — FK relationships that `foreign_keys = ON` enforces), ADR-027 (backup and restore — quick_check before backup, WAL files in backup)
 - `better-sqlite3` documentation confirms that WAL mode is the recommended journal mode for server applications
 - The `synchronous = NORMAL` setting is explicitly safe in WAL mode per SQLite documentation: "In WAL mode, synchronous=NORMAL is safe from corruption. The only risk is losing the last transaction on an OS crash."

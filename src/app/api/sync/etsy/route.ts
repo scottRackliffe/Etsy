@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
       shop_id?: number | string;
     };
 
-    const shopId = parsePositiveInt(body.shop_id != null ? String(body.shop_id) : null)
-      ?? parsePositiveInt(getSetting("etsy.active_shop_id"));
+    const shopId =
+      parsePositiveInt(body.shop_id != null ? String(body.shop_id) : null) ??
+      parsePositiveInt(getSetting("etsy.active_shop_id"));
 
     if (!shopId) {
       throw new ApiRouteError({
@@ -49,7 +50,8 @@ export async function POST(request: NextRequest) {
           error: {
             code: "JOB_ALREADY_RUNNING",
             message: "An Etsy sync is already in progress",
-            user_message: "An Etsy sync is already in progress. Wait for it to finish or cancel it.",
+            user_message:
+              "An Etsy sync is already in progress. Wait for it to finish or cancel it.",
             actions: ["Wait for the current sync to complete."],
             can_retry: false,
           },
@@ -107,7 +109,11 @@ async function runSyncJob(
       return;
     }
 
-    if (result.synced === 0 && result.skipped_already_imported === 0 && result.skipped_errors.length > 0) {
+    if (
+      result.synced === 0 &&
+      result.skipped_already_imported === 0 &&
+      result.skipped_errors.length > 0
+    ) {
       failJob(jobId, {
         code: "ETSY_API_FAILED",
         message: "All receipts failed to import",

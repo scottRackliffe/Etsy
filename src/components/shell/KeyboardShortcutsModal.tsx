@@ -9,7 +9,9 @@ function ShortcutList({ title, rows }: { title: string; rows: ShortcutRow[] }) {
   if (rows.length === 0) return null;
   return (
     <div className="mb-4">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">{title}</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+        {title}
+      </h4>
       <ul className="space-y-1.5">
         {rows.map((row) => (
           <li key={row.label} className="flex items-center justify-between gap-4 text-sm">

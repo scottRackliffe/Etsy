@@ -42,7 +42,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     };
     const updates: { quantity?: number; unit_price?: number | null } = {};
     if (body.quantity !== undefined) {
-      if (typeof body.quantity !== "number" || !Number.isFinite(body.quantity) || body.quantity < 1) {
+      if (
+        typeof body.quantity !== "number" ||
+        !Number.isFinite(body.quantity) ||
+        body.quantity < 1
+      ) {
         throw new ApiRouteError({
           status: 400,
           code: "VALIDATION_ERROR",

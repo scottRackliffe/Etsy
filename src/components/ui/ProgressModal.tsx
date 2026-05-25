@@ -95,11 +95,7 @@ export function ProgressModal({
             <p className="mt-2 text-xs text-[var(--ui-muted)]">Elapsed: {formatElapsed(elapsed)}</p>
             {onCancel ? (
               <div className="mt-4 flex justify-center">
-                <Button
-                  variant="secondary"
-                  onClick={onCancel}
-                  disabled={cancelDisabled}
-                >
+                <Button variant="secondary" onClick={onCancel} disabled={cancelDisabled}>
                   Cancel
                 </Button>
               </div>

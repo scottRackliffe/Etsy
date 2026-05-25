@@ -204,7 +204,10 @@ function buildTips(input: ListingScoreInput, breakdown: ListingScoreBreakdown): 
   }
 
   if (breakdown.description_materials < 5 && description) {
-    candidates.push({ gain: 5, tip: "Mention materials (e.g. ceramic, glass, wood) in your description." });
+    candidates.push({
+      gain: 5,
+      tip: "Mention materials (e.g. ceramic, glass, wood) in your description.",
+    });
   }
 
   return candidates
@@ -226,8 +229,7 @@ export function computeListingScore(input: ListingScoreInput): ListingScoreResul
     picture_count: scorePictureCount(pictureCount),
     tags_filled: scoreTagsFilled(tagCount),
     condition_code: input.condition_code?.trim() ? 5 : 0,
-    condition_notes:
-      input.has_condition_issue === 1 && input.condition_notes?.trim() ? 5 : 0,
+    condition_notes: input.has_condition_issue === 1 && input.condition_notes?.trim() ? 5 : 0,
     sale_revenue: input.sale_revenue != null && input.sale_revenue > 0 ? 5 : 0,
     item_number: input.item_number?.trim() ? 5 : 0,
     category_tags: input.category_tags?.trim() ? 5 : 0,

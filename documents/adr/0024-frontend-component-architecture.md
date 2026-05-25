@@ -52,15 +52,16 @@ The `(app)` route group wraps all tabbed pages in a shared layout without adding
 
 The shared layout renders:
 
-| Area | Component | Position | Behavior |
-|------|-----------|----------|----------|
-| **Header** | `<AppHeader />` | Top, full width | App name, Etsy connection status indicator, shop selector (when connected) |
-| **Tab bar** | `<TabBar />` | Below header, full width | 8 tabs as `<Link>` elements; active tab highlighted via `usePathname()` |
-| **Main content** | `{children}` | Below tab bar, full width | Active tab page content |
+| Area             | Component       | Position                  | Behavior                                                                   |
+| ---------------- | --------------- | ------------------------- | -------------------------------------------------------------------------- |
+| **Header**       | `<AppHeader />` | Top, full width           | App name, Etsy connection status indicator, shop selector (when connected) |
+| **Tab bar**      | `<TabBar />`    | Below header, full width  | 8 tabs as `<Link>` elements; active tab highlighted via `usePathname()`    |
+| **Main content** | `{children}`    | Below tab bar, full width | Active tab page content                                                    |
 
 **Note (updated 2026-05-24):** The original ADR-024 included `CommandsPanel` and `OutstandingPanel` as persistent side panels flanking the main content. These are deferred to post-v1 per ADR-009. In v1, context-sensitive actions are placed inline on each page using `Button` components (ADR-028). The Outstanding tab serves as the full-page outstanding list. The `panel_layout` setting and layout swap button are also deferred.
 
 Layout is a CSS grid:
+
 ```
 header:    full width
 tab-bar:   full width
@@ -73,41 +74,43 @@ On mobile (<768px), the tab bar scrolls horizontally.
 
 #### 3.1 Shell components (`src/components/shell/`)
 
-| Component | Props | Responsibility |
-|-----------|-------|----------------|
-| `AppHeader` | — | App title, connection status badge, shop selector dropdown |
-| `TabBar` | — | Tab links; reads `usePathname()` for active state |
+| Component   | Props | Responsibility                                             |
+| ----------- | ----- | ---------------------------------------------------------- |
+| `AppHeader` | —     | App title, connection status badge, shop selector dropdown |
+| `TabBar`    | —     | Tab links; reads `usePathname()` for active state          |
 
 #### 3.2 Shared UI components (`src/components/ui/`)
 
-| Component | Purpose |
-|-----------|---------|
-| `DataTable` | Sortable, paginated table with column definitions; used by Sales, Inventory, Customers, Reports. Supports `search`, `sort_by`, `sort_dir` query params (ADR-029). |
-| `FormField` | Label + input + validation error display; supports text, number, select, textarea |
-| `Modal` | General-purpose dialog; used by `ConfirmDialog` wrapper (ADR-032) |
-| `Button` | Styled action button with variant (primary, secondary, danger) (ADR-028) |
-| `Toast` | Success/error/info notification banner with auto-dismiss |
-| `EmptyState` | Placeholder when a list has no data |
-| `LoadingSpinner` | Consistent loading indicator |
-| `ErrorPanel` | Error display with retry action |
-| `Badge` | Status badges (Paid, Shipped, Draft, Listed, etc.) |
-| `PictureGrid` | Visual upload grid with drag-and-drop, thumbnail preview, and drag-to-reorder (ADR-033) |
-| `PickList` | Item pick list with thumbnail + name + type-to-filter (ADR-015) |
-| `SearchInput` | Search box with debounce (used in Tutorial tab and item filter) |
-| `PdfPreview` | Report preview with Print / Export PDF / Export CSV / Cancel actions |
-| `ConfirmDialog` | Confirmation wrapper around `Modal` for destructive actions (ADR-032) |
+| Component        | Purpose                                                                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DataTable`      | Sortable, paginated table with column definitions; used by Sales, Inventory, Customers, Reports. Supports `search`, `sort_by`, `sort_dir` query params (ADR-029). |
+| `FormField`      | Label + input + validation error display; supports text, number, select, textarea                                                                                 |
+| `Modal`          | General-purpose dialog; used by `ConfirmDialog` wrapper (ADR-032)                                                                                                 |
+| `Button`         | Styled action button with variant (primary, secondary, danger) (ADR-028)                                                                                          |
+| `Toast`          | Success/error/info notification banner with auto-dismiss                                                                                                          |
+| `EmptyState`     | Placeholder when a list has no data                                                                                                                               |
+| `LoadingSpinner` | Consistent loading indicator                                                                                                                                      |
+| `ErrorPanel`     | Error display with retry action                                                                                                                                   |
+| `Badge`          | Status badges (Paid, Shipped, Draft, Listed, etc.)                                                                                                                |
+| `PictureGrid`    | Visual upload grid with drag-and-drop, thumbnail preview, and drag-to-reorder (ADR-033)                                                                           |
+| `PickList`       | Item pick list with thumbnail + name + type-to-filter (ADR-015)                                                                                                   |
+| `SearchInput`    | Search box with debounce (used in Tutorial tab and item filter)                                                                                                   |
+| `PdfPreview`     | Report preview with Print / Export PDF / Export CSV / Cancel actions                                                                                              |
+| `ConfirmDialog`  | Confirmation wrapper around `Modal` for destructive actions (ADR-032)                                                                                             |
 
 #### 3.3 Tab page components
 
 Each tab page is a server component that may contain client components for interactive sections.
 
 **Dashboard** (`src/app/(app)/dashboard/page.tsx`)
+
 - `DashboardKpiCards` — Revenue MTD, orders this month, items listed, outstanding count
 - `RecentOrdersList` — Last 10 orders with status badges
 - `EtsySyncStatus` — Last sync date, sync button, connection health
 - `ActivityFeed` — Recent activity log entries (ADR-037)
 
 **Sales** (`src/app/(app)/sales/page.tsx`)
+
 - Master-detail layout (ADR-031): order list on left, detail panel on right
 - `OrdersTable` — Filterable order list with search, sort, pagination (ADR-029)
 - `OrderDetailPanel` — Full detail view: header, line items, ship-to, financials, shipping, notes, action buttons
@@ -115,6 +118,7 @@ Each tab page is a server component that may contain client components for inter
 - `MarkPaidButton`, `MarkShippedForm` — Action components with validation
 
 **Inventory** (`src/app/(app)/inventory/page.tsx`)
+
 - Two-panel layout (ADR-030): "Inventory detail" panel + "Listing workshop" panel
 - `InventoryTable` — Item list with thumbnail, status, search, sort, pagination (ADR-029)
 - `InventoryDetailPanel` — Core field editing: costs, status, dates, condition, notes (ADR-030)
@@ -124,28 +128,33 @@ Each tab page is a server component that may contain client components for inter
 - `PublishPreview` — Preview Etsy listing before publish; approve gate
 
 **Customers** (`src/app/(app)/customers/page.tsx`)
+
 - `CustomersTable` — Customer list with address completeness indicator, search, sort, pagination (ADR-029)
 - `CustomerDetailForm` — Edit form with address management
 - `AddressCard` — Individual address display/edit
 - `CustomerPurchaseHistory` — Orders filtered by customer
 
 **Reports** (`src/app/(app)/reports/page.tsx`)
+
 - `ReportChooser` — Grid/list of available report types
 - `ReportDateRange` — From/To date inputs with quick presets (ADR-036)
 - `ReportOptionsForm` — Order/customer selection per report type
 - `ReportViewer` — PDF preview with Print / Export PDF / Export CSV / Cancel (ADR-013)
 
 **Outstanding** (`src/app/(app)/outstanding/page.tsx`)
+
 - `OutstandingFullList` — Full-page outstanding list with type filtering and auto-refresh
 - Items link to target pages via deep-link query params (ADR-035)
 
 **Tutorial** (`src/app/(app)/tutorial/page.tsx`)
+
 - `TutorialSearch` — Search over knowledge base content
 - `TutorialIndex` — Browsable topic list
 - `TutorialArticle` — Rendered markdown article view
 - `TipsFolderLinks` — Links to files in system/tips/ and custom folder
 
 **Config** (`src/app/(app)/config/page.tsx`)
+
 - 8 logical sections (ADR-034):
 - `EtsyConnectionCard` — Connect/disconnect, redirect URI, token status
 - `BusinessDetailsForm` — Name, address, logo upload
@@ -188,6 +197,7 @@ Each tab page manages its own list/detail state (selected item, form values, pag
 #### 4.4 Context-in-place navigation (ADR-035)
 
 When the outstanding list navigates to a record:
+
 1. Router pushes to the correct tab route (e.g. `/sales`)
 2. URL search params encode the target record (e.g. `?orderId=123`)
 3. The target tab page reads search params and auto-selects/scrolls to that record

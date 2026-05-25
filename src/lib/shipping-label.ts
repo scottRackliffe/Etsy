@@ -34,7 +34,9 @@ export function buildShippingLabelHtml(
     escapeHtml(info.return_name),
     escapeHtml(info.return_address_line_1),
     info.return_address_line_2 ? escapeHtml(info.return_address_line_2) : "",
-    escapeHtml([info.return_city, info.return_state, info.return_postal_code].filter(Boolean).join(", ")),
+    escapeHtml(
+      [info.return_city, info.return_state, info.return_postal_code].filter(Boolean).join(", ")
+    ),
     escapeHtml(info.return_country),
     info.phone ? escapeHtml(info.phone) : "",
     info.account_number ? `Acct: ${escapeHtml(info.account_number)}` : "",

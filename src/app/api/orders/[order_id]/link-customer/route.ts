@@ -27,7 +27,9 @@ export async function POST(request: Request, context: { params: Promise<{ order_
     const orderId = await getOrderId(context);
     const body = (await request.json().catch(() => ({}))) as { customer_id?: number };
     const customerId =
-      typeof body.customer_id === "number" && Number.isInteger(body.customer_id) && body.customer_id > 0
+      typeof body.customer_id === "number" &&
+      Number.isInteger(body.customer_id) &&
+      body.customer_id > 0
         ? body.customer_id
         : null;
     if (!customerId) {

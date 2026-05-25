@@ -44,7 +44,7 @@ Proposed top-level tabs. Order can change; names are placeholders.
 | **Sales / Orders**    | Everything about orders and completing a sale.                                                                                   | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List of inventory items. Add / edit form. Picture upload. Link to Etsy listing. Status (Draft, In stock, Listed, Sold, etc.). When date listed is entered, item is In stock / Listed.                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View order history per customer (ADR-052). Notes log (ADR-065).                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Reports**           | Run and view reports.                                                                                                            | Chooser per ADR-006: Thank you note, Invoice, Sales, Costs, Income MTD/YTD, Postal by vendor, Outstanding items, AR aging, Profit by item (038), Sales tax summary (039), Inventory aging (054), Accounting export (056). Date range + `format=pdf\|csv` (ADR-036). Actions: Print \| Export PDF \| Export CSV \| Cancel (ADR-013).                                                                                                                                                                                                                                                          |
+| **Reports**           | Run and view reports.                                                                                                            | Chooser per ADR-006: Thank you note, Invoice, Sales, Costs, Income MTD/YTD, Postal by vendor, Outstanding items, AR aging, Profit by item (038), Sales tax summary (039), Inventory aging (054), Accounting export (056). Date range + `format=pdf\|csv` (ADR-036). Actions: Print \| Export PDF \| Export CSV \| Cancel (ADR-013).                                                                                                                                                                                                                                                           |
 | **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to tips-folder files. | **Search** (over in-app content and tips-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, tips-folder files). **Links to files in the tips folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md).                                                                                                                                                                                                                                                                                           |
 | **Outstanding**       | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab.                                | Same items as the “outstanding” panel, but full-page so user can work through the list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Config / Settings** | Etsy connection, preferences, defaults.                                                                                          | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. **Business details:** name, address, **user logo** (upload or select; stored in system for use in invoices, thank-you notes, reports, labels). **Shipping Info:** per-carrier data needed for labels (account numbers, return address, etc.); user adds/edits here; required when Printing shipping label if label cannot be complete without it. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
@@ -321,15 +321,15 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Control | Behavior |
-|---------|----------|
-| App name | `settings.business_name` or “Trudy’s Etsy Sales Manager”; links to Dashboard |
-| Etsy status | Badge: Connected (`success`) / Not connected (`warning`) |
-| Shop selector | Dropdown when connected; drives sync and receipts scope |
-| Recent (🕐) | ADR-063 — dropdown of last viewed orders/items/customers |
-| Print queue (🖨) | ADR-055 — badge with count; opens queue drawer |
-| Notifications (🔔) | ADR-051 — unread count; panel lists sync/errors/outstanding |
-| Search | ADR-041 — opens command palette; `Cmd/Ctrl+K` |
+| Control              | Behavior                                                                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| App name             | `settings.business_name` or “Trudy’s Etsy Sales Manager”; links to Dashboard                                                                 |
+| Etsy status          | Badge: Connected (`success`) / Not connected (`warning`)                                                                                     |
+| Shop selector        | Dropdown when connected; drives sync and receipts scope                                                                                      |
+| Recent (🕐)          | ADR-063 — dropdown of last viewed orders/items/customers                                                                                     |
+| Print queue (🖨)     | ADR-055 — badge with count; opens queue drawer                                                                                               |
+| Notifications (🔔)   | ADR-051 — unread count; panel lists sync/errors/outstanding                                                                                  |
+| Search               | ADR-041 — opens command palette; `Cmd/Ctrl+K`                                                                                                |
 | Connect / Disconnect | When disconnected: **Connect Etsy** `Button variant="accent"` in header; when connected: **Disconnect** in Config or header menu (secondary) |
 
 **Mobile (ADR-061):** Icon-only cluster on right; app name truncates; tab bar scrolls horizontally.
@@ -354,12 +354,12 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 └─────────────────────────────────────────────────────────┘
 ```
 
-| Widget | Data source | Empty / not connected |
-|--------|-------------|------------------------|
-| KPI cards | `GET /api/dashboard`, inventory-value, stats | Show “—” or prompt Connect |
-| Recent orders | Local `orders` (not Etsy receipts-only long term) | EmptyState → Sales or Connect |
-| Activity feed | `GET /api/activity?limit=20` | Hidden if empty |
-| Setup wizard overlay | ADR-044 when `setup.completed` absent | Blocks interaction until skip/complete |
+| Widget               | Data source                                       | Empty / not connected                  |
+| -------------------- | ------------------------------------------------- | -------------------------------------- |
+| KPI cards            | `GET /api/dashboard`, inventory-value, stats      | Show “—” or prompt Connect             |
+| Recent orders        | Local `orders` (not Etsy receipts-only long term) | EmptyState → Sales or Connect          |
+| Activity feed        | `GET /api/activity?limit=20`                      | Hidden if empty                        |
+| Setup wizard overlay | ADR-044 when `setup.completed` absent             | Blocks interaction until skip/complete |
 
 **Not connected state:** Hide KPIs and orders table; show single card: message + **Connect with Etsy** (ADR-016).
 
@@ -375,11 +375,11 @@ Each list tab (Sales, Inventory, Customers) uses a **toolbar** above the table:
 [ Search……………… ]  [Status ▼] [More filters ▼]  [Clear]     [Primary action]
 ```
 
-| Tab | Filter chips (toggle) | Sort default |
-|-----|----------------------|--------------|
-| Sales | All, Unpaid, Paid, Not shipped, Shipped, Etsy, Manual, Void | `order_date` desc |
-| Inventory | All, Draft, In stock, Listed, Sold, Reserved, Retired | `item_number` asc |
-| Customers | All, Active, Has orders, Incomplete address | `last_name` asc |
+| Tab       | Filter chips (toggle)                                       | Sort default      |
+| --------- | ----------------------------------------------------------- | ----------------- |
+| Sales     | All, Unpaid, Paid, Not shipped, Shipped, Etsy, Manual, Void | `order_date` desc |
+| Inventory | All, Draft, In stock, Listed, Sold, Reserved, Retired       | `item_number` asc |
+| Customers | All, Active, Has orders, Incomplete address                 | `last_name` asc   |
 
 - **Search:** Debounced 300ms; placeholder plain language (“Search orders, customers, items…”).
 - **Clear filters:** Resets chips + search; restores default sort.
@@ -441,19 +441,19 @@ See ADR-009 "Implementation status" and ADR-024 for the v1 component architectur
 
 Detailed UI spec lives in each feature ADR; this index ties tabs to ADRs for implementers.
 
-| Area | Feature | ADR |
-|------|---------|-----|
-| Header | Global search (Cmd/Ctrl+K) | 041 |
-| Header | Notification bell | 051 |
-| Header | Print queue | 055 |
-| Header | Recently viewed | 063 |
-| Dashboard | Profit KPIs, inventory value, repeat customers | 038, 064, 066 |
-| Dashboard | Setup wizard overlay | 044 |
-| Sales | Batch bar, inline edit, timeline | 040, 062, 052 |
-| Sales | Print queue add | 055 |
-| Inventory | CSV import, listing score, profitability row | 047, 068, 038 |
-| Customers | Notes log, merge tool, duplicate warnings | 065, 053, 048 |
-| Reports | Profit, tax, aging, accounting export | 038, 039, 054, 056 |
-| All tabs | Empty-state CTAs, help tooltips, mobile layout | 059, 060, 061 |
-| Config | Tax, sample data, auto-sync | 039, 069, 057 |
+| Area          | Feature                                             | ADR                     |
+| ------------- | --------------------------------------------------- | ----------------------- |
+| Header        | Global search (Cmd/Ctrl+K)                          | 041                     |
+| Header        | Notification bell                                   | 051                     |
+| Header        | Print queue                                         | 055                     |
+| Header        | Recently viewed                                     | 063                     |
+| Dashboard     | Profit KPIs, inventory value, repeat customers      | 038, 064, 066           |
+| Dashboard     | Setup wizard overlay                                | 044                     |
+| Sales         | Batch bar, inline edit, timeline                    | 040, 062, 052           |
+| Sales         | Print queue add                                     | 055                     |
+| Inventory     | CSV import, listing score, profitability row        | 047, 068, 038           |
+| Customers     | Notes log, merge tool, duplicate warnings           | 065, 053, 048           |
+| Reports       | Profit, tax, aging, accounting export               | 038, 039, 054, 056      |
+| All tabs      | Empty-state CTAs, help tooltips, mobile layout      | 059, 060, 061           |
+| Config        | Tax, sample data, auto-sync                         | 039, 069, 057           |
 | Cross-cutting | Unsaved guard, progress/jobs, undo, a11y, shortcuts | 042, 043, 067, 045, 049 |

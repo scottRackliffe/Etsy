@@ -18,7 +18,9 @@ function nowIso(): string {
 }
 
 export function getOrderItem(id: number): OrderItemRow | null {
-  const row = getDb().prepare("SELECT * FROM order_items WHERE id = ?").get(id) as OrderItemRow | undefined;
+  const row = getDb().prepare("SELECT * FROM order_items WHERE id = ?").get(id) as
+    | OrderItemRow
+    | undefined;
   return row ?? null;
 }
 
@@ -122,8 +124,7 @@ export function patchOrderItem(
     updates.quantity != null && Number.isFinite(updates.quantity)
       ? Math.max(1, Math.floor(updates.quantity))
       : existing.quantity;
-  const unitPrice =
-    updates.unit_price !== undefined ? updates.unit_price : existing.unit_price;
+  const unitPrice = updates.unit_price !== undefined ? updates.unit_price : existing.unit_price;
   const lineTotal = unitPrice != null ? unitPrice * qty : null;
 
   db.prepare(

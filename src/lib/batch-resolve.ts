@@ -77,7 +77,11 @@ export function resolveBatchIds(
   filter: unknown
 ): number[] {
   if (Array.isArray(ids) && ids.length > 0) {
-    return [...new Set(ids.filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0))];
+    return [
+      ...new Set(
+        ids.filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0)
+      ),
+    ];
   }
   if (filter && typeof filter === "object") {
     const f = filter as Record<string, unknown>;

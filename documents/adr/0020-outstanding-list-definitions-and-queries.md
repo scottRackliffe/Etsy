@@ -107,15 +107,15 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ### Summary table
 
-| Type                            | Data source                | Query / logic                                                          | One item per       | Click target         |
-| ------------------------------- | -------------------------- | ---------------------------------------------------------------------- | ------------------ | -------------------- |
-| Paid but not shipped            | orders                     | active, was_paid=1, missing ship date/shipper/seller_shipping_cost     | orders.id          | Sales, order         |
-| Not yet marked paid             | orders                     | active, was_paid=0                                                     | orders.id          | Sales, order         |
-| New Etsy not synced             | Etsy API + orders          | receipt_id with no orders.etsy_receipt_id                              | receipt_id         | Sales, sync          |
-| In stock not listed             | inventory                  | status In stock/Draft and date_listed empty                            | inventory.id       | Inventory, item      |
-| Customer no/incomplete address  | customers, addresses       | no complete flat or ship-to address                                    | customers.id       | Customers, customer  |
-| Missing shipping cost           | orders                     | shipped but seller_shipping_cost null/0                                | orders.id          | Sales, order         |
-| Validation/context-check issues | DB or computed             | records with unresolved validation/context failures                    | record or order_id | Tab and record       |
+| Type                            | Data source          | Query / logic                                                      | One item per       | Click target        |
+| ------------------------------- | -------------------- | ------------------------------------------------------------------ | ------------------ | ------------------- |
+| Paid but not shipped            | orders               | active, was_paid=1, missing ship date/shipper/seller_shipping_cost | orders.id          | Sales, order        |
+| Not yet marked paid             | orders               | active, was_paid=0                                                 | orders.id          | Sales, order        |
+| New Etsy not synced             | Etsy API + orders    | receipt_id with no orders.etsy_receipt_id                          | receipt_id         | Sales, sync         |
+| In stock not listed             | inventory            | status In stock/Draft and date_listed empty                        | inventory.id       | Inventory, item     |
+| Customer no/incomplete address  | customers, addresses | no complete flat or ship-to address                                | customers.id       | Customers, customer |
+| Missing shipping cost           | orders               | shipped but seller_shipping_cost null/0                            | orders.id          | Sales, order        |
+| Validation/context-check issues | DB or computed       | records with unresolved validation/context failures                | record or order_id | Tab and record      |
 
 ---
 
@@ -137,12 +137,14 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 **Etsy receipt fetch depth:** For type 3 (new Etsy orders not synced), fetch at most **200 receipts** (limit=200) from the Etsy API. This matches the sync fetch depth. Only the receipt_id list is needed (not full receipt details) for the outstanding check.
 
 **Cache invalidation triggers:**
+
 - After a successful Etsy sync (`POST /api/sync/etsy`), invalidate the cached receipt-id set immediately.
 - After the user marks an order paid or shipped, re-evaluate outstanding items for that order (remove from list if no longer qualifying).
 - After inventory or customer changes that affect outstanding types (e.g. setting `date_listed`, completing an address), re-evaluate the affected item.
 - On manual panel refresh (user clicks Refresh or the 60-second auto-refresh fires), re-query all types.
 
 **429/timeout fallback UX:**
+
 - If the Etsy API returns 429 or times out when fetching receipt IDs for type 3, keep showing the last cached result.
 - Display a subtle note below the outstanding panel: "Etsy sync status may be delayed" (info badge, not error).
 - If no cached result exists (first load, never connected), omit type 3 from the list entirely with no error message.
@@ -150,13 +152,13 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 **Sort-field definitions:**
 
-| Field key | Label | Source | Sort value |
-|-----------|-------|--------|------------|
-| `date` | Date | `order_date (from orders table)` for orders; `created_at` for inventory/customers; `creation_tsz` for Etsy receipts | ISO 8601 string (lexicographic sort) |
-| `type` | Type | Outstanding type name (e.g. "Paid not shipped", "Not listed") | Alphabetical by type label |
-| `customer_name` | Customer | `ship_to_last_name, ship_to_first_name` for orders; `last_name, first_name` for customers; "Etsy order" for type 3 | Alphabetical (last name first) |
-| `order_id` | Order ID | `order_id` for orders; `item_number` for inventory; `receipt_id` for Etsy | String sort |
-| `age_days` | Age | Days since the `date` field value | Numeric |
+| Field key       | Label    | Source                                                                                                              | Sort value                           |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `date`          | Date     | `order_date (from orders table)` for orders; `created_at` for inventory/customers; `creation_tsz` for Etsy receipts | ISO 8601 string (lexicographic sort) |
+| `type`          | Type     | Outstanding type name (e.g. "Paid not shipped", "Not listed")                                                       | Alphabetical by type label           |
+| `customer_name` | Customer | `ship_to_last_name, ship_to_first_name` for orders; `last_name, first_name` for customers; "Etsy order" for type 3  | Alphabetical (last name first)       |
+| `order_id`      | Order ID | `order_id` for orders; `item_number` for inventory; `receipt_id` for Etsy                                           | String sort                          |
+| `age_days`      | Age      | Days since the `date` field value                                                                                   | Numeric                              |
 
 **Null sorting:** Null values sort **last** in ascending order and **first** in descending order. This ensures items with missing dates appear at the bottom of "newest first" views rather than at the top.
 
@@ -181,24 +183,24 @@ The target page reads the query parameter on mount, fetches the record if not al
 
 This ADR's item descriptions use the original data model terms ("purchase", "purchase row", "customer_address"). The implementation maps as follows:
 
-| ADR-020 term | Implementation | Notes |
-|-------------|----------------|-------|
-| purchase / purchase row | `orders` table (header) + `order_items` (line items) | Outstanding queries run against `orders`, not a separate `purchase` table |
-| order_id (grouping) | `orders.id` | Each `orders` row IS the order |
-| was_paid | `orders.was_paid` | |
-| shipping_date / shipper / shipping_cost | `orders.shipping_date` / `orders.shipper` / `orders.seller_shipping_cost` | |
-| order_status | `orders.order_status` | Values: `active`, `void`, `cancelled` |
-| customer_address | `addresses` table | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
-| etsy_receipt_id | `orders.etsy_receipt_id` | |
+| ADR-020 term                            | Implementation                                                            | Notes                                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| purchase / purchase row                 | `orders` table (header) + `order_items` (line items)                      | Outstanding queries run against `orders`, not a separate `purchase` table                   |
+| order_id (grouping)                     | `orders.id`                                                               | Each `orders` row IS the order                                                              |
+| was_paid                                | `orders.was_paid`                                                         |                                                                                             |
+| shipping_date / shipper / shipping_cost | `orders.shipping_date` / `orders.shipper` / `orders.seller_shipping_cost` |                                                                                             |
+| order_status                            | `orders.order_status`                                                     | Values: `active`, `void`, `cancelled`                                                       |
+| customer_address                        | `addresses` table                                                         | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
+| etsy_receipt_id                         | `orders.etsy_receipt_id`                                                  |                                                                                             |
 
 ### Implemented vs future outstanding types
 
-| API `type` value | ADR-020 type # | Status |
-|-----------------|----------------|--------|
-| `paid_not_shipped` | Type 1 | Implemented |
-| `unpaid` | Type 2 | Implemented |
-| `not_listed` | Type 4 | Implemented |
-| `missing_address` | Type 5 | Implemented |
-| `missing_shipping_cost` | Type 6 | Implemented |
-| `etsy_not_synced` | Type 3 | Future (requires Etsy API call at query time) |
-| `validation_issue` | Type 7 | Future (requires runtime validation checks) |
+| API `type` value        | ADR-020 type # | Status                                        |
+| ----------------------- | -------------- | --------------------------------------------- |
+| `paid_not_shipped`      | Type 1         | Implemented                                   |
+| `unpaid`                | Type 2         | Implemented                                   |
+| `not_listed`            | Type 4         | Implemented                                   |
+| `missing_address`       | Type 5         | Implemented                                   |
+| `missing_shipping_cost` | Type 6         | Implemented                                   |
+| `etsy_not_synced`       | Type 3         | Future (requires Etsy API call at query time) |
+| `validation_issue`      | Type 7         | Future (requires runtime validation checks)   |

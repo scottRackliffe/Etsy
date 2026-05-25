@@ -115,8 +115,7 @@ export function useEtsySync() {
         }
         const apiErr = err as ApiErrorShape;
         const message =
-          apiErr?.error?.user_message ??
-          "We could not start Etsy sync. Try again in a moment.";
+          apiErr?.error?.user_message ?? "We could not start Etsy sync. Try again in a moment.";
         setModal((m) => ({
           ...m,
           error: message,

@@ -148,7 +148,8 @@ export function ActivityLogSection({ id }: { id?: string }) {
                       key={entry.id}
                       className="border-b border-[var(--ui-border)]/70"
                       style={{
-                        backgroundColor: i % 2 === 0 ? "var(--ui-list-dark)" : "var(--ui-list-light)",
+                        backgroundColor:
+                          i % 2 === 0 ? "var(--ui-list-dark)" : "var(--ui-list-light)",
                       }}
                     >
                       <td className="px-5 py-3 text-xs text-[var(--ui-muted)] whitespace-nowrap">
@@ -169,7 +170,9 @@ export function ActivityLogSection({ id }: { id?: string }) {
                       <td className="px-5 py-3 max-w-xs truncate text-xs text-[var(--ui-muted)]">
                         {detail ?? "—"}
                       </td>
-                      <td className="px-5 py-3 text-xs uppercase text-[var(--ui-muted)]">{entry.source}</td>
+                      <td className="px-5 py-3 text-xs uppercase text-[var(--ui-muted)]">
+                        {entry.source}
+                      </td>
                     </tr>
                   );
                 })}

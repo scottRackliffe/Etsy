@@ -64,14 +64,14 @@ The following rules apply. “Restrict” means the delete is rejected with HTTP
 
 ### 6. Summary table
 
-| Entity           | Delete allowed? | Condition                                      | If restricted |
-| ---------------- | --------------- | ---------------------------------------------- | ------------- |
-| customers        | Yes             | Only if no `orders` reference `customer_id`    | 409           |
-| inventory        | Yes             | Only if no `order_items` reference `inventory_id` | 409       |
-| addresses        | Yes             | Always (snapshot on orders unchanged)          | 204           |
-| other_costs      | Yes             | Always                                         | 204           |
-| orders           | No              | —                                              | No endpoint   |
-| order_items      | No              | —                                              | No endpoint   |
+| Entity      | Delete allowed? | Condition                                         | If restricted |
+| ----------- | --------------- | ------------------------------------------------- | ------------- |
+| customers   | Yes             | Only if no `orders` reference `customer_id`       | 409           |
+| inventory   | Yes             | Only if no `order_items` reference `inventory_id` | 409           |
+| addresses   | Yes             | Always (snapshot on orders unchanged)             | 204           |
+| other_costs | Yes             | Always                                            | 204           |
+| orders      | No              | —                                                 | No endpoint   |
+| order_items | No              | —                                                 | No endpoint   |
 
 ---
 
@@ -87,10 +87,10 @@ The following rules apply. “Restrict” means the delete is rejected with HTTP
 
 ### Schema mapping (updated 2026-05-24)
 
-| ADR-022 term | Implementation |
-|-------------|----------------|
-| purchase row | `orders` + `order_items` |
-| purchase.customer_id | `orders.customer_id` |
+| ADR-022 term          | Implementation             |
+| --------------------- | -------------------------- |
+| purchase row          | `orders` + `order_items`   |
+| purchase.customer_id  | `orders.customer_id`       |
 | purchase.inventory_id | `order_items.inventory_id` |
-| customer_address | `addresses` |
-| inventory_other_cost | `other_costs` |
+| customer_address      | `addresses`                |
+| inventory_other_cost  | `other_costs`              |

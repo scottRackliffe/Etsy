@@ -1,12 +1,6 @@
 import type { UiError } from "@/types";
 
-export function ErrorPanel({
-  error,
-  onDismiss,
-}: {
-  error: UiError;
-  onDismiss?: () => void;
-}) {
+export function ErrorPanel({ error, onDismiss }: { error: UiError; onDismiss?: () => void }) {
   return (
     <div className="rounded-lg border border-[var(--ui-red)]/30 bg-[var(--ui-red)]/10 p-4">
       <div className="flex items-start justify-between">

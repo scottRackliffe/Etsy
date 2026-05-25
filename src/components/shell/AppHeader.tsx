@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { RecentlyViewedMenu } from "@/components/shell/RecentlyViewedMenu";
+import { PrintQueueMenu } from "@/components/shell/PrintQueueMenu";
 
 export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { shops, iconConfig, connect, logout } = useApp();
@@ -53,7 +54,10 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
             </button>
           ) : null}
           <RecentlyViewedMenu />
-          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass}`}>
+          <PrintQueueMenu />
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass}`}
+          >
             {shops.length ? "Connected" : "Not connected"}
           </span>
           {shops.length > 0 ? (

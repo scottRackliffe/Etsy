@@ -59,11 +59,7 @@ export function NotificationCenter() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="relative rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm font-medium text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
-        aria-label={
-          unreadCount > 0
-            ? `Notifications, ${unreadCount} unread`
-            : "Notifications"
-        }
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="true"
       >
@@ -99,7 +95,9 @@ export function NotificationCenter() {
           </div>
           <div className="max-h-[420px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-[var(--ui-muted)]">No notifications</p>
+              <p className="px-3 py-8 text-center text-sm text-[var(--ui-muted)]">
+                No notifications
+              </p>
             ) : (
               <ul>
                 {notifications.map((n) => (

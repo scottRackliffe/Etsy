@@ -51,7 +51,9 @@ export function ActivityTimeline({
   }
 
   if (items.length === 0) {
-    return <p className="text-xs text-[var(--ui-muted)]">No activity recorded for this record yet.</p>;
+    return (
+      <p className="text-xs text-[var(--ui-muted)]">No activity recorded for this record yet.</p>
+    );
   }
 
   return (
@@ -61,11 +63,17 @@ export function ActivityTimeline({
         return (
           <li key={entry.id} className="text-xs">
             <div className="flex flex-wrap justify-between gap-1">
-              <span className="font-medium text-[var(--ui-title)]">{formatActivityAction(entry.action)}</span>
-              <time className="text-[var(--ui-muted)]">{formatActivityTimestamp(entry.created_at)}</time>
+              <span className="font-medium text-[var(--ui-title)]">
+                {formatActivityAction(entry.action)}
+              </span>
+              <time className="text-[var(--ui-muted)]">
+                {formatActivityTimestamp(entry.created_at)}
+              </time>
             </div>
             {detail ? <p className="mt-0.5 text-[var(--ui-muted)]">{detail}</p> : null}
-            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">{entry.source}</p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">
+              {entry.source}
+            </p>
           </li>
         );
       })}

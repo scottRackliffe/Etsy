@@ -248,7 +248,8 @@ async function doRefreshWithRetry(): Promise<string> {
     status: 503,
     code: "ETSY_TEMPORARILY_UNAVAILABLE",
     message: "Etsy token refresh temporarily unavailable",
-    userMessage: "Etsy is temporarily unavailable. Your data is safe — please try again in a few minutes.",
+    userMessage:
+      "Etsy is temporarily unavailable. Your data is safe — please try again in a few minutes.",
     actions: ["Try again in a few minutes."],
     canRetry: true,
   });
@@ -321,6 +322,12 @@ export async function refreshAndRetry<T>(
 // Legacy sync function (kept for routes that use requireEtsyAccessToken)
 // ---------------------------------------------------------------------------
 
+/** True when local SQLite/API use is allowed without Etsy OAuth (pending key, demo, etc.). */
+export function allowLocalWithoutEtsy(): boolean {
+  if (process.env.ALLOW_LOCAL_WITHOUT_ETSY === "false") return false;
+  return process.env.ALLOW_LOCAL_WITHOUT_ETSY === "true" || process.env.NODE_ENV === "development";
+}
+
 export function requireEtsyAccessToken(cookieStore: CookieReader): string {
   const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
   const currentSessionId = getSetting(SETTINGS_KEYS.sessionId);
@@ -328,6 +335,9 @@ export function requireEtsyAccessToken(cookieStore: CookieReader): string {
   const expiresAt = readExpiresAt();
 
   if (!sessionCookie || !currentSessionId || sessionCookie !== currentSessionId || !token) {
+    if (allowLocalWithoutEtsy()) {
+      return "";
+    }
     throw new ApiRouteError({
       status: 401,
       code: "UNAUTHORIZED",
@@ -339,6 +349,9 @@ export function requireEtsyAccessToken(cookieStore: CookieReader): string {
   }
 
   if (expiresAt && Date.now() > expiresAt.getTime()) {
+    if (allowLocalWithoutEtsy()) {
+      return "";
+    }
     throw new ApiRouteError({
       status: 401,
       code: "UNAUTHORIZED",
@@ -362,7 +375,7 @@ function sleep(ms: number): Promise<void> {
 
 function isAbortError(err: unknown): boolean {
   return (
-    err instanceof DOMException && err.name === "AbortError" ||
+    (err instanceof DOMException && err.name === "AbortError") ||
     (err instanceof Error && err.name === "AbortError")
   );
 }

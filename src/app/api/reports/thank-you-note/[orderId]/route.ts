@@ -5,10 +5,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { buildSingleOrderThankYou } from "@/lib/reporting";
 import { reportResponse, resolveReportFormat } from "@/lib/report-http";
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ orderId: string }> }
-) {
+export async function GET(request: Request, context: { params: Promise<{ orderId: string }> }) {
   try {
     requireEtsyAccessToken(await cookies());
     const orderId = parsePositiveInt((await context.params).orderId);

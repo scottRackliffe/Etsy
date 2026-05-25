@@ -192,13 +192,13 @@ This document is the **decision index**. Each section summarizes the decision an
 
 **Summary:** Post-v1 UX and operations features (profit/margin, tax, bulk ops, search, wizard, a11y, merge, reports, demo data, etc.) are specified in **ADR-038 through ADR-069**. Implementation order: [no-developer-questions-build.md](no-developer-questions-build.md) §5 priorities 21–52 (after §4 documentation gate + §7 compliance audit). API catalog: ADR-018 Extensions §12–§28. Schema: ADR-017 (2026-05-24 reconciliation).
 
-| Priority | ADR | Topic |
-|----------|-----|-------|
-| 21 | 038 | Per-item profit/loss |
-| 22 | 039 | Tax tracking |
-| 23 | 040 | Bulk/batch operations |
-| 24 | 041 | Global search |
-| 25–52 | 042–069 | See build doc §4 |
+| Priority | ADR     | Topic                 |
+| -------- | ------- | --------------------- |
+| 21       | 038     | Per-item profit/loss  |
+| 22       | 039     | Tax tracking          |
+| 23       | 040     | Bulk/batch operations |
+| 24       | 041     | Global search         |
+| 25–52    | 042–069 | See build doc §4      |
 
 Do not duplicate feature ADR text here; each ADR is SSOT for its feature.
 

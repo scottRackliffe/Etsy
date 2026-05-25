@@ -1,26 +1,32 @@
 # ADR-053: Customer merge and deduplication tool
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Etsy sync (ADR-019) can create duplicate customers when the same buyer uses slightly different name spellings across orders (e.g., "John Smith" vs "John D. Smith" vs "J. Smith"). Additionally, manual entry without duplicate detection (prior to ADR-048) may have created duplicates. There is currently no way to merge duplicate customer records, leading to fragmented order history and inaccurate reporting.
 
 ## Decision
+
 Provide a customer merge tool with manual trigger, side-by-side preview, and an auto-detect duplicates feature.
 
 ### Merge UI flow
 
 #### Access point
+
 - On the Customers page toolbar: "Merge Customers" button.
 - Also accessible from the auto-detect duplicates results (see below).
 
 #### Step 1: Select customers
 
 Modal opens with two selection areas:
+
 - **Primary customer** (the record to keep): searchable dropdown or select from list.
 - **Secondary customer** (the record to merge into primary): searchable dropdown or select from list.
 - Both dropdowns show: "Name — email — N orders" for each customer.
@@ -30,23 +36,25 @@ Modal opens with two selection areas:
 
 Side-by-side comparison showing:
 
-| Field | Primary value | Secondary value | Keep |
-|-------|--------------|-----------------|------|
-| First name | John | John D. | ○ Primary (default) / ○ Secondary |
-| Last name | Smith | Smith | ○ Primary (default) / ○ Secondary |
-| Email | john@example.com | jsmith@example.com | ○ Primary (default) / ○ Secondary |
-| Phone | 555-0123 | (empty) | ○ Primary (default) / ○ Secondary |
-| Notes | "Repeat buyer" | "Likes pottery" | ○ Primary / ○ Secondary / ○ Combine |
+| Field      | Primary value    | Secondary value    | Keep                                |
+| ---------- | ---------------- | ------------------ | ----------------------------------- |
+| First name | John             | John D.            | ○ Primary (default) / ○ Secondary   |
+| Last name  | Smith            | Smith              | ○ Primary (default) / ○ Secondary   |
+| Email      | john@example.com | jsmith@example.com | ○ Primary (default) / ○ Secondary   |
+| Phone      | 555-0123         | (empty)            | ○ Primary (default) / ○ Secondary   |
+| Notes      | "Repeat buyer"   | "Likes pottery"    | ○ Primary / ○ Secondary / ○ Combine |
 
 For the `notes` field only: a third option "Combine" concatenates both values with a newline separator.
 
 Below the field comparison:
+
 - **Orders to be moved**: list of secondary customer's orders (order number, date, total) — these will all be reassigned to primary.
 - **Addresses to be moved**: list of secondary customer's addresses — these will all be reassigned to primary.
 
 #### Step 3: Confirm
 
 ConfirmDialog (per ADR-032):
+
 > **Merge "John D. Smith" into "John Smith"?**
 >
 > - 3 orders will be moved to John Smith
@@ -64,6 +72,7 @@ POST /api/customers/merge
 ```
 
 Request body:
+
 ```json
 {
   "primary_id": 1,
@@ -80,6 +89,7 @@ Request body:
 - If `field_overrides` is omitted or empty, primary customer fields remain unchanged.
 
 Response (success):
+
 ```json
 {
   "ok": true,
@@ -90,6 +100,7 @@ Response (success):
 ```
 
 Response (error cases):
+
 - 404: primary or secondary customer not found
 - 400: `primary_id` equals `secondary_id`
 - 409: secondary customer has already been deleted (race condition)
@@ -109,6 +120,7 @@ If any step fails, the entire transaction rolls back and returns 500.
 ### Auto-detect duplicates
 
 #### Access point
+
 - On the Customers page toolbar: "Find Duplicates" link/button (secondary style).
 
 #### API endpoint
@@ -118,13 +130,26 @@ GET /api/customers/duplicates
 ```
 
 Response:
+
 ```json
 {
   "groups": [
     {
       "customers": [
-        { "id": 1, "first_name": "John", "last_name": "Smith", "email": "john@example.com", "order_count": 5 },
-        { "id": 2, "first_name": "John D.", "last_name": "Smith", "email": "jsmith@example.com", "order_count": 3 }
+        {
+          "id": 1,
+          "first_name": "John",
+          "last_name": "Smith",
+          "email": "john@example.com",
+          "order_count": 5
+        },
+        {
+          "id": 2,
+          "first_name": "John D.",
+          "last_name": "Smith",
+          "email": "jsmith@example.com",
+          "order_count": 3
+        }
       ],
       "match_reason": "Same last name, similar first name"
     }
@@ -135,11 +160,11 @@ Response:
 #### Matching algorithm
 
 Two customers are considered potential duplicates if:
+
 1. `LOWER(TRIM(last_name))` is identical, AND
 2. `LOWER(TRIM(first_name))` has Levenshtein distance ≤ 2
 
-OR:
-3. `LOWER(TRIM(email))` is identical and non-empty (regardless of name)
+OR: 3. `LOWER(TRIM(email))` is identical and non-empty (regardless of name)
 
 #### UI for duplicate groups
 
@@ -154,10 +179,12 @@ OR:
 - **Self-merge prevention**: API rejects with 400 if `primary_id === secondary_id`.
 
 ## Consequences
+
 - **Positive**: Resolves the duplicate customer problem created by Etsy sync name variations. Consolidates order history for accurate reporting and customer lifetime value. Non-destructive to order data — only the customer record linkage changes.
 - **Negative**: Merge is irreversible (by design — undo would require storing the pre-merge state). Fuzzy matching for auto-detect may surface false positives. Users must manually review each merge candidate.
 
 ## Notes
+
 - Cross-references: ADR-022 (delete rules — merge bypasses the "customer with orders cannot be deleted" rule because orders are reassigned first), ADR-019 (Etsy sync customer matching — sync creates duplicates that this tool resolves), ADR-037 (activity log — `customer.merged` event logged), ADR-048 (duplicate detection on entry — prevents future duplicates; this ADR handles existing ones), ADR-032 (confirmation dialogs — merge confirmation)
 - The merge operation is atomic (single transaction). If the server crashes mid-merge, no partial state is possible.
 - Future consideration: bulk merge (merge an entire duplicate group at once). Not in scope for v1 — users merge two at a time.

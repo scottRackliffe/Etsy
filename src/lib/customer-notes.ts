@@ -19,7 +19,9 @@ export type CustomerNoteRow = {
 export function listCustomerNotes(customerId: number, limit: number, offset: number) {
   const db = getDb();
   const total = (
-    db.prepare("SELECT COUNT(*) AS c FROM customer_notes WHERE customer_id = ?").get(customerId) as {
+    db
+      .prepare("SELECT COUNT(*) AS c FROM customer_notes WHERE customer_id = ?")
+      .get(customerId) as {
       c: number;
     }
   ).c;
@@ -32,7 +34,11 @@ export function listCustomerNotes(customerId: number, limit: number, offset: num
   return { items, total };
 }
 
-export function createCustomerNote(customerId: number, noteText: string, noteType: string): CustomerNoteRow {
+export function createCustomerNote(
+  customerId: number,
+  noteText: string,
+  noteType: string
+): CustomerNoteRow {
   const db = getDb();
   const now = new Date().toISOString();
   const result = db
@@ -40,7 +46,9 @@ export function createCustomerNote(customerId: number, noteText: string, noteTyp
       `INSERT INTO customer_notes (customer_id, note_text, note_type, created_at) VALUES (?, ?, ?, ?)`
     )
     .run(customerId, noteText, noteType, now);
-  return db.prepare("SELECT * FROM customer_notes WHERE id = ?").get(result.lastInsertRowid) as CustomerNoteRow;
+  return db
+    .prepare("SELECT * FROM customer_notes WHERE id = ?")
+    .get(result.lastInsertRowid) as CustomerNoteRow;
 }
 
 export function deleteCustomerNote(id: number): boolean {

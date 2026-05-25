@@ -22,15 +22,16 @@ No list view in the application supports search, filtering, sorting, or paginati
 
 Every page with a record list gets a search input above the table.
 
-| Page | Search fields | Behavior |
-|------|---------------|----------|
-| **Inventory** | `item_number`, `description`, `listing_title`, `category_tags` | Client-side filter on loaded records; server-side search when paginated |
-| **Sales** | `order_number`, ship-to name (`ship_to_first_name` + `ship_to_last_name`), `etsy_receipt_id` | Client-side filter; server-side when paginated |
-| **Customers** | `first_name`, `last_name`, `email`, `phone` | Client-side filter |
-| **Outstanding** | `summary` text across all types | Client-side filter (data is already fetched in full) |
-| **Dashboard** | No search (live Etsy data, read-only snapshot) | — |
+| Page            | Search fields                                                                                | Behavior                                                                |
+| --------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Inventory**   | `item_number`, `description`, `listing_title`, `category_tags`                               | Client-side filter on loaded records; server-side search when paginated |
+| **Sales**       | `order_number`, ship-to name (`ship_to_first_name` + `ship_to_last_name`), `etsy_receipt_id` | Client-side filter; server-side when paginated                          |
+| **Customers**   | `first_name`, `last_name`, `email`, `phone`                                                  | Client-side filter                                                      |
+| **Outstanding** | `summary` text across all types                                                              | Client-side filter (data is already fetched in full)                    |
+| **Dashboard**   | No search (live Etsy data, read-only snapshot)                                               | —                                                                       |
 
 **Search input spec:**
+
 - Positioned above the table, full width or alongside filter controls.
 - Uses `FormField` with `label="Search"` and `TextInput`.
 - Debounced: 300ms delay before filtering.
@@ -41,15 +42,16 @@ Every page with a record list gets a search input above the table.
 
 ### Filters
 
-| Page | Filter controls |
-|------|-----------------|
-| **Inventory** | Status chip group: `All`, `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired`. Default: `All`. (Values per ADR-002, ADR-017.) |
-| **Sales** | Payment chip group: `All`, `Paid`, `Unpaid`. Shipping chip group: `All`, `Shipped`, `Not shipped`. Source: `All`, `Etsy`, `Manual`. |
-| **Customers** | Active toggle: `All` / `Active only` (default: Active only, based on `is_active`). |
-| **Outstanding** | Already implemented with type chip groups — no changes. |
-| **Reports** | Report type dropdown (already exists). Add date range filter (see ADR-036). |
+| Page            | Filter controls                                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Inventory**   | Status chip group: `All`, `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired`. Default: `All`. (Values per ADR-002, ADR-017.) |
+| **Sales**       | Payment chip group: `All`, `Paid`, `Unpaid`. Shipping chip group: `All`, `Shipped`, `Not shipped`. Source: `All`, `Etsy`, `Manual`.    |
+| **Customers**   | Active toggle: `All` / `Active only` (default: Active only, based on `is_active`).                                                     |
+| **Outstanding** | Already implemented with type chip groups — no changes.                                                                                |
+| **Reports**     | Report type dropdown (already exists). Add date range filter (see ADR-036).                                                            |
 
 **Filter chip spec:**
+
 - Horizontal row of pill-shaped buttons (similar to Outstanding page's existing filter chips).
 - Selected chip: filled accent background. Unselected: border-only.
 - Multiple filter dimensions shown in separate rows (e.g., Payment row + Shipping row for Sales).
@@ -63,21 +65,23 @@ Every page with a record list gets a search input above the table.
 All `DataTable` instances support sortable columns.
 
 **DataTable enhancement:**
+
 - Add optional `sortable?: boolean` to `Column<T>`.
 - Clicking a sortable column header cycles: ascending → descending → unsorted.
 - Sort indicator: `▲` / `▼` appended to header text.
 - Only one column sorted at a time.
 - Default sort per page:
 
-| Page | Default sort column | Direction |
-|------|-------------------|-----------|
-| Inventory | `updated_at` (or `created_at`) | Descending (newest first) |
-| Sales | `order_date` | Descending |
-| Customers | `last_name` | Ascending |
-| Outstanding | `date` | Descending (already server-side default) |
-| Dashboard | `creation_tsz` | Descending (already server-side default) |
+| Page        | Default sort column            | Direction                                |
+| ----------- | ------------------------------ | ---------------------------------------- |
+| Inventory   | `updated_at` (or `created_at`) | Descending (newest first)                |
+| Sales       | `order_date`                   | Descending                               |
+| Customers   | `last_name`                    | Ascending                                |
+| Outstanding | `date`                         | Descending (already server-side default) |
+| Dashboard   | `creation_tsz`                 | Descending (already server-side default) |
 
 **Sort implementation:**
+
 - Client-side for the current page of data.
 - When paginated server-side, pass `sort_by` and `sort_dir` query params to the API. API list endpoints must support these params (add to `/api/inventory`, `/api/orders`, `/api/customers`).
 
@@ -90,12 +94,14 @@ Integrate `usePagination` hook with all list views.
 **Page size:** 25 records per page (configurable via settings key `ui.page_size`, default `25`).
 
 **Pagination controls spec:**
+
 - Rendered below the `DataTable`.
 - Layout: `← Previous` | `Page X of Y` | `Next →`
 - Previous disabled on page 1; Next disabled on last page.
 - Total count shown: `"Showing 1–25 of 142 records"`.
 
 **API changes required:**
+
 - `/api/inventory` (GET): already supports `limit`/`offset`. Add `search`, `status`, `sort_by`, `sort_dir` query params.
 - `/api/orders` (GET): already supports `limit`/`offset`. Add `search`, `payment_status`, `shipping_status`, `source_channel`, `sort_by`, `sort_dir` query params.
 - `/api/customers` (GET): already supports `limit`/`offset`. Add `search`, `is_active`, `sort_by`, `sort_dir` query params.
@@ -104,6 +110,7 @@ Integrate `usePagination` hook with all list views.
 **Note:** The canonical API pagination envelope (ADR-018) nests pagination metadata: `{ items: T[], pagination: { limit, offset, total, has_more } }`. Implementations must use the nested shape.
 
 **Context changes:**
+
 - `AppContext` currently loads all records on mount with `limit=100`. Change to load first page only (`limit=25, offset=0`).
 - Each page manages its own pagination state via `usePagination`.
 - Selecting a record that is not on the current page (e.g., from Outstanding deep link) triggers a targeted fetch by ID.
@@ -113,6 +120,7 @@ Integrate `usePagination` hook with all list views.
 ### URL state sync
 
 Search, filter, and sort state should be reflected in the URL query string so that:
+
 - Browser back/forward navigates filter state.
 - Outstanding deep links can include filter context.
 - Bookmarkable filtered views.

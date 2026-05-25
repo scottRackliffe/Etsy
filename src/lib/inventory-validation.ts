@@ -1,11 +1,4 @@
-const INVENTORY_STATUSES = new Set([
-  "Draft",
-  "In stock",
-  "Listed",
-  "Sold",
-  "Reserved",
-  "Retired",
-]);
+const INVENTORY_STATUSES = new Set(["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"]);
 
 const STATUS_ALIASES: Record<string, string> = {
   draft: "Draft",

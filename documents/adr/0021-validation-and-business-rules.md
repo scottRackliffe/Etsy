@@ -40,11 +40,11 @@ All other inventory fields (pictures, thumbnail, condition_notes, category_tags,
 
 ### 2. Inventory other cost (ADR-002, ADR-017 `other_costs`)
 
-| Field      | Rule                                   | Error message if violated                         |
-| ---------- | -------------------------------------- | ------------------------------------------------- |
-| amount     | Required. Number >= 0.                 | “Amount is required and must be zero or greater.” |
-| cost_type  | Optional. Non-empty string if present. | —                                                 |
-| note       | Optional.                              | —                                                 |
+| Field     | Rule                                   | Error message if violated                         |
+| --------- | -------------------------------------- | ------------------------------------------------- |
+| amount    | Required. Number >= 0.                 | “Amount is required and must be zero or greater.” |
+| cost_type | Optional. Non-empty string if present. | —                                                 |
+| note      | Optional.                              | —                                                 |
 
 inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no client-supplied inventory_id in body.
 
@@ -64,15 +64,15 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 ### 4. Customer address (`addresses`, ADR-003)
 
-| Field       | Rule                                                                 | Error message if violated   |
-| ----------- | -------------------------------------------------------------------- | --------------------------- |
-| first_line  | Required on create/update — non-empty after trim.                     | “Address line 1 is required.” |
-| second_line | Optional.                                                            | —                           |
-| city        | Required. Non-empty after trim.                                      | “City is required.”         |
-| state       | Optional.                                                            | —                           |
-| country     | Required. Non-empty after trim.                                      | “Country is required.”      |
-| postal_code | Required. Non-empty after trim.                                      | “Postal code is required.”  |
-| label       | Optional.                                                            | —                           |
+| Field       | Rule                                              | Error message if violated     |
+| ----------- | ------------------------------------------------- | ----------------------------- |
+| first_line  | Required on create/update — non-empty after trim. | “Address line 1 is required.” |
+| second_line | Optional.                                         | —                             |
+| city        | Required. Non-empty after trim.                   | “City is required.”           |
+| state       | Optional.                                         | —                             |
+| country     | Required. Non-empty after trim.                   | “Country is required.”        |
+| postal_code | Required. Non-empty after trim.                   | “Postal code is required.”    |
+| label       | Optional.                                         | —                             |
 
 ---
 
@@ -80,23 +80,23 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 **Create order (`POST /api/orders`):**
 
-| Field                | Rule                                                              | Error message if violated                       |
-| -------------------- | ----------------------------------------------------------------- | ----------------------------------------------- |
-| customer_id          | Optional. If present, must exist in `customers`.                  | “Customer not found.”                           |
+| Field                | Rule                                                                     | Error message if violated            |
+| -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| customer_id          | Optional. If present, must exist in `customers`.                         | “Customer not found.”                |
 | items                | Required. Non-empty array of `{ inventory_id, quantity?, unit_price? }`. | “At least one item is required.”     |
-| items[].inventory_id | Required. Must exist in `inventory`.                              | “Invalid or missing inventory item.”            |
-| order_date           | Optional. Valid `YYYY-MM-DD`. Default: today.                       | “Invalid date.”                                 |
+| items[].inventory_id | Required. Must exist in `inventory`.                                     | “Invalid or missing inventory item.” |
+| order_date           | Optional. Valid `YYYY-MM-DD`. Default: today.                            | “Invalid date.”                      |
 
 **Update order (`PATCH /api/orders/[id]`):**
 
-| Field                 | Rule                                                        | Error message if violated                |
-| --------------------- | ----------------------------------------------------------- | ---------------------------------------- |
-| shipping_date         | Optional. Valid `YYYY-MM-DD`.                               | “Invalid date.”                          |
-| shipper               | Optional. One of: USPS, UPS, FedEx, DHL, Other.             | “Invalid shipper.”                       |
-| seller_shipping_cost  | Optional. Number >= 0.                                      | “Shipping cost must be zero or greater.” |
-| discount_total        | Optional. Number >= 0.                                      | “Discount must be zero or greater.”      |
-| was_paid              | Optional. 0 or 1.                                           | —                                        |
-| tracking_number       | Optional. String.                                           | —                                        |
+| Field                | Rule                                            | Error message if violated                |
+| -------------------- | ----------------------------------------------- | ---------------------------------------- |
+| shipping_date        | Optional. Valid `YYYY-MM-DD`.                   | “Invalid date.”                          |
+| shipper              | Optional. One of: USPS, UPS, FedEx, DHL, Other. | “Invalid shipper.”                       |
+| seller_shipping_cost | Optional. Number >= 0.                          | “Shipping cost must be zero or greater.” |
+| discount_total       | Optional. Number >= 0.                          | “Discount must be zero or greater.”      |
+| was_paid             | Optional. 0 or 1.                               | —                                        |
+| tracking_number      | Optional. String.                               | —                                        |
 
 **Ship until paid or override:** The system **does not allow** "Mark as shipped" until the **order** is paid (`orders.was_paid = 1`), **unless** the user explicitly chooses "Ship anyway" with confirmation (ADR-031, ADR-040). No silent ship-when-unpaid. On override, set `orders.shipped_without_paid_override = 1` on the order header (ADR-017) — not on `order_items`. Applies to `POST /api/orders/[id]/mark-shipped` and batch `mark_shipped`.
 
@@ -116,11 +116,11 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 ### 7. Reports (parameters)
 
-| Report                         | Parameter          | Rule                                                                 | Error message if violated                 |
-| ------------------------------ | ------------------ | -------------------------------------------------------------------- | ----------------------------------------- |
-| Thank-you note, Invoice        | order_id           | Required. Must exist in `orders`.                                    | “Order is required.” / “Order not found.” |
-| Sales, Costs, Postal by vendor | from_date, to_date | Optional. If present, valid YYYY-MM-DD; from_date <= to_date.        | “Invalid date range.”                     |
-| Income MTD / YTD               | —                  | None.                                                                | —                                         |
+| Report                         | Parameter          | Rule                                                          | Error message if violated                 |
+| ------------------------------ | ------------------ | ------------------------------------------------------------- | ----------------------------------------- |
+| Thank-you note, Invoice        | order_id           | Required. Must exist in `orders`.                             | “Order is required.” / “Order not found.” |
+| Sales, Costs, Postal by vendor | from_date, to_date | Optional. If present, valid YYYY-MM-DD; from_date <= to_date. | “Invalid date range.”                     |
+| Income MTD / YTD               | —                  | None.                                                         | —                                         |
 
 ---
 
@@ -138,13 +138,13 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 This ADR uses original data model terms. The implementation maps as follows:
 
-| ADR-021 term | Implementation | Notes |
-|-------------|----------------|-------|
-| `PATCH /api/purchases/[id]` | `PATCH /api/orders/[id]` | Order update endpoint |
-| purchase row(s) | `orders` + `order_items` | |
-| purchase.shipped_without_paid_override | `orders.shipped_without_paid_override` | Audit flag on order header |
-| customer_address_id | Not used in v1 | Ship-to is a snapshot on `orders` (`ship_to_*` fields) |
-| default_address_id | Not used in v1 | Context check: address must belong to customer via `addresses.customer_id` |
-| date_of_purchase | `orders.order_date` | |
-| shipping_cost | `orders.seller_shipping_cost` | |
-| discount_amount | `orders.discount_total` | |
+| ADR-021 term                           | Implementation                         | Notes                                                                      |
+| -------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| `PATCH /api/purchases/[id]`            | `PATCH /api/orders/[id]`               | Order update endpoint                                                      |
+| purchase row(s)                        | `orders` + `order_items`               |                                                                            |
+| purchase.shipped_without_paid_override | `orders.shipped_without_paid_override` | Audit flag on order header                                                 |
+| customer_address_id                    | Not used in v1                         | Ship-to is a snapshot on `orders` (`ship_to_*` fields)                     |
+| default_address_id                     | Not used in v1                         | Context check: address must belong to customer via `addresses.customer_id` |
+| date_of_purchase                       | `orders.order_date`                    |                                                                            |
+| shipping_cost                          | `orders.seller_shipping_cost`          |                                                                            |
+| discount_amount                        | `orders.discount_total`                |                                                                            |

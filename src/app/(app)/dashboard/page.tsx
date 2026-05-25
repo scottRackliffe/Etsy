@@ -16,9 +16,15 @@ import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
   const {
-    shops, selectedShopId, setSelectedShopId,
-    receipts, receiptsLoading, count,
-    setBusyAction, setApiError, setError,
+    shops,
+    selectedShopId,
+    setSelectedShopId,
+    receipts,
+    receiptsLoading,
+    count,
+    setBusyAction,
+    setApiError,
+    setError,
   } = useApp();
 
   const router = useRouter();
@@ -44,11 +50,14 @@ export default function DashboardPage() {
 
   const formatDate = (ts: number) =>
     new Date(ts * 1000).toLocaleDateString(undefined, {
-      month: "short", day: "numeric", year: "numeric",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   const formatMoney = (value: string, code: string) =>
     new Intl.NumberFormat(undefined, {
-      style: "currency", currency: code || "USD",
+      style: "currency",
+      currency: code || "USD",
     }).format(parseFloat(value || "0"));
 
   const syncFromEtsy = () => {
@@ -125,7 +134,9 @@ export default function DashboardPage() {
             <p className="mt-2 text-2xl font-semibold text-[var(--ui-accent)]">{shippedCount}</p>
           </article>
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Repeat customers (month)</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
+              Repeat customers (month)
+            </p>
             <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">
               {repeatCustomersMonth ?? "—"}
             </p>
@@ -134,7 +145,8 @@ export default function DashboardPage() {
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Gross total</p>
             <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">
               {new Intl.NumberFormat(undefined, {
-                style: "currency", currency: grossCurrency,
+                style: "currency",
+                currency: grossCurrency,
               }).format(grossTotal)}
             </p>
           </article>
@@ -177,7 +189,11 @@ export default function DashboardPage() {
             primaryAction={
               shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+                : {
+                    label: "Connect Etsy first",
+                    onClick: () => router.push("/config#etsy-connection"),
+                    variant: "secondary",
+                  }
             }
             secondaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
           />
@@ -203,7 +219,9 @@ export default function DashboardPage() {
                       backgroundColor: i % 2 === 0 ? "var(--ui-list-dark)" : "var(--ui-list-light)",
                     }}
                   >
-                    <td className="px-5 py-3 text-[var(--ui-body)]">{formatDate(r.creation_tsz)}</td>
+                    <td className="px-5 py-3 text-[var(--ui-body)]">
+                      {formatDate(r.creation_tsz)}
+                    </td>
                     <td className="px-5 py-3 font-mono text-[var(--ui-title)]">{r.receipt_id}</td>
                     <td className="px-5 py-3">
                       <p className="font-medium text-[var(--ui-title)]">{r.name}</p>
@@ -215,7 +233,8 @@ export default function DashboardPage() {
                       {formatMoney(r.total_price, r.currency_code)}
                       {parseFloat(r.total_shipping_cost) > 0 && (
                         <span className="text-xs text-[var(--ui-muted)]">
-                          {" "}+ {formatMoney(r.total_shipping_cost, r.currency_code)} ship
+                          {" "}
+                          + {formatMoney(r.total_shipping_cost, r.currency_code)} ship
                         </span>
                       )}
                     </td>

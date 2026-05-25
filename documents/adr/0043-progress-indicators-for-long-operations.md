@@ -1,27 +1,30 @@
 # ADR-043: Progress indicators for long operations
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Several operations in the app can take seconds to minutes: Etsy sync (fetching and processing multiple receipts), backup create/restore (copying database and uploads), report PDF generation (rendering and writing PDF), bulk operations (processing many records), and thumbnail batch regeneration. Currently, the user sees no feedback during these operations — just a frozen UI until completion or failure. This creates confusion ("Did it crash?"), impatience, and accidental double-submissions.
 
 ## Decision
 
 ### 1. Operations requiring progress indicators
 
-| Operation | Expected duration | Progress type | Source |
-|---|---|---|---|
-| Etsy sync | 5–60s (depends on receipt count) | Determinate | ADR-019 |
-| Backup create | 2–30s (depends on DB + upload size) | Indeterminate | ADR-027 |
-| Backup restore | 2–30s | Indeterminate | ADR-027 |
-| Report PDF generation | 1–10s | Indeterminate | ADR-013 |
-| Bulk operations (> 10 items) | 2–30s (depends on item count) | Determinate | ADR-040 |
-| Thumbnail batch regeneration | 5–120s (depends on image count) | Determinate | — |
-| Report CSV export | 1–5s | Indeterminate | ADR-013 |
+| Operation                    | Expected duration                   | Progress type | Source  |
+| ---------------------------- | ----------------------------------- | ------------- | ------- |
+| Etsy sync                    | 5–60s (depends on receipt count)    | Determinate   | ADR-019 |
+| Backup create                | 2–30s (depends on DB + upload size) | Indeterminate | ADR-027 |
+| Backup restore               | 2–30s                               | Indeterminate | ADR-027 |
+| Report PDF generation        | 1–10s                               | Indeterminate | ADR-013 |
+| Bulk operations (> 10 items) | 2–30s (depends on item count)       | Determinate   | ADR-040 |
+| Thumbnail batch regeneration | 5–120s (depends on image count)     | Determinate   | —       |
+| Report CSV export            | 1–5s                                | Indeterminate | ADR-013 |
 
 ### 2. Two progress patterns
 
@@ -77,6 +80,7 @@ Used when the total is unknown or the operation is a single atomic step (backup,
 Both patterns are displayed in a modal overlay.
 
 **Modal specification:**
+
 - Centered in viewport, width `max-w-md` (448px)
 - Background: `var(--ui-card-bg)` with `var(--ui-border)` border, rounded corners
 - Backdrop: semi-transparent dark overlay (same as other modals)
@@ -169,6 +173,7 @@ For operations that benefit from real-time updates without polling overhead, the
 `GET /api/jobs/[job_id]/stream` → `text/event-stream`
 
 Events:
+
 ```
 event: progress
 data: {"current": 15, "total": 42, "message": "Processing receipt #1234567890"}
@@ -195,6 +200,7 @@ Cancellation is supported for sync and bulk operations (not for backup or report
 **Cancel request:** `DELETE /api/jobs/[job_id]`
 
 Response:
+
 ```json
 {
   "ok": true,
@@ -218,11 +224,13 @@ Response:
 ### 6. Completion behavior
 
 **Success:**
+
 - Progress modal auto-dismisses after **2 seconds**
 - A success toast appears with a summary: "Synced 42 orders (12 new, 30 updated)" or "Backup created successfully"
 - For reports: the report viewer opens automatically after the modal dismisses
 
 **Failure:**
+
 - The progress modal transforms into an error state:
   - Spinner/progress bar is replaced with an error icon (red)
   - Error message displayed in `var(--ui-red)` text
@@ -231,6 +239,7 @@ Response:
 - A separate error toast is NOT shown (the modal handles the error display)
 
 **Cancellation:**
+
 - Progress modal dismisses immediately
 - Info toast: "Operation cancelled. 15 of 42 items were processed."
 
@@ -245,12 +254,12 @@ Response:
 
 Some operations are fast enough to use a simple inline loading state:
 
-| Operation | Expected duration | UI feedback |
-|---|---|---|
-| Single record save (PATCH) | < 1s | Button spinner + disabled state |
-| Single record delete | < 1s | Button spinner + disabled state |
-| Bulk operations ≤ 10 items | 1–3s | Button spinner (per ADR-040 §8) |
-| Report CSV export < 100 rows | < 2s | Button spinner |
+| Operation                    | Expected duration | UI feedback                     |
+| ---------------------------- | ----------------- | ------------------------------- |
+| Single record save (PATCH)   | < 1s              | Button spinner + disabled state |
+| Single record delete         | < 1s              | Button spinner + disabled state |
+| Bulk operations ≤ 10 items   | 1–3s              | Button spinner (per ADR-040 §8) |
+| Report CSV export < 100 rows | < 2s              | Button spinner                  |
 
 These do NOT use the job/polling pattern. They use a simple `loading` state on the action button.
 
@@ -260,6 +269,7 @@ These do NOT use the job/polling pattern. They use a simple `loading` state on t
 - **Negative:** The job tracking system adds server-side complexity (in-memory job map, polling/SSE endpoints); SSE adds an alternative progress delivery mechanism that must be maintained alongside polling; the 2-second polling interval could be too slow for very fast operations (but they'd use inline loading instead) or too fast for very slow operations (but 2s is a reasonable default).
 
 ## Notes
+
 - Cross-references: ADR-019 (Etsy sync — primary consumer of determinate progress), ADR-027 (backup — consumer of indeterminate progress), ADR-013 (reports — consumer of indeterminate progress), ADR-040 (bulk operations — consumer of determinate progress for batches > 10), ADR-028 (LoadingSpinner component — used in indeterminate pattern)
 - The in-memory job store means job state is lost on server restart. This is acceptable because: (a) this is a single-user local app, (b) jobs complete quickly, and (c) a server restart during a job implies something went wrong anyway
 - Future consideration: WebSocket could replace SSE for bidirectional communication, but SSE is simpler and sufficient for server-to-client progress updates

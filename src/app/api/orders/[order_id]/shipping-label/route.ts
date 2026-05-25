@@ -63,7 +63,8 @@ export async function GET(
         status: 400,
         code: "VALIDATION_ERROR",
         message: "Incomplete ship-to address",
-        userMessage: "Complete the ship-to address and carrier on this order before printing a label.",
+        userMessage:
+          "Complete the ship-to address and carrier on this order before printing a label.",
         actions: [
           `Missing: ${missing.join(", ")}.`,
           "Edit the order on the Sales tab and try again.",
@@ -80,7 +81,10 @@ export async function GET(
         code: "VALIDATION_ERROR",
         message: "Shipping Info missing",
         userMessage: `Shipping Info is needed for ${shipper} labels. Go to Config → Shipping Info to add it.`,
-        actions: ["Open Config → Shipping Info", "Add return address and any required account number."],
+        actions: [
+          "Open Config → Shipping Info",
+          "Add return address and any required account number.",
+        ],
         canRetry: false,
       });
     }

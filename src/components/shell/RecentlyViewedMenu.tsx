@@ -13,14 +13,14 @@ import {
 
 const GROUP_ORDER: RecentlyViewedEntityType[] = ["inventory", "order", "customer"];
 
-function groupEntries(entries: RecentlyViewedEntry[]): Map<RecentlyViewedEntityType, RecentlyViewedEntry[]> {
+function groupEntries(
+  entries: RecentlyViewedEntry[]
+): Map<RecentlyViewedEntityType, RecentlyViewedEntry[]> {
   const groups = new Map<RecentlyViewedEntityType, RecentlyViewedEntry[]>();
   for (const type of GROUP_ORDER) {
     groups.set(
       type,
-      entries
-        .filter((entry) => entry.entityType === type)
-        .sort((a, b) => b.timestamp - a.timestamp)
+      entries.filter((entry) => entry.entityType === type).sort((a, b) => b.timestamp - a.timestamp)
     );
   }
   return groups;
@@ -67,7 +67,9 @@ export function RecentlyViewedMenu() {
             Recently viewed
           </p>
           {!hasEntries ? (
-            <p className="py-4 text-center text-sm text-[var(--ui-muted)]">No recently viewed items.</p>
+            <p className="py-4 text-center text-sm text-[var(--ui-muted)]">
+              No recently viewed items.
+            </p>
           ) : (
             <div className="space-y-3">
               {GROUP_ORDER.map((type) => {
@@ -87,7 +89,9 @@ export function RecentlyViewedMenu() {
                             onClick={() => setOpen(false)}
                             className="block rounded-lg px-2 py-1.5 text-sm transition hover:bg-[var(--ui-card-bg)]"
                           >
-                            <span className="block truncate text-[var(--ui-body)]">{entry.label}</span>
+                            <span className="block truncate text-[var(--ui-body)]">
+                              {entry.label}
+                            </span>
                             <span className="text-xs text-[var(--ui-muted)]">
                               {formatRecentlyViewedTime(entry.timestamp)}
                             </span>

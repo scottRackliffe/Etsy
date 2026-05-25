@@ -14,12 +14,7 @@ type Props = {
   };
 };
 
-export function BatchActionsBar({
-  selectionLabel,
-  children,
-  onClear,
-  selectAllMatching,
-}: Props) {
+export function BatchActionsBar({ selectionLabel, children, onClear, selectAllMatching }: Props) {
   return (
     <div className="sticky top-0 z-10 mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -39,7 +34,11 @@ export function BatchActionsBar({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">{children}</div>
-        <button type="button" onClick={onClear} className="text-sm text-[var(--ui-accent)] hover:underline">
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-sm text-[var(--ui-accent)] hover:underline"
+        >
           Clear selection
         </button>
       </div>

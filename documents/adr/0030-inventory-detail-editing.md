@@ -43,43 +43,43 @@ All fields use `FormField` + `TextInput` or `SelectInput`. Changes are saved via
 
 **Identity section:**
 
-| Field | Label | Input type | Notes |
-|-------|-------|------------|-------|
-| `item_number` | Item number | `TextInput` | Read-only after creation (unique constraint) |
-| `description` | Description | `TextArea` (multi-line) | Free text |
-| `status` | Status | `SelectInput` | Options: `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired` (ADR-002, ADR-017) |
-| `quantity` | Quantity | `TextInput` type="number" | Default 1 |
+| Field         | Label       | Input type                | Notes                                                                                    |
+| ------------- | ----------- | ------------------------- | ---------------------------------------------------------------------------------------- |
+| `item_number` | Item number | `TextInput`               | Read-only after creation (unique constraint)                                             |
+| `description` | Description | `TextArea` (multi-line)   | Free text                                                                                |
+| `status`      | Status      | `SelectInput`             | Options: `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired` (ADR-002, ADR-017) |
+| `quantity`    | Quantity    | `TextInput` type="number" | Default 1                                                                                |
 
 **Financials section:**
 
-| Field | Label | Input type | Notes |
-|-------|-------|------------|-------|
-| `purchase_cost` | Purchase cost | `TextInput` type="number" | Currency formatted display |
-| `shipping_cost` | Shipping cost (inbound) | `TextInput` type="number" | Cost to receive item |
-| `sale_revenue` | Sale price | `TextInput` type="number" | What it sold for |
-| `category_tags` | Category / tags | `TextInput` | Comma-separated |
+| Field           | Label                   | Input type                | Notes                      |
+| --------------- | ----------------------- | ------------------------- | -------------------------- |
+| `purchase_cost` | Purchase cost           | `TextInput` type="number" | Currency formatted display |
+| `shipping_cost` | Shipping cost (inbound) | `TextInput` type="number" | Cost to receive item       |
+| `sale_revenue`  | Sale price              | `TextInput` type="number" | What it sold for           |
+| `category_tags` | Category / tags         | `TextInput`               | Comma-separated            |
 
 **Dates section:**
 
-| Field | Label | Input type | Notes |
-|-------|-------|------------|-------|
-| `date_purchased` | Date purchased | `TextInput` type="date" | HTML date input |
-| `date_listed` | Date listed | `TextInput` type="date" | Auto-set when published to Etsy |
-| `date_of_sale` | Date sold | `TextInput` type="date" | Auto-set when order synced |
-| `shipping_date` | Date shipped | `TextInput` type="date" | |
+| Field            | Label          | Input type              | Notes                           |
+| ---------------- | -------------- | ----------------------- | ------------------------------- |
+| `date_purchased` | Date purchased | `TextInput` type="date" | HTML date input                 |
+| `date_listed`    | Date listed    | `TextInput` type="date" | Auto-set when published to Etsy |
+| `date_of_sale`   | Date sold      | `TextInput` type="date" | Auto-set when order synced      |
+| `shipping_date`  | Date shipped   | `TextInput` type="date" |                                 |
 
 **Condition section:**
 
-| Field | Label | Input type | Notes |
-|-------|-------|------------|-------|
-| `condition_code` | Condition | `SelectInput` | Options: `Mint/Near Mint`, `Excellent`, `Very Good`, `Good`, `Fair/As-Is` (ADR-002) |
-| `has_condition_issue` | Has condition issue | Checkbox | Boolean toggle |
-| `condition_notes` | Condition notes | `TextArea` | Free text; required if `has_condition_issue` is true |
+| Field                 | Label               | Input type    | Notes                                                                               |
+| --------------------- | ------------------- | ------------- | ----------------------------------------------------------------------------------- |
+| `condition_code`      | Condition           | `SelectInput` | Options: `Mint/Near Mint`, `Excellent`, `Very Good`, `Good`, `Fair/As-Is` (ADR-002) |
+| `has_condition_issue` | Has condition issue | Checkbox      | Boolean toggle                                                                      |
+| `condition_notes`     | Condition notes     | `TextArea`    | Free text; required if `has_condition_issue` is true                                |
 
 **Notes section:**
 
-| Field | Label | Input type | Notes |
-|-------|-------|------------|-------|
+| Field   | Label          | Input type | Notes                               |
+| ------- | -------------- | ---------- | ----------------------------------- |
 | `notes` | Internal notes | `TextArea` | Free text; never shown to customers |
 
 ---
@@ -99,14 +99,14 @@ All fields use `FormField` + `TextInput` or `SelectInput`. Changes are saved via
 └─────────────────────────────────────────┘
 ```
 
-| Column | Source field |
-|--------|----------------|
-| Date | `purchases.purchase_date` |
-| Vendor | `purchases.vendor_name` |
-| Price | `purchases.purchase_price` |
-| Shipping | `purchases.shipping_price` |
+| Column    | Source field                 |
+| --------- | ---------------------------- |
+| Date      | `purchases.purchase_date`    |
+| Vendor    | `purchases.vendor_name`      |
+| Price     | `purchases.purchase_price`   |
+| Shipping  | `purchases.shipping_price`   |
 | Reference | `purchases.reference_number` |
-| Notes | `purchases.notes` |
+| Notes     | `purchases.notes`            |
 
 - **API:** `GET/POST /api/purchases?inventory_id=` (filter by inventory) or nested `GET/POST /api/inventory/[id]/purchases` per ADR-018 catalog pattern; `PATCH/DELETE /api/purchases/[id]`.
 - **Add buy modal:** Vendor name (required), purchase date (default today), purchase price, shipping price, reference #, notes.

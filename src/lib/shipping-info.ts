@@ -82,13 +82,13 @@ export type OrderShipToSnapshot = {
 export function isOrderShipToComplete(order: OrderShipToSnapshot): boolean {
   return Boolean(
     order.shipper?.trim() &&
-      order.ship_to_first_name?.trim() &&
-      order.ship_to_last_name?.trim() &&
-      order.ship_to_address_line_1?.trim() &&
-      order.ship_to_city?.trim() &&
-      order.ship_to_state_province?.trim() &&
-      order.ship_to_country?.trim() &&
-      order.ship_to_postal_code?.trim()
+    order.ship_to_first_name?.trim() &&
+    order.ship_to_last_name?.trim() &&
+    order.ship_to_address_line_1?.trim() &&
+    order.ship_to_city?.trim() &&
+    order.ship_to_state_province?.trim() &&
+    order.ship_to_country?.trim() &&
+    order.ship_to_postal_code?.trim()
   );
 }
 

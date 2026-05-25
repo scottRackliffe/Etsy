@@ -75,8 +75,7 @@ export function addNotificationEntry(input: {
   items = [entry, ...items];
   while (items.length > MAX_NOTIFICATIONS) {
     const unreadIdx = items.map((n, i) => (!n.read ? i : -1)).filter((i) => i >= 0);
-    const removeIdx =
-      unreadIdx.length > 0 ? unreadIdx[unreadIdx.length - 1] : items.length - 1;
+    const removeIdx = unreadIdx.length > 0 ? unreadIdx[unreadIdx.length - 1] : items.length - 1;
     items.splice(removeIdx, 1);
   }
   saveRaw(items);
@@ -93,6 +92,14 @@ export function markAllNotificationsRead(): AppNotification[] {
   const items = listNotifications().map((n) => ({ ...n, read: true }));
   saveRaw(items);
   return items;
+}
+
+export function clearAllNotifications(): void {
+  saveRaw([]);
+}
+
+export function clearErrorNotifications(): void {
+  saveRaw(listNotifications().filter((n) => n.type !== "error"));
 }
 
 export function unreadNotificationCount(items: AppNotification[]): number {
@@ -118,5 +125,10 @@ export function formatNotificationTime(iso: string): string {
   ) {
     return "Yesterday";
   }
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

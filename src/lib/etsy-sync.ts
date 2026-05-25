@@ -59,7 +59,9 @@ function releaseSyncLock(): void {
 // Money helpers — Etsy v3 returns { amount, divisor, currency_code } or string
 // ---------------------------------------------------------------------------
 
-function parseMoneyAmount(val: { amount: number; divisor: number } | string | null | undefined): number | null {
+function parseMoneyAmount(
+  val: { amount: number; divisor: number } | string | null | undefined
+): number | null {
   if (val == null) return null;
   if (typeof val === "string") {
     const n = parseFloat(val);
@@ -143,9 +145,13 @@ function resolveOrCreateAddress(customerId: number, receipt: Receipt): number {
            AND TRIM(postal_code) = ?
            AND LOWER(TRIM(country)) = LOWER(?)`
       )
-      .get(customerId, firstLine.toLowerCase(), city.toLowerCase(), postalCode, country.toLowerCase()) as
-      | { id: number }
-      | undefined;
+      .get(
+        customerId,
+        firstLine.toLowerCase(),
+        city.toLowerCase(),
+        postalCode,
+        country.toLowerCase()
+      ) as { id: number } | undefined;
     if (existing) return existing.id;
   }
 
@@ -219,9 +225,9 @@ function resolveOrCreateInventory(
 
 function isReceiptAlreadySynced(receiptId: string): boolean {
   const db = getDb();
-  const row = db
-    .prepare("SELECT id FROM orders WHERE etsy_receipt_id = ?")
-    .get(receiptId) as { id: number } | undefined;
+  const row = db.prepare("SELECT id FROM orders WHERE etsy_receipt_id = ?").get(receiptId) as
+    | { id: number }
+    | undefined;
   return !!row;
 }
 

@@ -72,41 +72,41 @@ On screens < `lg`, panels stack vertically.
 
 **Ship-to address section:**
 
-| Field | Label | Editable |
-|-------|-------|----------|
-| `ship_to_first_name` + `ship_to_last_name` | Ship to | Yes |
-| `ship_to_address_line_1` | Address line 1 | Yes |
-| `ship_to_address_line_2` | Address line 2 | Yes |
-| `ship_to_city` | City | Yes |
-| `ship_to_state_province` | State / Province | Yes |
-| `ship_to_postal_code` | Postal code | Yes |
-| `ship_to_country` | Country | Yes |
+| Field                                      | Label            | Editable |
+| ------------------------------------------ | ---------------- | -------- |
+| `ship_to_first_name` + `ship_to_last_name` | Ship to          | Yes      |
+| `ship_to_address_line_1`                   | Address line 1   | Yes      |
+| `ship_to_address_line_2`                   | Address line 2   | Yes      |
+| `ship_to_city`                             | City             | Yes      |
+| `ship_to_state_province`                   | State / Province | Yes      |
+| `ship_to_postal_code`                      | Postal code      | Yes      |
+| `ship_to_country`                          | Country          | Yes      |
 
 - If customer is linked and has addresses, show "Copy from customer address" button.
 
 **Financials section:**
 
-| Field | Label | Editable | Notes |
-|-------|-------|----------|-------|
-| `subtotal` | Subtotal | Read-only | Sum of line totals |
-| `shipping_total` | Shipping (buyer pays) | Yes | Amount charged to buyer |
-| `seller_shipping_cost` | Shipping cost (seller pays) | Yes | Seller's actual cost |
-| `tax_total` | Tax | Yes | |
-| `discount_total` | Discount | Yes | |
-| `grand_total` | Grand total | Read-only | Computed: subtotal + shipping + tax − discount |
+| Field                  | Label                       | Editable  | Notes                                          |
+| ---------------------- | --------------------------- | --------- | ---------------------------------------------- |
+| `subtotal`             | Subtotal                    | Read-only | Sum of line totals                             |
+| `shipping_total`       | Shipping (buyer pays)       | Yes       | Amount charged to buyer                        |
+| `seller_shipping_cost` | Shipping cost (seller pays) | Yes       | Seller's actual cost                           |
+| `tax_total`            | Tax                         | Yes       |                                                |
+| `discount_total`       | Discount                    | Yes       |                                                |
+| `grand_total`          | Grand total                 | Read-only | Computed: subtotal + shipping + tax − discount |
 
 **Shipping section:**
 
-| Field | Label | Editable | Notes |
-|-------|-------|----------|-------|
-| `shipper` | Carrier | `SelectInput` | Options: `USPS`, `UPS`, `FedEx`, `DHL`, `Other` |
-| `shipping_date` | Ship date | `TextInput` type="date" | |
-| Tracking number | Tracking # | `TextInput` | New field: `tracking_number` (requires DB column addition) |
+| Field           | Label      | Editable                | Notes                                                      |
+| --------------- | ---------- | ----------------------- | ---------------------------------------------------------- |
+| `shipper`       | Carrier    | `SelectInput`           | Options: `USPS`, `UPS`, `FedEx`, `DHL`, `Other`            |
+| `shipping_date` | Ship date  | `TextInput` type="date" |                                                            |
+| Tracking number | Tracking # | `TextInput`             | New field: `tracking_number` (requires DB column addition) |
 
 **Notes section:**
 
-| Field | Label | Editable |
-|-------|-------|----------|
+| Field   | Label          | Editable         |
+| ------- | -------------- | ---------------- |
 | `notes` | Internal notes | Yes (`TextArea`) |
 
 **Read-only metadata:**
@@ -120,15 +120,15 @@ On screens < `lg`, panels stack vertically.
 
 All use `Button` component. Destructive actions require confirmation per ADR-032.
 
-| Action | Button | Behavior |
-|--------|--------|----------|
-| Save changes | `<Button variant="accent">Save changes</Button>` | `PATCH /api/orders/[id]` with changed fields |
-| Mark paid | `<Button variant="accent">Mark paid</Button>` | `POST /api/orders/[id]/mark-paid` |
-| Mark shipped | `<Button variant="accent">Mark shipped</Button>` | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
-| Void order | `<Button variant="danger">Void order</Button>` | Confirmation dialog. Sets `order_status = 'void'` |
-| Print invoice | `<Button variant="secondary">Print invoice</Button>` | Opens `/api/reports/invoice?order_id={id}&format=pdf` (per ADR-036) |
-| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you-note?order_id={id}&format=pdf` (per ADR-036) |
-| Link customer | `<Button variant="ghost">Link customer</Button>` | Modal with customer search/select. Sets `customer_id` via PATCH |
+| Action          | Button                                                | Behavior                                                                        |
+| --------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Save changes    | `<Button variant="accent">Save changes</Button>`      | `PATCH /api/orders/[id]` with changed fields                                    |
+| Mark paid       | `<Button variant="accent">Mark paid</Button>`         | `POST /api/orders/[id]/mark-paid`                                               |
+| Mark shipped    | `<Button variant="accent">Mark shipped</Button>`      | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
+| Void order      | `<Button variant="danger">Void order</Button>`        | Confirmation dialog. Sets `order_status = 'void'`                               |
+| Print invoice   | `<Button variant="secondary">Print invoice</Button>`  | Opens `/api/reports/invoice?order_id={id}&format=pdf` (per ADR-036)             |
+| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you-note?order_id={id}&format=pdf` (per ADR-036)      |
+| Link customer   | `<Button variant="ghost">Link customer</Button>`      | Modal with customer search/select. Sets `customer_id` via PATCH                 |
 
 ---
 

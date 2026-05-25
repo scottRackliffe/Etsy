@@ -3,12 +3,9 @@ const VARIANT_CLASSES: Record<string, string> = {
     "bg-[var(--ui-green)] text-black hover:bg-[var(--ui-primary-hover)] disabled:bg-[var(--ui-disabled)] disabled:text-[var(--ui-muted)]",
   secondary:
     "bg-[var(--ui-neutral)] text-[var(--ui-body)] hover:bg-[var(--ui-neutral-hover)] disabled:opacity-50",
-  danger:
-    "bg-[var(--ui-red)] text-white hover:bg-[var(--ui-danger-hover)] disabled:opacity-50",
-  accent:
-    "bg-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent-hover)] disabled:opacity-50",
-  ghost:
-    "bg-transparent text-[var(--ui-body)] hover:bg-[var(--ui-neutral)] disabled:opacity-50",
+  danger: "bg-[var(--ui-red)] text-white hover:bg-[var(--ui-danger-hover)] disabled:opacity-50",
+  accent: "bg-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent-hover)] disabled:opacity-50",
+  ghost: "bg-transparent text-[var(--ui-body)] hover:bg-[var(--ui-neutral)] disabled:opacity-50",
 };
 
 const SIZE_CLASSES: Record<string, string> = {

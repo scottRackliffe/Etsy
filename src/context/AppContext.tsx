@@ -2,7 +2,19 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { addNotificationEntry } from "@/lib/notifications";
-import type { Shop, InventoryItem, Receipt, Customer, CustomerAddress, Order, UiError, ApiErrorShape, AiConfig, ListingReadiness, PublishPreview } from "@/types";
+import type {
+  Shop,
+  InventoryItem,
+  Receipt,
+  Customer,
+  CustomerAddress,
+  Order,
+  UiError,
+  ApiErrorShape,
+  AiConfig,
+  ListingReadiness,
+  PublishPreview,
+} from "@/types";
 
 type PublishConfig = {
   taxonomyId: string;
@@ -123,14 +135,20 @@ function parseUrlError(): UiError | null {
     return {
       title: "Etsy sign-in was canceled",
       message: detail ? decodeURIComponent(detail) : "Authorization was denied before completion.",
-      actions: ["Click Connect Etsy and complete authorization.", "Verify you approved all requested scopes."],
+      actions: [
+        "Click Connect Etsy and complete authorization.",
+        "Verify you approved all requested scopes.",
+      ],
     };
   }
   if (code === "invalid_callback") {
     return {
       title: "Sign-in verification failed",
       message: "The OAuth callback could not be validated.",
-      actions: ["Retry Connect Etsy from the dashboard.", "If it repeats, verify ETSY_REDIRECT_URI configuration."],
+      actions: [
+        "Retry Connect Etsy from the dashboard.",
+        "If it repeats, verify ETSY_REDIRECT_URI configuration.",
+      ],
     };
   }
   if (code === "token_exchange_failed") {
@@ -164,9 +182,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [publishHistory, setPublishHistory] = useState<PublishHistory | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [publishConfig, setPublishConfig] = useState<PublishConfig>({
-    taxonomyId: "", shippingProfileId: "", readinessStateId: "", imageIds: "",
-    whoMade: "i_did", whenMade: "before_2000", imageMaxDimension: "2000",
-    imageTargetDpi: "300", imageJpegQuality: "82", allowPartialImageUpload: "false",
+    taxonomyId: "",
+    shippingProfileId: "",
+    readinessStateId: "",
+    imageIds: "",
+    whoMade: "i_did",
+    whenMade: "before_2000",
+    imageMaxDimension: "2000",
+    imageTargetDpi: "300",
+    imageJpegQuality: "82",
+    allowPartialImageUpload: "false",
     imageUploadAttempts: "3",
   });
   const [iconConfig, setIconConfig] = useState<IconConfig>({
@@ -201,6 +226,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setApiError = useCallback((title: string, fallbackMessage: string, payload: unknown) => {
     const data = payload as ApiErrorShape;
+    if (data?.error?.code === "UNAUTHORIZED") {
+      return;
+    }
     const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
     setError({ title, message, actions });
@@ -249,7 +277,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setShops(data.shops ?? []);
         if (data.shops?.length) {
           const preferred = data.active_shop_id ?? data.shops[0].shop_id;
-          const resolved = data.shops.find((shop) => shop.shop_id === preferred)?.shop_id ?? data.shops[0].shop_id;
+          const resolved =
+            data.shops.find((shop) => shop.shop_id === preferred)?.shop_id ?? data.shops[0].shop_id;
           setSelectedShopId(resolved);
         }
       })
@@ -258,7 +287,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setApiError("Could not load shops", "We could not load your Etsy shops.", err);
       })
       .finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [setApiError]);
 
   // Persist active shop
@@ -305,10 +336,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Load inventory
   useEffect(() => {
-    if (shops.length === 0) return;
+    if (loading) return;
     fetch("/api/inventory?limit=100", { headers: { Accept: "application/json" } })
       .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { items?: InventoryItem[] };
+        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & {
+          items?: InventoryItem[];
+        };
         if (!r.ok) throw data;
         return data.items ?? [];
       })
@@ -316,12 +349,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setInventory(items);
         if (items.length > 0) setSelectedItemId((current) => current ?? items[0].id);
       })
-      .catch((err) => setApiError("Could not load inventory", "We could not load inventory items.", err));
-  }, [shops.length, setApiError]);
+      .catch((err) =>
+        setApiError("Could not load inventory", "We could not load inventory items.", err)
+      );
+  }, [loading, setApiError]);
 
   // Load orders
   useEffect(() => {
-    if (shops.length === 0) return;
+    if (loading) return;
     fetch("/api/orders?limit=100", { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { items?: Order[] };
@@ -333,11 +368,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (items.length > 0) setSelectedOrderId((current) => current ?? items[0].id);
       })
       .catch((err) => setApiError("Could not load orders", "We could not load local orders.", err));
-  }, [shops.length, setApiError]);
+  }, [loading, setApiError]);
 
   // Load customers
   useEffect(() => {
-    if (shops.length === 0) return;
+    if (loading) return;
     fetch("/api/customers?limit=100", { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { items?: Customer[] };
@@ -348,8 +383,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCustomers(items);
         if (items.length > 0) setSelectedCustomerId((current) => current ?? items[0].id);
       })
-      .catch((err) => setApiError("Could not load customers", "We could not load customer records.", err));
-  }, [shops.length, setApiError]);
+      .catch((err) =>
+        setApiError("Could not load customers", "We could not load customer records.", err)
+      );
+  }, [loading, setApiError]);
 
   // Load selected item details
   useEffect(() => {
@@ -363,18 +400,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return data.item ?? null;
       })
       .then((item) => setSelectedItem(item))
-      .catch((err) => setApiError("Could not load selected item", "We could not load this inventory item.", err));
+      .catch((err) =>
+        setApiError("Could not load selected item", "We could not load this inventory item.", err)
+      );
 
-    fetch(`/api/inventory/${selectedItemId}/listing-readiness`, { headers: { Accept: "application/json" } })
+    fetch(`/api/inventory/${selectedItemId}/listing-readiness`, {
+      headers: { Accept: "application/json" },
+    })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & ListingReadiness;
         if (!r.ok) throw data;
         return data;
       })
       .then((readiness) => setListingReadiness(readiness))
-      .catch((err) => setApiError("Could not load listing readiness", "We could not evaluate listing readiness.", err));
+      .catch((err) =>
+        setApiError(
+          "Could not load listing readiness",
+          "We could not evaluate listing readiness.",
+          err
+        )
+      );
 
-    fetch(`/api/inventory/${selectedItemId}/publish-history?limit=5`, { headers: { Accept: "application/json" } })
+    fetch(`/api/inventory/${selectedItemId}/publish-history?limit=5`, {
+      headers: { Accept: "application/json" },
+    })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & PublishHistory;
         if (!r.ok) throw data;
@@ -393,20 +442,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Load customer addresses
   useEffect(() => {
-    if (!selectedCustomerId || shops.length === 0) return;
-    fetch(`/api/customers/${selectedCustomerId}/addresses`, { headers: { Accept: "application/json" } })
+    if (!selectedCustomerId) return;
+    fetch(`/api/customers/${selectedCustomerId}/addresses`, {
+      headers: { Accept: "application/json" },
+    })
       .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { items?: CustomerAddress[] };
+        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & {
+          items?: CustomerAddress[];
+        };
         if (!r.ok) throw data;
         return data.items ?? [];
       })
       .then((items) => setCustomerAddresses(items))
-      .catch((err) => setApiError("Could not load addresses", "We could not load customer addresses.", err));
-  }, [selectedCustomerId, shops.length, setApiError]);
+      .catch((err) =>
+        setApiError("Could not load addresses", "We could not load customer addresses.", err)
+      );
+  }, [selectedCustomerId, setApiError]);
 
   // Load AI config
   useEffect(() => {
-    if (shops.length === 0) return;
+    if (loading) return;
     fetch("/api/settings/ai", { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { config?: AiConfig };
@@ -415,23 +470,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       .then((config) => setAiConfig(config))
       .catch(() => {});
-  }, [shops.length]);
+  }, [loading]);
 
   // Load publish and icon settings
   useEffect(() => {
-    if (shops.length === 0) return;
+    if (loading) return;
     const load = async () => {
       const getSettingValue = async (key: string) => {
-        const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, { headers: { Accept: "application/json" } });
+        const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
+          headers: { Accept: "application/json" },
+        });
         const data = (await response.json().catch(() => ({}))) as { value?: string };
         if (!response.ok) return "";
         return data.value ?? "";
       };
       const [
-        taxonomyId, shippingProfileId, readinessStateId, imageIds,
-        whoMade, whenMade, imageMaxDimension, imageTargetDpi,
-        imageJpegQuality, allowPartialImageUpload, imageUploadAttempts,
-        screenHeaderPath, reportHeaderPath, screenHeaderSizePx, reportHeaderWidthPx,
+        taxonomyId,
+        shippingProfileId,
+        readinessStateId,
+        imageIds,
+        whoMade,
+        whenMade,
+        imageMaxDimension,
+        imageTargetDpi,
+        imageJpegQuality,
+        allowPartialImageUpload,
+        imageUploadAttempts,
+        screenHeaderPath,
+        reportHeaderPath,
+        screenHeaderSizePx,
+        reportHeaderWidthPx,
       ] = await Promise.all([
         getSettingValue("etsy.publish.taxonomy_id"),
         getSettingValue("etsy.publish.shipping_profile_id"),
@@ -450,10 +518,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettingValue("ui.icons.report_header_width_px"),
       ]);
       setPublishConfig({
-        taxonomyId, shippingProfileId, readinessStateId, imageIds,
-        whoMade: whoMade || "i_did", whenMade: whenMade || "before_2000",
-        imageMaxDimension: imageMaxDimension || "2000", imageTargetDpi: imageTargetDpi || "300",
-        imageJpegQuality: imageJpegQuality || "82", allowPartialImageUpload: allowPartialImageUpload || "false",
+        taxonomyId,
+        shippingProfileId,
+        readinessStateId,
+        imageIds,
+        whoMade: whoMade || "i_did",
+        whenMade: whenMade || "before_2000",
+        imageMaxDimension: imageMaxDimension || "2000",
+        imageTargetDpi: imageTargetDpi || "300",
+        imageJpegQuality: imageJpegQuality || "82",
+        allowPartialImageUpload: allowPartialImageUpload || "false",
         imageUploadAttempts: imageUploadAttempts || "3",
       });
       setIconConfig({
@@ -464,20 +538,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     };
     load().catch(() => {});
-  }, [shops.length]);
+  }, [loading]);
 
   const value: AppContextType = {
-    shops, selectedShopId, receipts, orders, customers, inventory,
-    selectedItemId, selectedItem, selectedOrderId, selectedCustomerId,
-    customerAddresses, listingReadiness, publishPreview, publishHistory,
-    aiConfig, publishConfig, iconConfig, count, loading, receiptsLoading,
-    error, urlError, busyAction,
-    setShops, setSelectedShopId, setReceipts, setOrders, setCustomers,
-    setInventory, setSelectedItemId, setSelectedItem, setSelectedOrderId,
-    setSelectedCustomerId, setCustomerAddresses, setListingReadiness,
-    setPublishPreview, setPublishHistory, setAiConfig, setPublishConfig,
-    setIconConfig, setCount, setError: setErrorWithNotify, setBusyAction, setApiError,
-    connect, logout,
+    shops,
+    selectedShopId,
+    receipts,
+    orders,
+    customers,
+    inventory,
+    selectedItemId,
+    selectedItem,
+    selectedOrderId,
+    selectedCustomerId,
+    customerAddresses,
+    listingReadiness,
+    publishPreview,
+    publishHistory,
+    aiConfig,
+    publishConfig,
+    iconConfig,
+    count,
+    loading,
+    receiptsLoading,
+    error,
+    urlError,
+    busyAction,
+    setShops,
+    setSelectedShopId,
+    setReceipts,
+    setOrders,
+    setCustomers,
+    setInventory,
+    setSelectedItemId,
+    setSelectedItem,
+    setSelectedOrderId,
+    setSelectedCustomerId,
+    setCustomerAddresses,
+    setListingReadiness,
+    setPublishPreview,
+    setPublishHistory,
+    setAiConfig,
+    setPublishConfig,
+    setIconConfig,
+    setCount,
+    setError: setErrorWithNotify,
+    setBusyAction,
+    setApiError,
+    connect,
+    logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

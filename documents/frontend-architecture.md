@@ -8,17 +8,17 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 
 ## 1. Routing map
 
-| URL path | Page file | Tab | Description |
-|----------|-----------|-----|-------------|
-| `/` | `src/app/page.tsx` | — | Redirects to `/dashboard` |
-| `/dashboard` | `src/app/(app)/dashboard/page.tsx` | Dashboard | KPI cards, recent orders, sync status |
-| `/sales` | `src/app/(app)/sales/page.tsx` | Sales | Order list, detail, new order, mark paid/shipped |
-| `/inventory` | `src/app/(app)/inventory/page.tsx` | Inventory | Item list, detail panel, pictures, listing workshop (ADR-030) |
-| `/customers` | `src/app/(app)/customers/page.tsx` | Customers | Customer list, detail panel, addresses, purchase history |
-| `/reports` | `src/app/(app)/reports/page.tsx` | Reports | Report chooser, options, viewer |
-| `/outstanding` | `src/app/(app)/outstanding/page.tsx` | Outstanding | Full-page outstanding list |
-| `/tutorial` | `src/app/(app)/tutorial/page.tsx` | Tutorial | Search, index, articles, tips folder links |
-| `/config` | `src/app/(app)/config/page.tsx` | Config | Etsy connection, business details, AI settings, backup |
+| URL path       | Page file                            | Tab         | Description                                                   |
+| -------------- | ------------------------------------ | ----------- | ------------------------------------------------------------- |
+| `/`            | `src/app/page.tsx`                   | —           | Redirects to `/dashboard`                                     |
+| `/dashboard`   | `src/app/(app)/dashboard/page.tsx`   | Dashboard   | KPI cards, recent orders, sync status                         |
+| `/sales`       | `src/app/(app)/sales/page.tsx`       | Sales       | Order list, detail, new order, mark paid/shipped              |
+| `/inventory`   | `src/app/(app)/inventory/page.tsx`   | Inventory   | Item list, detail panel, pictures, listing workshop (ADR-030) |
+| `/customers`   | `src/app/(app)/customers/page.tsx`   | Customers   | Customer list, detail panel, addresses, purchase history      |
+| `/reports`     | `src/app/(app)/reports/page.tsx`     | Reports     | Report chooser, options, viewer                               |
+| `/outstanding` | `src/app/(app)/outstanding/page.tsx` | Outstanding | Full-page outstanding list                                    |
+| `/tutorial`    | `src/app/(app)/tutorial/page.tsx`    | Tutorial    | Search, index, articles, tips folder links                    |
+| `/config`      | `src/app/(app)/config/page.tsx`      | Config      | Etsy connection, business details, AI settings, backup        |
 
 ---
 
@@ -47,6 +47,7 @@ File: `src/app/(app)/layout.tsx`
 ### 3.1 Shell components
 
 #### `AppHeader`
+
 - **File:** `src/components/shell/AppHeader.tsx`
 - **Client component:** Yes
 - **Props:** None (reads context)
@@ -57,6 +58,7 @@ File: `src/app/(app)/layout.tsx`
   - Last sync timestamp from `settings.last_etsy_sync_at`
 
 #### `TabBar`
+
 - **File:** `src/components/shell/TabBar.tsx`
 - **Client component:** Yes
 - **Props:** None
@@ -72,11 +74,13 @@ File: `src/app/(app)/layout.tsx`
 ### 3.2 Shared UI components
 
 #### `Button`
+
 - **File:** `src/components/ui/Button.tsx`
 - **Props:** `{ variant: "primary" | "secondary" | "danger"; children: ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit"; loading?: boolean }`
 - **Behavior:** Styled action button; maps variants to color palette; shows spinner when loading; disabled state grays out.
 
 #### `DataTable`
+
 - **File:** `src/components/ui/DataTable.tsx`
 - **Props:**
   ```typescript
@@ -97,6 +101,7 @@ File: `src/app/(app)/layout.tsx`
 - **Behavior:** Renders a table with header, rows, pagination controls, sort indicators, row selection highlight, loading state, and empty state.
 
 #### `FormField`
+
 - **File:** `src/components/ui/FormField.tsx`
 - **Props:**
   ```typescript
@@ -116,21 +121,25 @@ File: `src/app/(app)/layout.tsx`
   ```
 
 #### `Modal`
+
 - **File:** `src/components/ui/Modal.tsx`
 - **Props:** `{ open: boolean; title: string; children: ReactNode; onClose: () => void; onConfirm?: () => void; confirmLabel?: string; destructive?: boolean }`
 
 #### `Toast`
+
 - **File:** `src/components/ui/Toast.tsx`
 - **Props:** Managed via a `useToast()` hook that provides `showToast(message, type)`.
 - **Types:** `success`, `error`, `info`, `warning`
 - **Behavior:** Auto-dismiss after 5 seconds; dismissible manually; stacks multiple toasts.
 
 #### `Badge`
+
 - **File:** `src/components/ui/Badge.tsx`
 - **Props:** `{ label: string; variant: "success" | "warning" | "error" | "neutral" | "info" }`
 - **Variants map:** Canonical full tables in **ADR-071 §4** (orders, inventory, listing, Etsy connection). Quick reference: Paid/Shipped/Sold=success; Unpaid/Not shipped/In stock=warning; Listed/Etsy=info; Void/Cancelled/Draft=neutral
 
 #### `PictureGrid`
+
 - **File:** `src/components/ui/PictureGrid.tsx`
 - **Props:**
   ```typescript
@@ -147,21 +156,25 @@ File: `src/app/(app)/layout.tsx`
 - **Behavior:** Renders picture thumbnails in a grid; empty slots show a dashed placeholder; drag-and-drop reorder; each slot has replace/remove actions; "Import pictures" button; "Why pictures matter" link.
 
 #### `PickList`
+
 - **File:** `src/components/ui/PickList.tsx`
 - **Props:** `{ onSelect: (item: InventoryItem) => void; selectedId?: number }`
 - **Behavior:** Fetches from `GET /api/inventory/pick-list`; shows thumbnail + item number + description; type-to-filter input; scrollable list; click to select.
 
 #### `PdfPreview`
+
 - **File:** `src/components/ui/PdfPreview.tsx`
 - **Props:** `{ reportUrl: string; reportName: string; onClose: () => void }`
 - **Behavior:** Embeds PDF in an `<iframe>` or `<object>` tag; action bar with Print, Export PDF (download), Export CSV (alternate download URL), Cancel buttons per ADR-013.
 
 #### `ErrorPanel`
+
 - **File:** `src/components/ui/ErrorPanel.tsx`
 - **Props:** `{ title?: string; message: string; onRetry?: () => void }`
 - **Behavior:** Displays a user-friendly error message with optional retry button; styled with `--ui-red` accent.
 
 #### `ConfirmDialog`
+
 - **File:** `src/components/ui/ConfirmDialog.tsx`
 - **Props:** `{ open: boolean; title: string; message: string; confirmLabel?: string; onConfirm: () => void; onCancel: () => void; destructive?: boolean }`
 - **Behavior:** Wraps `Modal` for destructive action confirmation (ADR-032); confirm button uses danger variant when `destructive` is true; cancel is always available.
@@ -171,16 +184,19 @@ File: `src/app/(app)/layout.tsx`
 Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 
 **Dashboard tab:**
+
 - `DashboardKpiCards` — Revenue MTD, orders this month, items listed, outstanding count
 - `RecentOrdersList` — Last 10 orders with status badges
 - `EtsySyncStatus` — Last sync date, sync button, connection health
 - `ActivityFeed` — Recent activity log entries widget (ADR-037)
 
 **Sales tab:**
+
 - `NewOrderForm` uses `PickList` for item selection; creates order via `POST /api/orders` then `POST` order items.
 - `MarkShippedForm` shows shipper dropdown (USPS/UPS/FedEx/DHL/Other), date picker, shipping cost input; warns if not paid (ADR-021 §11, ship-without-paid override).
 
 **Inventory tab:**
+
 - `ListingAuthoringPanel` has three modes (Manual / Generate in app / Import AI draft) per ADR-023.
   - Manual mode: structured form with all listing sections (title strategy, product story, condition clarity, attributes, tags, pricing/shipping notes, quality checklist).
   - Generate mode: readiness check → "Generate" button → loading → review generated content → edit → approve.
@@ -188,10 +204,12 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 - `PublishPreview` shows exactly what will be sent to Etsy; "Publish to Etsy" button disabled unless `listing_draft_state = 'approved'`.
 
 **Config tab:**
+
 - `AiSettingsForm` fields: provider dropdown, model text input, API key (password field, masked in display), base URL (optional), timeout, retry count, token budget. "Test Connection" button calls `POST /api/settings/ai/test-connection`.
 - `BackupSection` per ADR-027.
 
 **Reports tab:**
+
 - `ReportChooser` — Grid of available report types
 - `ReportDateRange` — From/To date inputs with quick presets (MTD, YTD, last 30 days) per ADR-036
 - `ReportOptionsForm` — Order/customer selection per report type
@@ -201,13 +219,13 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 
 ## 4. Shared hooks
 
-| Hook | File | Purpose |
-|------|------|---------|
-| `useApi` | `src/hooks/useApi.ts` | Generic fetch wrapper; handles loading, error states, 401 redirect, toast on error |
-| `useSettings` | `src/hooks/useSettings.ts` | Read/write settings via `/api/settings`; caches in state |
-| `useOutstanding` | `src/hooks/useOutstanding.ts` | Fetches and aggregates outstanding items from multiple sources |
-| `usePagination` | `src/hooks/usePagination.ts` | Manages `page`, `pageSize`, `total`, provides `onPageChange` |
-| `useToast` | `src/hooks/useToast.ts` | Toast notification state and `showToast()` function |
+| Hook             | File                          | Purpose                                                                            |
+| ---------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `useApi`         | `src/hooks/useApi.ts`         | Generic fetch wrapper; handles loading, error states, 401 redirect, toast on error |
+| `useSettings`    | `src/hooks/useSettings.ts`    | Read/write settings via `/api/settings`; caches in state                           |
+| `useOutstanding` | `src/hooks/useOutstanding.ts` | Fetches and aggregates outstanding items from multiple sources                     |
+| `usePagination`  | `src/hooks/usePagination.ts`  | Manages `page`, `pageSize`, `total`, provides `onPageChange`                       |
+| `useToast`       | `src/hooks/useToast.ts`       | Toast notification state and `showToast()` function                                |
 
 ---
 
@@ -219,45 +237,61 @@ Extract all type definitions currently inline in `page.tsx` into a shared types 
 
 ```typescript
 export type Shop = { shop_id: number; shop_name: string };
-export type InventoryItem = { id: number; item_number: string | null; /* ... all fields */ };
-export type Customer = { id: number; first_name: string | null; /* ... */ };
-export type CustomerAddress = { id: number; customer_id: number; /* ... */ };
-export type Order = { id: number; order_number: string | null; /* ... */ };
-export type Receipt = { receipt_id: number; order_id: number; /* ... */ };
+export type InventoryItem = { id: number; item_number: string | null /* ... all fields */ };
+export type Customer = { id: number; first_name: string | null /* ... */ };
+export type CustomerAddress = { id: number; customer_id: number /* ... */ };
+export type Order = { id: number; order_number: string | null /* ... */ };
+export type Receipt = { receipt_id: number; order_id: number /* ... */ };
 export type OutstandingItem = {
-  type: "paid_not_shipped" | "unpaid" | "not_listed" | "missing_address" | "missing_shipping_cost"
-    | "etsy_not_synced" | "validation_issue"; // last two are future types (ADR-020 types 3 & 7)
+  type:
+    | "paid_not_shipped"
+    | "unpaid"
+    | "not_listed"
+    | "missing_address"
+    | "missing_shipping_cost"
+    | "etsy_not_synced"
+    | "validation_issue"; // last two are future types (ADR-020 types 3 & 7)
   type_label: string;
   label: string;
   target_tab: string;
   target_record_id: number | string;
   date: string;
 };
-export type ReportResult = { report_name: string; generated_at: string; /* ... */ };
-export type ApiError = { ok: false; error: { code?: string; message: string; user_message: string; actions: string[]; can_retry?: boolean }; fields?: Record<string, string[]> };
+export type ReportResult = { report_name: string; generated_at: string /* ... */ };
+export type ApiError = {
+  ok: false;
+  error: {
+    code?: string;
+    message: string;
+    user_message: string;
+    actions: string[];
+    can_retry?: boolean;
+  };
+  fields?: Record<string, string[]>;
+};
 ```
 
 ---
 
 ## 6. Build order (migration from page.tsx)
 
-| Step | What to build | Depends on | Exit criterion |
-|------|---------------|------------|----------------|
-| 1 | Routing structure: create all page files with placeholder content; create `(app)/layout.tsx` shell | — | All routes render a placeholder; navigation works |
-| 2 | Shared types (`src/types/index.ts`) | — | Types extracted from page.tsx; no inline type defs remaining |
-| 3 | Shell components: `AppHeader`, `TabBar` | Step 1 | Tab navigation works; connection status shows |
-| 4 | Shared UI: `DataTable`, `FormField`, `Modal`, `Toast`, `Badge`, `EmptyState`, `LoadingSpinner` | — | Components render in isolation |
-| 5 | Hooks: `useApi`, `useSettings`, `usePagination`, `useToast` | Step 4 | Hooks work with existing API routes |
-| 6 | Dashboard tab: extract from page.tsx | Steps 3–5 | Dashboard shows KPI cards, recent orders, sync status |
-| 7 | Sales tab: extract orders list, detail, new order, mark paid/shipped | Steps 4–5 + `PickList` | Sales tab fully functional |
-| 8 | Inventory tab: extract item list, detail, pictures, listing, condition | Steps 4–5 + `PictureGrid`, `ListingAuthoringPanel` | Inventory CRUD + listing workflow works |
-| 9 | Customers tab: extract customer list, detail, addresses | Steps 4–5 | Customer CRUD works |
-| 10 | Outstanding panel + full-page tab | Step 5 + `useOutstanding` | Outstanding items display; click navigates correctly |
-| 11 | Reports tab | Steps 4–5 + `PdfPreview` | All core reports + ADR-038/039/054/056 types generate and display |
-| 12 | Config tab | Steps 4–5 | All settings editable; Etsy connect/disconnect works |
-| 13 | Tutorial tab | `SearchInput`, `TutorialIndex` | Search and index work; tips folder links open files |
-| 14 | Commands panel *(deferred to post-v1)* | Steps 6–13 | Context-sensitive commands work for all tabs |
-| 15 | Delete monolithic page.tsx | All above | Old file removed; all tests pass |
+| Step | What to build                                                                                      | Depends on                                         | Exit criterion                                                    |
+| ---- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| 1    | Routing structure: create all page files with placeholder content; create `(app)/layout.tsx` shell | —                                                  | All routes render a placeholder; navigation works                 |
+| 2    | Shared types (`src/types/index.ts`)                                                                | —                                                  | Types extracted from page.tsx; no inline type defs remaining      |
+| 3    | Shell components: `AppHeader`, `TabBar`                                                            | Step 1                                             | Tab navigation works; connection status shows                     |
+| 4    | Shared UI: `DataTable`, `FormField`, `Modal`, `Toast`, `Badge`, `EmptyState`, `LoadingSpinner`     | —                                                  | Components render in isolation                                    |
+| 5    | Hooks: `useApi`, `useSettings`, `usePagination`, `useToast`                                        | Step 4                                             | Hooks work with existing API routes                               |
+| 6    | Dashboard tab: extract from page.tsx                                                               | Steps 3–5                                          | Dashboard shows KPI cards, recent orders, sync status             |
+| 7    | Sales tab: extract orders list, detail, new order, mark paid/shipped                               | Steps 4–5 + `PickList`                             | Sales tab fully functional                                        |
+| 8    | Inventory tab: extract item list, detail, pictures, listing, condition                             | Steps 4–5 + `PictureGrid`, `ListingAuthoringPanel` | Inventory CRUD + listing workflow works                           |
+| 9    | Customers tab: extract customer list, detail, addresses                                            | Steps 4–5                                          | Customer CRUD works                                               |
+| 10   | Outstanding panel + full-page tab                                                                  | Step 5 + `useOutstanding`                          | Outstanding items display; click navigates correctly              |
+| 11   | Reports tab                                                                                        | Steps 4–5 + `PdfPreview`                           | All core reports + ADR-038/039/054/056 types generate and display |
+| 12   | Config tab                                                                                         | Steps 4–5                                          | All settings editable; Etsy connect/disconnect works              |
+| 13   | Tutorial tab                                                                                       | `SearchInput`, `TutorialIndex`                     | Search and index work; tips folder links open files               |
+| 14   | Commands panel _(deferred to post-v1)_                                                             | Steps 6–13                                         | Context-sensitive commands work for all tabs                      |
+| 15   | Delete monolithic page.tsx                                                                         | All above                                          | Old file removed; all tests pass                                  |
 
 Each step is independently deployable. The monolithic page.tsx can coexist during migration by keeping it at `/legacy` or similar.
 
@@ -274,20 +308,20 @@ Each step is independently deployable. The monolithic page.tsx can coexist durin
 
 ## 8. Components for ADR-038–069 (add during priorities 21–52)
 
-| Component | ADR | Used on |
-|-----------|-----|---------|
-| `SearchModal` | 041 | App shell (Cmd/Ctrl+K) |
-| `NotificationCenter` | 051 | App header |
-| `PrintQueuePanel` | 055 | App header |
-| `SetupWizardModal` | 044 | Dashboard overlay |
-| `BatchActionsBar` | 040 | Sales, Inventory, Customers lists |
-| `ProgressModal` / job polling | 043 | Sync, import, backup, batch |
-| `CustomerNotesSection` | 065 | Customer detail |
-| `CustomerMergeModal` | 053 | Customers tab |
-| `ProfitabilityRow` | 038 | Inventory detail |
-| `ListingScoreWidget` | 068 | Inventory listing workshop |
-| `InventoryValueCard` | 064 | Dashboard |
-| `OfflineBanner` / retry queue UI | 050 | App shell |
+| Component                        | ADR | Used on                           |
+| -------------------------------- | --- | --------------------------------- |
+| `SearchModal`                    | 041 | App shell (Cmd/Ctrl+K)            |
+| `NotificationCenter`             | 051 | App header                        |
+| `PrintQueuePanel`                | 055 | App header                        |
+| `SetupWizardModal`               | 044 | Dashboard overlay                 |
+| `BatchActionsBar`                | 040 | Sales, Inventory, Customers lists |
+| `ProgressModal` / job polling    | 043 | Sync, import, backup, batch       |
+| `CustomerNotesSection`           | 065 | Customer detail                   |
+| `CustomerMergeModal`             | 053 | Customers tab                     |
+| `ProfitabilityRow`               | 038 | Inventory detail                  |
+| `ListingScoreWidget`             | 068 | Inventory listing workshop        |
+| `InventoryValueCard`             | 064 | Dashboard                         |
+| `OfflineBanner` / retry queue UI | 050 | App shell                         |
 
 API routes for these features: **ADR-018** Extensions §12–§28.
 

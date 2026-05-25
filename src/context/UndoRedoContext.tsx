@@ -52,9 +52,7 @@ type UndoRedoContextValue = {
 
 const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
 
-function recordPatch<T extends { updated_at?: string | null }>(
-  record: T
-): Record<string, unknown> {
+function recordPatch<T extends { updated_at?: string | null }>(record: T): Record<string, unknown> {
   return record as Record<string, unknown>;
 }
 
@@ -229,9 +227,7 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
           newState: options.newState,
           timestamp: Date.now(),
           updatedAt: record.updated_at ?? options.updatedAt ?? null,
-          onPatched: options.onPatched
-            ? (patch) => options.onPatched?.(patch as T)
-            : undefined,
+          onPatched: options.onPatched ? (patch) => options.onPatched?.(patch as T) : undefined,
         };
         pushUndoEntry(entry);
         options.onPatched?.(record);

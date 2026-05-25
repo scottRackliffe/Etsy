@@ -24,8 +24,7 @@ EBC follows a modular pipeline architecture and uses:
 - Seller-centered workflows
 - Clean separation of concerns
 
-============================================================ 2. CORE CAPABILITIES (BIG-VISION SUMMARY)
-============================================================
+# ============================================================ 2. CORE CAPABILITIES (BIG-VISION SUMMARY)
 
 ---
 
@@ -175,8 +174,7 @@ Inputs:
 - Inventory metadata
 - Photos
 
-============================================================ 3. HIGH-LEVEL ARCHITECTURE (BASED ON SCIS/ALS)
-============================================================
+# ============================================================ 3. HIGH-LEVEL ARCHITECTURE (BASED ON SCIS/ALS)
 
 ---
 
@@ -237,8 +235,7 @@ Stores:
 - Shipping defaults
 - UI settings (future)
 
-============================================================ 4. FUTURE ROADMAP
-============================================================
+# ============================================================ 4. FUTURE ROADMAP
 
 - Web UI version (Flask/FastAPI)
 - Photo analysis module (auto-recognize patterns/items)
@@ -247,8 +244,8 @@ Stores:
 - Multi-store support
 - SaaS-style product for commercial use
 
-============================================================ 5. CURRENT STATUS
-============================================================
+# ============================================================ 5. CURRENT STATUS
+
 This document is a vision-level design artifact. It is not a feature-complete implementation spec.
 
 Use it to guide roadmap direction. For implementation-level behavior in the current app, use:

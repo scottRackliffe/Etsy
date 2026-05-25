@@ -17,7 +17,8 @@ export function useBatchSelection<T extends { id: number }>(
   const headerIndeterminate = someVisibleSelected && !allVisibleSelected;
 
   const selectionCount = selectAllMatching ? totalMatching : selectedIds.size;
-  const canSelectAllMatching = totalMatching > 0 && totalMatching <= MAX_BATCH && allVisibleSelected;
+  const canSelectAllMatching =
+    totalMatching > 0 && totalMatching <= MAX_BATCH && allVisibleSelected;
 
   const toggleRow = useCallback((id: number) => {
     setSelectAllMatching(false);

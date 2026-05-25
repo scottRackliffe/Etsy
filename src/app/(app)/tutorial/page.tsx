@@ -78,7 +78,8 @@ export default function TutorialPage() {
     );
   }, [query, files]);
 
-  const selectedArticle = BUILTIN_ARTICLES.find((a) => a.id === selectedArticleId) ?? filteredArticles[0] ?? null;
+  const selectedArticle =
+    BUILTIN_ARTICLES.find((a) => a.id === selectedArticleId) ?? filteredArticles[0] ?? null;
 
   const openTipFile = useCallback(async (filename: string) => {
     setLoadingFile(true);
@@ -108,7 +109,8 @@ export default function TutorialPage() {
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-1 text-lg font-semibold text-[var(--ui-title)]">Tutorial and tips</h3>
       <p className="mb-4 text-sm text-[var(--ui-muted)]">
-        Search built-in guidance or open markdown guides from <code className="text-xs">system/tips/</code>.
+        Search built-in guidance or open markdown guides from{" "}
+        <code className="text-xs">system/tips/</code>.
       </p>
 
       <input
@@ -121,7 +123,9 @@ export default function TutorialPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <aside className="space-y-4 lg:col-span-1">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Index</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+              Index
+            </p>
             <ul className="space-y-3 text-sm">
               {categories.map((category) => (
                 <li key={category}>
@@ -138,7 +142,9 @@ export default function TutorialPage() {
                               setSelectedFile(null);
                             }}
                             className={`text-left text-xs hover:text-[var(--ui-accent)] ${
-                              selectedArticleId === article.id ? "text-[var(--ui-accent)]" : "text-[var(--ui-body)]"
+                              selectedArticleId === article.id
+                                ? "text-[var(--ui-accent)]"
+                                : "text-[var(--ui-body)]"
                             }`}
                           >
                             {article.title}
@@ -153,7 +159,9 @@ export default function TutorialPage() {
 
           {filteredFiles.length > 0 ? (
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Tips folder</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+                Tips folder
+              </p>
               <ul className="space-y-1 text-sm">
                 {filteredFiles.map((file) => (
                   <li key={file.filename}>
@@ -175,16 +183,24 @@ export default function TutorialPage() {
         <article className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
           {selectedFile ? (
             <>
-              <h4 className="mb-2 text-base font-semibold text-[var(--ui-title)]">{selectedFile.title}</h4>
+              <h4 className="mb-2 text-base font-semibold text-[var(--ui-title)]">
+                {selectedFile.title}
+              </h4>
               <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap text-sm text-[var(--ui-body)]">
                 {selectedFile.content}
               </pre>
             </>
           ) : selectedArticle ? (
             <>
-              <p className="mb-1 text-xs uppercase tracking-wide text-[var(--ui-muted)]">{selectedArticle.category}</p>
-              <h4 className="mb-3 text-base font-semibold text-[var(--ui-title)]">{selectedArticle.title}</h4>
-              <p className="text-sm leading-relaxed text-[var(--ui-body)]">{selectedArticle.body}</p>
+              <p className="mb-1 text-xs uppercase tracking-wide text-[var(--ui-muted)]">
+                {selectedArticle.category}
+              </p>
+              <h4 className="mb-3 text-base font-semibold text-[var(--ui-title)]">
+                {selectedArticle.title}
+              </h4>
+              <p className="text-sm leading-relaxed text-[var(--ui-body)]">
+                {selectedArticle.body}
+              </p>
             </>
           ) : (
             <p className="text-sm text-[var(--ui-muted)]">No topics match your search.</p>

@@ -260,7 +260,12 @@ export function PictureGrid({
 
       <p className="mt-2 text-xs text-[var(--ui-muted)]">
         Drag images between slots to reorder. Slot 1 is the primary listing image.{" "}
-        <a href="https://www.etsy.com/legal/policy" target="_blank" rel="noreferrer" className="text-[var(--ui-accent)]">
+        <a
+          href="https://www.etsy.com/legal/policy"
+          target="_blank"
+          rel="noreferrer"
+          className="text-[var(--ui-accent)]"
+        >
           Why pictures matter
         </a>
       </p>

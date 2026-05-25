@@ -49,9 +49,9 @@ export function loadSampleData(): {
         .get(SAMPLE_PREFIX) as { c: number }
     ).c,
     customers_created: (
-      db
-        .prepare("SELECT COUNT(*) AS c FROM customers WHERE email LIKE '%@example.com'")
-        .get() as { c: number }
+      db.prepare("SELECT COUNT(*) AS c FROM customers WHERE email LIKE '%@example.com'").get() as {
+        c: number;
+      }
     ).c,
     orders_created: (
       db

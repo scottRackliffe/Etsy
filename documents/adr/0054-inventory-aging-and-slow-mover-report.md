@@ -1,12 +1,15 @@
 # ADR-054: Inventory Aging and Slow-Mover Report
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 There is no way to see how long inventory items have been sitting unsold. Vintage and antique sellers need to identify dead stock so they can reprice, relist, or retire items that aren't moving. Without aging visibility, capital stays tied up in slow inventory with no alert mechanism.
 
 ## Decision
@@ -20,17 +23,18 @@ There is no way to see how long inventory items have been sitting unsold. Vintag
 
 ### Aging buckets
 
-| Bucket | Range |
-|--------|-------|
-| Fresh | 0–30 days |
-| Moderate | 31–60 days |
-| Aging | 61–90 days |
-| Slow | 91–180 days |
-| Stale | 180+ days |
+| Bucket   | Range       |
+| -------- | ----------- |
+| Fresh    | 0–30 days   |
+| Moderate | 31–60 days  |
+| Aging    | 61–90 days  |
+| Slow     | 91–180 days |
+| Stale    | 180+ days   |
 
 ### Report: "Inventory Aging"
 
 Table columns:
+
 - `item_number`
 - `description`
 - `status`
@@ -44,6 +48,7 @@ Table columns:
 Filter: unsold items only — status IN (`Draft`, `In stock`, `Listed`, `Reserved`). Items with status `Sold` or `Retired` are excluded.
 
 Sort options (user-selectable):
+
 - By age descending (default)
 - By purchase cost descending
 - By status alphabetical
@@ -74,10 +79,12 @@ GET /api/reports/inventory-aging?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=
 - Standard error envelope on failure (ADR-018)
 
 ## Consequences
+
 - **Positive:** Sellers can identify dead stock and take action (reprice, relist, retire). Dashboard card gives at-a-glance aging visibility without navigating to Reports. Supports data-driven inventory management decisions.
 - **Negative:** Aging calculation depends on `date_purchased` being populated; items entered without a purchase date use less accurate fallbacks. Adds one more report to generate and maintain.
 
 ## Notes
+
 - Cross-references: ADR-002 (inventory data model — status values, date fields), ADR-006 (reports scope), ADR-013 (report output format), ADR-016 (dashboard content — new widget), ADR-017 (database schema — inventory table columns)
 - The "Slow mover" badge uses `--ui-yellow` (#FFCC00) per the color system
 - Bucket thresholds are hardcoded (not configurable) in v1; consider making them configurable via settings in a future iteration

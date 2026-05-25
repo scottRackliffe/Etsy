@@ -24,60 +24,60 @@ The database consists of exactly the following tables, columns, types, and index
 
 One row per inventory item. Source: ADR-002.
 
-| Column              | Type    | Constraints               | Source / notes                                                                                                  |
-| ------------------- | ------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| id                  | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                                                                                  |
-| item_number         | TEXT    | NOT NULL, UNIQUE          | Required, unique (ADR-002).                                                                                     |
-| description         | TEXT    | —                         | Item description.                                                                                               |
-| purchase_cost       | REAL    | —                         | Cost to acquire.                                                                                                |
-| shipping_cost       | REAL    | —                         | Item-level shipping cost (cost of goods).                                                                       |
-| sale_revenue        | REAL    | —                         | Revenue when sold; used for income reports (ADR-006).                                                           |
-| date_purchased      | TEXT    | —                         | Date acquired; format YYYY-MM-DD.                                                                               |
-| date_listed         | TEXT    | —                         | Date listed for sale (e.g. on Etsy).                                                                            |
-| date_of_sale        | TEXT    | —                         | Date sold.                                                                                                      |
-| shipping_date       | TEXT    | —                         | Date shipped (optional on inventory when also on purchase).                                                     |
-| picture_1           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_2           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_3           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_4           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_5           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_6           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_7           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_8           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_9           | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| picture_10          | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| thumbnail_path      | TEXT    | —                         | Picture icon for pick lists; created at item entry or first picture (ADR-002, ADR-015). Null if no picture yet. |
-| condition_code      | TEXT    | —                         | One of: Mint/Near Mint, Excellent, Very Good, Good, Fair/As-Is (ADR-002).                                       |
-| has_condition_issue | INTEGER | —                         | 0 or 1; true if item has blemish/issue to document.                                                             |
-| condition_notes     | TEXT    | —                         | Optional flaw description.                                                                                      |
-| condition_picture_1 | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| condition_picture_2 | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| condition_picture_3 | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| condition_picture_4 | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| condition_picture_5 | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
-| status              | TEXT    | —                         | One of: Draft, In stock, Listed, Sold, Reserved, Retired (ADR-002).                                             |
-| etsy_listing_id     | TEXT    | —                         | Optional; Etsy listing ID for linking to Etsy.                                                                  |
-| quantity            | INTEGER | —                         | Default 1.                                                                                                      |
-| category_tags       | TEXT    | —                         | Optional; category or tags.                                                                                     |
-| listing_title       | TEXT    | —                         | Etsy listing title (AI-generated or manual); required before List on Etsy.                                      |
-| listing_description | TEXT    | —                         | Etsy listing description (AI-generated or manual); required before List on Etsy.                                |
-| listing_tags        | TEXT    | —                         | Etsy listing tags (comma-separated or equivalent); required before List on Etsy.                                |
-| listing_category_path | TEXT  | —                         | Etsy category path (ADR-023).                                                                                   |
-| listing_title_strategy | TEXT | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_product_story | TEXT  | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_condition_clarity | TEXT | —                      | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_attributes  | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_pricing_shipping_notes | TEXT | —                  | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_quality_checklist | TEXT | —                       | Manual/AI listing workshop field (ADR-023).                                                                       |
-| listing_draft_state | TEXT    | —                         | One of: draft, generated, imported, approved, published (ADR-023).                                              |
-| listing_draft_source | TEXT   | —                         | One of: manual, integrated_ai, portable_import (ADR-023).                                                       |
-| listing_export_id   | TEXT    | —                         | Last portable export id (ADR-023).                                                                              |
-| listing_approved_at | TEXT    | —                         | ISO 8601 timestamp when draft approved.                                                                           |
-| listing_published_at | TEXT | —                          | ISO 8601 timestamp when published to Etsy.                                                                      |
-| is_listed           | INTEGER | DEFAULT 0                 | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
-| notes               | TEXT    | —                         | Optional.                                                                                                       |
-| created_at          | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
-| updated_at          | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
+| Column                         | Type    | Constraints               | Source / notes                                                                                                  |
+| ------------------------------ | ------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| id                             | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                                                                                  |
+| item_number                    | TEXT    | NOT NULL, UNIQUE          | Required, unique (ADR-002).                                                                                     |
+| description                    | TEXT    | —                         | Item description.                                                                                               |
+| purchase_cost                  | REAL    | —                         | Cost to acquire.                                                                                                |
+| shipping_cost                  | REAL    | —                         | Item-level shipping cost (cost of goods).                                                                       |
+| sale_revenue                   | REAL    | —                         | Revenue when sold; used for income reports (ADR-006).                                                           |
+| date_purchased                 | TEXT    | —                         | Date acquired; format YYYY-MM-DD.                                                                               |
+| date_listed                    | TEXT    | —                         | Date listed for sale (e.g. on Etsy).                                                                            |
+| date_of_sale                   | TEXT    | —                         | Date sold.                                                                                                      |
+| shipping_date                  | TEXT    | —                         | Date shipped (optional on inventory when also on purchase).                                                     |
+| picture_1                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_2                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_3                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_4                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_5                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_6                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_7                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_8                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_9                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_10                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| thumbnail_path                 | TEXT    | —                         | Picture icon for pick lists; created at item entry or first picture (ADR-002, ADR-015). Null if no picture yet. |
+| condition_code                 | TEXT    | —                         | One of: Mint/Near Mint, Excellent, Very Good, Good, Fair/As-Is (ADR-002).                                       |
+| has_condition_issue            | INTEGER | —                         | 0 or 1; true if item has blemish/issue to document.                                                             |
+| condition_notes                | TEXT    | —                         | Optional flaw description.                                                                                      |
+| condition_picture_1            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| condition_picture_2            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| condition_picture_3            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| condition_picture_4            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| condition_picture_5            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| status                         | TEXT    | —                         | One of: Draft, In stock, Listed, Sold, Reserved, Retired (ADR-002).                                             |
+| etsy_listing_id                | TEXT    | —                         | Optional; Etsy listing ID for linking to Etsy.                                                                  |
+| quantity                       | INTEGER | —                         | Default 1.                                                                                                      |
+| category_tags                  | TEXT    | —                         | Optional; category or tags.                                                                                     |
+| listing_title                  | TEXT    | —                         | Etsy listing title (AI-generated or manual); required before List on Etsy.                                      |
+| listing_description            | TEXT    | —                         | Etsy listing description (AI-generated or manual); required before List on Etsy.                                |
+| listing_tags                   | TEXT    | —                         | Etsy listing tags (comma-separated or equivalent); required before List on Etsy.                                |
+| listing_category_path          | TEXT    | —                         | Etsy category path (ADR-023).                                                                                   |
+| listing_title_strategy         | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_product_story          | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_condition_clarity      | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_attributes             | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_pricing_shipping_notes | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_quality_checklist      | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_draft_state            | TEXT    | —                         | One of: draft, generated, imported, approved, published (ADR-023).                                              |
+| listing_draft_source           | TEXT    | —                         | One of: manual, integrated_ai, portable_import (ADR-023).                                                       |
+| listing_export_id              | TEXT    | —                         | Last portable export id (ADR-023).                                                                              |
+| listing_approved_at            | TEXT    | —                         | ISO 8601 timestamp when draft approved.                                                                         |
+| listing_published_at           | TEXT    | —                         | ISO 8601 timestamp when published to Etsy.                                                                      |
+| is_listed                      | INTEGER | DEFAULT 0                 | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
+| notes                          | TEXT    | —                         | Optional.                                                                                                       |
+| created_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
+| updated_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
 
 ---
 
@@ -85,15 +85,15 @@ One row per inventory item. Source: ADR-002.
 
 One row per additional cost line for an inventory item (e.g. repair, cleaning). Source: ADR-002, ADR-038. **Canonical table name is `other_costs`** (not `inventory_other_cost`).
 
-| Column       | Type    | Constraints                        | Source / notes                                      |
-| ------------ | ------- | ---------------------------------- | --------------------------------------------------- |
-| id           | INTEGER | PRIMARY KEY AUTOINCREMENT          | Surrogate key.                                      |
-| inventory_id | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE CASCADE | FK to inventory.                         |
-| cost_type    | TEXT    | —                                  | Category label (e.g. "Repair", "Cleaning").        |
-| amount       | REAL    | NOT NULL DEFAULT 0                 | Cost amount.                                        |
-| note         | TEXT    | —                                  | Optional detail.                                    |
-| created_at   | TEXT    | NOT NULL                           | ISO 8601 timestamp.                                 |
-| updated_at   | TEXT    | NOT NULL                           | ISO 8601 timestamp.                                 |
+| Column       | Type    | Constraints                                          | Source / notes                              |
+| ------------ | ------- | ---------------------------------------------------- | ------------------------------------------- |
+| id           | INTEGER | PRIMARY KEY AUTOINCREMENT                            | Surrogate key.                              |
+| inventory_id | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE CASCADE | FK to inventory.                            |
+| cost_type    | TEXT    | —                                                    | Category label (e.g. "Repair", "Cleaning"). |
+| amount       | REAL    | NOT NULL DEFAULT 0                                   | Cost amount.                                |
+| note         | TEXT    | —                                                    | Optional detail.                            |
+| created_at   | TEXT    | NOT NULL                                             | ISO 8601 timestamp.                         |
+| updated_at   | TEXT    | NOT NULL                                             | ISO 8601 timestamp.                         |
 
 ---
 
@@ -101,25 +101,25 @@ One row per additional cost line for an inventory item (e.g. repair, cleaning). 
 
 One row per person (not per order). Source: ADR-003, ADR-053. Primary/billing address is stored **flat on this row** in v1; additional ship-to addresses use `addresses`.
 
-| Column             | Type    | Constraints                     | Source / notes                                                                 |
-| ------------------ | ------- | ------------------------------- | ------------------------------------------------------------------------------ |
-| id                 | INTEGER | PRIMARY KEY AUTOINCREMENT       | Surrogate key.                                                                 |
-| first_name         | TEXT    | —                               | Customer first name.                                                           |
-| last_name          | TEXT    | —                               | Customer last name.                                                            |
-| email              | TEXT    | —                               | Optional (e.g. from Etsy).                                                     |
-| phone              | TEXT    | —                               | Optional phone.                                                                |
-| address_1          | TEXT    | —                               | Primary/billing address line 1.                                                |
-| address_2          | TEXT    | —                               | Primary/billing address line 2.                                                |
-| city               | TEXT    | —                               | City.                                                                          |
-| state              | TEXT    | —                               | State or province.                                                             |
-| postal_code        | TEXT    | —                               | Postal code.                                                                   |
-| country            | TEXT    | —                               | Country; default US when empty (ADR-006).                                      |
-| notes              | TEXT    | —                               | Freeform customer notes (distinct from `customer_notes` log, ADR-065).           |
-| default_address_id | INTEGER | REFERENCES addresses(id)        | Optional link to default row in `addresses`; may be null in v1.                |
-| currency_code      | TEXT    | DEFAULT 'USD'                   | Display currency; v1 operations use USD only.                                  |
-| is_active          | INTEGER | DEFAULT 1                       | 1 = active, 0 = inactive.                                                    |
-| created_at         | TEXT    | NOT NULL                        | ISO 8601 timestamp.                                                            |
-| updated_at         | TEXT    | NOT NULL                        | ISO 8601 timestamp.                                                            |
+| Column             | Type    | Constraints               | Source / notes                                                         |
+| ------------------ | ------- | ------------------------- | ---------------------------------------------------------------------- |
+| id                 | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                                         |
+| first_name         | TEXT    | —                         | Customer first name.                                                   |
+| last_name          | TEXT    | —                         | Customer last name.                                                    |
+| email              | TEXT    | —                         | Optional (e.g. from Etsy).                                             |
+| phone              | TEXT    | —                         | Optional phone.                                                        |
+| address_1          | TEXT    | —                         | Primary/billing address line 1.                                        |
+| address_2          | TEXT    | —                         | Primary/billing address line 2.                                        |
+| city               | TEXT    | —                         | City.                                                                  |
+| state              | TEXT    | —                         | State or province.                                                     |
+| postal_code        | TEXT    | —                         | Postal code.                                                           |
+| country            | TEXT    | —                         | Country; default US when empty (ADR-006).                              |
+| notes              | TEXT    | —                         | Freeform customer notes (distinct from `customer_notes` log, ADR-065). |
+| default_address_id | INTEGER | REFERENCES addresses(id)  | Optional link to default row in `addresses`; may be null in v1.        |
+| currency_code      | TEXT    | DEFAULT 'USD'             | Display currency; v1 operations use USD only.                          |
+| is_active          | INTEGER | DEFAULT 1                 | 1 = active, 0 = inactive.                                              |
+| created_at         | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                                    |
+| updated_at         | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                                    |
 
 ---
 
@@ -127,20 +127,20 @@ One row per person (not per order). Source: ADR-003, ADR-053. Primary/billing ad
 
 Multiple rows per customer; each row is one ship-to (or labeled) address. Source: ADR-003, ADR-031.
 
-| Column         | Type    | Constraints                              | Source / notes                 |
-| -------------- | ------- | ---------------------------------------- | ------------------------------ |
-| id             | INTEGER | PRIMARY KEY AUTOINCREMENT                | Surrogate key.                 |
-| customer_id    | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE | FK to customers.     |
-| label          | TEXT    | —                                        | Optional; e.g. "Home", "Work". |
-| first_line     | TEXT    | —                                        | Address line 1.                |
-| second_line    | TEXT    | —                                        | Address line 2; optional.      |
-| city           | TEXT    | —                                        | City.                          |
-| state          | TEXT    | —                                        | State or province.             |
-| postal_code    | TEXT    | —                                        | Postal code.                   |
-| country        | TEXT    | —                                        | Country.                       |
-| is_default     | INTEGER | NOT NULL DEFAULT 0                       | 1 = default ship-to for customer. |
-| created_at     | TEXT    | NOT NULL                                 | ISO 8601 timestamp.            |
-| updated_at     | TEXT    | NOT NULL                                 | ISO 8601 timestamp.            |
+| Column      | Type    | Constraints                                          | Source / notes                    |
+| ----------- | ------- | ---------------------------------------------------- | --------------------------------- |
+| id          | INTEGER | PRIMARY KEY AUTOINCREMENT                            | Surrogate key.                    |
+| customer_id | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE | FK to customers.                  |
+| label       | TEXT    | —                                                    | Optional; e.g. "Home", "Work".    |
+| first_line  | TEXT    | —                                                    | Address line 1.                   |
+| second_line | TEXT    | —                                                    | Address line 2; optional.         |
+| city        | TEXT    | —                                                    | City.                             |
+| state       | TEXT    | —                                                    | State or province.                |
+| postal_code | TEXT    | —                                                    | Postal code.                      |
+| country     | TEXT    | —                                                    | Country.                          |
+| is_default  | INTEGER | NOT NULL DEFAULT 0                                   | 1 = default ship-to for customer. |
+| created_at  | TEXT    | NOT NULL                                             | ISO 8601 timestamp.               |
+| updated_at  | TEXT    | NOT NULL                                             | ISO 8601 timestamp.               |
 
 ---
 
@@ -150,38 +150,38 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 
 **Note (updated 2026-05-24):** The original ADR-017 used a single `purchase` table. The implementation uses a three-table model (`orders` + `order_items` + `purchases`). This update aligns the canonical schema with the implementation. See `documents/database/SCHEMA_RECONCILIATION.md` for migration details.
 
-| Column                        | Type    | Constraints                                        | Source / notes                                                                                                                                         |
-| ----------------------------- | ------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id                            | INTEGER | PRIMARY KEY AUTOINCREMENT                          | Surrogate key.                                                                                                                                         |
-| order_number                  | TEXT    | UNIQUE                                             | Human-readable order number. For Etsy: use Etsy receipt ID; for manual: app-generated id (ADR-003, ADR-019).                                           |
-| customer_id                   | INTEGER | REFERENCES customers(id) ON DELETE SET NULL         | FK to customers; nullable (e.g. guest checkout from Etsy).                                                                                             |
-| order_date                    | TEXT    | —                                                  | Date order was placed; format YYYY-MM-DD.                                                                                                              |
-| order_status                  | TEXT    | DEFAULT 'active'                                   | One of: active, void, cancelled. Void/cancel: exclude from revenue/active reports; no row delete.                                                      |
-| payment_status                | TEXT    | —                                                  | Payment status string (e.g. "paid", "unpaid", "refunded").                                                                                             |
-| was_paid                      | INTEGER | DEFAULT 0                                          | 0 or 1; "Mark as paid" sets to 1 (ADR-020, ADR-021).                                                                                                   |
-| shipper                       | TEXT    | —                                                  | One of: USPS, UPS, FedEx, DHL, Other (ADR-004).                                                                                                        |
-| seller_shipping_cost          | REAL    | —                                                  | Seller's actual shipping cost (what seller pays carrier) for this shipment (ADR-004).                                                                  |
-| tracking_number               | TEXT    | —                                                  | Optional carrier tracking number (ADR-031).                                                                                                            |
-| shipped_without_paid_override | INTEGER | DEFAULT 0                                          | 0 or 1. Set to 1 when user marks order as shipped via "Ship anyway" despite order not paid (ADR-021). Audit only; does not change was_paid.            |
-| etsy_receipt_id               | TEXT    | —                                                  | Optional; Etsy receipt ID for linking to Etsy (ADR-003, ADR-019).                                                                                      |
-| shipping_date                 | TEXT    | —                                                  | Optional; date shipped; format YYYY-MM-DD.                                                                                                             |
-| ship_to_first_name            | TEXT    | —                                                  | Snapshot: first name at time of order.                                                                                                                 |
-| ship_to_last_name             | TEXT    | —                                                  | Snapshot: last name at time of order.                                                                                                                  |
-| ship_to_address_line_1        | TEXT    | —                                                  | Snapshot: address line 1.                                                                                                                              |
-| ship_to_address_line_2        | TEXT    | —                                                  | Snapshot: address line 2.                                                                                                                              |
-| ship_to_city                  | TEXT    | —                                                  | Snapshot: city.                                                                                                                                        |
-| ship_to_state_province        | TEXT    | —                                                  | Snapshot: state/province.                                                                                                                              |
-| ship_to_country               | TEXT    | —                                                  | Snapshot: country.                                                                                                                                     |
-| ship_to_postal_code           | TEXT    | —                                                  | Snapshot: postal code.                                                                                                                                 |
-| subtotal                      | REAL    | —                                                  | Sum of line item totals before shipping/tax/discount.                                                                                                  |
-| shipping_total                | REAL    | —                                                  | Shipping amount charged to buyer.                                                                                                                      |
-| tax_total                     | REAL    | —                                                  | Tax collected.                                                                                                                                         |
-| discount_total                | REAL    | —                                                  | Total discount applied to this order.                                                                                                                  |
-| grand_total                   | REAL    | —                                                  | Final total (subtotal + shipping + tax − discount).                                                                                                    |
-| source_channel                | TEXT    | —                                                  | Origin of the order: "etsy" or "manual".                                                                                                               |
-| notes                         | TEXT    | —                                                  | Optional.                                                                                                                                              |
-| created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
-| updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
+| Column                        | Type    | Constraints                                 | Source / notes                                                                                                                              |
+| ----------------------------- | ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                            | INTEGER | PRIMARY KEY AUTOINCREMENT                   | Surrogate key.                                                                                                                              |
+| order_number                  | TEXT    | UNIQUE                                      | Human-readable order number. For Etsy: use Etsy receipt ID; for manual: app-generated id (ADR-003, ADR-019).                                |
+| customer_id                   | INTEGER | REFERENCES customers(id) ON DELETE SET NULL | FK to customers; nullable (e.g. guest checkout from Etsy).                                                                                  |
+| order_date                    | TEXT    | —                                           | Date order was placed; format YYYY-MM-DD.                                                                                                   |
+| order_status                  | TEXT    | DEFAULT 'active'                            | One of: active, void, cancelled. Void/cancel: exclude from revenue/active reports; no row delete.                                           |
+| payment_status                | TEXT    | —                                           | Payment status string (e.g. "paid", "unpaid", "refunded").                                                                                  |
+| was_paid                      | INTEGER | DEFAULT 0                                   | 0 or 1; "Mark as paid" sets to 1 (ADR-020, ADR-021).                                                                                        |
+| shipper                       | TEXT    | —                                           | One of: USPS, UPS, FedEx, DHL, Other (ADR-004).                                                                                             |
+| seller_shipping_cost          | REAL    | —                                           | Seller's actual shipping cost (what seller pays carrier) for this shipment (ADR-004).                                                       |
+| tracking_number               | TEXT    | —                                           | Optional carrier tracking number (ADR-031).                                                                                                 |
+| shipped_without_paid_override | INTEGER | DEFAULT 0                                   | 0 or 1. Set to 1 when user marks order as shipped via "Ship anyway" despite order not paid (ADR-021). Audit only; does not change was_paid. |
+| etsy_receipt_id               | TEXT    | —                                           | Optional; Etsy receipt ID for linking to Etsy (ADR-003, ADR-019).                                                                           |
+| shipping_date                 | TEXT    | —                                           | Optional; date shipped; format YYYY-MM-DD.                                                                                                  |
+| ship_to_first_name            | TEXT    | —                                           | Snapshot: first name at time of order.                                                                                                      |
+| ship_to_last_name             | TEXT    | —                                           | Snapshot: last name at time of order.                                                                                                       |
+| ship_to_address_line_1        | TEXT    | —                                           | Snapshot: address line 1.                                                                                                                   |
+| ship_to_address_line_2        | TEXT    | —                                           | Snapshot: address line 2.                                                                                                                   |
+| ship_to_city                  | TEXT    | —                                           | Snapshot: city.                                                                                                                             |
+| ship_to_state_province        | TEXT    | —                                           | Snapshot: state/province.                                                                                                                   |
+| ship_to_country               | TEXT    | —                                           | Snapshot: country.                                                                                                                          |
+| ship_to_postal_code           | TEXT    | —                                           | Snapshot: postal code.                                                                                                                      |
+| subtotal                      | REAL    | —                                           | Sum of line item totals before shipping/tax/discount.                                                                                       |
+| shipping_total                | REAL    | —                                           | Shipping amount charged to buyer.                                                                                                           |
+| tax_total                     | REAL    | —                                           | Tax collected.                                                                                                                              |
+| discount_total                | REAL    | —                                           | Total discount applied to this order.                                                                                                       |
+| grand_total                   | REAL    | —                                           | Final total (subtotal + shipping + tax − discount).                                                                                         |
+| source_channel                | TEXT    | —                                           | Origin of the order: "etsy" or "manual".                                                                                                    |
+| notes                         | TEXT    | —                                           | Optional.                                                                                                                                   |
+| created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
+| updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
 
 ---
 
@@ -189,16 +189,16 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 
 Line items for a sales order. Source: ADR-003, ADR-019.
 
-| Column        | Type    | Constraints                                              | Source / notes        |
-| ------------- | ------- | -------------------------------------------------------- | --------------------- |
-| id            | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key.        |
-| order_id      | INTEGER | NOT NULL, REFERENCES orders(id) ON DELETE CASCADE        | Parent order.         |
-| inventory_id  | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT    | Sold inventory item.  |
-| quantity      | INTEGER | NOT NULL DEFAULT 1                                       | Line quantity.        |
-| unit_price    | REAL    | —                                                        | Price per unit.       |
-| line_total    | REAL    | —                                                        | quantity × unit_price |
-| created_at    | TEXT    | NOT NULL                                                 | ISO 8601 timestamp.   |
-| updated_at    | TEXT    | NOT NULL                                                 | ISO 8601 timestamp.   |
+| Column       | Type    | Constraints                                           | Source / notes        |
+| ------------ | ------- | ----------------------------------------------------- | --------------------- |
+| id           | INTEGER | PRIMARY KEY AUTOINCREMENT                             | Surrogate key.        |
+| order_id     | INTEGER | NOT NULL, REFERENCES orders(id) ON DELETE CASCADE     | Parent order.         |
+| inventory_id | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT | Sold inventory item.  |
+| quantity     | INTEGER | NOT NULL DEFAULT 1                                    | Line quantity.        |
+| unit_price   | REAL    | —                                                     | Price per unit.       |
+| line_total   | REAL    | —                                                     | quantity × unit_price |
+| created_at   | TEXT    | NOT NULL                                              | ISO 8601 timestamp.   |
+| updated_at   | TEXT    | NOT NULL                                              | ISO 8601 timestamp.   |
 
 ---
 
@@ -206,18 +206,18 @@ Line items for a sales order. Source: ADR-003, ADR-019.
 
 What Trudy **bought from vendors** to resell — not customer sales. Source: ADR-002.
 
-| Column           | Type    | Constraints                                              | Source / notes   |
-| ---------------- | ------- | -------------------------------------------------------- | ---------------- |
-| id               | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key.   |
-| inventory_id     | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT    | FK to inventory. |
-| vendor_name      | TEXT    | —                                                        | Vendor name.     |
-| purchase_date    | TEXT    | —                                                        | YYYY-MM-DD.      |
-| purchase_price   | REAL    | —                                                        | Item cost.       |
-| shipping_price   | REAL    | —                                                        | Inbound shipping.|
-| reference_number | TEXT    | —                                                        | Optional ref.    |
-| notes            | TEXT    | —                                                        | Optional.        |
-| created_at       | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
-| updated_at       | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
+| Column           | Type    | Constraints                                           | Source / notes      |
+| ---------------- | ------- | ----------------------------------------------------- | ------------------- |
+| id               | INTEGER | PRIMARY KEY AUTOINCREMENT                             | Surrogate key.      |
+| inventory_id     | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT | FK to inventory.    |
+| vendor_name      | TEXT    | —                                                     | Vendor name.        |
+| purchase_date    | TEXT    | —                                                     | YYYY-MM-DD.         |
+| purchase_price   | REAL    | —                                                     | Item cost.          |
+| shipping_price   | REAL    | —                                                     | Inbound shipping.   |
+| reference_number | TEXT    | —                                                     | Optional ref.       |
+| notes            | TEXT    | —                                                     | Optional.           |
+| created_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp. |
+| updated_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp. |
 
 ---
 
@@ -225,13 +225,13 @@ What Trudy **bought from vendors** to resell — not customer sales. Source: ADR
 
 Chronological interaction notes per customer. Source: ADR-065.
 
-| Column      | Type    | Constraints                                              | Source / notes |
-| ----------- | ------- | -------------------------------------------------------- | -------------- |
-| id          | INTEGER | PRIMARY KEY AUTOINCREMENT                                | Surrogate key. |
-| customer_id | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE       | FK to customers. |
-| note_text   | TEXT    | NOT NULL                                                 | Note body.     |
-| note_type   | TEXT    | NOT NULL DEFAULT 'general'                               | One of: general, shipping_preference, communication, follow_up, complaint. |
-| created_at  | TEXT    | NOT NULL                                                 | ISO 8601 timestamp. |
+| Column      | Type    | Constraints                                          | Source / notes                                                             |
+| ----------- | ------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| id          | INTEGER | PRIMARY KEY AUTOINCREMENT                            | Surrogate key.                                                             |
+| customer_id | INTEGER | NOT NULL, REFERENCES customers(id) ON DELETE CASCADE | FK to customers.                                                           |
+| note_text   | TEXT    | NOT NULL                                             | Note body.                                                                 |
+| note_type   | TEXT    | NOT NULL DEFAULT 'general'                           | One of: general, shipping_preference, communication, follow_up, complaint. |
+| created_at  | TEXT    | NOT NULL                                             | ISO 8601 timestamp.                                                        |
 
 ---
 
@@ -239,29 +239,29 @@ Chronological interaction notes per customer. Source: ADR-065.
 
 Persistent audit trail. Source: ADR-037.
 
-| Column       | Type    | Constraints           | Source / notes |
-| ------------ | ------- | --------------------- | -------------- |
-| id           | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
-| action       | TEXT    | NOT NULL              | Action id (see ADR-037 catalog). |
-| entity_type  | TEXT    | —                     | inventory, order, customer, address, setting, listing, sync, backup, system. |
-| entity_id    | INTEGER | —                     | Affected record id. |
-| entity_label | TEXT    | —                     | Human-readable label. |
-| detail_json  | TEXT    | —                     | JSON details. |
-| source       | TEXT    | NOT NULL DEFAULT 'user' | user, system, etsy_sync. |
-| created_at   | TEXT    | NOT NULL              | ISO 8601 timestamp. |
+| Column       | Type    | Constraints               | Source / notes                                                               |
+| ------------ | ------- | ------------------------- | ---------------------------------------------------------------------------- |
+| id           | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                                               |
+| action       | TEXT    | NOT NULL                  | Action id (see ADR-037 catalog).                                             |
+| entity_type  | TEXT    | —                         | inventory, order, customer, address, setting, listing, sync, backup, system. |
+| entity_id    | INTEGER | —                         | Affected record id.                                                          |
+| entity_label | TEXT    | —                         | Human-readable label.                                                        |
+| detail_json  | TEXT    | —                         | JSON details.                                                                |
+| source       | TEXT    | NOT NULL DEFAULT 'user'   | user, system, etsy_sync.                                                     |
+| created_at   | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                                          |
 
 ---
 
 ### 5f. Supporting tables (Etsy, listing workflow, reports)
 
-| Table | Purpose | Source |
-| ----- | ------- | ------ |
-| `etsy_receipts` | Raw Etsy receipt JSON cache (`receipt_id`, `shop_id`, `receipt_json`, `synced_at`) | ADR-019 |
-| `listing_exports` | Portable AI export audit (`export_id`, `inventory_id`, `payload_json`) | ADR-023 |
-| `listing_imports` | Portable AI import audit | ADR-023 |
-| `listing_publish_previews` | Pre-publish payload snapshots | ADR-023 |
-| `report_artifacts` | Generated report metadata (`report_name`, `report_params_json`, paths) | ADR-013 |
-| `schema_migrations` | Applied migration versions | migrations |
+| Table                      | Purpose                                                                            | Source     |
+| -------------------------- | ---------------------------------------------------------------------------------- | ---------- |
+| `etsy_receipts`            | Raw Etsy receipt JSON cache (`receipt_id`, `shop_id`, `receipt_json`, `synced_at`) | ADR-019    |
+| `listing_exports`          | Portable AI export audit (`export_id`, `inventory_id`, `payload_json`)             | ADR-023    |
+| `listing_imports`          | Portable AI import audit                                                           | ADR-023    |
+| `listing_publish_previews` | Pre-publish payload snapshots                                                      | ADR-023    |
+| `report_artifacts`         | Generated report metadata (`report_name`, `report_params_json`, paths)             | ADR-013    |
+| `schema_migrations`        | Applied migration versions                                                         | migrations |
 
 ---
 
@@ -276,57 +276,57 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 
 **Known keys (semantics; not an exhaustive list):**
 
-| key                          | Meaning                                                                                          | Example value                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| panel_layout                 | Which side is commands vs outstanding                                                            | "commands_left" or "commands_right"                                                 |
-| default_shipper              | Default carrier for new shipments                                                                | "USPS", "UPS", "FedEx", "DHL", "Other"                                              |
+| key                          | Meaning                                                                                                      | Example value                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| panel_layout                 | Which side is commands vs outstanding                                                                        | "commands_left" or "commands_right"                                                 |
+| default_shipper              | Default carrier for new shipments                                                                            | "USPS", "UPS", "FedEx", "DHL", "Other"                                              |
 | currency_code                | Single app currency (ADR-008). Superseded by `ui.currency_code` (ADR-034); kept for backwards compatibility. | "USD"                                                                               |
-| business_name                | Business name for invoices                                                                       | "Trudy's Classic Treasures"                                                         |
-| business_logo_path           | Path to user's logo (stored in system); used in documents (invoices, thank-you, reports, labels) | Path, e.g. "system/logo.png" or "system/assets/logo.png"; empty/null if no logo set |
-| business_address_line_1      | Business address for invoices                                                                    | "123 Main St"                                                                       |
-| business_address_line_2      | Business address line 2                                                                          | "" or null                                                                          |
-| business_city                | Business city                                                                                    | "Anytown"                                                                           |
-| business_state_province      | Business state/province                                                                          | "CA"                                                                                |
-| business_country             | Business country                                                                                 | "US"                                                                                |
-| business_postal_code         | Business postal code                                                                             | "12345"                                                                             |
-| pictures_matter_url          | Optional; "Why pictures matter" link                                                             | URL or path                                                                         |
-| tutorial_system_folder_path  | Optional; custom tips-folder path for tutorial files                                             | Path                                                                                |
-| last_etsy_sync_at            | Last successful Etsy sync datetime (ISO 8601)                                                    | "2025-02-15T10:30:00Z"                                                              |
-| default_picture_directory    | Remembered directory for bulk picture import                                                     | Path                                                                                |
-| thumbnail_size               | User preference: small / medium / large or max dimension                                         | e.g. "200" or "medium"                                                              |
-| outstanding_sort_1_field     | First sort field for outstanding list                                                            | e.g. "date", "type", "customer_name"                                                |
-| outstanding_sort_1_direction | First sort direction                                                                             | "asc" or "desc"                                                                     |
-| outstanding_sort_2_field     | Second sort field                                                                                | —                                                                                   |
-| outstanding_sort_2_direction | Second sort direction                                                                            | "asc" or "desc"                                                                     |
-| outstanding_sort_3_field     | Third sort field                                                                                 | —                                                                                   |
-| outstanding_sort_3_direction | Third sort direction                                                                             | "asc" or "desc"                                                                     |
-| date_format                  | User preference for date display                                                                 | e.g. "YYYY-MM-DD", "MM/DD/YYYY"                                                     |
-| first_day_of_week            | First day of week for calendars                                                                  | 0=Sun, 1=Mon, etc.                                                                  |
-| backup_directory             | Path for automated backups                                                                       | Path                                                                                |
-| backup_schedule              | Optional; backup interval (e.g. daily)                                                           | e.g. "daily"                                                                        |
-| shipping_info_usps           | Shipping Info for USPS (data needed for label: account number, return address, etc.)             | Structured value per documents/shipping-label-carrier-templates.md                  |
-| shipping_info_ups            | Shipping Info for UPS                                                                            | Same                                                                                |
-| shipping_info_fedex          | Shipping Info for FedEx                                                                          | Same                                                                                |
-| shipping_info_dhl            | Shipping Info for DHL                                                                            | Same                                                                                |
-| shipping_info_other          | Shipping Info for Other carrier                                                                  | Same                                                                                |
-| shipping.default_carrier     | Default carrier for mark-shipped flow (ADR-034)                                                  | "USPS"                                                                              |
-| ui.date_format               | User date display format (ADR-034)                                                               | "MM/DD/YYYY"                                                                        |
-| ui.page_size                 | Records per page in lists (ADR-029, ADR-034)                                                     | "25"                                                                                |
-| ui.currency_code             | Display currency (ADR-034)                                                                       | "USD"                                                                               |
-| activity_log.retention_days  | Days to retain activity log entries (ADR-037)                                                    | "365"                                                                               |
-| tax.default_rate             | Default sales tax rate for manual orders (ADR-039)                                               | e.g. "0.0825"                                                                       |
-| setup.completed              | First-run wizard completed or skipped (ADR-044)                                                  | "true" or absent                                                                    |
-| sync.auto_interval           | Scheduled Etsy sync interval minutes; absent = disabled (ADR-057)                                | e.g. "60"                                                                           |
-| last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                | ISO 8601                                                                            |
-| integrity_warning            | Set when last integrity check failed (ADR-058)                                                   | "true" or absent                                                                    |
-| repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                     | "2"                                                                                 |
-| etsy.active_shop_id          | Selected Etsy shop id (ADR-007)                                                                  | Shop id string                                                                      |
-| etsy.oauth.state             | OAuth PKCE state (ADR-007)                                                                       | Opaque string                                                                       |
-| etsy.oauth.verifier          | OAuth PKCE verifier (ADR-007)                                                                    | Opaque string                                                                       |
-| etsy_access_token_encrypted  | Current Etsy access token (encrypted)                                                            | Encrypted string/blob                                                               |
-| etsy_refresh_token_encrypted | Current Etsy refresh token (encrypted)                                                           | Encrypted string/blob                                                               |
-| etsy_token_expires_at        | Access token expiry timestamp (ISO 8601)                                                         | "2026-02-16T10:30:00Z"                                                              |
-| app.session.current_id       | Current opaque session id (ADR-007)                                                              | Opaque id string                                                                    |
+| business_name                | Business name for invoices                                                                                   | "Trudy's Classic Treasures"                                                         |
+| business_logo_path           | Path to user's logo (stored in system); used in documents (invoices, thank-you, reports, labels)             | Path, e.g. "system/logo.png" or "system/assets/logo.png"; empty/null if no logo set |
+| business_address_line_1      | Business address for invoices                                                                                | "123 Main St"                                                                       |
+| business_address_line_2      | Business address line 2                                                                                      | "" or null                                                                          |
+| business_city                | Business city                                                                                                | "Anytown"                                                                           |
+| business_state_province      | Business state/province                                                                                      | "CA"                                                                                |
+| business_country             | Business country                                                                                             | "US"                                                                                |
+| business_postal_code         | Business postal code                                                                                         | "12345"                                                                             |
+| pictures_matter_url          | Optional; "Why pictures matter" link                                                                         | URL or path                                                                         |
+| tutorial_system_folder_path  | Optional; custom tips-folder path for tutorial files                                                         | Path                                                                                |
+| last_etsy_sync_at            | Last successful Etsy sync datetime (ISO 8601)                                                                | "2025-02-15T10:30:00Z"                                                              |
+| default_picture_directory    | Remembered directory for bulk picture import                                                                 | Path                                                                                |
+| thumbnail_size               | User preference: small / medium / large or max dimension                                                     | e.g. "200" or "medium"                                                              |
+| outstanding_sort_1_field     | First sort field for outstanding list                                                                        | e.g. "date", "type", "customer_name"                                                |
+| outstanding_sort_1_direction | First sort direction                                                                                         | "asc" or "desc"                                                                     |
+| outstanding_sort_2_field     | Second sort field                                                                                            | —                                                                                   |
+| outstanding_sort_2_direction | Second sort direction                                                                                        | "asc" or "desc"                                                                     |
+| outstanding_sort_3_field     | Third sort field                                                                                             | —                                                                                   |
+| outstanding_sort_3_direction | Third sort direction                                                                                         | "asc" or "desc"                                                                     |
+| date_format                  | User preference for date display                                                                             | e.g. "YYYY-MM-DD", "MM/DD/YYYY"                                                     |
+| first_day_of_week            | First day of week for calendars                                                                              | 0=Sun, 1=Mon, etc.                                                                  |
+| backup_directory             | Path for automated backups                                                                                   | Path                                                                                |
+| backup_schedule              | Optional; backup interval (e.g. daily)                                                                       | e.g. "daily"                                                                        |
+| shipping_info_usps           | Shipping Info for USPS (data needed for label: account number, return address, etc.)                         | Structured value per documents/shipping-label-carrier-templates.md                  |
+| shipping_info_ups            | Shipping Info for UPS                                                                                        | Same                                                                                |
+| shipping_info_fedex          | Shipping Info for FedEx                                                                                      | Same                                                                                |
+| shipping_info_dhl            | Shipping Info for DHL                                                                                        | Same                                                                                |
+| shipping_info_other          | Shipping Info for Other carrier                                                                              | Same                                                                                |
+| shipping.default_carrier     | Default carrier for mark-shipped flow (ADR-034)                                                              | "USPS"                                                                              |
+| ui.date_format               | User date display format (ADR-034)                                                                           | "MM/DD/YYYY"                                                                        |
+| ui.page_size                 | Records per page in lists (ADR-029, ADR-034)                                                                 | "25"                                                                                |
+| ui.currency_code             | Display currency (ADR-034)                                                                                   | "USD"                                                                               |
+| activity_log.retention_days  | Days to retain activity log entries (ADR-037)                                                                | "365"                                                                               |
+| tax.default_rate             | Default sales tax rate for manual orders (ADR-039)                                                           | e.g. "0.0825"                                                                       |
+| setup.completed              | First-run wizard completed or skipped (ADR-044)                                                              | "true" or absent                                                                    |
+| sync.auto_interval           | Scheduled Etsy sync interval minutes; absent = disabled (ADR-057)                                            | e.g. "60"                                                                           |
+| last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                              | ISO 8601                                                                            |
+| integrity_warning            | Set when last integrity check failed (ADR-058)                                                               | "true" or absent                                                                    |
+| repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                                 | "2"                                                                                 |
+| etsy.active_shop_id          | Selected Etsy shop id (ADR-007)                                                                              | Shop id string                                                                      |
+| etsy.oauth.state             | OAuth PKCE state (ADR-007)                                                                                   | Opaque string                                                                       |
+| etsy.oauth.verifier          | OAuth PKCE verifier (ADR-007)                                                                                | Opaque string                                                                       |
+| etsy_access_token_encrypted  | Current Etsy access token (encrypted)                                                                        | Encrypted string/blob                                                               |
+| etsy_refresh_token_encrypted | Current Etsy refresh token (encrypted)                                                                       | Encrypted string/blob                                                               |
+| etsy_token_expires_at        | Access token expiry timestamp (ISO 8601)                                                                     | "2026-02-16T10:30:00Z"                                                              |
+| app.session.current_id       | Current opaque session id (ADR-007)                                                                          | Opaque id string                                                                    |
 
 ---
 

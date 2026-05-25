@@ -22,7 +22,9 @@ export type ReportResult = {
 export type ReportFormat = "pdf" | "csv";
 
 function getCount(sql: string, params: unknown[] = []): number {
-  const row = getDb().prepare(sql).get(...params) as { c: number };
+  const row = getDb()
+    .prepare(sql)
+    .get(...params) as { c: number };
   return row.c;
 }
 
@@ -72,7 +74,11 @@ function describeDateRange(fromDate?: string, toDate?: string): string {
 
 function buildSalesReport(params?: { from_date?: string; to_date?: string }): ReportResult {
   const db = getDb();
-  const { dateClause, dateParams } = buildDateClause("o.order_date", params?.from_date, params?.to_date);
+  const { dateClause, dateParams } = buildDateClause(
+    "o.order_date",
+    params?.from_date,
+    params?.to_date
+  );
   const dateLabel = describeDateRange(params?.from_date, params?.to_date);
 
   const topItems = db
@@ -98,9 +104,13 @@ function buildSalesReport(params?: { from_date?: string; to_date?: string }): Re
     dateParams
   );
   const grossRevenue = asNumber(
-    (db.prepare(
-      `SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders o WHERE o.order_status = 'active' ${dateClause}`
-    ).get(...dateParams) as { v: number }).v
+    (
+      db
+        .prepare(
+          `SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders o WHERE o.order_status = 'active' ${dateClause}`
+        )
+        .get(...dateParams) as { v: number }
+    ).v
   );
 
   return {
@@ -130,7 +140,11 @@ function buildCostsReport(): ReportResult {
     )
     .get() as { purchase_total: number; purchase_shipping_total: number };
   const otherCostsTotal = asNumber(
-    (db.prepare("SELECT ROUND(SUM(COALESCE(amount, 0)), 2) AS v FROM other_costs").get() as { v: number }).v
+    (
+      db.prepare("SELECT ROUND(SUM(COALESCE(amount, 0)), 2) AS v FROM other_costs").get() as {
+        v: number;
+      }
+    ).v
   );
 
   const byType = db
@@ -156,9 +170,11 @@ function buildCostsReport(): ReportResult {
       purchase_shipping_total: asNumber(totals.purchase_shipping_total),
       other_costs_total: otherCostsTotal,
       total_costs: Number(
-        (asNumber(totals.purchase_total) + asNumber(totals.purchase_shipping_total) + otherCostsTotal).toFixed(
-          2
-        )
+        (
+          asNumber(totals.purchase_total) +
+          asNumber(totals.purchase_shipping_total) +
+          otherCostsTotal
+        ).toFixed(2)
       ),
     },
     sections: [{ title: "Other costs by type", rows: byType }],
@@ -171,16 +187,32 @@ function buildIncomeReport(kind: "income-mtd" | "income-ytd"): ReportResult {
   const baseWhere = "WHERE order_status = 'active' AND COALESCE(order_date, created_at, '') >= ?";
 
   const gross = asNumber(
-    (db.prepare(`SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
+    (
+      db
+        .prepare(`SELECT ROUND(SUM(COALESCE(grand_total, 0)), 2) AS v FROM orders ${baseWhere}`)
+        .get(startDate) as { v: number }
+    ).v
   );
   const shipping = asNumber(
-    (db.prepare(`SELECT ROUND(SUM(COALESCE(shipping_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
+    (
+      db
+        .prepare(`SELECT ROUND(SUM(COALESCE(shipping_total, 0)), 2) AS v FROM orders ${baseWhere}`)
+        .get(startDate) as { v: number }
+    ).v
   );
   const tax = asNumber(
-    (db.prepare(`SELECT ROUND(SUM(COALESCE(tax_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
+    (
+      db
+        .prepare(`SELECT ROUND(SUM(COALESCE(tax_total, 0)), 2) AS v FROM orders ${baseWhere}`)
+        .get(startDate) as { v: number }
+    ).v
   );
   const discount = asNumber(
-    (db.prepare(`SELECT ROUND(SUM(COALESCE(discount_total, 0)), 2) AS v FROM orders ${baseWhere}`).get(startDate) as { v: number }).v
+    (
+      db
+        .prepare(`SELECT ROUND(SUM(COALESCE(discount_total, 0)), 2) AS v FROM orders ${baseWhere}`)
+        .get(startDate) as { v: number }
+    ).v
   );
   const orders = getCount(`SELECT COUNT(*) AS c FROM orders ${baseWhere}`, [startDate]);
 
@@ -201,8 +233,15 @@ function buildIncomeReport(kind: "income-mtd" | "income-ytd"): ReportResult {
   };
 }
 
-function buildPostalByVendorReport(params?: { from_date?: string; to_date?: string }): ReportResult {
-  const { dateClause, dateParams } = buildDateClause("o.order_date", params?.from_date, params?.to_date);
+function buildPostalByVendorReport(params?: {
+  from_date?: string;
+  to_date?: string;
+}): ReportResult {
+  const { dateClause, dateParams } = buildDateClause(
+    "o.order_date",
+    params?.from_date,
+    params?.to_date
+  );
   const dateLabel = describeDateRange(params?.from_date, params?.to_date);
 
   const rows = getDb()
@@ -228,7 +267,9 @@ function buildPostalByVendorReport(params?: { from_date?: string; to_date?: stri
     summary: `Postal costs by carrier — ${dateLabel}.`,
     metrics: {
       vendor_count: rows.length,
-      shipping_total: Number(rows.reduce((sum, row) => sum + asNumber(row.shipping_total), 0).toFixed(2)),
+      shipping_total: Number(
+        rows.reduce((sum, row) => sum + asNumber(row.shipping_total), 0).toFixed(2)
+      ),
     },
     sections: [{ title: "Postal spend by vendor", rows }],
   };
@@ -316,7 +357,11 @@ function buildArAgingReport(): ReportResult {
     metrics: {
       unpaid_order_count: rows.length,
       ...Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, Number(v.toFixed(2))])),
-      total_unpaid: Number(Object.values(buckets).reduce((sum, v) => sum + v, 0).toFixed(2)),
+      total_unpaid: Number(
+        Object.values(buckets)
+          .reduce((sum, v) => sum + v, 0)
+          .toFixed(2)
+      ),
     },
     sections: [{ title: "Unpaid orders", rows }],
   };
@@ -356,7 +401,9 @@ function buildInvoiceReport(): ReportResult {
     summary: "Open invoices to issue or follow up.",
     metrics: {
       invoice_count: rows.length,
-      total_amount_due: Number(rows.reduce((sum, row) => sum + asNumber(row.amount_due), 0).toFixed(2)),
+      total_amount_due: Number(
+        rows.reduce((sum, row) => sum + asNumber(row.amount_due), 0).toFixed(2)
+      ),
     },
     sections: [{ title: "Open invoices", rows }],
   };
@@ -481,7 +528,8 @@ export function buildSingleOrderThankYou(orderId: number): ReportResult | null {
     item_number: row.item_number,
   }));
   const businessName = getSetting("business_name")?.trim() || "Business";
-  const customerName = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ") || "Customer";
+  const customerName =
+    [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ") || "Customer";
   const orderNumber = String(order.order_number ?? orderId);
 
   return {
@@ -582,7 +630,14 @@ function buildProfitByItemReport(params?: ReportParams): ReportResult {
       acc.net_profit += row.net_profit;
       return acc;
     },
-    { purchase_cost: 0, shipping_in: 0, other_costs: 0, total_cost: 0, sale_revenue: 0, net_profit: 0 }
+    {
+      purchase_cost: 0,
+      shipping_in: 0,
+      other_costs: 0,
+      total_cost: 0,
+      sale_revenue: 0,
+      net_profit: 0,
+    }
   );
 
   const weightedMargin =
@@ -605,7 +660,9 @@ function buildProfitByItemReport(params?: ReportParams): ReportResult {
       total_net_profit: Number(totals.net_profit.toFixed(2)),
       weighted_margin_pct: weightedMargin,
     },
-    sections: [{ title: "Sold items", rows: rows as unknown as Array<Record<string, ReportMetricValue>> }],
+    sections: [
+      { title: "Sold items", rows: rows as unknown as Array<Record<string, ReportMetricValue>> },
+    ],
   };
 }
 
@@ -725,9 +782,7 @@ function buildInventoryAgingReport(): ReportResult {
   const totalCost = enriched.reduce((s, r) => s + r.purchase_cost, 0);
   const avgDays =
     enriched.length > 0
-      ? Number(
-          (enriched.reduce((s, r) => s + r.days_in_stock, 0) / enriched.length).toFixed(1)
-        )
+      ? Number((enriched.reduce((s, r) => s + r.days_in_stock, 0) / enriched.length).toFixed(1))
       : 0;
 
   return {
@@ -743,7 +798,10 @@ function buildInventoryAgingReport(): ReportResult {
       avg_days_in_stock: avgDays,
     },
     sections: [
-      { title: "Aging inventory", rows: enriched as unknown as Array<Record<string, ReportMetricValue>> },
+      {
+        title: "Aging inventory",
+        rows: enriched as unknown as Array<Record<string, ReportMetricValue>>,
+      },
     ],
   };
 }
@@ -936,7 +994,15 @@ export function buildAccountingExportRows(params?: ReportParams): AccountingExpo
 
 export function buildAccountingExportCsv(params?: ReportParams): string {
   const rows = buildAccountingExportRows(params);
-  const header = ["Date", "Transaction Type", "Reference", "Description", "Debit", "Credit", "Account"];
+  const header = [
+    "Date",
+    "Transaction Type",
+    "Reference",
+    "Description",
+    "Debit",
+    "Credit",
+    "Account",
+  ];
   const lines = [header.join(",")];
   for (const row of rows) {
     lines.push(
@@ -981,7 +1047,8 @@ export type ReportParams = {
 export function buildReport(reportName: string, params?: ReportParams): ReportResult {
   if (reportName === "sales") return buildSalesReport(params);
   if (reportName === "costs") return buildCostsReport();
-  if (reportName === "income-mtd" || reportName === "income-ytd") return buildIncomeReport(reportName);
+  if (reportName === "income-mtd" || reportName === "income-ytd")
+    return buildIncomeReport(reportName);
   if (reportName === "postal-by-vendor") return buildPostalByVendorReport(params);
   if (reportName === "outstanding-items") return buildOutstandingItemsReport();
   if (reportName === "ar-aging") return buildArAgingReport();
@@ -1041,9 +1108,9 @@ export function buildReportCsv(report: ReportResult): string {
   for (const section of report.sections) {
     lines.push("");
     lines.push(`section,${toCsvValue(section.title)}`);
-    const keys = Array.from(
-      new Set(section.rows.flatMap((row) => Object.keys(row)))
-    ) as Array<keyof (typeof section.rows)[number]>;
+    const keys = Array.from(new Set(section.rows.flatMap((row) => Object.keys(row)))) as Array<
+      keyof (typeof section.rows)[number]
+    >;
     if (keys.length === 0) {
       lines.push("note,no rows");
       continue;
@@ -1090,48 +1157,58 @@ export async function buildReportPdf(report: ReportResult): Promise<Buffer> {
       }
     }
 
-    doc.fontSize(18).text(`${report.report_name} report`, { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(`Generated: ${report.generated_at}`);
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(report.summary);
-    doc.moveDown();
-
-    if (isReportEmpty(report)) {
-      doc.moveDown();
-      doc.fontSize(14).text("No data found for the selected criteria.", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(11).text(
-        "Try adjusting the date range or filters, or check that relevant records exist.",
-        { align: "center" }
-      );
-    } else {
-      doc.fontSize(13).text("Metrics");
-      doc.moveDown(0.5);
-      for (const [metric, value] of Object.entries(report.metrics)) {
-        doc.fontSize(11).text(`- ${metric}: ${value}`);
-      }
-      for (const section of report.sections) {
-        doc.moveDown();
-        doc.fontSize(13).text(section.title);
-        doc.moveDown(0.4);
-        if (section.rows.length === 0) {
-          doc.fontSize(10).text("No rows.");
-          continue;
-        }
-        for (const row of section.rows.slice(0, 100)) {
-          const line = Object.entries(row)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(" | ");
-          doc.fontSize(10).text(line);
-        }
-        if (section.rows.length > 100) {
-          doc.fontSize(10).text(`... ${section.rows.length - 100} additional rows omitted in PDF output.`);
-        }
-      }
-    }
+    renderReportContent(doc, report);
     doc.end();
   });
+}
+
+export function renderReportContent(
+  doc: InstanceType<typeof PDFDocument>,
+  report: ReportResult
+): void {
+  doc.fontSize(18).text(`${report.report_name} report`, { underline: true });
+  doc.moveDown(0.5);
+  doc.fontSize(11).text(`Generated: ${report.generated_at}`);
+  doc.moveDown(0.5);
+  doc.fontSize(11).text(report.summary);
+  doc.moveDown();
+
+  if (isReportEmpty(report)) {
+    doc.moveDown();
+    doc.fontSize(14).text("No data found for the selected criteria.", { align: "center" });
+    doc.moveDown();
+    doc
+      .fontSize(11)
+      .text("Try adjusting the date range or filters, or check that relevant records exist.", {
+        align: "center",
+      });
+  } else {
+    doc.fontSize(13).text("Metrics");
+    doc.moveDown(0.5);
+    for (const [metric, value] of Object.entries(report.metrics)) {
+      doc.fontSize(11).text(`- ${metric}: ${value}`);
+    }
+    for (const section of report.sections) {
+      doc.moveDown();
+      doc.fontSize(13).text(section.title);
+      doc.moveDown(0.4);
+      if (section.rows.length === 0) {
+        doc.fontSize(10).text("No rows.");
+        continue;
+      }
+      for (const row of section.rows.slice(0, 100)) {
+        const line = Object.entries(row)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(" | ");
+        doc.fontSize(10).text(line);
+      }
+      if (section.rows.length > 100) {
+        doc
+          .fontSize(10)
+          .text(`... ${section.rows.length - 100} additional rows omitted in PDF output.`);
+      }
+    }
+  }
 }
 
 export function saveReportArtifact(reportName: string, report: ReportResult): void {

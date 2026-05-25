@@ -38,16 +38,16 @@ A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classi
 
 ### Library (`src/lib/etsy.ts`)
 
-| Function                                      | Purpose                                                                                                                                  |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `getEtsyConfig()`                             | Read and validate `ETSY_CLIENT_ID`, `ETSY_CLIENT_SECRET`, `ETSY_REDIRECT_URI` from env.                                                  |
-| `generateCodeVerifier()`                      | Create a cryptographically random PKCE code verifier (43–128 chars, base64url).                                                          |
-| `getCodeChallenge(verifier)`                  | Compute SHA-256 + base64url code challenge from the verifier.                                                                            |
+| Function                                      | Purpose                                                                                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getEtsyConfig()`                             | Read and validate `ETSY_CLIENT_ID`, `ETSY_CLIENT_SECRET`, `ETSY_REDIRECT_URI` from env.                                                                        |
+| `generateCodeVerifier()`                      | Create a cryptographically random PKCE code verifier (43–128 chars, base64url).                                                                                |
+| `getCodeChallenge(verifier)`                  | Compute SHA-256 + base64url code challenge from the verifier.                                                                                                  |
 | `getEtsyAuthUrl(state)`                       | Build Etsy OAuth URL with PKCE and scopes `transactions_r receipts_r shops_r listings_r listings_w`; returns URL and `codeVerifier` to store for the callback. |
-| `exchangeCodeForToken(code, codeVerifier)`    | POST to Etsy token endpoint; returns `access_token`, `refresh_token`, `expires_in`.                                                      |
-| `etsyApi(path, accessToken, options?)`        | Generic Etsy API request: `GET https://api.etsy.com/v3/application{path}` with `x-api-key` and `Authorization: Bearer {accessToken}`.    |
-| `getShops(accessToken)`                       | Fetch current user’s profile then their shops; returns array of `{ shop_id, shop_name }`.                                                |
-| `getShopReceipts(accessToken, shopId, opts?)` | Fetch shop receipts (orders) with optional `limit`, `offset`, `min_created`, `max_created`.                                              |
+| `exchangeCodeForToken(code, codeVerifier)`    | POST to Etsy token endpoint; returns `access_token`, `refresh_token`, `expires_in`.                                                                            |
+| `etsyApi(path, accessToken, options?)`        | Generic Etsy API request: `GET https://api.etsy.com/v3/application{path}` with `x-api-key` and `Authorization: Bearer {accessToken}`.                          |
+| `getShops(accessToken)`                       | Fetch current user’s profile then their shops; returns array of `{ shop_id, shop_name }`.                                                                      |
+| `getShopReceipts(accessToken, shopId, opts?)` | Fetch shop receipts (orders) with optional `limit`, `offset`, `min_created`, `max_created`.                                                                    |
 
 ### Data and session cookies
 

@@ -62,7 +62,13 @@ function SalesPageInner() {
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "order_date", dir: "desc" });
   const batch = useBatchSelection(orders, listTotal);
-  const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+  const {
+    runBatch,
+    busy: batchBusy,
+    progressOpen,
+    progressTitle,
+    progressTotal,
+  } = useBatchOperation();
   const { modal: syncModal, runSync } = useEtsySync();
   const [printQueueOpen, setPrintQueueOpen] = useState(false);
   const [printQueueType, setPrintQueueType] = useState<PrintQueueDocType>("invoice");
@@ -224,7 +230,9 @@ function SalesPageInner() {
         params.set("sort_by", sort.key);
         params.set("sort_dir", sort.dir);
       }
-      const response = await fetch(`/api/orders?${params}`, { headers: { Accept: "application/json" } });
+      const response = await fetch(`/api/orders?${params}`, {
+        headers: { Accept: "application/json" },
+      });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
         items?: Order[];
         pagination?: PaginationInfo;
@@ -268,7 +276,9 @@ function SalesPageInner() {
         return;
       }
       try {
-        const response = await fetch(`/api/orders/${id}`, { headers: { Accept: "application/json" } });
+        const response = await fetch(`/api/orders/${id}`, {
+          headers: { Accept: "application/json" },
+        });
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
         if (!response.ok || !data.order) {
           setError({
@@ -291,7 +301,16 @@ function SalesPageInner() {
     };
 
     void applyDeepLink();
-  }, [searchParams, orders, setSelectedOrderId, setOrders, router, pathname, setError, setApiError]);
+  }, [
+    searchParams,
+    orders,
+    setSelectedOrderId,
+    setOrders,
+    router,
+    pathname,
+    setError,
+    setApiError,
+  ]);
 
   const updateOrderInList = (order: Order) => {
     setOrders((current) => current.map((row) => (row.id === order.id ? order : row)));
@@ -350,7 +369,10 @@ function SalesPageInner() {
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
-        setOrders((current) => [data.order!, ...current.filter((row) => row.id !== data.order!.id)]);
+        setOrders((current) => [
+          data.order!,
+          ...current.filter((row) => row.id !== data.order!.id),
+        ]);
         setSelectedOrderId(data.order.id);
       }
       setNewOrderNumber("");
@@ -502,11 +524,11 @@ function SalesPageInner() {
     if (batch.selectionCount === 0) return;
     setBusyAction("batch-void");
     try {
-      const { ok, feedback } = await runBatch(
-        "/api/orders/batch",
-        buildOrderBatchBody("void"),
-        { entity: "order", actionPast: "voided", count: batch.selectionCount }
-      );
+      const { ok, feedback } = await runBatch("/api/orders/batch", buildOrderBatchBody("void"), {
+        entity: "order",
+        actionPast: "voided",
+        count: batch.selectionCount,
+      });
       if (!ok) throw new Error(feedback.message);
       await reloadOrders();
       setDetailRefresh((n) => n + 1);
@@ -530,6 +552,8 @@ function SalesPageInner() {
         type: "error",
         message: "Print queue is full (50 max). Print or clear some items first.",
       });
+    } else if (added === 0 && duplicate > 0) {
+      addNotificationEntry({ type: "info", message: "Already in queue." });
     } else {
       addNotificationEntry({
         type: "success",
@@ -580,16 +604,36 @@ function SalesPageInner() {
               : undefined
           }
         >
-          <Button variant="secondary" size="sm" busy={busyAction === "batch-paid" || batchBusy} onClick={() => void batchMarkPaid()}>
+          <Button
+            variant="secondary"
+            size="sm"
+            busy={busyAction === "batch-paid" || batchBusy}
+            onClick={() => void batchMarkPaid()}
+          >
             Mark paid
           </Button>
-          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => openShipModal("batch")}>
+          <Button
+            variant="secondary"
+            size="sm"
+            busy={batchBusy}
+            onClick={() => openShipModal("batch")}
+          >
             Mark shipped…
           </Button>
-          <Button variant="secondary" size="sm" busy={batchBusy} onClick={() => setPrintQueueOpen(true)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            busy={batchBusy}
+            onClick={() => setPrintQueueOpen(true)}
+          >
             Add to print queue…
           </Button>
-          <Button variant="danger" size="sm" busy={busyAction === "batch-void" || batchBusy} onClick={() => setBatchVoidConfirmOpen(true)}>
+          <Button
+            variant="danger"
+            size="sm"
+            busy={busyAction === "batch-void" || batchBusy}
+            onClick={() => setBatchVoidConfirmOpen(true)}
+          >
             Void
           </Button>
         </BatchActionsBar>
@@ -718,7 +762,11 @@ function SalesPageInner() {
 
       {listTotal === 0 ? (
         <EmptyState
-          message={orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter ? "No orders match your filters." : "No orders yet. Sync from Etsy or create your first manual order."}
+          message={
+            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+              ? "No orders match your filters."
+              : "No orders yet. Sync from Etsy or create your first manual order."
+          }
           primaryAction={
             orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
               ? {
@@ -733,7 +781,11 @@ function SalesPageInner() {
                 }
               : shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }
-                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+                : {
+                    label: "Connect Etsy first",
+                    onClick: () => router.push("/config#etsy-connection"),
+                    variant: "secondary",
+                  }
           }
           secondaryAction={
             orderSearch.trim()
@@ -744,10 +796,16 @@ function SalesPageInner() {
       ) : null}
 
       {shipModalOpen && (shipModalMode === "batch" || selectedOrder) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
-              {shipModalMode === "batch" ? `Mark ${batch.selectionCount} orders shipped` : "Mark order shipped"}
+              {shipModalMode === "batch"
+                ? `Mark ${batch.selectionCount} orders shipped`
+                : "Mark order shipped"}
             </h4>
             <label className="mb-2 block text-sm">
               Carrier
@@ -793,7 +851,11 @@ function SalesPageInner() {
               </label>
             ) : null}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShipModalOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setShipModalOpen(false)}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+              >
                 Cancel
               </button>
               <button
@@ -802,7 +864,9 @@ function SalesPageInner() {
                 disabled={busyAction != null}
                 className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {busyAction === "mark-shipped" || busyAction === "batch-ship" ? "Saving…" : "Mark shipped"}
+                {busyAction === "mark-shipped" || busyAction === "batch-ship"
+                  ? "Saving…"
+                  : "Mark shipped"}
               </button>
             </div>
           </div>
@@ -815,7 +879,9 @@ function SalesPageInner() {
         onConfirm={() => void voidSelectedOrder()}
         title="Void order?"
         description="This will void the order. Voided orders are excluded from active reports."
-        affectedLabel={selectedOrder?.order_number ? `Order ${selectedOrder.order_number}` : undefined}
+        affectedLabel={
+          selectedOrder?.order_number ? `Order ${selectedOrder.order_number}` : undefined
+        }
         confirmLabel="Void order"
         confirmVariant="danger"
         busy={busyAction === "void-order"}
@@ -830,7 +896,11 @@ function SalesPageInner() {
         confirmVariant="danger"
         busy={busyAction === "batch-void"}
       />
-      <Modal open={printQueueOpen} onClose={() => setPrintQueueOpen(false)} title="Add to print queue">
+      <Modal
+        open={printQueueOpen}
+        onClose={() => setPrintQueueOpen(false)}
+        title="Add to print queue"
+      >
         <p className="mb-3 text-sm text-[var(--ui-muted)]">
           Choose a document type for {batch.selectionCount} selected order(s).
         </p>

@@ -20,11 +20,11 @@ The Outstanding page navigates to target pages using URL query params (`?orderId
 
 ### Query param contract (exact)
 
-| Target page | Query param | Behavior |
-|-------------|-------------|----------|
-| Sales (`/sales`) | `orderId={id}` | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
-| Inventory (`/inventory`) | `itemId={id}` | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior. |
-| Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses. |
+| Target page              | Query param       | Behavior                                                                                                                    |
+| ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Sales (`/sales`)         | `orderId={id}`    | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
+| Inventory (`/inventory`) | `itemId={id}`     | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior.                                               |
+| Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses.                                                           |
 
 ---
 
@@ -58,12 +58,12 @@ This pattern is correct and does not change. The fix is entirely on the receivin
 
 Beyond Outstanding, other pages may produce deep links:
 
-| Source | Target | Param |
-|--------|--------|-------|
-| Dashboard order table (future) | Sales detail | `orderId` |
-| Sales → customer name link (ADR-031) | Customers | `customerId` |
-| Customers → order history (future) | Sales | `customerId` (filters orders by customer) |
-| Reports → per-order drill-down (future) | Sales | `orderId` |
+| Source                                  | Target       | Param                                     |
+| --------------------------------------- | ------------ | ----------------------------------------- |
+| Dashboard order table (future)          | Sales detail | `orderId`                                 |
+| Sales → customer name link (ADR-031)    | Customers    | `customerId`                              |
+| Customers → order history (future)      | Sales        | `customerId` (filters orders by customer) |
+| Reports → per-order drill-down (future) | Sales        | `orderId`                                 |
 
 The query param contract above covers all these cases. Pages should handle any combination of params they define.
 

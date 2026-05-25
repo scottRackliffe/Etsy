@@ -18,21 +18,21 @@ The application must support several reports for daily operations and financial 
 
 The following **reports** will be supported; all are backed by the database and the data models described in ADR-001–005 and ADR-017.
 
-| Report                     | Purpose                                                                      | Main data source                                                                                                          |
-| -------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Thank you note**         | Printable note per order (e.g. "Thank you for your order…")                  | `orders` snapshot + `order_items` / `inventory` (order date, items).                                                      |
-| **Invoice**                | Per-order document: buyer, address, items, amounts, dates, payment/shipping. | `orders` + `order_items` + `inventory`; `seller_shipping_cost`, `shipper`, totals on order.                             |
-| **Sales**                  | List/summary of sales (e.g. by date range).                                  | `orders` + `order_items` + `inventory` (`order_date`, sale revenue).                                                      |
-| **Costs**                  | What the seller spent (purchase cost, shipping, other costs).                | `inventory` + `other_costs`; optional `orders.seller_shipping_cost` section.                                              |
-| **Income — month to date** | Revenue for the current month.                                               | `inventory.sale_revenue` via `order_items` where `orders.order_date` in current month (see Notes).                        |
-| **Income — year to date**  | Revenue for the current year.                                                | Same as MTD for current calendar year.                                                                                    |
-| **Postal costs by vendor** | Shipping spend by carrier.                                                   | Sum of seller's shipping cost grouped by shipper (USPS, UPS, FedEx, DHL, Other). See ADR-005.                             |
-| **Outstanding items**      | All current outstanding to-dos (same as outstanding panel/tab).              | Union of outstanding item types per ADR-020; snapshot at run time. See ADR-013.                                           |
-| **AR aging**               | Unpaid orders by age bucket (0–30, 31–60, 61–90, 90+ days).                  | `orders` with `was_paid = 0`; exclude `order_status` void/cancelled; age from `order_date`. See ADR-013.                  |
-| **Profit by item**         | Per-item cost, revenue, margin, and profit for a date range.                 | `inventory` + `other_costs` + sold `order_items` / `orders.order_date`. See ADR-038, ADR-013.                             |
-| **Sales tax summary**      | Tax collected by period for filing reference.                                  | `orders.tax_total`, `orders.order_date`; active orders only. See ADR-039, ADR-013.                                        |
-| **Inventory aging**        | Slow movers and days-in-stock / days-listed.                                   | `inventory.date_purchased`, `date_listed`, `status`. See ADR-054, ADR-013.                                                |
-| **Accounting export**      | CSV journal-style export for external accounting tools.                        | `orders`, `order_items`, `inventory`, `other_costs`. See ADR-056. Primary format CSV.                                     |
+| Report                     | Purpose                                                                      | Main data source                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Thank you note**         | Printable note per order (e.g. "Thank you for your order…")                  | `orders` snapshot + `order_items` / `inventory` (order date, items).                                     |
+| **Invoice**                | Per-order document: buyer, address, items, amounts, dates, payment/shipping. | `orders` + `order_items` + `inventory`; `seller_shipping_cost`, `shipper`, totals on order.              |
+| **Sales**                  | List/summary of sales (e.g. by date range).                                  | `orders` + `order_items` + `inventory` (`order_date`, sale revenue).                                     |
+| **Costs**                  | What the seller spent (purchase cost, shipping, other costs).                | `inventory` + `other_costs`; optional `orders.seller_shipping_cost` section.                             |
+| **Income — month to date** | Revenue for the current month.                                               | `inventory.sale_revenue` via `order_items` where `orders.order_date` in current month (see Notes).       |
+| **Income — year to date**  | Revenue for the current year.                                                | Same as MTD for current calendar year.                                                                   |
+| **Postal costs by vendor** | Shipping spend by carrier.                                                   | Sum of seller's shipping cost grouped by shipper (USPS, UPS, FedEx, DHL, Other). See ADR-005.            |
+| **Outstanding items**      | All current outstanding to-dos (same as outstanding panel/tab).              | Union of outstanding item types per ADR-020; snapshot at run time. See ADR-013.                          |
+| **AR aging**               | Unpaid orders by age bucket (0–30, 31–60, 61–90, 90+ days).                  | `orders` with `was_paid = 0`; exclude `order_status` void/cancelled; age from `order_date`. See ADR-013. |
+| **Profit by item**         | Per-item cost, revenue, margin, and profit for a date range.                 | `inventory` + `other_costs` + sold `order_items` / `orders.order_date`. See ADR-038, ADR-013.            |
+| **Sales tax summary**      | Tax collected by period for filing reference.                                | `orders.tax_total`, `orders.order_date`; active orders only. See ADR-039, ADR-013.                       |
+| **Inventory aging**        | Slow movers and days-in-stock / days-listed.                                 | `inventory.date_purchased`, `date_listed`, `status`. See ADR-054, ADR-013.                               |
+| **Accounting export**      | CSV journal-style export for external accounting tools.                      | `orders`, `order_items`, `inventory`, `other_costs`. See ADR-056. Primary format CSV.                    |
 
 Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-pdf.md)). All reports support both; PDF for print/share, CSV for data export. The scope of _what_ each report contains is fixed above.
 
@@ -56,12 +56,12 @@ Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-
 
 The "purchase" references in this ADR's table map to the implementation schema as follows:
 
-| ADR-006 term | Implementation | Notes |
-|-------------|----------------|-------|
-| purchase / purchase record | `orders` + `order_items` | `orders` = order header; `order_items` = line items |
-| purchase.date_of_purchase | `orders.order_date` | |
-| purchase.shipping_cost (seller) | `orders.seller_shipping_cost` | |
-| purchase.shipper | `orders.shipper` | |
-| purchase.was_paid | `orders.was_paid` | |
-| purchase rows with same order_id | `order_items` rows for one `orders` row | Each `orders` row IS the order |
-| linked inventory.sale_revenue | `order_items.inventory_id` → `inventory.sale_revenue` | Join through order_items |
+| ADR-006 term                     | Implementation                                        | Notes                                               |
+| -------------------------------- | ----------------------------------------------------- | --------------------------------------------------- |
+| purchase / purchase record       | `orders` + `order_items`                              | `orders` = order header; `order_items` = line items |
+| purchase.date_of_purchase        | `orders.order_date`                                   |                                                     |
+| purchase.shipping_cost (seller)  | `orders.seller_shipping_cost`                         |                                                     |
+| purchase.shipper                 | `orders.shipper`                                      |                                                     |
+| purchase.was_paid                | `orders.was_paid`                                     |                                                     |
+| purchase rows with same order_id | `order_items` rows for one `orders` row               | Each `orders` row IS the order                      |
+| linked inventory.sale_revenue    | `order_items.inventory_id` → `inventory.sale_revenue` | Join through order_items                            |

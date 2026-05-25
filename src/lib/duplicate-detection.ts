@@ -152,7 +152,10 @@ export type CustomerDuplicateGroup = {
   match_reason: string;
 };
 
-function customerNameSimilar(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): boolean {
+function customerNameSimilar(
+  a: CustomerDuplicateGroupMember,
+  b: CustomerDuplicateGroupMember
+): boolean {
   const lnA = normalize(a.last_name ?? "");
   const lnB = normalize(b.last_name ?? "");
   const fnA = normalize(a.first_name ?? "");
@@ -162,13 +165,19 @@ function customerNameSimilar(a: CustomerDuplicateGroupMember, b: CustomerDuplica
   return levenshtein(fnA, fnB) <= 2;
 }
 
-function customerEmailMatch(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): boolean {
+function customerEmailMatch(
+  a: CustomerDuplicateGroupMember,
+  b: CustomerDuplicateGroupMember
+): boolean {
   const emailA = normalize(a.email ?? "");
   const emailB = normalize(b.email ?? "");
   return emailA.length > 0 && emailA === emailB;
 }
 
-function duplicateMatchReason(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): string {
+function duplicateMatchReason(
+  a: CustomerDuplicateGroupMember,
+  b: CustomerDuplicateGroupMember
+): string {
   if (customerEmailMatch(a, b)) return "Same email address";
   return "Same last name, similar first name";
 }
@@ -219,7 +228,10 @@ export function findCustomerDuplicateGroups(): CustomerDuplicateGroup[] {
     let matchReason = "Potential duplicate customers";
     for (let i = 0; i < members.length; i += 1) {
       for (let j = i + 1; j < members.length; j += 1) {
-        if (customerEmailMatch(members[i], members[j]) || customerNameSimilar(members[i], members[j])) {
+        if (
+          customerEmailMatch(members[i], members[j]) ||
+          customerNameSimilar(members[i], members[j])
+        ) {
           matchReason = duplicateMatchReason(members[i], members[j]);
           break;
         }

@@ -8,11 +8,11 @@ This document defines how the frontend manages data fetching, caching, state, an
 
 The app uses a **server-driven data** model: all business data lives in SQLite, accessed via API routes. The frontend fetches data on demand and does not maintain a persistent client-side store (no Redux, no Zustand). State is managed via:
 
-| Layer | Mechanism | Scope |
-|-------|-----------|-------|
-| **Global app state** | React Context (`AppProvider`) | Connection status, shops, selected shop, settings, outstanding count |
-| **Page-level state** | `useState` / `useReducer` in page components | List data, selected record, form values, pagination |
-| **Component-level state** | `useState` in leaf components | UI toggles, local form fields, loading indicators |
+| Layer                     | Mechanism                                    | Scope                                                                |
+| ------------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| **Global app state**      | React Context (`AppProvider`)                | Connection status, shops, selected shop, settings, outstanding count |
+| **Page-level state**      | `useState` / `useReducer` in page components | List data, selected record, form values, pagination                  |
+| **Component-level state** | `useState` in leaf components                | UI toggles, local form fields, loading indicators                    |
 
 ---
 
@@ -50,6 +50,7 @@ type AppContextValue = {
 ```
 
 **Initialization (on mount):**
+
 1. Fetch `GET /api/shop` → if success, set `isConnected = true` and populate `shops`.
 2. Fetch `GET /api/settings` → populate `settings` cache.
 3. Extract `lastSyncAt` from settings.
@@ -81,6 +82,7 @@ function useApi<T>() {
 ```
 
 **Behavior:**
+
 - Sets `loading = true` before fetch, `false` after.
 - On success (2xx): parse JSON, return data.
 - On 401: set `isConnected = false` in AppProvider; show toast "Session expired."
@@ -155,12 +157,12 @@ function InventoryDetailPage({ params }: { params: { id: string } }) {
 
 For fast-feeling interactions, use optimistic updates for simple state transitions:
 
-| Action | Optimistic behavior | Rollback on error |
-|--------|--------------------|--------------------|
-| Mark as paid | Immediately set `was_paid = 1` in local state; show success toast | Revert to `was_paid = 0`; show error toast |
-| Mark as shipped | Immediately update status in local state | Revert; show error toast |
-| Delete item | Immediately remove from list | Re-add to list; show error toast |
-| Toggle setting | Immediately reflect new value | Revert; show error toast |
+| Action          | Optimistic behavior                                               | Rollback on error                          |
+| --------------- | ----------------------------------------------------------------- | ------------------------------------------ |
+| Mark as paid    | Immediately set `was_paid = 1` in local state; show success toast | Revert to `was_paid = 0`; show error toast |
+| Mark as shipped | Immediately update status in local state                          | Revert; show error toast                   |
+| Delete item     | Immediately remove from list                                      | Re-add to list; show error toast           |
+| Toggle setting  | Immediately reflect new value                                     | Revert; show error toast                   |
 
 For complex operations (create order, sync from Etsy, generate listing), do **not** use optimistic updates. Show a loading state and wait for the server response.
 
@@ -185,15 +187,15 @@ const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
 Run validation **before** submitting to the API. Validation rules mirror ADR-021:
 
-| Field | Rule | Error message |
-|-------|------|---------------|
-| `item_number` | Required, non-empty | "Item number is required." |
-| `description` | Required, non-empty | "Description is required." |
-| `sale_revenue` | Required, > 0 (for listing generation) | "Price must be greater than 0." |
-| `listing_title` | 1–140 characters | "Title must be 1–140 characters." |
-| `listing_tags` | 1–13 tags | "Provide 1 to 13 tags." |
-| `email` | Valid email format (when provided) | "Enter a valid email address." |
-| `postal_code` | Non-empty (for complete address) | "Postal code is required for shipping." |
+| Field           | Rule                                   | Error message                           |
+| --------------- | -------------------------------------- | --------------------------------------- |
+| `item_number`   | Required, non-empty                    | "Item number is required."              |
+| `description`   | Required, non-empty                    | "Description is required."              |
+| `sale_revenue`  | Required, > 0 (for listing generation) | "Price must be greater than 0."         |
+| `listing_title` | 1–140 characters                       | "Title must be 1–140 characters."       |
+| `listing_tags`  | 1–13 tags                              | "Provide 1 to 13 tags."                 |
+| `email`         | Valid email format (when provided)     | "Enter a valid email address."          |
+| `postal_code`   | Non-empty (for complete address)       | "Postal code is required for shipping." |
 
 ### 5.3 Server-side validation errors
 
@@ -217,16 +219,16 @@ Each `FormField` component checks `fieldErrors[name]` and displays the first err
 
 ### 6.1 Error hierarchy
 
-| Error type | Where shown | User action |
-|------------|-------------|-------------|
-| Field validation (400 + fields) | Inline below each field | Fix the field and resubmit |
-| Business rule (400 no fields) | Toast or inline message | Read the `user_message` and follow `actions` |
-| Not authenticated (401) | Toast + redirect to not-connected state | Click "Connect Etsy" |
-| Not found (404) | Toast "Record not found" | Navigate back to list |
-| Conflict (409) | Toast with explanation | Follow suggested action (e.g. "Cannot delete: item is referenced by orders") |
-| Rate limited (429) | Toast "Please wait" | Auto-retry after delay |
-| Server error (500) | Toast "Something went wrong" | Retry or contact support |
-| Upstream unavailable (503) | Toast with `user_message` | Retry later |
+| Error type                      | Where shown                             | User action                                                                  |
+| ------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- |
+| Field validation (400 + fields) | Inline below each field                 | Fix the field and resubmit                                                   |
+| Business rule (400 no fields)   | Toast or inline message                 | Read the `user_message` and follow `actions`                                 |
+| Not authenticated (401)         | Toast + redirect to not-connected state | Click "Connect Etsy"                                                         |
+| Not found (404)                 | Toast "Record not found"                | Navigate back to list                                                        |
+| Conflict (409)                  | Toast with explanation                  | Follow suggested action (e.g. "Cannot delete: item is referenced by orders") |
+| Rate limited (429)              | Toast "Please wait"                     | Auto-retry after delay                                                       |
+| Server error (500)              | Toast "Something went wrong"            | Retry or contact support                                                     |
+| Upstream unavailable (503)      | Toast with `user_message`               | Retry later                                                                  |
 
 ### 6.2 Global error boundary
 
@@ -237,6 +239,7 @@ Catches unhandled errors in rendering. Shows a friendly error page with "Try aga
 ### 6.3 Network failure
 
 When `fetch()` throws (no response at all):
+
 - Show toast: "Network error. Check your connection and try again."
 - Set `error.can_retry = true` on the error object.
 - Do not clear existing data from the screen.
@@ -265,6 +268,7 @@ useEffect(() => {
 ```
 
 This pattern works for all context-in-place scenarios:
+
 - Outstanding panel → Sales (order_id)
 - Outstanding panel → Inventory (id)
 - Outstanding panel → Customers (id)

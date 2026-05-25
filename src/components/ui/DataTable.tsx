@@ -98,7 +98,9 @@ export function DataTable<T extends { id?: number | string }>({
     setFlashCell(target);
     window.setTimeout(() => {
       setFlashCell((current) =>
-        current?.rowIndex === target.rowIndex && current.columnKey === target.columnKey ? null : current
+        current?.rowIndex === target.rowIndex && current.columnKey === target.columnKey
+          ? null
+          : current
       );
     }, 400);
   }, []);
@@ -148,7 +150,8 @@ export function DataTable<T extends { id?: number | string }>({
         if (result.status === "stale") {
           addNotificationEntry({
             type: "error",
-            message: "This record was modified by another process. Reload to see the latest version.",
+            message:
+              "This record was modified by another process. Reload to see the latest version.",
           });
         } else {
           addNotificationEntry({ type: "error", message: result.message });
@@ -193,9 +196,7 @@ export function DataTable<T extends { id?: number | string }>({
   };
 
   if (data.length === 0) {
-    return (
-      <div className="py-8 text-center text-sm text-[var(--ui-muted)]">{emptyMessage}</div>
-    );
+    return <div className="py-8 text-center text-sm text-[var(--ui-muted)]">{emptyMessage}</div>;
   }
 
   const handleSort = (col: Column<T>) => {
@@ -221,16 +222,13 @@ export function DataTable<T extends { id?: number | string }>({
   const renderCellContent = (row: T, rowIndex: number, col: Column<T>) => {
     if (col.render) return col.render(row, rowIndex);
     if (col.editable && col.editType && onInlineEdit) {
-      const editing =
-        activeCell?.rowIndex === rowIndex && activeCell.columnKey === col.key;
+      const editing = activeCell?.rowIndex === rowIndex && activeCell.columnKey === col.key;
       const busy = busyCell?.rowIndex === rowIndex && busyCell.columnKey === col.key;
       const flash = flashCell?.rowIndex === rowIndex && flashCell.columnKey === col.key;
       const rawValue = col.getEditValue
         ? col.getEditValue(row)
         : ((row as Record<string, unknown>)[col.key] as string | number | boolean);
-      const display = col.getDisplayValue
-        ? col.getDisplayValue(row)
-        : String(rawValue ?? "—");
+      const display = col.getDisplayValue ? col.getDisplayValue(row) : String(rawValue ?? "—");
       return (
         <InlineEditableCell
           editType={col.editType}
@@ -307,7 +305,7 @@ export function DataTable<T extends { id?: number | string }>({
         </thead>
         <tbody>
           {data.map((row, idx) => {
-            const key = rowKey ? rowKey(row, idx) : row.id ?? idx;
+            const key = rowKey ? rowKey(row, idx) : (row.id ?? idx);
             const rowId = typeof row.id === "number" ? row.id : null;
             const isMultiSelected = rowId != null && selection?.selectedIds.has(rowId);
             const isSelected =
@@ -352,7 +350,10 @@ export function DataTable<T extends { id?: number | string }>({
                   </td>
                 ) : null}
                 {columns.map((col) => (
-                  <td key={cellKey(idx, col.key)} className={`px-3 py-2 text-[var(--ui-body)] ${col.className ?? ""}`}>
+                  <td
+                    key={cellKey(idx, col.key)}
+                    className={`px-3 py-2 text-[var(--ui-body)] ${col.className ?? ""}`}
+                  >
                     {renderCellContent(row, idx, col)}
                   </td>
                 ))}

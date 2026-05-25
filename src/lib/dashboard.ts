@@ -28,8 +28,7 @@ export function getInventoryValueSummary() {
   const atCost = round2(row.at_cost ?? 0);
   const atSalePrice = round2(row.at_sale_price ?? 0);
   const potentialMargin = round2(atSalePrice - atCost);
-  const potentialMarginPct =
-    atCost > 0 ? round2((potentialMargin / atCost) * 100) : null;
+  const potentialMarginPct = atCost > 0 ? round2((potentialMargin / atCost) * 100) : null;
 
   return {
     at_cost: atCost,
@@ -64,12 +63,8 @@ function soldItemsWithCosts(whereSql: string, params: unknown[] = []): SoldRow[]
 }
 
 export function getProfitKpis() {
-  const monthRows = soldItemsWithCosts(
-    "date(i.date_of_sale) >= date('now', 'start of month')"
-  );
-  const ytdRows = soldItemsWithCosts(
-    "strftime('%Y', i.date_of_sale) = strftime('%Y', 'now')"
-  );
+  const monthRows = soldItemsWithCosts("date(i.date_of_sale) >= date('now', 'start of month')");
+  const ytdRows = soldItemsWithCosts("strftime('%Y', i.date_of_sale) = strftime('%Y', 'now')");
 
   const margins: number[] = [];
   let totalProfitMonth = 0;
@@ -88,9 +83,7 @@ export function getProfitKpis() {
 
   return {
     avg_margin_this_month:
-      margins.length > 0
-        ? round2(margins.reduce((a, b) => a + b, 0) / margins.length)
-        : null,
+      margins.length > 0 ? round2(margins.reduce((a, b) => a + b, 0) / margins.length) : null,
     avg_margin_this_month_count: monthRows.length,
     total_profit_this_month: round2(totalProfitMonth),
     total_profit_ytd: round2(totalProfitYtd),

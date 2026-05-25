@@ -1,15 +1,19 @@
 # ADR-047: Bulk CSV import for inventory
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-24
 
 ## Context
+
 Manually entering 100+ inventory items is prohibitively slow. Many users maintain spreadsheets of their antique/vintage stock. CSV import enables bulk intake from spreadsheets, drastically reducing onboarding time for the app.
 
 ## Decision
+
 Provide a two-step CSV import flow: preview then import.
 
 ### API endpoints
@@ -102,10 +106,12 @@ Provide a two-step CSV import flow: preview then import.
 - On successful import: log `inventory.bulk_imported` with `{ count: N, skipped: M, filename: "original.csv" }` (ADR-037)
 
 ## Consequences
+
 - **Positive**: Dramatically reduces onboarding time for users with existing spreadsheet inventory. Non-destructive — invalid rows are skipped, not rejected entirely. Preview step prevents surprises.
 - **Negative**: No update/upsert mode — import is create-only. Users with existing items must use PATCH individually. CSV parsing edge cases (encoding, quoting) require robust handling.
 
 ## Notes
+
 - Cross-references: ADR-002 (inventory data model — field definitions), ADR-021 (validation rules — reused per-row), ADR-037 (activity log — bulk import event)
 - Future consideration: an "Export to CSV" feature could reuse the same column mapping in reverse.
 - The import endpoint is NOT idempotent — re-uploading the same file will skip all rows as duplicates (by `item_number`), which is safe but results in 0 imports.

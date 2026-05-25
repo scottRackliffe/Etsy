@@ -1,9 +1,5 @@
 import { addNotificationEntry } from "@/lib/notifications";
-import {
-  dequeueMutation,
-  listMutationQueue,
-  type QueuedMutation,
-} from "@/lib/mutation-queue";
+import { dequeueMutation, listMutationQueue, type QueuedMutation } from "@/lib/mutation-queue";
 
 export type ReplayFailure = {
   id: string;
@@ -98,7 +94,8 @@ export async function replayMutationQueue(): Promise<{
   } else if (stoppedEarly) {
     addNotificationEntry({
       type: "warning",
-      message: "Some pending changes are still waiting — we will retry when the server is reachable.",
+      message:
+        "Some pending changes are still waiting — we will retry when the server is reachable.",
     });
   }
 

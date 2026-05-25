@@ -16,13 +16,9 @@ export function resolveReportFormat(url: string): ReportFormat {
 export function resolveReportParams(url: string): ReportParams {
   const parsed = new URL(url);
   const from_date =
-    parsed.searchParams.get("from_date") ??
-    parsed.searchParams.get("start_date") ??
-    undefined;
+    parsed.searchParams.get("from_date") ?? parsed.searchParams.get("start_date") ?? undefined;
   const to_date =
-    parsed.searchParams.get("to_date") ??
-    parsed.searchParams.get("end_date") ??
-    undefined;
+    parsed.searchParams.get("to_date") ?? parsed.searchParams.get("end_date") ?? undefined;
   return { from_date: from_date ?? undefined, to_date: to_date ?? undefined };
 }
 

@@ -304,22 +304,22 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 ## 6) Remaining specification gaps (non-blocking but needed before ship)
 
-| Gap | Where to specify | Priority |
-|-----|-----------------|----------|
-| ~~Report empty/failure/date behavior~~ | ~~ADR-013 addendum~~ | **Done** (ADR-013 edge cases section, ADR-036) |
-| ~~ADR-017 / ADR-018 hub drift (038–069)~~ | ADR-017 §8 DDL, ADR-018 Extensions §12–28 | **Done** (2026-05-24 doc pass) |
-| ~~ADR-006 report catalog (profit, tax, aging, accounting)~~ | ADR-006 | **Done** (2026-05-24 doc pass) |
-| ~~Cross-ADR conflicts (044/069 wizard, 021 ship override, 040/055 print queue)~~ | ADR-044, 021, 040, 037 | **Done** (2026-05-24 doc pass) |
-| Currency mapping (country → code) | New doc or ADR-017 Notes | Low (USD-only for v1) |
-| Shipping Info JSON schema per carrier | `shipping-label-carrier-templates.md` | Medium |
-| Mobile/responsive testing spec | ADR-061 (+ manual test scenarios) | Low |
-| ~~Bulk operations~~ | ADR-040 | **Done** |
-| ~~Accounting export~~ | ADR-056 | **Done** |
-| ~~Full JSON schemas for extension API endpoints~~ | ADR-018 Appendix B | **Done** (2026-05-24); §1 core §1–11 + feature ADR field rules remain SSOT |
-| Implement code to match Appendix B | `src/app/api/` + ADR-018 | High (Phase 2 audit) |
-| Schema migrations for `activity_log`, `customer_notes`, `tracking_number` | migrations + ADR-017 | Medium (DDL canonical; bootstrap may lag) |
-| ~~`fixtures/sample-data.sql` for ADR-069~~ | [`fixtures/sample-data.sql`](fixtures/sample-data.sql) | **Done** (2026-05-24) |
-| Catalog generator | EBC roadmap (future) | Future |
+| Gap                                                                              | Where to specify                                       | Priority                                                                   |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| ~~Report empty/failure/date behavior~~                                           | ~~ADR-013 addendum~~                                   | **Done** (ADR-013 edge cases section, ADR-036)                             |
+| ~~ADR-017 / ADR-018 hub drift (038–069)~~                                        | ADR-017 §8 DDL, ADR-018 Extensions §12–28              | **Done** (2026-05-24 doc pass)                                             |
+| ~~ADR-006 report catalog (profit, tax, aging, accounting)~~                      | ADR-006                                                | **Done** (2026-05-24 doc pass)                                             |
+| ~~Cross-ADR conflicts (044/069 wizard, 021 ship override, 040/055 print queue)~~ | ADR-044, 021, 040, 037                                 | **Done** (2026-05-24 doc pass)                                             |
+| Currency mapping (country → code)                                                | New doc or ADR-017 Notes                               | Low (USD-only for v1)                                                      |
+| Shipping Info JSON schema per carrier                                            | `shipping-label-carrier-templates.md`                  | Medium                                                                     |
+| Mobile/responsive testing spec                                                   | ADR-061 (+ manual test scenarios)                      | Low                                                                        |
+| ~~Bulk operations~~                                                              | ADR-040                                                | **Done**                                                                   |
+| ~~Accounting export~~                                                            | ADR-056                                                | **Done**                                                                   |
+| ~~Full JSON schemas for extension API endpoints~~                                | ADR-018 Appendix B                                     | **Done** (2026-05-24); §1 core §1–11 + feature ADR field rules remain SSOT |
+| Implement code to match Appendix B                                               | `src/app/api/` + ADR-018                               | High (Phase 2 audit)                                                       |
+| Schema migrations for `activity_log`, `customer_notes`, `tracking_number`        | migrations + ADR-017                                   | Medium (DDL canonical; bootstrap may lag)                                  |
+| ~~`fixtures/sample-data.sql` for ADR-069~~                                       | [`fixtures/sample-data.sql`](fixtures/sample-data.sql) | **Done** (2026-05-24)                                                      |
+| Catalog generator                                                                | EBC roadmap (future)                                   | Future                                                                     |
 
 ## 7) Phase 2 — Documentation vs code compliance audit
 

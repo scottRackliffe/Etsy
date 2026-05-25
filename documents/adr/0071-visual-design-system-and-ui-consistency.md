@@ -20,13 +20,13 @@ Colors live in [System_Colors.md](../System_Colors.md); components in ADR-028 an
 
 ### 1. Typography and layout density
 
-| Token | Value | Use |
-|-------|-------|-----|
-| Page title | `text-xl` / `1.25rem`, `font-semibold`, `--ui-title` | Tab page H1 |
-| Section title | `text-lg` / `1.125rem`, `font-semibold`, `--ui-title` | Card headings |
-| Body | `text-sm` / `0.875rem`, `--ui-body` | Default labels, table cells |
-| Caption | `text-xs` / `0.75rem`, `--ui-muted` | Hints, timestamps |
-| Font family | System UI stack (`ui-sans-serif` via Tailwind) | No custom webfonts v1 |
+| Token         | Value                                                 | Use                         |
+| ------------- | ----------------------------------------------------- | --------------------------- |
+| Page title    | `text-xl` / `1.25rem`, `font-semibold`, `--ui-title`  | Tab page H1                 |
+| Section title | `text-lg` / `1.125rem`, `font-semibold`, `--ui-title` | Card headings               |
+| Body          | `text-sm` / `0.875rem`, `--ui-body`                   | Default labels, table cells |
+| Caption       | `text-xs` / `0.75rem`, `--ui-muted`                   | Hints, timestamps           |
+| Font family   | System UI stack (`ui-sans-serif` via Tailwind)        | No custom webfonts v1       |
 
 **Spacing:** 4px base grid. Card padding `p-4` (16px); section gap `space-y-4`; form field gap `space-y-3`. Master-detail gap `gap-4` (lg: `gap-6`).
 
@@ -40,13 +40,13 @@ Colors live in [System_Colors.md](../System_Colors.md); components in ADR-028 an
 
 ### 2. Semantic color usage (mandatory)
 
-| Semantic | CSS variable | Use for |
-|----------|--------------|---------|
-| Success / complete | `--ui-green` | Paid, shipped (fulfillment complete), save toast, inline-edit confirm flash, connected Etsy |
-| Warning / attention | `--ui-yellow` | Unpaid, not shipped, draft listing, ship-without-paid warning, integrity warning |
-| Error / danger | `--ui-red` | Validation errors, API failures, void blocked actions, not connected critical |
-| Info | `--ui-accent` | Listed, Etsy source, links, primary CTAs |
-| Neutral | `--ui-muted` | Void/cancelled, retired, disabled, secondary text |
+| Semantic            | CSS variable  | Use for                                                                                     |
+| ------------------- | ------------- | ------------------------------------------------------------------------------------------- |
+| Success / complete  | `--ui-green`  | Paid, shipped (fulfillment complete), save toast, inline-edit confirm flash, connected Etsy |
+| Warning / attention | `--ui-yellow` | Unpaid, not shipped, draft listing, ship-without-paid warning, integrity warning            |
+| Error / danger      | `--ui-red`    | Validation errors, API failures, void blocked actions, not connected critical               |
+| Info                | `--ui-accent` | Listed, Etsy source, links, primary CTAs                                                    |
+| Neutral             | `--ui-muted`  | Void/cancelled, retired, disabled, secondary text                                           |
 
 **Do not** use green for non-success (e.g. never green primary buttons except explicit “success” actions).
 
@@ -65,22 +65,22 @@ Colors live in [System_Colors.md](../System_Colors.md); components in ADR-028 an
 
 Specified in detail in [ui-design.md](../ui-design.md) §1b. Summary:
 
-| Zone (left → right) | Content |
-|-------------------|---------|
-| Left | App name (from `business_name` or default) |
-| Center (optional lg+) | — |
-| Right | Etsy status badge → Shop selector (if connected) → Recent (ADR-063) → Print queue (ADR-055) → Notifications (ADR-051) → Global search trigger (ADR-041) |
+| Zone (left → right)   | Content                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Left                  | App name (from `business_name` or default)                                                                                                              |
+| Center (optional lg+) | —                                                                                                                                                       |
+| Right                 | Etsy status badge → Shop selector (if connected) → Recent (ADR-063) → Print queue (ADR-055) → Notifications (ADR-051) → Global search trigger (ADR-041) |
 
 - **Connect Etsy** when disconnected: primary button in header **and** Dashboard empty state.
 - **Global search:** `Cmd/Ctrl+K` opens modal (ADR-041, ADR-049).
 
 #### 3.3 Deep linking (context in place)
 
-| Param | Target tab | Behavior |
-|-------|------------|----------|
-| `orderId` | Sales | Select order, scroll into view, highlight row 2s (`--ui-accent` outline) |
-| `itemId` | Inventory | Select item, load detail + workshop |
-| `customerId` | Customers | Select customer, load detail |
+| Param        | Target tab | Behavior                                                                 |
+| ------------ | ---------- | ------------------------------------------------------------------------ |
+| `orderId`    | Sales      | Select order, scroll into view, highlight row 2s (`--ui-accent` outline) |
+| `itemId`     | Inventory  | Select item, load detail + workshop                                      |
+| `customerId` | Customers  | Select customer, load detail                                             |
 
 - Source: Outstanding click (ADR-035), global search, notifications, recent items.
 - After selection: `router.replace` to strip query (ADR-035).
@@ -97,46 +97,46 @@ All status display uses shared `Badge` (ADR-028). **Label** is user-facing Engli
 
 #### 4.1 Order / payment / fulfillment
 
-| Condition | Badge label | Variant | Notes |
-|-----------|-------------|---------|-------|
-| `was_paid = 1` | Paid | `success` | |
-| `was_paid = 0` | Unpaid | `warning` | |
-| `payment_status = refunded` | Refunded | `neutral` | Manual/record only (ADR-070) |
-| `shipping_date` set AND `shipper` set | Shipped | `success` | Fulfillment complete; `order_status` stays `active` |
-| Else (active order) | Not shipped | `warning` | |
-| `shipped_without_paid_override = 1` | Shipped (unpaid) | `warning` | Tooltip per ADR-060 |
-| `order_status = void` | Void | `neutral` | Strikethrough row optional |
-| `order_status = cancelled` | Cancelled | `neutral` | |
-| `source_channel = etsy` | Etsy | `info` | |
-| `source_channel = manual` | Manual | `neutral` | |
+| Condition                             | Badge label      | Variant   | Notes                                               |
+| ------------------------------------- | ---------------- | --------- | --------------------------------------------------- |
+| `was_paid = 1`                        | Paid             | `success` |                                                     |
+| `was_paid = 0`                        | Unpaid           | `warning` |                                                     |
+| `payment_status = refunded`           | Refunded         | `neutral` | Manual/record only (ADR-070)                        |
+| `shipping_date` set AND `shipper` set | Shipped          | `success` | Fulfillment complete; `order_status` stays `active` |
+| Else (active order)                   | Not shipped      | `warning` |                                                     |
+| `shipped_without_paid_override = 1`   | Shipped (unpaid) | `warning` | Tooltip per ADR-060                                 |
+| `order_status = void`                 | Void             | `neutral` | Strikethrough row optional                          |
+| `order_status = cancelled`            | Cancelled        | `neutral` |                                                     |
+| `source_channel = etsy`               | Etsy             | `info`    |                                                     |
+| `source_channel = manual`             | Manual           | `neutral` |                                                     |
 
 #### 4.2 Inventory `status`
 
-| `status` value | Badge label | Variant |
-|----------------|-------------|---------|
-| Draft | Draft | `neutral` |
-| In stock | In stock | `warning` |
-| Listed | Listed | `info` |
-| Sold | Sold | `success` |
-| Reserved | Reserved | `warning` |
-| Retired | Retired | `neutral` |
+| `status` value | Badge label | Variant   |
+| -------------- | ----------- | --------- |
+| Draft          | Draft       | `neutral` |
+| In stock       | In stock    | `warning` |
+| Listed         | Listed      | `info`    |
+| Sold           | Sold        | `success` |
+| Reserved       | Reserved    | `warning` |
+| Retired        | Retired     | `neutral` |
 
 #### 4.3 Listing `listing_draft_state`
 
-| State | Badge label | Variant |
-|-------|-------------|---------|
-| draft | Draft | `neutral` |
+| State               | Badge label  | Variant   |
+| ------------------- | ------------ | --------- |
+| draft               | Draft        | `neutral` |
 | generated, imported | Needs review | `warning` |
-| approved | Approved | `success` |
-| published | Published | `info` |
+| approved            | Approved     | `success` |
+| published           | Published    | `info`    |
 
 #### 4.4 Etsy connection
 
-| State | Badge label | Variant |
-|-------|-------------|---------|
-| Connected | Connected | `success` |
-| Not connected | Not connected | `warning` |
-| Token error / revoked | Reconnect required | `error` |
+| State                 | Badge label        | Variant   |
+| --------------------- | ------------------ | --------- |
+| Connected             | Connected          | `success` |
+| Not connected         | Not connected      | `warning` |
+| Token error / revoked | Reconnect required | `error`   |
 
 ---
 
@@ -153,26 +153,26 @@ Display a compact **progress indicator** on order detail (not a fourth order_sta
    ✓          ○            ○
 ```
 
-| Step | Complete when | Visual |
-|------|---------------|--------|
-| Paid | `was_paid = 1` | Green check, label Paid |
-| Shipped | `shipping_date` AND `shipper` both non-empty | Green check, label Shipped |
-| Documents optional | User printed invoice/thank-you (optional v1: not tracked) | Gray until post-v1 |
+| Step               | Complete when                                             | Visual                     |
+| ------------------ | --------------------------------------------------------- | -------------------------- |
+| Paid               | `was_paid = 1`                                            | Green check, label Paid    |
+| Shipped            | `shipping_date` AND `shipper` both non-empty              | Green check, label Shipped |
+| Documents optional | User printed invoice/thank-you (optional v1: not tracked) | Gray until post-v1         |
 
 - **Sale complete (operations):** Paid + Shipped = show subtle banner on order detail: “This order is complete” (`--ui-green` border-left card). Still `order_status = active`.
 
 #### 5.2 Action feedback (after user action)
 
-| Action | Feedback pattern | Message example |
-|--------|------------------|-----------------|
-| Save order/inventory/customer | Toast `success` | “Changes saved.” |
-| Mark paid | Toast `success` + badge update | “Order marked paid.” |
-| Mark shipped | Toast `success` + badge update | “Order marked shipped.” |
-| Create record | Toast `success` | “Order created.” |
-| Delete/void/merge | Toast `success` after confirm | “Order voided.” |
-| API error | Toast `error` or `ErrorPanel` | User message from API envelope |
-| Long job | Progress modal / SSE (ADR-043) | Determinate bar |
-| Etsy sync complete | Toast `success` | “Synced N new orders.” |
+| Action                        | Feedback pattern               | Message example                |
+| ----------------------------- | ------------------------------ | ------------------------------ |
+| Save order/inventory/customer | Toast `success`                | “Changes saved.”               |
+| Mark paid                     | Toast `success` + badge update | “Order marked paid.”           |
+| Mark shipped                  | Toast `success` + badge update | “Order marked shipped.”        |
+| Create record                 | Toast `success`                | “Order created.”               |
+| Delete/void/merge             | Toast `success` after confirm  | “Order voided.”                |
+| API error                     | Toast `error` or `ErrorPanel`  | User message from API envelope |
+| Long job                      | Progress modal / SSE (ADR-043) | Determinate bar                |
+| Etsy sync complete            | Toast `success`                | “Synced N new orders.”         |
 
 **Never** use `ErrorPanel` for success (ADR-028).
 
@@ -184,12 +184,12 @@ Display a compact **progress indicator** on order detail (not a fourth order_sta
 
 ### 6. Buttons (canonical — ADR-028)
 
-| Variant | Use |
-|---------|-----|
-| `accent` | Primary action: Save, Create, Connect, Confirm |
-| `secondary` | Cancel, Print, Export, secondary navigation |
-| `danger` | Void, Delete, Remove sample data |
-| `ghost` | Link customer, View history |
+| Variant     | Use                                            |
+| ----------- | ---------------------------------------------- |
+| `accent`    | Primary action: Save, Create, Connect, Confirm |
+| `secondary` | Cancel, Print, Export, secondary navigation    |
+| `danger`    | Void, Delete, Remove sample data               |
+| `ghost`     | Link customer, View history                    |
 
 **Sizes:** default; `lg` for empty-state primary CTA only.
 
@@ -199,14 +199,14 @@ Display a compact **progress indicator** on order detail (not a fourth order_sta
 
 ### 7. Toast, modal, empty, loading
 
-| Pattern | Component | When |
-|---------|-----------|------|
-| Transient success/error | `Toast` via `useToast` | After mutations |
-| Confirm destructive | `ConfirmDialog` (ADR-032) | Void, delete, merge, remove sample data |
-| Form / ship / create | `Modal` | Multi-field flows |
-| No data | `EmptyState` (ADR-059) | Lists with actions |
-| Initial load | `LoadingSpinner` center | First fetch |
-| Table refresh | Skeleton rows (preferred) or spinner overlay | ADR-029 lists |
+| Pattern                 | Component                                    | When                                    |
+| ----------------------- | -------------------------------------------- | --------------------------------------- |
+| Transient success/error | `Toast` via `useToast`                       | After mutations                         |
+| Confirm destructive     | `ConfirmDialog` (ADR-032)                    | Void, delete, merge, remove sample data |
+| Form / ship / create    | `Modal`                                      | Multi-field flows                       |
+| No data                 | `EmptyState` (ADR-059)                       | Lists with actions                      |
+| Initial load            | `LoadingSpinner` center                      | First fetch                             |
+| Table refresh           | Skeleton rows (preferred) or spinner overlay | ADR-029 lists                           |
 
 ---
 

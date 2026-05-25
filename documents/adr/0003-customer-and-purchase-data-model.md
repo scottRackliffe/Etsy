@@ -73,14 +73,14 @@ Thank-you note and invoice are generated **per order** (all `order_items` for th
 
 The concepts in this ADR map to the implementation schema as follows (see ADR-017 for canonical DDL):
 
-| ADR-003 concept | Implementation table | Notes |
-|-----------------|---------------------|-------|
-| Customer table | `customers` | Flat address (billing fields inline), plus `phone`, `notes`. No `default_address_id` or `currency_code` in v1. |
-| Customer_address table | `addresses` | Ship-to addresses. Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`). |
-| Purchase/shipment table | `orders` + `order_items` | `orders` holds header, ship-to snapshot, shipping, payment. `order_items` holds line items (inventory_id, quantity, unit_price, line_total). |
-| order_id grouping | `orders.order_number` | Each `orders` row IS the order. Line items are in `order_items`. |
-| date_of_purchase | `orders.order_date` | |
-| shipping_cost (seller) | `orders.seller_shipping_cost` | |
-| discount_amount | `orders.discount_total` | |
+| ADR-003 concept         | Implementation table          | Notes                                                                                                                                        |
+| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer table          | `customers`                   | Flat address (billing fields inline), plus `phone`, `notes`. No `default_address_id` or `currency_code` in v1.                               |
+| Customer_address table  | `addresses`                   | Ship-to addresses. Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`).                              |
+| Purchase/shipment table | `orders` + `order_items`      | `orders` holds header, ship-to snapshot, shipping, payment. `order_items` holds line items (inventory_id, quantity, unit_price, line_total). |
+| order_id grouping       | `orders.order_number`         | Each `orders` row IS the order. Line items are in `order_items`.                                                                             |
+| date_of_purchase        | `orders.order_date`           |                                                                                                                                              |
+| shipping_cost (seller)  | `orders.seller_shipping_cost` |                                                                                                                                              |
+| discount_amount         | `orders.discount_total`       |                                                                                                                                              |
 
 The snapshot principle (ship-to address copied at order time) and the one-customer-many-addresses design remain unchanged from this ADR.

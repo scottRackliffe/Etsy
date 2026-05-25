@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Scan only app source — docs/.cursorrules contain example class names like bg-[var(--ui-*)] that break CSS parsing. */
+@source not "../../documents/**";
+@source not "../../.cursorrules";
+@source not "../../system/**";
+@source not "../../tests/**";
+@source not "../../fixtures/**";
+
 /*
  * Etsy Sales Manager — System color palette (aligned to Cursor blue UI / NSLS).
  * Deep navy surfaces, cool blue accents. Semantic colors for status/actions.
