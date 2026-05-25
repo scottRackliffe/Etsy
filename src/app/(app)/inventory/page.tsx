@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
+import { useUndoRedo } from "@/context/UndoRedoContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +34,6 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
-import { patchInlineRecord } from "@/lib/inline-edit";
 import { computeListingScore } from "@/lib/listing-score";
 import type { InlineEditResult } from "@/components/ui/DataTable";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
@@ -322,6 +322,8 @@ function InventoryPageInner() {
     );
   }, [reloadInventory, setApiError]);
 
+  const { patchWithUndo } = useUndoRedo();
+
   const inventoryColumns = useMemo(
     () => [
       {
@@ -375,23 +377,6 @@ function InventoryPageInner() {
     });
   }, [inventory, sort]);
 
-  const handleInventoryInlineEdit = useCallback(
-    async (
-      row: InventoryItem,
-      columnKey: string,
-      value: string | number | boolean
-    ): Promise<InlineEditResult<InventoryItem>> => {
-      const body =
-        columnKey === "status"
-          ? { status: String(value) }
-          : { sale_revenue: Number(value) };
-      return patchInlineRecord(`/api/inventory/${row.id}`, row.updated_at, body, (data) =>
-        (data.item as InventoryItem | undefined) ?? null
-      );
-    },
-    []
-  );
-
   const handleInventoryRowPatched = useCallback(
     (rowId: number, patch: Partial<InventoryItem>) => {
       setInventory((current) =>
@@ -402,6 +387,38 @@ function InventoryPageInner() {
       }
     },
     [selectedItemId, setInventory, setSelectedItem]
+  );
+
+  const handleInventoryInlineEdit = useCallback(
+    async (
+      row: InventoryItem,
+      columnKey: string,
+      value: string | number | boolean
+    ): Promise<InlineEditResult<InventoryItem>> => {
+      const body =
+        columnKey === "status"
+          ? { status: String(value) }
+          : { sale_revenue: Number(value) };
+      const previousState =
+        columnKey === "status"
+          ? { status: row.status ?? null }
+          : { sale_revenue: row.sale_revenue ?? null };
+      const action =
+        columnKey === "status"
+          ? `Changed status to ${String(value)}`
+          : `Changed price to $${Number(value).toFixed(2)}`;
+      return patchWithUndo({
+        action,
+        entity: "inventory",
+        id: row.id,
+        updatedAt: row.updated_at,
+        previousState,
+        newState: body,
+        pickRecord: (data) => (data.item as InventoryItem | undefined) ?? null,
+        onPatched: (record) => handleInventoryRowPatched(row.id, record),
+      });
+    },
+    [patchWithUndo, handleInventoryRowPatched]
   );
 
   const batchChangeStatus = async (status: string) => {

@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 33 (2026-05-24) — implemented:** ADR-067 undo/redo — client-side undo stack (max 10) in `UndoRedoProvider` / `useUndoRedo`; `patchWithUndo` wraps successful PATCH with previous/new field snapshots and `If-Match`; success toast with **Undo** button (5s); Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z in app layout (skipped in text inputs); stacks cleared on route change; wired on Inventory/Sales inline edits and inventory/order/customer detail panel saves.
+
 **Wave 32 (2026-05-24) — implemented:** ADR-068 listing quality score — `computeListingScore` rubric in `src/lib/listing-score.ts`; `GET /api/inventory/[id]/listing-score`; `ListingQualityScore` badge + tips in listing workshop header; sortable **Quality** column on Inventory list (client-side page sort).
 
 **Wave 31 (2026-05-24) — implemented:** ADR-062 inline editing on list views — `InlineEditableCell` + editable `DataTable` columns (select/number/toggle, pencil affordance, Enter/blur commit, Escape cancel, Tab between cells, green flash, stale/error notifications); Inventory `status` + `sale_revenue`; Sales `was_paid` toggle + `shipper` select via `PATCH` with `If-Match`.

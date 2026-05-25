@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
+import { useUndoRedo } from "@/context/UndoRedoContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +25,6 @@ import { useEtsySync } from "@/hooks/useEtsySync";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
 import { orderRecentlyViewedLabel } from "@/lib/recently-viewed";
-import { patchInlineRecord } from "@/lib/inline-edit";
 import type { InlineEditResult } from "@/components/ui/DataTable";
 import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
 
@@ -75,6 +75,7 @@ function SalesPageInner() {
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
   const [discardOrderDirtyOpen, setDiscardOrderDirtyOpen] = useState(false);
   const { setFormDirty } = useUnsavedChanges();
+  const { patchWithUndo } = useUndoRedo();
   const [shipForm, setShipForm] = useState({
     shipper: "USPS",
     tracking_number: "",
@@ -164,6 +165,13 @@ function SalesPageInner() {
     []
   );
 
+  const handleOrderRowPatched = useCallback(
+    (rowId: number, patch: Partial<Order>) => {
+      setOrders((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+    },
+    [setOrders]
+  );
+
   const handleOrderInlineEdit = useCallback(
     async (
       row: Order,
@@ -177,18 +185,28 @@ function SalesPageInner() {
               payment_status: value ? "paid" : "unpaid",
             }
           : { shipper: String(value) };
-      return patchInlineRecord(`/api/orders/${row.id}`, row.updated_at, body, (data) =>
-        (data.order as Order | undefined) ?? null
-      );
+      const previousState =
+        columnKey === "was_paid"
+          ? { was_paid: row.was_paid ?? 0, payment_status: row.payment_status ?? "unpaid" }
+          : { shipper: row.shipper ?? null };
+      const action =
+        columnKey === "was_paid"
+          ? value
+            ? "Marked order as paid"
+            : "Marked order as unpaid"
+          : `Changed shipper to ${String(value)}`;
+      return patchWithUndo({
+        action,
+        entity: "orders",
+        id: row.id,
+        updatedAt: row.updated_at,
+        previousState,
+        newState: body,
+        pickRecord: (data) => (data.order as Order | undefined) ?? null,
+        onPatched: (record) => handleOrderRowPatched(row.id, record),
+      });
     },
-    []
-  );
-
-  const handleOrderRowPatched = useCallback(
-    (rowId: number, patch: Partial<Order>) => {
-      setOrders((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
-    },
-    [setOrders]
+    [patchWithUndo, handleOrderRowPatched]
   );
 
   const reloadOrders = useCallback(

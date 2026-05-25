@@ -6,6 +6,7 @@ import { AppProvider, useApp } from "@/context/AppContext";
 import { ConnectionProvider } from "@/context/ConnectionContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
 import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
+import { UndoRedoProvider, useUndoRedo } from "@/context/UndoRedoContext";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { IntegrityWarningBanner } from "@/components/shell/IntegrityWarningBanner";
 import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
@@ -27,6 +28,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } = useApp();
   const { modal: syncModal, runSync } = useEtsySync();
   const toast = useToast();
+  const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useAutoEtsySync({ connected: shops.length > 0, shopId: selectedShopId });
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -143,8 +145,20 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           Boolean(selectedShopId) &&
           (pathname.startsWith("/dashboard") || pathname.startsWith("/sales")),
       },
+      {
+        key: "z",
+        modifiers: ["meta" as const],
+        action: () => void undo(),
+        enabled: canUndo,
+      },
+      {
+        key: "z",
+        modifiers: ["meta" as const, "shift" as const],
+        action: () => void redo(),
+        enabled: canRedo,
+      },
     ],
-    [helpOpen, pathname, searchOpen, selectedShopId, shops.length, syncFromEtsy]
+    [helpOpen, pathname, searchOpen, selectedShopId, shops.length, syncFromEtsy, undo, redo, canUndo, canRedo]
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -230,7 +244,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ConnectionProvider>
         <UnsavedChangesProvider>
           <RecentlyViewedProvider>
-            <AppShellInner>{children}</AppShellInner>
+            <UndoRedoProvider>
+              <AppShellInner>{children}</AppShellInner>
+            </UndoRedoProvider>
           </RecentlyViewedProvider>
         </UnsavedChangesProvider>
       </ConnectionProvider>

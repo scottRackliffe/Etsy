@@ -10,6 +10,7 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
@@ -117,6 +118,7 @@ export function OrderDetailPanel({
   }, [order, draft]);
 
   const { registerOnDiscard } = useUnsavedChanges();
+  const { patchWithUndo } = useUndoRedo();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
     entityType: "order",
     entityId: orderId,
@@ -293,30 +295,36 @@ export function OrderDetailPanel({
         tracking_number: draft.tracking_number.trim() || null,
         notes: draft.notes.trim() || null,
       };
-      const response = await apiFetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: patchHeaders(order.updated_at),
-        body: JSON.stringify(payload),
+      const { previousState, newState } = pickChangedFields(
+        order as unknown as Record<string, unknown>,
+        payload
+      );
+      const result = await patchWithUndo({
+        action: "Updated order details",
+        entity: "orders",
+        id: orderId,
+        updatedAt: order.updated_at,
+        previousState,
+        newState,
+        pickRecord: (data) => (data.order as Order | undefined) ?? null,
+        onPatched: (updated) => {
+          setOrder(updated);
+          setDraft(orderToDraft(updated));
+          onOrderUpdated(updated);
+        },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
-      if (!response.ok) {
-        if (response.status === 409 && isStaleConflictPayload(data)) {
-          await loadOrder(orderId);
-          onError(
-            "Record changed elsewhere",
-            "This order was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
-            data
-          );
-          return;
-        }
-        throw data;
+      if (result.status === "stale") {
+        await loadOrder(orderId);
+        onError(
+          "Record changed elsewhere",
+          "This order was modified in another tab. We reloaded the latest version — re-apply your changes and save again."
+        );
+        return;
       }
-      if (data.order) {
-        setOrder(data.order);
-        setDraft(orderToDraft(data.order));
-        markDraftClean();
-        onOrderUpdated(data.order);
+      if (result.status === "error") {
+        throw new Error(result.message);
       }
+      markDraftClean();
     } catch (err) {
       if (err instanceof MutationQueuedError) {
         onSuccess?.("Saved locally", err.message);

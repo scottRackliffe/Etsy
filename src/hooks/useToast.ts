@@ -9,6 +9,8 @@ export type Toast = {
   id: number;
   message: string;
   type: ToastType;
+  onAction?: () => void;
+  actionLabel?: string;
 };
 
 export function useToast() {

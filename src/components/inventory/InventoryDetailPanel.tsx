@@ -9,10 +9,10 @@ import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
-import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
-import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
+import { MutationQueueFullError } from "@/lib/api-fetch";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -131,6 +131,7 @@ export function InventoryDetailPanel({
   }, [item, draft]);
 
   const { registerOnDiscard } = useUnsavedChanges();
+  const { patchWithUndo } = useUndoRedo();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
     entityType: "inventory",
     entityId: item?.id ?? null,
@@ -211,37 +212,37 @@ export function InventoryDetailPanel({
         condition_notes: draft.condition_notes.trim() || null,
         notes: draft.notes.trim() || null,
       };
-      const response = await apiFetch(`/api/inventory/${item.id}`, {
-        method: "PATCH",
-        headers: patchHeaders(item.updated_at),
-        body: JSON.stringify(body),
+      const { previousState, newState } = pickChangedFields(
+        item as unknown as Record<string, unknown>,
+        body
+      );
+      const result = await patchWithUndo({
+        action: "Updated inventory details",
+        entity: "inventory",
+        id: item.id,
+        updatedAt: item.updated_at,
+        previousState,
+        newState,
+        pickRecord: (data) => (data.item as InventoryItemDetail | undefined) ?? null,
+        onPatched: (record) => {
+          onItemUpdated(record);
+          setDraft(itemToDraft(record));
+        },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        item?: InventoryItemDetail;
-      };
-      if (!response.ok) {
-        if (response.status === 409 && isStaleConflictPayload(data)) {
-          if (onReloadItem) await onReloadItem();
-          onError(
-            "Record changed elsewhere",
-            "This item was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
-            data
-          );
-          return;
-        }
-        throw data;
-      }
-      if (data.item) {
-        onItemUpdated(data.item);
-        setDraft(itemToDraft(data.item));
-        markDraftClean();
-      }
-      onSuccess("Item updated", "Inventory details were saved.");
-    } catch (err) {
-      if (err instanceof MutationQueuedError) {
-        onSuccess("Saved locally", err.message);
+      if (result.status === "stale") {
+        if (onReloadItem) await onReloadItem();
+        onError(
+          "Record changed elsewhere",
+          "This item was modified in another tab. We reloaded the latest version — re-apply your changes and save again."
+        );
         return;
       }
+      if (result.status === "error") {
+        throw new Error(result.message);
+      }
+      markDraftClean();
+      onSuccess("Item updated", "Inventory details were saved.");
+    } catch (err) {
       if (err instanceof MutationQueueFullError) {
         onError("Too many pending changes", err.message, err);
         return;

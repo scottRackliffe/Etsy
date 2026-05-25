@@ -32,9 +32,23 @@ export function ToastContainer({
           className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${TOAST_STYLES[t.type]}`}
         >
           <span className="flex-1">{t.message}</span>
+          {t.onAction && t.actionLabel ? (
+            <button
+              type="button"
+              onClick={() => {
+                t.onAction?.();
+                onDismiss(t.id);
+              }}
+              className="rounded border border-current/30 px-2 py-0.5 text-xs font-semibold opacity-90 hover:opacity-100"
+            >
+              {t.actionLabel}
+            </button>
+          ) : null}
           <button
+            type="button"
             onClick={() => onDismiss(t.id)}
             className="ml-2 opacity-60 hover:opacity-100"
+            aria-label="Dismiss"
           >
             &times;
           </button>

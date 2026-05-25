@@ -19,14 +19,14 @@ import { CustomerMergeModal } from "@/components/customers/CustomerMergeModal";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
-import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
-import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
+import { MutationQueueFullError } from "@/lib/api-fetch";
 import { customerRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
@@ -85,6 +85,7 @@ function CustomersPageInner() {
   const [mergePrimaryId, setMergePrimaryId] = useState<number | null>(null);
   const [mergeSecondaryId, setMergeSecondaryId] = useState<number | null>(null);
   const { setFormDirty } = useUnsavedChanges();
+  const { patchWithUndo } = useUndoRedo();
   const { modal: syncModal, runSync } = useEtsySync();
 
   useEffect(() => {
@@ -291,39 +292,38 @@ function CustomersPageInner() {
     if (!selectedCustomerId || !selectedCustomer) return;
     setBusyAction("update-customer");
     try {
-      const response = await apiFetch(`/api/customers/${selectedCustomerId}`, {
-        method: "PATCH",
-        headers: patchHeaders(selectedCustomer.updated_at),
-        body: JSON.stringify(payload),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
-      if (!response.ok) {
-        if (response.status === 409 && isStaleConflictPayload(data)) {
-          await reloadSelectedCustomer();
-          setApiError(
-            "Record changed elsewhere",
-            "This customer was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
-            data
+      const { previousState, newState } = pickChangedFields(
+        selectedCustomer as unknown as Record<string, unknown>,
+        payload
+      );
+      const result = await patchWithUndo({
+        action: "Updated customer details",
+        entity: "customers",
+        id: selectedCustomerId,
+        updatedAt: selectedCustomer.updated_at,
+        previousState,
+        newState,
+        pickRecord: (data) => (data.customer as Customer | undefined) ?? null,
+        onPatched: (customer) => {
+          setCustomers((current) =>
+            current.map((row) => (row.id === selectedCustomerId ? customer : row))
           );
-          return;
-        }
-        throw data;
-      }
-      if (data.customer) {
-        setCustomers((current) =>
-          current.map((row) => (row.id === selectedCustomerId ? data.customer! : row))
+        },
+      });
+      if (result.status === "stale") {
+        await reloadSelectedCustomer();
+        setApiError(
+          "Record changed elsewhere",
+          "This customer was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
+          null
         );
+        return;
+      }
+      if (result.status === "error") {
+        throw new Error(result.message);
       }
       setError(null);
     } catch (err) {
-      if (err instanceof MutationQueuedError) {
-        setError({
-          title: "Saved locally",
-          message: err.message,
-          actions: ["Changes will sync automatically when connection returns."],
-        });
-        return;
-      }
       if (err instanceof MutationQueueFullError) {
         setApiError("Too many pending changes", err.message, err);
         return;
