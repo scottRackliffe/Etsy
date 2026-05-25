@@ -32,6 +32,8 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
+import { patchInlineRecord } from "@/lib/inline-edit";
+import type { InlineEditResult } from "@/components/ui/DataTable";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -332,9 +334,56 @@ function InventoryPageInner() {
         sortable: true,
         render: (item: InventoryItem) => (item.description ?? "").slice(0, 50) || "—",
       },
-      { key: "status", header: "Status", sortable: true },
+      {
+        key: "status",
+        header: "Status",
+        sortable: true,
+        editable: true,
+        editType: "select" as const,
+        editOptions: INVENTORY_STATUSES.map((status) => ({ value: status, label: status })),
+        getEditValue: (item: InventoryItem) => item.status ?? "Draft",
+      },
+      {
+        key: "sale_revenue",
+        header: "Price",
+        sortable: true,
+        editable: true,
+        editType: "number" as const,
+        getEditValue: (item: InventoryItem) => item.sale_revenue ?? 0,
+        getDisplayValue: (item: InventoryItem) =>
+          item.sale_revenue != null ? `$${item.sale_revenue.toFixed(2)}` : "—",
+      },
     ],
     []
+  );
+
+  const handleInventoryInlineEdit = useCallback(
+    async (
+      row: InventoryItem,
+      columnKey: string,
+      value: string | number | boolean
+    ): Promise<InlineEditResult<InventoryItem>> => {
+      const body =
+        columnKey === "status"
+          ? { status: String(value) }
+          : { sale_revenue: Number(value) };
+      return patchInlineRecord(`/api/inventory/${row.id}`, row.updated_at, body, (data) =>
+        (data.item as InventoryItem | undefined) ?? null
+      );
+    },
+    []
+  );
+
+  const handleInventoryRowPatched = useCallback(
+    (rowId: number, patch: Partial<InventoryItem>) => {
+      setInventory((current) =>
+        current.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
+      );
+      if (selectedItemId === rowId) {
+        setSelectedItem((current) => (current ? { ...current, ...patch } : current));
+      }
+    },
+    [selectedItemId, setInventory, setSelectedItem]
   );
 
   const batchChangeStatus = async (status: string) => {
@@ -890,6 +939,8 @@ function InventoryPageInner() {
                 indeterminate: batch.headerIndeterminate,
               }}
               onRowClick={(item) => selectInventoryItem(item.id)}
+              onInlineEdit={handleInventoryInlineEdit}
+              onRowPatched={handleInventoryRowPatched}
               sort={sort}
               onSortChange={(next) => {
                 setPage(0);

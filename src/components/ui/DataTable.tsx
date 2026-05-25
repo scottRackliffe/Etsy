@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { InlineEditableCell, type InlineEditType } from "@/components/ui/InlineEditableCell";
+import { addNotificationEntry } from "@/lib/notifications";
 
 export type Column<T> = {
   key: string;
@@ -9,6 +11,11 @@ export type Column<T> = {
   sortKey?: string;
   render?: (row: T, index: number) => React.ReactNode;
   className?: string;
+  editable?: boolean;
+  editType?: InlineEditType;
+  editOptions?: { value: string; label: string }[];
+  getEditValue?: (row: T) => string | number | boolean;
+  getDisplayValue?: (row: T) => React.ReactNode;
 };
 
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
@@ -20,6 +27,13 @@ export type DataTableSelection = {
   allVisibleSelected: boolean;
   indeterminate: boolean;
 };
+
+export type InlineEditResult<T> =
+  | { status: "success"; patch: Partial<T> }
+  | { status: "error"; message: string }
+  | { status: "stale" };
+
+type ActiveCell = { rowIndex: number; columnKey: string };
 
 export function DataTable<T extends { id?: number | string }>({
   columns,
@@ -34,6 +48,8 @@ export function DataTable<T extends { id?: number | string }>({
   scrollToId,
   keyboardNav = false,
   onDeleteRow,
+  onInlineEdit,
+  onRowPatched,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -47,9 +63,23 @@ export function DataTable<T extends { id?: number | string }>({
   scrollToId?: number | string | null;
   keyboardNav?: boolean;
   onDeleteRow?: (row: T) => void;
+  onInlineEdit?: (
+    row: T,
+    columnKey: string,
+    value: string | number | boolean
+  ) => Promise<InlineEditResult<T>>;
+  onRowPatched?: (rowId: number, patch: Partial<T>) => void;
 }) {
   const scrolledRef = useRef<number | string | null>(null);
   const [focusIndex, setFocusIndex] = useState(0);
+  const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
+  const [busyCell, setBusyCell] = useState<ActiveCell | null>(null);
+  const [flashCell, setFlashCell] = useState<ActiveCell | null>(null);
+
+  const editableColumnKeys = useMemo(
+    () => columns.filter((col) => col.editable && col.editType).map((col) => col.key),
+    [columns]
+  );
 
   useEffect(() => {
     scrolledRef.current = null;
@@ -61,7 +91,78 @@ export function DataTable<T extends { id?: number | string }>({
     if (idx >= 0) setFocusIndex(idx);
   }, [selectedId, data]);
 
+  const cellKey = (rowIndex: number, columnKey: string) => `${rowIndex}:${columnKey}`;
+
+  const flashSuccess = useCallback((rowIndex: number, columnKey: string) => {
+    const target = { rowIndex, columnKey };
+    setFlashCell(target);
+    window.setTimeout(() => {
+      setFlashCell((current) =>
+        current?.rowIndex === target.rowIndex && current.columnKey === target.columnKey ? null : current
+      );
+    }, 400);
+  }, []);
+
+  const moveEditableCell = useCallback(
+    (rowIndex: number, columnKey: string, backward: boolean) => {
+      const colIdx = editableColumnKeys.indexOf(columnKey);
+      if (colIdx < 0) {
+        setActiveCell(null);
+        return;
+      }
+      let nextRow = rowIndex;
+      let nextColIdx = backward ? colIdx - 1 : colIdx + 1;
+      if (nextColIdx >= editableColumnKeys.length) {
+        nextColIdx = 0;
+        nextRow = Math.min(data.length - 1, rowIndex + 1);
+      } else if (nextColIdx < 0) {
+        nextColIdx = editableColumnKeys.length - 1;
+        nextRow = Math.max(0, rowIndex - 1);
+      }
+      setActiveCell({ rowIndex: nextRow, columnKey: editableColumnKeys[nextColIdx] });
+    },
+    [data.length, editableColumnKeys]
+  );
+
+  const handleCommit = useCallback(
+    async (rowIndex: number, columnKey: string, value: string | number | boolean) => {
+      if (!onInlineEdit) {
+        setActiveCell(null);
+        return;
+      }
+      const row = data[rowIndex];
+      if (!row) {
+        setActiveCell(null);
+        return;
+      }
+      const target = { rowIndex, columnKey };
+      setBusyCell(target);
+      try {
+        const result = await onInlineEdit(row, columnKey, value);
+        if (result.status === "success") {
+          if (typeof row.id === "number") onRowPatched?.(row.id, result.patch);
+          flashSuccess(rowIndex, columnKey);
+          setActiveCell(null);
+          return;
+        }
+        if (result.status === "stale") {
+          addNotificationEntry({
+            type: "error",
+            message: "This record was modified by another process. Reload to see the latest version.",
+          });
+        } else {
+          addNotificationEntry({ type: "error", message: result.message });
+        }
+      } finally {
+        setBusyCell(null);
+        setActiveCell(null);
+      }
+    },
+    [data, flashSuccess, onInlineEdit, onRowPatched]
+  );
+
   const handleTableKeyDown = (event: React.KeyboardEvent) => {
+    if (activeCell) return;
     if (!keyboardNav || data.length === 0) return;
     const max = data.length - 1;
     if (event.key === "ArrowDown") {
@@ -115,6 +216,46 @@ export function DataTable<T extends { id?: number | string }>({
     const key = col.sortKey ?? col.key;
     if (sort?.key !== key) return null;
     return sort.dir === "asc" ? " ▲" : " ▼";
+  };
+
+  const renderCellContent = (row: T, rowIndex: number, col: Column<T>) => {
+    if (col.render) return col.render(row, rowIndex);
+    if (col.editable && col.editType && onInlineEdit) {
+      const editing =
+        activeCell?.rowIndex === rowIndex && activeCell.columnKey === col.key;
+      const busy = busyCell?.rowIndex === rowIndex && busyCell.columnKey === col.key;
+      const flash = flashCell?.rowIndex === rowIndex && flashCell.columnKey === col.key;
+      const rawValue = col.getEditValue
+        ? col.getEditValue(row)
+        : ((row as Record<string, unknown>)[col.key] as string | number | boolean);
+      const display = col.getDisplayValue
+        ? col.getDisplayValue(row)
+        : String(rawValue ?? "—");
+      return (
+        <InlineEditableCell
+          editType={col.editType}
+          value={rawValue}
+          display={display}
+          options={col.editOptions}
+          editing={editing}
+          busy={busy}
+          flash={flash}
+          autoFocus={editing}
+          onStartEdit={() => {
+            setActiveCell({ rowIndex, columnKey: col.key });
+          }}
+          onCancel={() => {
+            setActiveCell(null);
+          }}
+          onCommit={(value) => void handleCommit(rowIndex, col.key, value)}
+          onTabNext={(shiftKey) => {
+            moveEditableCell(rowIndex, col.key, shiftKey);
+          }}
+        />
+      );
+    }
+    if (col.getDisplayValue) return col.getDisplayValue(row);
+    return String((row as Record<string, unknown>)[col.key] ?? "");
   };
 
   return (
@@ -194,10 +335,10 @@ export function DataTable<T extends { id?: number | string }>({
                   isMultiSelected
                     ? "bg-[var(--ui-accent)]/10"
                     : isSelected
-                    ? "bg-[var(--ui-accent)]/15"
-                    : idx % 2 === 0
-                      ? "bg-[var(--ui-list-dark)]"
-                      : "bg-[var(--ui-list-light)]"
+                      ? "bg-[var(--ui-accent)]/15"
+                      : idx % 2 === 0
+                        ? "bg-[var(--ui-list-dark)]"
+                        : "bg-[var(--ui-list-light)]"
                 } hover:bg-[var(--ui-list-hover)]`}
               >
                 {selection && rowId != null ? (
@@ -211,10 +352,8 @@ export function DataTable<T extends { id?: number | string }>({
                   </td>
                 ) : null}
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-3 py-2 text-[var(--ui-body)] ${col.className ?? ""}`}>
-                    {col.render
-                      ? col.render(row, idx)
-                      : String((row as Record<string, unknown>)[col.key] ?? "")}
+                  <td key={cellKey(idx, col.key)} className={`px-3 py-2 text-[var(--ui-body)] ${col.className ?? ""}`}>
+                    {renderCellContent(row, idx, col)}
                   </td>
                 ))}
               </tr>

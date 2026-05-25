@@ -24,6 +24,8 @@ import { useEtsySync } from "@/hooks/useEtsySync";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
 import { orderRecentlyViewedLabel } from "@/lib/recently-viewed";
+import { patchInlineRecord } from "@/lib/inline-edit";
+import type { InlineEditResult } from "@/components/ui/DataTable";
 import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -135,7 +137,24 @@ function SalesPageInner() {
       },
       { key: "order_date", header: "Date", sortable: true },
       { key: "grand_total", header: "Total", sortable: true },
-      { key: "payment_status", header: "Payment", sortable: true },
+      {
+        key: "was_paid",
+        header: "Paid",
+        editable: true,
+        editType: "toggle" as const,
+        getEditValue: (order: Order) => Boolean(order.was_paid),
+        getDisplayValue: (order: Order) => (order.was_paid ? "Paid" : "Unpaid"),
+      },
+      {
+        key: "shipper",
+        header: "Shipper",
+        sortable: true,
+        editable: true,
+        editType: "select" as const,
+        editOptions: SHIPPERS.map((shipper) => ({ value: shipper, label: shipper })),
+        getEditValue: (order: Order) => order.shipper ?? "USPS",
+        getDisplayValue: (order: Order) => order.shipper ?? "—",
+      },
       {
         key: "shipped",
         header: "Shipped",
@@ -143,6 +162,33 @@ function SalesPageInner() {
       },
     ],
     []
+  );
+
+  const handleOrderInlineEdit = useCallback(
+    async (
+      row: Order,
+      columnKey: string,
+      value: string | number | boolean
+    ): Promise<InlineEditResult<Order>> => {
+      const body =
+        columnKey === "was_paid"
+          ? {
+              was_paid: value ? 1 : 0,
+              payment_status: value ? "paid" : "unpaid",
+            }
+          : { shipper: String(value) };
+      return patchInlineRecord(`/api/orders/${row.id}`, row.updated_at, body, (data) =>
+        (data.order as Order | undefined) ?? null
+      );
+    },
+    []
+  );
+
+  const handleOrderRowPatched = useCallback(
+    (rowId: number, patch: Partial<Order>) => {
+      setOrders((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+    },
+    [setOrders]
   );
 
   const reloadOrders = useCallback(
@@ -622,6 +668,8 @@ function SalesPageInner() {
               indeterminate: batch.headerIndeterminate,
             }}
             onRowClick={(order) => selectOrder(order.id)}
+            onInlineEdit={handleOrderInlineEdit}
+            onRowPatched={handleOrderRowPatched}
             sort={sort}
             onSortChange={(next) => {
               setPage(0);
