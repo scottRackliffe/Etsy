@@ -18,7 +18,7 @@ New users see an empty application with no data. They cannot explore the workflo
 
 ### Sample dataset
 
-The dataset is defined in ``fixtures/sample-data.sql` (placeholder — seed route may inline SQL until fixture is populated)` and contains:
+The dataset is defined in [`fixtures/sample-data.sql`](../../fixtures/sample-data.sql) and contains:
 
 #### 10 inventory items
 All `item_number` values are prefixed with `SAMPLE-` (e.g., `SAMPLE-001`, `SAMPLE-002`, …, `SAMPLE-010`).
@@ -82,7 +82,7 @@ Orders include realistic `order_date`, `subtotal`, `shipping_total`, `tax_total`
 #### Load sample data
 `POST /api/seed/sample-data`
 
-- Inserts all sample records from the fixture file.
+- Executes [`fixtures/sample-data.sql`](../../fixtures/sample-data.sql) (or equivalent statements inlined by the route) in a single transaction.
 - Idempotent guard: if any record with `item_number LIKE 'SAMPLE-%'` already exists, returns `409 { ok: false, error: { code: "SAMPLE_DATA_EXISTS", message: "Sample data is already loaded.", user_message: "Sample data has already been loaded. Remove it first from Config if you want to reload." } }`.
 - On success returns `201`:
   ```json
@@ -126,6 +126,6 @@ Orders include realistic `order_date`, `subtotal`, `shipping_total`, `tax_total`
 
 ## Notes
 - Cross-ref: ADR-044 (first-run wizard), ADR-032 (ConfirmDialog for destructive actions), ADR-037 (activity log entries).
-- The ``fixtures/sample-data.sql` (placeholder — seed route may inline SQL until fixture is populated)` file must be updated whenever the schema changes (new columns, renamed tables, etc.).
+- [`fixtures/sample-data.sql`](../../fixtures/sample-data.sql) must be updated whenever ADR-017 schema changes (new required columns, renamed tables). Requires `orders.tracking_number` and related columns per ADR-017 §8 (migration/bootstrap).
 - All sample customer emails use the `@example.com` domain (RFC 2606 reserved) to ensure they are clearly fake.
 - The delete logic uses both the `SAMPLE-` prefix AND `@example.com` email as guards to prevent accidental deletion of real data.

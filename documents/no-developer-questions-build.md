@@ -244,5 +244,5 @@ When all priorities are complete, the build is ready for autonomous implementati
 | ~~Accounting export~~ | ADR-056 | **Done** |
 | Full JSON schemas for every API endpoint | ADR-018 + per-feature ADRs | Medium (§1 still open) |
 | Schema migrations for `activity_log`, `customer_notes`, `tracking_number` | migrations + ADR-017 | Medium (DDL canonical; bootstrap may lag) |
-| `fixtures/sample-data.sql` for ADR-069 | `fixtures/` | Medium |
+| ~~`fixtures/sample-data.sql` for ADR-069~~ | [`fixtures/sample-data.sql`](fixtures/sample-data.sql) | **Done** (2026-05-24) |
 | Catalog generator | EBC roadmap (future) | Future |
