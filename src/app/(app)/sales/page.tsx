@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape, Order } from "@/types";
+
+const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
 
 function SalesPageInner() {
   const {
@@ -13,8 +15,27 @@ function SalesPageInner() {
 
   const [newOrderNumber, setNewOrderNumber] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
+  const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [shipForm, setShipForm] = useState({
+    shipper: "USPS",
+    tracking_number: "",
+    shipping_date: new Date().toISOString().slice(0, 10),
+    ship_anyway: false,
+  });
 
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
+
+
+  const reloadOrders = useCallback(async (search?: string) => {
+    const q = search ?? orderSearch;
+    const params = new URLSearchParams({ limit: "100", offset: "0" });
+    if (q.trim()) params.set("search", q.trim());
+    const response = await fetch(`/api/orders?${params}`, { headers: { Accept: "application/json" } });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: Order[] };
+    if (!response.ok) throw data;
+    if (data.items) setOrders(data.items);
+  }, [orderSearch, setOrders]);
 
   const searchParams = useSearchParams();
 
@@ -39,6 +60,7 @@ function SalesPageInner() {
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
+      await reloadOrders();
       setError({
         title: "Etsy sync complete",
         message: "Latest Etsy receipts were synchronized.",
@@ -111,31 +133,42 @@ function SalesPageInner() {
     }
   };
 
-  const markSelectedOrderShipped = async () => {
+  const openShipModal = () => {
+    if (!selectedOrder) return;
+    setShipForm({
+      shipper: selectedOrder.shipper ?? "USPS",
+      tracking_number: "",
+      shipping_date: new Date().toISOString().slice(0, 10),
+      ship_anyway: false,
+    });
+    setShipModalOpen(true);
+  };
+
+  const submitMarkShipped = async () => {
     if (!selectedOrderId || !selectedOrder) return;
-
     const unpaid = Number(selectedOrder.was_paid) !== 1;
-    let shippedWithoutPaidOverride = false;
-    if (unpaid) {
-      const ok = window.confirm(
-        "This order is not paid yet. Ship anyway? This will be recorded as shipping without payment confirmation."
-      );
-      if (!ok) return;
-      shippedWithoutPaidOverride = true;
+    if (unpaid && !shipForm.ship_anyway) {
+      setApiError("Order not paid", "Mark paid first or check Ship anyway.", { ok: false });
+      return;
     }
-
     setBusyAction("mark-shipped");
     try {
       const response = await fetch(`/api/orders/${selectedOrderId}/mark-shipped`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shipped_without_paid_override: shippedWithoutPaidOverride }),
+        body: JSON.stringify({
+          shipper: shipForm.shipper,
+          tracking_number: shipForm.tracking_number.trim() || undefined,
+          shipping_date: shipForm.shipping_date || undefined,
+          shipped_without_paid_override: unpaid && shipForm.ship_anyway,
+        }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
         setOrders((current) => current.map((row) => (row.id === data.order!.id ? data.order! : row)));
       }
+      setShipModalOpen(false);
       setError(null);
     } catch (err) {
       setApiError("Could not mark order shipped", "We could not mark the order as shipped.", err);
@@ -159,7 +192,19 @@ function SalesPageInner() {
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 lg:col-span-2">
-          <p className="mb-2 text-sm font-semibold">Local orders</p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">Local orders</p>
+            <input
+              value={orderSearch}
+              onChange={(e) => setOrderSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void reloadOrders(orderSearch); }}
+              aria-label="Search orders"
+              placeholder="Search order #, name, city…"
+              className="min-w-[12rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <button type="button" onClick={() => void reloadOrders()} disabled={busyAction != null}
+              className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">Search</button>
+          </div>
           <div className="max-h-72 overflow-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -168,6 +213,7 @@ function SalesPageInner() {
                   <th className="py-1">Date</th>
                   <th className="py-1">Total</th>
                   <th className="py-1">Payment</th>
+                  <th className="py-1">Shipped</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +228,8 @@ function SalesPageInner() {
                     <td className="py-1 pr-2">{order.order_number ?? `Order ${order.id}`}</td>
                     <td className="py-1 pr-2">{order.order_date ?? "-"}</td>
                     <td className="py-1 pr-2">{order.grand_total ?? 0}</td>
-                    <td className="py-1">{order.payment_status ?? "unknown"}</td>
+                    <td className="py-1 pr-2">{order.payment_status ?? "unknown"}</td>
+                    <td className="py-1">{order.shipping_date ? "Yes" : "No"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,11 +270,11 @@ function SalesPageInner() {
           </button>
           <button
             type="button"
-            onClick={markSelectedOrderShipped}
+            onClick={openShipModal}
             disabled={busyAction != null || !selectedOrder}
             className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
           >
-            {busyAction === "mark-shipped" ? "Updating..." : "Mark selected shipped"}
+            Mark selected shipped…
           </button>
           {selectedOrder && (
             <p className="text-xs text-[var(--ui-muted)]">
@@ -243,6 +290,42 @@ function SalesPageInner() {
         <p className="mt-3 text-sm text-[var(--ui-muted)]">
           No local orders yet. Create one or sync Etsy receipts.
         </p>
+      )}
+
+      {shipModalOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
+            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Mark order shipped</h4>
+            <label className="mb-2 block text-sm">Carrier
+              <select value={shipForm.shipper} onChange={(e) => setShipForm((f) => ({ ...f, shipper: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2">
+                {SHIPPERS.map((s) => (<option key={s} value={s}>{s}</option>))}
+              </select>
+            </label>
+            <label className="mb-2 block text-sm">Tracking number
+              <input value={shipForm.tracking_number} onChange={(e) => setShipForm((f) => ({ ...f, tracking_number: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2" />
+            </label>
+            <label className="mb-3 block text-sm">Ship date
+              <input type="date" value={shipForm.shipping_date} onChange={(e) => setShipForm((f) => ({ ...f, shipping_date: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2" />
+            </label>
+            {Number(selectedOrder.was_paid) !== 1 && (
+              <label className="mb-4 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={shipForm.ship_anyway}
+                  onChange={(e) => setShipForm((f) => ({ ...f, ship_anyway: e.target.checked }))} />
+                Ship anyway (not paid)
+              </label>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShipModalOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">Cancel</button>
+              <button type="button" onClick={() => void submitMarkShipped()} disabled={busyAction != null}
+                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                {busyAction === "mark-shipped" ? "Saving…" : "Mark shipped"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

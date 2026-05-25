@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { parsePagination } from "@/lib/api-utils";
+import { parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { createOrder, listOrders } from "@/lib/records";
@@ -9,8 +9,21 @@ import { createOrder, listOrders } from "@/lib/records";
 export async function GET(request: NextRequest) {
   try {
     requireEtsyAccessToken(await cookies());
-    const { limit, offset } = parsePagination(request.nextUrl.searchParams);
-    const { items, total } = listOrders(limit, offset);
+    const params = request.nextUrl.searchParams;
+    const { limit, offset } = parsePagination(params);
+    const shipRaw = parseOptionalString(params, "shipping_status");
+    const shipping_status =
+      shipRaw === "shipped" || shipRaw === "not_shipped" ? shipRaw : undefined;
+    const { items, total } = listOrders({
+      limit,
+      offset,
+      search: parseOptionalString(params, "search"),
+      payment_status: parseOptionalString(params, "payment_status"),
+      shipping_status,
+      source_channel: parseOptionalString(params, "source_channel"),
+      sortBy: parseOptionalString(params, "sort_by"),
+      sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
+    });
     return NextResponse.json({
       ok: true,
       items,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { parsePagination } from "@/lib/api-utils";
+import { parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { InventoryValidationError, prepareInventoryPayload } from "@/lib/inventory-validation";
 import { createInventory, listInventory } from "@/lib/records";
@@ -9,8 +9,16 @@ import { createInventory, listInventory } from "@/lib/records";
 export async function GET(request: NextRequest) {
   try {
     requireEtsyAccessToken(await cookies());
-    const { limit, offset } = parsePagination(request.nextUrl.searchParams);
-    const { items, total } = listInventory(limit, offset);
+    const params = request.nextUrl.searchParams;
+    const { limit, offset } = parsePagination(params);
+    const { items, total } = listInventory({
+      limit,
+      offset,
+      search: parseOptionalString(params, "search"),
+      status: parseOptionalString(params, "status"),
+      sortBy: parseOptionalString(params, "sort_by"),
+      sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
+    });
     return NextResponse.json({
       ok: true,
       items,

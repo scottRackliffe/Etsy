@@ -343,4 +343,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 3 (2026-05-24) — implemented:** `GET /api/dashboard`, `/inventory-value`, `/stats`; `POST /api/orders/[id]/link-customer`; `POST/DELETE /api/seed/sample-data`.
 
-*Next update: After Wave 4 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 4 (2026-05-24) — implemented:** ADR-029 list `search`/`sort_by`/`sort_dir`/filters on inventory, orders, customers APIs; ADR-027 backup POST/GET/DELETE/restore; Sales ship modal (carrier, tracking, date, ship-anyway).
+
+*Next update: After Wave 5 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

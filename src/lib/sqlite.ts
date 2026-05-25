@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { purgeOldActivityLog } from "@/lib/activity-log";
+import { logger } from "@/lib/logging";
 import Database from "better-sqlite3";
 
 let dbInstance: Database.Database | null = null;
@@ -59,6 +60,10 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   created_at: "TEXT",
   updated_at: "TEXT",
 };
+
+export function getSqliteDatabasePath(): string {
+  return getDatabasePath();
+}
 
 function getDatabasePath(): string {
   const configuredPath = process.env.SQLITE_PATH?.trim();
@@ -399,4 +404,18 @@ export function getDb(): Database.Database {
   }
 
   return dbInstance;
+}
+
+export function resetSqliteConnection(): void {
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch (error) {
+      logger.warn("sqlite close during reset failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    dbInstance = null;
+    schemaReady = false;
+  }
 }

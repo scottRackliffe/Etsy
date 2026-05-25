@@ -2,14 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { parsePagination } from "@/lib/api-utils";
+import { parseOptionalIntFlag, parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { createCustomer, listCustomers } from "@/lib/records";
 
 export async function GET(request: NextRequest) {
   try {
     requireEtsyAccessToken(await cookies());
-    const { limit, offset } = parsePagination(request.nextUrl.searchParams);
-    const { items, total } = listCustomers(limit, offset);
+    const params = request.nextUrl.searchParams;
+    const { limit, offset } = parsePagination(params);
+    const { items, total } = listCustomers({
+      limit,
+      offset,
+      search: parseOptionalString(params, "search"),
+      is_active: parseOptionalIntFlag(params, "is_active"),
+      sortBy: parseOptionalString(params, "sort_by"),
+      sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
+    });
     return NextResponse.json({
       ok: true,
       items,

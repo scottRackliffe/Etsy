@@ -1,5 +1,10 @@
 import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
+import {
+  buildSearchClause,
+  parseSortDir,
+  resolveSortColumn,
+} from "@/lib/list-query";
 import { getDb } from "@/lib/sqlite";
 
 type SqlValue = string | number | null;
@@ -44,14 +49,52 @@ const LISTING_MUTATION_FIELDS = new Set([
   "listing_quality_checklist",
 ]);
 
-export function listInventory(limit: number, offset: number) {
+export type InventoryListOptions = {
+  limit: number;
+  offset: number;
+  search?: string;
+  status?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+const INVENTORY_SORT: Record<string, string> = {
+  item_number: "item_number",
+  description: "description",
+  status: "status",
+  updated_at: "COALESCE(updated_at, created_at, '')",
+  created_at: "created_at",
+  sale_revenue: "sale_revenue",
+  date_purchased: "date_purchased",
+  date_listed: "date_listed",
+  margin_pct: "sale_revenue",
+};
+
+export function listInventory(options: InventoryListOptions) {
   const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) AS c FROM inventory").get() as { c: number }).c;
+  const params: Record<string, unknown> = {};
+  let where = "WHERE 1=1";
+  if (options.status?.trim()) {
+    where += " AND status = @status";
+    params.status = options.status.trim();
+  }
+  where += buildSearchClause(
+    ["item_number", "description", "listing_title", "category_tags"],
+    options.search,
+    params
+  );
+
+  const sortCol = resolveSortColumn(options.sortBy, INVENTORY_SORT, "updated_at");
+  const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
+
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM inventory ${where}`).get(params) as { c: number }
+  ).c;
   const items = db
     .prepare(
-      "SELECT * FROM inventory ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC LIMIT ? OFFSET ?"
+      `SELECT * FROM inventory ${where} ORDER BY ${sortCol} ${dir}, id DESC LIMIT @limit OFFSET @offset`
     )
-    .all(limit, offset);
+    .all({ ...params, limit: options.limit, offset: options.offset });
   return { items, total };
 }
 
@@ -102,14 +145,48 @@ export function deleteInventory(id: number): boolean {
   return result.changes > 0;
 }
 
-export function listCustomers(limit: number, offset: number) {
+export type CustomerListOptions = {
+  limit: number;
+  offset: number;
+  search?: string;
+  is_active?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+const CUSTOMER_SORT: Record<string, string> = {
+  last_name: "last_name",
+  first_name: "first_name",
+  email: "email",
+  updated_at: "COALESCE(updated_at, created_at, '')",
+  created_at: "created_at",
+};
+
+export function listCustomers(options: CustomerListOptions) {
   const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) AS c FROM customers").get() as { c: number }).c;
+  const params: Record<string, unknown> = {};
+  let where = "WHERE 1=1";
+  if (options.is_active === 0 || options.is_active === 1) {
+    where += " AND is_active = @is_active";
+    params.is_active = options.is_active;
+  }
+  where += buildSearchClause(
+    ["first_name", "last_name", "email", "phone", "city"],
+    options.search,
+    params
+  );
+
+  const sortCol = resolveSortColumn(options.sortBy, CUSTOMER_SORT, "last_name");
+  const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
+
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM customers ${where}`).get(params) as { c: number }
+  ).c;
   const items = db
     .prepare(
-      "SELECT * FROM customers ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC LIMIT ? OFFSET ?"
+      `SELECT * FROM customers ${where} ORDER BY ${sortCol} ${dir}, id DESC LIMIT @limit OFFSET @offset`
     )
-    .all(limit, offset);
+    .all({ ...params, limit: options.limit, offset: options.offset });
   return { items, total };
 }
 
@@ -179,14 +256,67 @@ export function patchPurchase(id: number, input: Record<string, unknown>) {
   return getPurchase(id);
 }
 
-export function listOrders(limit: number, offset: number) {
+export type OrderListOptions = {
+  limit: number;
+  offset: number;
+  search?: string;
+  payment_status?: string;
+  shipping_status?: "shipped" | "not_shipped";
+  source_channel?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+const ORDER_SORT: Record<string, string> = {
+  order_number: "order_number",
+  order_date: "order_date",
+  grand_total: "grand_total",
+  payment_status: "payment_status",
+  order_status: "order_status",
+  updated_at: "COALESCE(updated_at, created_at, '')",
+  created_at: "created_at",
+};
+
+export function listOrders(options: OrderListOptions) {
   const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) AS c FROM orders").get() as { c: number }).c;
+  const params: Record<string, unknown> = {};
+  let where = "WHERE 1=1";
+  if (options.payment_status?.trim()) {
+    where += " AND payment_status = @payment_status";
+    params.payment_status = options.payment_status.trim();
+  }
+  if (options.source_channel?.trim()) {
+    where += " AND source_channel = @source_channel";
+    params.source_channel = options.source_channel.trim();
+  }
+  if (options.shipping_status === "shipped") {
+    where += " AND shipping_date IS NOT NULL AND shipping_date != ''";
+  } else if (options.shipping_status === "not_shipped") {
+    where += " AND (shipping_date IS NULL OR shipping_date = '') AND order_status = 'active'";
+  }
+  where += buildSearchClause(
+    [
+      "order_number",
+      "ship_to_first_name",
+      "ship_to_last_name",
+      "ship_to_city",
+      "notes",
+    ],
+    options.search,
+    params
+  );
+
+  const sortCol = resolveSortColumn(options.sortBy, ORDER_SORT, "order_date");
+  const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
+
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM orders ${where}`).get(params) as { c: number }
+  ).c;
   const items = db
     .prepare(
-      "SELECT * FROM orders ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC LIMIT ? OFFSET ?"
+      `SELECT * FROM orders ${where} ORDER BY ${sortCol} ${dir}, id DESC LIMIT @limit OFFSET @offset`
     )
-    .all(limit, offset);
+    .all({ ...params, limit: options.limit, offset: options.offset });
   return { items, total };
 }
 
