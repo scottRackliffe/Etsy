@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const action = params.get("action")?.trim() || undefined;
     const fromDate = params.get("from_date")?.trim() || undefined;
     const toDate = params.get("to_date")?.trim() || undefined;
+    const search = params.get("search")?.trim() || undefined;
 
     const { items, total } = listActivity({
       limit,
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
       action,
       fromDate,
       toDate,
+      search,
     });
 
     return NextResponse.json({

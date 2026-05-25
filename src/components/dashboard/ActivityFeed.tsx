@@ -5,53 +5,21 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  activityEntityHref,
+  formatActivityAction,
+  formatActivityTimestamp,
+  type ActivityItem,
+} from "@/lib/activity-display";
 import type { ApiErrorShape } from "@/types";
 
-type ActivityItem = {
-  id: number;
-  action: string;
-  entity_type: string | null;
-  entity_id: number | null;
-  entity_label: string | null;
-  source: string;
-  created_at: string;
-};
-
-function formatAction(action: string): string {
-  return action
-    .replace(/\./g, " · ")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function entityHref(entityType: string | null, entityId: number | null): string | null {
-  if (!entityType || entityId == null) return null;
-  switch (entityType) {
-    case "order":
-      return `/sales?orderId=${entityId}`;
-    case "inventory":
-      return `/inventory?itemId=${entityId}`;
-    case "customer":
-      return `/customers?customerId=${entityId}`;
-    default:
-      return null;
-  }
-}
-
-function formatTimestamp(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-export function ActivityFeed() {
+export function ActivityFeed({
+  onViewAll,
+  onSyncComplete,
+}: {
+  onViewAll?: () => void;
+  onSyncComplete?: () => void;
+}) {
   const { shops, selectedShopId, setBusyAction, setApiError, setError: showAppMessage } = useApp();
   const router = useRouter();
   const [items, setItems] = useState<ActivityItem[]>([]);
@@ -62,7 +30,7 @@ export function ActivityFeed() {
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch("/api/activity?limit=20", {
+      const response = await fetch("/api/activity?limit=10", {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -98,6 +66,7 @@ export function ActivityFeed() {
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
       await load();
+      onSyncComplete?.();
       showAppMessage({
         title: "Etsy sync complete",
         message: "Orders were synchronized from Etsy.",
@@ -117,14 +86,25 @@ export function ActivityFeed() {
           <h3 className="text-lg font-semibold text-[var(--ui-title)]">Recent activity</h3>
           <p className="text-sm text-[var(--ui-muted)]">Latest changes across orders, inventory, and customers.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)] disabled:opacity-60"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {onViewAll ? (
+            <button
+              type="button"
+              onClick={onViewAll}
+              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-accent)]"
+            >
+              View all →
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)] disabled:opacity-60"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -148,12 +128,12 @@ export function ActivityFeed() {
       ) : (
         <ul className="divide-y divide-[var(--ui-border)]/70">
           {items.map((entry) => {
-            const href = entityHref(entry.entity_type, entry.entity_id);
+            const href = activityEntityHref(entry.entity_type, entry.entity_id);
             return (
               <li key={entry.id} className="px-5 py-3 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="font-medium text-[var(--ui-title)]">{formatAction(entry.action)}</p>
-                  <time className="text-xs text-[var(--ui-muted)]">{formatTimestamp(entry.created_at)}</time>
+                  <p className="font-medium text-[var(--ui-title)]">{formatActivityAction(entry.action)}</p>
+                  <time className="text-xs text-[var(--ui-muted)]">{formatActivityTimestamp(entry.created_at)}</time>
                 </div>
                 {entry.entity_label ? (
                   href ? (

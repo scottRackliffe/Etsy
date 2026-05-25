@@ -87,6 +87,7 @@ export function listActivity(options: {
   action?: string;
   fromDate?: string;
   toDate?: string;
+  search?: string;
 }) {
   const db = getDb();
   const where: string[] = [];
@@ -111,6 +112,11 @@ export function listActivity(options: {
   if (options.toDate) {
     where.push("date(created_at) <= date(?)");
     params.push(options.toDate);
+  }
+  if (options.search?.trim()) {
+    where.push("(entity_label LIKE ? OR action LIKE ?)");
+    const term = `%${options.search.trim()}%`;
+    params.push(term, term);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";

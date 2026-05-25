@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
@@ -638,6 +639,13 @@ export function OrderDetailPanel({
             Void order
           </button>
         ) : null}
+      </div>
+
+      <div className="mt-6 border-t border-[var(--ui-border)] pt-4">
+        <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+          Recent activity
+        </h5>
+        <ActivityTimeline entityType="order" entityId={order.id} />
       </div>
 
       {addItemOpen ? (

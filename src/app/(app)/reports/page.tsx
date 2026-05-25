@@ -4,22 +4,24 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape } from "@/types";
 
 const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "thank-you-note", label: "Thank-you note (all)" },
-  { value: "invoice", label: "Invoice (all open)" },
-  { value: "sales", label: "Sales" },
-  { value: "costs", label: "Costs" },
-  { value: "income-mtd", label: "Income MTD" },
-  { value: "income-ytd", label: "Income YTD" },
-  { value: "postal-by-vendor", label: "Postal by vendor" },
-  { value: "outstanding-items", label: "Outstanding items" },
-  { value: "ar-aging", label: "AR aging" },
-  { value: "profit-by-item", label: "Profit by item" },
-  { value: "sales-tax-summary", label: "Sales tax summary" },
-  { value: "inventory-aging", label: "Inventory aging" },
-  { value: "accounting-export", label: "Accounting export" },
+  { value: "thank-you-note", label: "Thank You Note" },
+  { value: "invoice", label: "Invoice" },
+  { value: "sales", label: "Sales Report" },
+  { value: "costs", label: "Costs Report" },
+  { value: "income-mtd", label: "Income — Month to Date" },
+  { value: "income-ytd", label: "Income — Year to Date" },
+  { value: "postal-by-vendor", label: "Postal Costs by Carrier" },
+  { value: "outstanding-items", label: "Outstanding Items" },
+  { value: "ar-aging", label: "Accounts Receivable Aging" },
+  { value: "profit-by-item", label: "Profit by Item" },
+  { value: "sales-tax-summary", label: "Sales Tax Summary" },
+  { value: "inventory-aging", label: "Inventory Aging" },
+  { value: "accounting-export", label: "Accounting Export" },
 ];
 
 const DATE_FILTER_REPORTS = new Set([
@@ -53,6 +55,7 @@ export default function ReportsPage() {
   const [toDate, setToDate] = useState("");
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [reportCsvPreview, setReportCsvPreview] = useState("");
+  const { modal: progressModal, run: runWithProgress } = useProgressOperation();
 
   const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
     ? Math.max(80, Math.min(640, Math.floor(Number(iconConfig.reportHeaderWidthPx))))
@@ -92,16 +95,22 @@ export default function ReportsPage() {
   const previewReportCsv = async () => {
     setBusyAction("preview-report");
     try {
-      const url = `/api/reports/${reportType}${reportQuery ? `${reportQuery}&format=csv` : "?format=csv"}`;
-      const response = await fetch(url, {
-        headers: { Accept: "text/csv" },
+      await runWithProgress({
+        title: "Generating report preview",
+        statusText: "Building CSV preview…",
+        fn: async () => {
+          const url = `/api/reports/${reportType}${reportQuery ? `${reportQuery}&format=csv` : "?format=csv"}`;
+          const response = await fetch(url, {
+            headers: { Accept: "text/csv" },
+          });
+          const text = await response.text();
+          if (!response.ok) throw { error: { user_message: "Report preview failed." } };
+          setReportCsvPreview(text);
+          setError(null);
+        },
       });
-      const text = await response.text();
-      if (!response.ok) throw { error: { user_message: "Report preview failed." } };
-      setReportCsvPreview(text);
-      setError(null);
-    } catch (err) {
-      setApiError("Could not preview report", "We could not load report preview.", err);
+    } catch {
+      /* modal handles error */
     } finally {
       setBusyAction(null);
     }
@@ -114,6 +123,8 @@ export default function ReportsPage() {
   };
 
   return (
+    <>
+      <ProgressModal {...progressModal} />
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-3 flex items-center gap-3">
         <Image
@@ -236,5 +247,6 @@ export default function ReportsPage() {
       />
       )}
     </section>
+    </>
   );
 }

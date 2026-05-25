@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
@@ -540,6 +541,13 @@ export function InventoryDetailPanel({
         <Button variant="accent" onClick={() => void saveChanges()} disabled={busy || saving || !isDirty}>
           {saving ? "Saving…" : "Save changes"}
         </Button>
+      </div>
+
+      <div className="mt-4 border-t border-[var(--ui-border)] pt-4">
+        <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+          Recent activity
+        </h5>
+        <ActivityTimeline entityType="inventory" entityId={item.id} />
       </div>
 
       {addBuyOpen ? (

@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
+import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
@@ -18,6 +21,9 @@ export default function DashboardPage() {
 
   const router = useRouter();
   const [repeatCustomersMonth, setRepeatCustomersMonth] = useState<number | null>(null);
+  const [activityLogKey, setActivityLogKey] = useState(0);
+  const activityLogRef = useRef<HTMLDivElement>(null);
+  const { modal: progressModal, run: runWithProgress } = useProgressOperation();
 
   useEffect(() => {
     void fetch("/api/dashboard/stats", { headers: { Accept: "application/json" } })
@@ -46,27 +52,41 @@ export default function DashboardPage() {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     try {
-      const response = await fetch("/api/sync/etsy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+      await runWithProgress({
+        title: "Syncing Etsy orders",
+        statusText: "Fetching and importing receipts from Etsy…",
+        fn: async () => {
+          const response = await fetch("/api/sync/etsy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+          });
+          const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+          if (!response.ok) throw data;
+        },
+        onSuccess: () => {
+          setActivityLogKey((k) => k + 1);
+          setError({
+            title: "Etsy sync complete",
+            message: "Latest Etsy receipts were synchronized.",
+            actions: ["Review recent orders below or open the Sales tab."],
+          });
+        },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
-      setError({
-        title: "Etsy sync complete",
-        message: "Latest Etsy receipts were synchronized.",
-        actions: ["Review recent orders below or open the Sales tab."],
-      });
-    } catch (err) {
-      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+    } catch {
+      /* progress modal shows error */
     } finally {
       setBusyAction(null);
     }
   };
 
+  const scrollToActivityLog = () => {
+    activityLogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <>
+      <ProgressModal {...progressModal} />
       <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -123,7 +143,14 @@ export default function DashboardPage() {
 
       <InventoryValueWidget />
 
-      <ActivityFeed />
+      <ActivityFeed
+        onViewAll={scrollToActivityLog}
+        onSyncComplete={() => setActivityLogKey((k) => k + 1)}
+      />
+
+      <div ref={activityLogRef}>
+        <ActivityLogSection key={activityLogKey} id="activity-log" />
+      </div>
 
       <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">

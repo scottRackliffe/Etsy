@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
+import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape, AiConfig } from "@/types";
 
 type EtsyConnectionInfo = {
@@ -107,6 +109,7 @@ export default function ConfigPage() {
   });
   const [backupSchedule, setBackupSchedule] = useState("manual");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
+  const { modal: progressModal, run: runWithProgress } = useProgressOperation();
 
   const loadBackups = useCallback(async () => {
     setBackupLoading(true);
@@ -323,17 +326,26 @@ export default function ConfigPage() {
   const createBackup = async () => {
     setBackupLoading(true);
     try {
-      const response = await fetch("/api/backup", { method: "POST", headers: { Accept: "application/json" } });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { filename?: string; size_bytes?: number };
-      if (!response.ok) throw data;
-      setError({
-        title: "Backup created",
-        message: `Saved ${data.filename ?? "backup"} (${formatBytes(data.size_bytes ?? 0)}).`,
-        actions: ["Your data is backed up locally."],
+      await runWithProgress({
+        title: "Creating backup",
+        statusText: "Copying database to your backup folder…",
+        fn: async () => {
+          const response = await fetch("/api/backup", { method: "POST", headers: { Accept: "application/json" } });
+          const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+            filename?: string;
+            size_bytes?: number;
+          };
+          if (!response.ok) throw data;
+          setError({
+            title: "Backup created",
+            message: `Saved ${data.filename ?? "backup"} (${formatBytes(data.size_bytes ?? 0)}).`,
+            actions: ["Your data is backed up locally."],
+          });
+          await loadBackups();
+        },
       });
-      await loadBackups();
-    } catch (err) {
-      setApiError("Backup failed", "We could not create a backup.", err);
+    } catch {
+      /* modal handles error */
     } finally {
       setBackupLoading(false);
     }
@@ -342,22 +354,28 @@ export default function ConfigPage() {
   const restoreBackup = async (filename: string) => {
     setBackupLoading(true);
     try {
-      const response = await fetch("/api/backup/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ filename }),
+      await runWithProgress({
+        title: "Restoring backup",
+        statusText: "Creating safety backup and restoring database…",
+        fn: async () => {
+          const response = await fetch("/api/backup/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ filename }),
+          });
+          const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { pre_restore_backup?: string };
+          if (!response.ok) throw data;
+          setRestoreTarget(null);
+          setError({
+            title: "Backup restored",
+            message: `Restored from ${filename}. A safety backup was saved as ${data.pre_restore_backup ?? "pre-restore backup"}.`,
+            actions: ["Refresh the page to load restored data."],
+          });
+          await loadBackups();
+        },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { pre_restore_backup?: string };
-      if (!response.ok) throw data;
-      setRestoreTarget(null);
-      setError({
-        title: "Backup restored",
-        message: `Restored from ${filename}. A safety backup was saved as ${data.pre_restore_backup ?? "pre-restore backup"}.`,
-        actions: ["Refresh the page to load restored data."],
-      });
-      await loadBackups();
-    } catch (err) {
-      setApiError("Restore failed", "We could not restore from that backup.", err);
+    } catch {
+      /* modal handles error */
     } finally {
       setBackupLoading(false);
     }
@@ -499,6 +517,8 @@ export default function ConfigPage() {
   };
 
   return (
+    <>
+      <ProgressModal {...progressModal} />
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Configuration</h3>
       <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -978,5 +998,6 @@ export default function ConfigPage() {
         busy={sampleDataBusy}
       />
     </section>
+    </>
   );
 }
