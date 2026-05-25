@@ -319,6 +319,36 @@ export function markOrderShipped(
   return shipped;
 }
 
+
+export function linkOrderCustomer(orderId: number, customerId: number) {
+  const db = getDb();
+  const customer = getCustomer(customerId);
+  if (!customer) return null;
+  const existing = getOrder(orderId) as Record<string, unknown> | null;
+  if (!existing) return null;
+
+  db.prepare("UPDATE orders SET customer_id = ?, updated_at = ? WHERE id = ?").run(
+    customerId,
+    nowIso(),
+    orderId
+  );
+
+  const updated = getOrder(orderId) as Record<string, unknown> | null;
+  if (updated) {
+    const label = String(updated.order_number ?? `Order ${orderId}`);
+    const cust = customer as Record<string, unknown>;
+    const custLabel = [cust.first_name, cust.last_name].filter(Boolean).join(" ").trim();
+    logActivity({
+      action: "order.updated",
+      entityType: "order",
+      entityId: orderId,
+      entityLabel: label,
+      detail: { customer_id: customerId, customer_label: custLabel || `Customer ${customerId}` },
+    });
+  }
+  return updated;
+}
+
 export function patchOrder(id: number, input: Record<string, unknown>) {
   const db = getDb();
   const patch = buildPatchSql("orders", id, pickDefined(input));

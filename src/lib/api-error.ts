@@ -9,7 +9,9 @@ export type ApiErrorCode =
   | "ETSY_TOKEN_REVOKED"
   | "ETSY_TEMPORARILY_UNAVAILABLE"
   | "LISTING_GENERATION_FAILED"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "SAMPLE_DATA_EXISTS"
+  | "NO_SAMPLE_DATA";
 
 export type ApiErrorPayload = {
   ok: false;

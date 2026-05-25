@@ -341,4 +341,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 2 (2026-05-24) — implemented:** `activity_log` + `customer_notes` tables (migration 004, bootstrap), `GET /api/activity`, `GET/POST /api/customers/[id]/notes`, `DELETE /api/customer-notes/[id]`, `GET /api/uploads/[...path]`, order activity logging on create/paid/shipped.
 
-*Next update: After Wave 3 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 3 (2026-05-24) — implemented:** `GET /api/dashboard`, `/inventory-value`, `/stats`; `POST /api/orders/[id]/link-customer`; `POST/DELETE /api/seed/sample-data`.
+
+*Next update: After Wave 4 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
