@@ -190,7 +190,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 24. Build priorities 21–52 (feature ADRs — index only)
 
-**Summary:** Post-v1 UX and operations features (profit/margin, tax, bulk ops, search, wizard, a11y, merge, reports, demo data, etc.) are specified in **ADR-038 through ADR-069**. Implementation order: [no-developer-questions-build.md](no-developer-questions-build.md) §4 priorities 21–52. API catalog: ADR-018 Extensions §12–§28. Schema: ADR-017 (2026-05-24 reconciliation).
+**Summary:** Post-v1 UX and operations features (profit/margin, tax, bulk ops, search, wizard, a11y, merge, reports, demo data, etc.) are specified in **ADR-038 through ADR-069**. Implementation order: [no-developer-questions-build.md](no-developer-questions-build.md) §5 priorities 21–52 (after §4 documentation gate + §7 compliance audit). API catalog: ADR-018 Extensions §12–§28. Schema: ADR-017 (2026-05-24 reconciliation).
 
 | Priority | ADR | Topic |
 |----------|-----|-------|

@@ -4,7 +4,7 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 > **Data model (2026-05-24):** Customer sales = `orders` + `order_items`. Vendor buys = `purchases`. Schema SSOT = [ADR-017](adr/0017-database-schema.md). Historical “purchase row” wording below means order header + line items unless explicitly vendor `purchases`.
 
-> **Current priority order:** Use [no-developer-questions-build.md](no-developer-questions-build.md) §4 for the authoritative build sequence (priorities 1–52). Phases below are historical sequencing context.
+> **Documentation gate:** Complete [no-developer-questions-build.md](no-developer-questions-build.md) §4 before build. **Priority order:** §5 (priorities 1–52), blocked until §4 + §7 compliance audit pass. Phases below are historical sequencing context.
 
 ---
 

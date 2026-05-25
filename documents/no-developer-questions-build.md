@@ -22,7 +22,9 @@ Status snapshot:
 
 - **Done:** standardized global error model and actionable API error payloads.
 - **Done:** pagination/PATCH/idempotency baseline documented in ADR-018.
-- Remaining: complete concrete schemas/examples for every remaining endpoint not yet implemented.
+- **Done (2026-05-24):** ADR-018 **Appendix B** — request/response JSON schemas for extension endpoints §12–§28 (search, batch, jobs, backup, merge, CSV import, seed, notes, dashboard, reports 038/039/054/056, `If-Match`/409, etc.).
+- **Done:** Core CRUD endpoints §1–§11 documented in ADR-018 main body.
+- Remaining: wire **implemented** routes in code to match Appendix B; any net-new endpoint added after this pass must extend ADR-018 + Appendix B before merge. Feature ADRs remain authoritative for field-level business rules when Appendix B references them.
 
 ### OAuth and Etsy sync behavior
 
@@ -89,8 +91,9 @@ Status snapshot:
 
 Status snapshot:
 
-- **Done:** Schema reconciliation documented in `documents/database/SCHEMA_RECONCILIATION.md` identifying all drift between ADR-017 and implementation, with migration plan.
-- Remaining: Execute the schema reconciliation migration; update ADR-017 canonical DDL to match the three-table model.
+- **Done:** ADR-017 §8 canonical DDL (three-table model: `orders` + `order_items`; vendor buys = `purchases`; `other_costs`).
+- **Done (2026-05-24):** `documents/database/SCHEMA_RECONCILIATION.md` rewritten — docs are canonical; lists **code gaps** (bootstrap/migrations) rather than treating live SQLite as SSOT.
+- Remaining (code, not doc): migrations/bootstrap for `orders.tracking_number`, `activity_log`, `customer_notes`, and any other ADR-017 §8 columns missing from `src/lib/sqlite.ts` (tracked in §6 and Phase 2 compliance audit).
 - Remaining: Define currency mapping (country → currency) as a static lookup table or JSON file. For v1, support USD only; multi-currency is display-only on customer records.
 - Remaining: Define Shipping Info schema per carrier in `documents/shipping-label-carrier-templates.md` (add JSON schema for each carrier's required/optional fields).
 
@@ -171,7 +174,61 @@ A phase is complete only when all are true:
 - Runbook exists for deploy, rollback, and recovery.
 - Operational visibility exists for errors and degraded Etsy dependency behavior.
 
-## 4) Priority Order (updated 2026-05-24)
+## 4) Documentation completion gate (Phase 1 — before build priorities 8–52)
+
+**Principle:** Documentation is canonical; code follows documentation ([ADR-017](adr/0017-database-schema.md), [ADR-018](adr/0018-api-surface-endpoints.md), feature ADRs). Do not trim specs to match bootstrap lag.
+
+Phase 1 is complete only when every box below is checked. Phase 2 ([`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md)) runs after Phase 1. **Do not start §5 build priorities until both gates pass** and the user signs off.
+
+### 4.1 Meta-docs and rules index
+
+- [x] `documents/database/SCHEMA_RECONCILIATION.md` — rewritten (ADR-017 SSOT; code compliance checklist)
+- [x] `documents/development-plan.md` — `orders` + `order_items` terminology
+- [x] `documents/implementation-guide.md` — v1 layout (no required side panels)
+- [x] `.cursorrules` §2 — ADR-017 summary; “docs king / code converges via migrations”
+
+### 4.2 ADR Decision bodies (legacy `purchase` / `customer_address` language)
+
+- [x] ADR-019, 0004, 0002, 0005, 0015, 0007 Decision sections refreshed
+- [x] Phase C bodies: 0003, 0006, 0013, 0020–0022, 0038 (commit `fb37d7c`)
+
+### 4.3 Hub ADRs and API catalog
+
+- [x] ADR-017 §5 narrative aligned with §8 DDL
+- [x] ADR-018 Extensions §12–§28 indexed
+- [x] ADR-018 Appendix B (JSON schemas for extension endpoints)
+
+### 4.4 Supporting topical docs
+
+- [x] `shipping-label-carrier-templates.md` — `orders` ship-to snapshot
+- [x] `design-decisions-implementation.md` — orders model grep pass
+- [x] `ui-design.md` — body text aligned to orders model
+- [x] ADR-039/054 report params (`from_date`/`to_date`, `format=pdf|csv`)
+
+### 4.5 Fixtures (spec artifacts)
+
+- [x] [`fixtures/sample-data.sql`](../fixtures/sample-data.sql) per ADR-069
+- [x] ADR-069 links to fixture (no placeholder paths)
+
+### 4.6 Cross-reference map and verification (items 7–8 of doc pass)
+
+- [ ] `.cursorrules` §1b — full impacted-by map for ADR-028–069
+- [ ] Contradiction grep suite (Decision sections: no live `PATCH /api/purchases`, `customer_address` table, `inventory_other_cost` as table name; no `order_items.shipped_without_paid_override`; `setup.completed` not `setup_completed` in ADR-044)
+- [ ] Manual: `documents/adr/README.md` lists all 69 ADRs; each §5 priority 8–52 has ADR + ui-design/018 cross-ref
+
+### 4.7 Remaining spec-only gaps (documented, not blocking Phase 1 sign-off)
+
+Tracked in **§6** below. Code must not invent behavior for these; use ADR-017/018 defaults until spec is written.
+
+### Phase 1 sign-off
+
+When **§4.1–4.5** are checked and **§4.6** is checked, Phase 1 documentation is complete. Proceed to Phase 2 compliance audit.
+
+---
+
+## 5) Priority Order (updated 2026-05-24)
+
+**Blocked until:** §4 Documentation completion gate (all checkboxes) + §7 Phase 2 compliance audit sign-off.
 
 1. **Schema reconciliation** — Execute migration to align DB with ADR-017; update ADR-017 canonical DDL. (`documents/database/SCHEMA_RECONCILIATION.md`)
 2. **Frontend decomposition** — Break `page.tsx` into components per ADR-024 and `documents/frontend-architecture.md`.
@@ -229,7 +286,7 @@ A phase is complete only when all are true:
 
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 
-## 5) Remaining specification gaps (non-blocking but needed before ship)
+## 6) Remaining specification gaps (non-blocking but needed before ship)
 
 | Gap | Where to specify | Priority |
 |-----|-----------------|----------|
@@ -242,7 +299,18 @@ When all priorities are complete, the build is ready for autonomous implementati
 | Mobile/responsive testing spec | ADR-061 (+ manual test scenarios) | Low |
 | ~~Bulk operations~~ | ADR-040 | **Done** |
 | ~~Accounting export~~ | ADR-056 | **Done** |
-| Full JSON schemas for every API endpoint | ADR-018 + per-feature ADRs | Medium (§1 still open) |
+| ~~Full JSON schemas for extension API endpoints~~ | ADR-018 Appendix B | **Done** (2026-05-24); §1 core §1–11 + feature ADR field rules remain SSOT |
+| Implement code to match Appendix B | `src/app/api/` + ADR-018 | High (Phase 2 audit) |
 | Schema migrations for `activity_log`, `customer_notes`, `tracking_number` | migrations + ADR-017 | Medium (DDL canonical; bootstrap may lag) |
 | ~~`fixtures/sample-data.sql` for ADR-069~~ | [`fixtures/sample-data.sql`](fixtures/sample-data.sql) | **Done** (2026-05-24) |
 | Catalog generator | EBC roadmap (future) | Future |
+
+## 7) Phase 2 — Documentation vs code compliance audit
+
+**Status:** Not started.
+
+**Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — for each area (schema, API routes, business rules, reports, `.cursorrules` “built” claims): **Spec (ADR/doc)** | **Code (`src/`, migrations)** | **Action** (code must match doc by default).
+
+**Exit criterion:** No **Critical** doc contradictions; all **High** code gaps enumerated with ADR links. Implementation scheduling is §5 priorities 8–52, not during the audit pass.
+
+**Rule:** If spec was wrong, fix the doc first, then re-audit. Do not change ADR-017/018 to match bootstrap lag without an explicit ADR amendment.

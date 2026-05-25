@@ -57,7 +57,7 @@ Migration [`migrations/002_schema_reconciliation.sql`](../../migrations/002_sche
 
 ## Code compliance checklist (ADR-017 vs bootstrap)
 
-Track gaps in [no-developer-questions-build.md](../no-developer-questions-build.md) §5 and [DOC_COMPLIANCE_AUDIT.md](../DOC_COMPLIANCE_AUDIT.md) (Phase 2). **Do not remove spec** until code implements it.
+Track gaps in [no-developer-questions-build.md](../no-developer-questions-build.md) §6 and [DOC_COMPLIANCE_AUDIT.md](../DOC_COMPLIANCE_AUDIT.md) (§7 Phase 2). **Do not remove spec** until code implements it.
 
 | ADR-017 requirement | Expected in code | Status (2026-05-24) |
 |---------------------|------------------|---------------------|

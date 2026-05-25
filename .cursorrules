@@ -85,7 +85,8 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Shipping label behavior | `documents/shipping-label-carrier-templates.md` |
 | Design decisions (23 cross-cutting decisions) | `documents/design-decisions-implementation.md` |
 | UI color palette and CSS variables | `documents/System_Colors.md` |
-| Implementation priority order | `documents/no-developer-questions-build.md` §4 |
+| Documentation completion gate | `documents/no-developer-questions-build.md` §4 |
+| Implementation priority order | `documents/no-developer-questions-build.md` §5 |
 | Knowledge base / tutorial tab | `documents/knowledge-base-design.md` |
 | Full ADR index | `documents/adr/README.md` |
 
@@ -145,7 +146,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 
 ## 2. DATABASE SCHEMA (canonical: ADR-017 — docs are king)
 
-**ADR-017 §8 DDL is the only schema source of truth.** `src/lib/sqlite.ts` and `migrations/` must converge to match ADR-017; never change ADR-017 to match incomplete code. Open compliance gaps: `documents/database/SCHEMA_RECONCILIATION.md` and `documents/no-developer-questions-build.md` §5.
+**ADR-017 §8 DDL is the only schema source of truth.** `src/lib/sqlite.ts` and `migrations/` must converge to match ADR-017; never change ADR-017 to match incomplete code. Open compliance gaps: `documents/database/SCHEMA_RECONCILIATION.md` and `documents/no-developer-questions-build.md` §6–§7.
 
 When verifying an existing database: `PRAGMA table_info(<table>)`. Known spec-not-yet-in-bootstrap (add migrations): `orders.tracking_number`, tables `activity_log`, `customer_notes`.
 
@@ -439,7 +440,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Global API error model + structured logging
 - Migration system + seed data
 
-### Pending (priority order per `documents/no-developer-questions-build.md` §4):
+### Pending (priority order per `documents/no-developer-questions-build.md` §5; after §4 doc gate + §7 audit):
 - Priority 8: Backup system (per ADR-027)
 - Priority 9: Remaining UI — Config, Tutorial, Shipping labels
 - Priority 10: Shipping Info schema and currency mapping
