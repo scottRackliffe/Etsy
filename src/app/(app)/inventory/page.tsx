@@ -18,6 +18,7 @@ import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inventory/InventoryDetailPanel";
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
+import { ListingQualityScore, ListingQualityScoreBadge } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
@@ -33,6 +34,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import { patchInlineRecord } from "@/lib/inline-edit";
+import { computeListingScore } from "@/lib/listing-score";
 import type { InlineEditResult } from "@/components/ui/DataTable";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
 
@@ -353,9 +355,25 @@ function InventoryPageInner() {
         getDisplayValue: (item: InventoryItem) =>
           item.sale_revenue != null ? `$${item.sale_revenue.toFixed(2)}` : "—",
       },
+      {
+        key: "listing_score",
+        header: "Quality",
+        sortable: true,
+        sortKey: "listing_score",
+        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} />,
+      },
     ],
     []
   );
+
+  const inventoryTableData = useMemo(() => {
+    if (sort?.key !== "listing_score") return inventory;
+    return [...inventory].sort((a, b) => {
+      const scoreA = computeListingScore(a).score;
+      const scoreB = computeListingScore(b).score;
+      return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
+    });
+  }, [inventory, sort]);
 
   const handleInventoryInlineEdit = useCallback(
     async (
@@ -929,7 +947,7 @@ function InventoryPageInner() {
           <>
             <DataTable
               columns={inventoryColumns}
-              data={inventory}
+              data={inventoryTableData}
               selectedId={selectedItemId}
               selection={{
                 selectedIds: batch.selectedIds,
@@ -975,13 +993,16 @@ function InventoryPageInner() {
       </div>
       {canWorkListing ? (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-            <div className="text-sm">
-              <p className="font-semibold text-[var(--ui-title)]">Listing workshop</p>
-              <p className="text-xs text-[var(--ui-muted)]">
-                Draft: <strong>{selectedItem?.listing_draft_state ?? "draft"}</strong> · Ready:{" "}
-                <strong>{listingReadiness?.ready ? "yes" : "no"}</strong>
-              </p>
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+            <div className="flex flex-wrap items-start gap-4">
+              {selectedItem ? <ListingQualityScore item={selectedItem} /> : null}
+              <div className="text-sm">
+                <p className="font-semibold text-[var(--ui-title)]">Listing workshop</p>
+                <p className="text-xs text-[var(--ui-muted)]">
+                  Draft: <strong>{selectedItem?.listing_draft_state ?? "draft"}</strong> · Ready:{" "}
+                  <strong>{listingReadiness?.ready ? "yes" : "no"}</strong>
+                </p>
+              </div>
             </div>
             <button
               type="button"

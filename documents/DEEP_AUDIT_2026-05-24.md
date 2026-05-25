@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 32 (2026-05-24) — implemented:** ADR-068 listing quality score — `computeListingScore` rubric in `src/lib/listing-score.ts`; `GET /api/inventory/[id]/listing-score`; `ListingQualityScore` badge + tips in listing workshop header; sortable **Quality** column on Inventory list (client-side page sort).
+
 **Wave 31 (2026-05-24) — implemented:** ADR-062 inline editing on list views — `InlineEditableCell` + editable `DataTable` columns (select/number/toggle, pencil affordance, Enter/blur commit, Escape cancel, Tab between cells, green flash, stale/error notifications); Inventory `status` + `sale_revenue`; Sales `was_paid` toggle + `shipper` select via `PATCH` with `If-Match`.
 
 **Wave 30 (2026-05-24) — implemented:** ADR-063 recently viewed items — `etsy_recently_viewed` localStorage (max 20), `RecentlyViewedProvider` + `useTrackRecentlyViewed` on Inventory/Sales/Customers selection and deep links; clock button dropdown in AppHeader grouped by entity type with relative timestamps and Clear history.
