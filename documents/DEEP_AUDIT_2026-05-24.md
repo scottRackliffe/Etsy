@@ -339,4 +339,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 1 (2026-05-24) — implemented in branch:** `markOrderShipped` keeps `order_status` active; ship-until-paid 400 + override; order/inventory enum validation; migration `003`; deep-link `useSearchParams` on Sales/Inventory/Customers; Sales ship-anyway confirm.
 
-*Next update: After Wave 2 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 2 (2026-05-24) — implemented:** `activity_log` + `customer_notes` tables (migration 004, bootstrap), `GET /api/activity`, `GET/POST /api/customers/[id]/notes`, `DELETE /api/customer-notes/[id]`, `GET /api/uploads/[...path]`, order activity logging on create/paid/shipped.
+
+*Next update: After Wave 3 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
 import { getDb } from "@/lib/sqlite";
 
@@ -199,7 +200,19 @@ export function createOrder(input: Record<string, unknown>) {
   const result = db
     .prepare(`INSERT INTO orders(${columns.join(", ")}) VALUES(${placeholders})`)
     .run(payload);
-  return db.prepare("SELECT * FROM orders WHERE id = ?").get(result.lastInsertRowid);
+  const row = db.prepare("SELECT * FROM orders WHERE id = ?").get(result.lastInsertRowid) as Record<
+    string,
+    unknown
+  >;
+  const id = Number(row.id);
+  logActivity({
+    action: "order.created",
+    entityType: "order",
+    entityId: id,
+    entityLabel: String(row.order_number ?? `Order ${id}`),
+    source: row.source_channel === "etsy" ? "etsy_sync" : "user",
+  });
+  return row;
 }
 
 export function getOrder(id: number) {
@@ -217,7 +230,16 @@ export function markOrderPaid(id: number) {
   db.prepare(
     "UPDATE orders SET was_paid = 1, payment_status = ?, updated_at = ? WHERE id = ?"
   ).run("paid", nowIso(), id);
-  return getOrder(id);
+  const updated = getOrder(id) as Record<string, unknown> | null;
+  if (updated) {
+    logActivity({
+      action: "order.marked_paid",
+      entityType: "order",
+      entityId: id,
+      entityLabel: String(updated.order_number ?? `Order ${id}`),
+    });
+  }
+  return updated;
 }
 
 export function markOrderShipped(
@@ -279,7 +301,22 @@ export function markOrderShipped(
     ).run(shippingDate, shipper, cost, overrideFlag, now, id);
   }
 
-  return getOrder(id);
+  const shipped = getOrder(id) as Record<string, unknown> | null;
+  if (shipped) {
+    logActivity({
+      action: "order.marked_shipped",
+      entityType: "order",
+      entityId: id,
+      entityLabel: String(shipped.order_number ?? `Order ${id}`),
+      detail: {
+        shipper: shipped.shipper,
+        tracking_number: shipped.tracking_number,
+        shipping_date: shipped.shipping_date,
+        shipped_without_paid_override: shipped.shipped_without_paid_override,
+      },
+    });
+  }
+  return shipped;
 }
 
 export function patchOrder(id: number, input: Record<string, unknown>) {

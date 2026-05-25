@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { purgeOldActivityLog } from "@/lib/activity-log";
 import Database from "better-sqlite3";
 
 let dbInstance: Database.Database | null = null;
@@ -311,6 +312,29 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id INTEGER,
+      entity_label TEXT,
+      detail_json TEXT,
+      source TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS customer_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      note_text TEXT NOT NULL,
+      note_type TEXT NOT NULL DEFAULT 'general',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -349,6 +373,10 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_listing_publish_previews_inventory_id ON listing_publish_previews(inventory_id);"
   );
+  db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);");
 }
 
 export function getDb(): Database.Database {
@@ -367,6 +395,7 @@ export function getDb(): Database.Database {
     ensureInventorySchema(dbInstance);
     ensureCoreTables(dbInstance);
     schemaReady = true;
+    purgeOldActivityLog();
   }
 
   return dbInstance;

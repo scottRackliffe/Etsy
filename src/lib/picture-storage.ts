@@ -29,6 +29,10 @@ const DEFAULT_THUMBNAIL_SIZE = 200;
 const MIN_THUMBNAIL_SIZE = 100;
 const MAX_THUMBNAIL_SIZE = 400;
 
+export function getUploadsRootDir(): string {
+  return getUploadsRoot();
+}
+
 function getUploadsRoot(): string {
   return process.env.UPLOADS_PATH || path.join(process.cwd(), "uploads");
 }
