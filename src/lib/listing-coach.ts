@@ -5,15 +5,16 @@ import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidanc
 import { computeListingScore } from "@/lib/listing-score";
 import type { CoachPhotoFile } from "@/lib/listing-coach-multipart";
 
-const CONDITION_CODES = new Set([
-  "Mint/Near Mint",
-  "Excellent",
-  "Very Good",
-  "Good",
-  "Fair/As-Is",
-]);
+const CONDITION_CODES = new Set(["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"]);
 
-const PHOTO_SHOT_TYPES = ["hero", "detail", "backstamp", "scale", "imperfections", "group"] as const;
+const PHOTO_SHOT_TYPES = [
+  "hero",
+  "detail",
+  "backstamp",
+  "scale",
+  "imperfections",
+  "group",
+] as const;
 
 export type PhotoReview = {
   present_shots: string[];
@@ -87,7 +88,10 @@ function requireAiConfigOrThrow(): NonNullable<ReturnType<typeof getAiConfig>> {
       code: "AI_NOT_CONFIGURED",
       message: "Integrated AI is not configured",
       userMessage: "Listing Coach needs AI configured in Config before it can analyze photos.",
-      actions: ["Open Config → AI settings and add your API key.", "Use Test connection to verify."],
+      actions: [
+        "Open Config → AI settings and add your API key.",
+        "Use Test connection to verify.",
+      ],
       canRetry: false,
     });
   }
@@ -123,7 +127,9 @@ function clipForPrompt(content: string, maxChars = 25000): string {
 }
 
 function bufferToDataUrl(buffer: Buffer, filename: string): string {
-  const ext = filename.includes(".") ? filename.slice(filename.lastIndexOf(".")).toLowerCase() : ".jpg";
+  const ext = filename.includes(".")
+    ? filename.slice(filename.lastIndexOf(".")).toLowerCase()
+    : ".jpg";
   const mimeType = IMAGE_MIME_BY_EXT[ext] ?? "image/jpeg";
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
@@ -178,8 +184,7 @@ function normalizePhotoReview(raw: unknown): PhotoReview {
 function normalizePrice(raw: unknown): PriceSuggestion {
   const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const confidenceRaw = typeof obj.confidence === "string" ? obj.confidence.toLowerCase() : "low";
-  const confidence =
-    confidenceRaw === "high" || confidenceRaw === "medium" ? confidenceRaw : "low";
+  const confidence = confidenceRaw === "high" || confidenceRaw === "medium" ? confidenceRaw : "low";
   const toNum = (value: unknown): number | null => {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -402,9 +407,7 @@ export async function composeListingCoach(params: {
     params.price.sale_revenue != null
       ? `List price (sale_revenue): ${params.price.sale_revenue}`
       : "List price: not set yet",
-    params.price.accept_offer_note
-      ? `Accept-offer note: ${params.price.accept_offer_note}`
-      : "",
+    params.price.accept_offer_note ? `Accept-offer note: ${params.price.accept_offer_note}` : "",
     "",
     "Never invent maker/pattern not supported by photos or Google results.",
     "",

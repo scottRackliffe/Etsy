@@ -90,7 +90,9 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const photos = await parseCoachMultipartPhotos(formData);
-    const compose = parseComposePayload(parseCoachJsonField(formData, "compose", "Listing content"));
+    const compose = parseComposePayload(
+      parseCoachJsonField(formData, "compose", "Listing content")
+    );
 
     const itemNumberRaw = formData.get("item_number");
     const itemNumber = typeof itemNumberRaw === "string" ? itemNumberRaw.trim() : "";

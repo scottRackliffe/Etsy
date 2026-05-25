@@ -12,8 +12,8 @@ export function GoogleResultsPasteZone({ photos, onChange }: GoogleResultsPasteZ
   return (
     <div className="space-y-3">
       <p className="text-sm text-[var(--ui-body)]">
-        In Photos, right-click your best item photo → <strong>Search with Google</strong>. Screenshot
-        or copy the results, then paste here (⌘V).
+        In Photos, right-click your best item photo → <strong>Search with Google</strong>.
+        Screenshot or copy the results, then paste here (⌘V).
       </p>
       <PhotoPasteZone
         photos={photos}

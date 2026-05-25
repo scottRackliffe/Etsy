@@ -11,11 +11,11 @@
 
 ### Compliance remediation waves — on hold
 
-| Item | Status |
-| ---- | ------ |
-| Waves **1–35** (priorities 8–38 in build doc; compliance remediation through print queue) | **Done and pushed** on `feature/final-system-completion` |
-| Waves **36+** (customer merge, aging report, accounting export, auto-sync, etc.) | **On hold** until **MyEMS / Etsy API key is approved** and OAuth can be tested end-to-end |
-| Local mode (`ALLOW_LOCAL_WITHOUT_ETSY`) | Available for inventory, sample data, Listing Coach — **not** a substitute for Etsy sync/publish QA |
+| Item                                                                                      | Status                                                                                              |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Waves **1–35** (priorities 8–38 in build doc; compliance remediation through print queue) | **Done and pushed** on `feature/final-system-completion`                                            |
+| Waves **36+** (customer merge, aging report, accounting export, auto-sync, etc.)          | **On hold** until **MyEMS / Etsy API key is approved** and OAuth can be tested end-to-end           |
+| Local mode (`ALLOW_LOCAL_WITHOUT_ETSY`)                                                   | Available for inventory, sample data, Listing Coach — **not** a substitute for Etsy sync/publish QA |
 
 **Rule during hold:** Do not start new compliance waves that assume live Etsy API until Connect Etsy works in dev.
 
@@ -46,51 +46,51 @@ The app must turn photos + optional Google screenshot + minimal confirms into a 
 
 ## 3. v1 scope (in)
 
-| Area | v1 deliverable |
-| ---- | -------------- |
-| **Route** | `/listing-coach` full-screen wizard |
-| **Entry** | Inventory → **Add new listing with Listing Coach** (primary CTA) |
-| **Photo intake** | Clipboard paste (primary), drag-and-drop, file picker; up to 10 item + 5 condition photos |
-| **Google step** | Optional paste zone for 0–3 Visual Search screenshots + plain instructions |
-| **Analyze API** | Photo checklist, advisories, identification, price suggestion + confidence, confirm-card seeds |
-| **Price step** | Use suggested / I know / Skip |
-| **Confirm step** | Up to 5 cards with AI suggested answers |
-| **Compose API** | Final listing + hidden template columns + ADR-068 quality score hints |
-| **Complete API** | Create inventory row, store pictures (ADR-026), set `listing_draft_state=generated`, `listing_draft_source=integrated_ai` |
-| **After save** | Navigate to Inventory `?itemId=` with workshop open; operator approves when ready |
-| **Activity log** | `listing_coach_complete` (ADR-037) |
-| **Docs in prompts** | etsy-listing-template, How_to_Win_on_Etsy, Etsy_Photo_Guide |
-| **Tutorial** | Listing_Coach_Guide.md listed in Tutorial & Tips |
+| Area                | v1 deliverable                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Route**           | `/listing-coach` full-screen wizard                                                                                       |
+| **Entry**           | Inventory → **Add new listing with Listing Coach** (primary CTA)                                                          |
+| **Photo intake**    | Clipboard paste (primary), drag-and-drop, file picker; up to 10 item + 5 condition photos                                 |
+| **Google step**     | Optional paste zone for 0–3 Visual Search screenshots + plain instructions                                                |
+| **Analyze API**     | Photo checklist, advisories, identification, price suggestion + confidence, confirm-card seeds                            |
+| **Price step**      | Use suggested / I know / Skip                                                                                             |
+| **Confirm step**    | Up to 5 cards with AI suggested answers                                                                                   |
+| **Compose API**     | Final listing + hidden template columns + ADR-068 quality score hints                                                     |
+| **Complete API**    | Create inventory row, store pictures (ADR-026), set `listing_draft_state=generated`, `listing_draft_source=integrated_ai` |
+| **After save**      | Navigate to Inventory `?itemId=` with workshop open; operator approves when ready                                         |
+| **Activity log**    | `listing_coach_complete` (ADR-037)                                                                                        |
+| **Docs in prompts** | etsy-listing-template, How_to_Win_on_Etsy, Etsy_Photo_Guide                                                               |
+| **Tutorial**        | Listing_Coach_Guide.md listed in Tutorial & Tips                                                                          |
 
 ---
 
 ## 4. v1 scope (out)
 
-| Item | Reason |
-| ---- | ------ |
-| Live Etsy / eBay comp scraping | No compliant API in v1; Google screenshot is the comp source |
-| Google Lens API integration | Manual paste only; matches Trudy’s workflow |
-| Publish to Etsy from coach | Requires OAuth; separate step after approval |
-| Phone-first UX | Mac Photos paste is primary (ADR-061 can follow later) |
-| Server-side session cache for images | v1 may re-upload on analyze/compose/complete; optimize post-v1 |
-| Separate standalone app / repo | Same Next.js app per ADR-072 |
-| Coach on **existing** items (edit flow) | post-v1; v1 is **new listing only** |
-| Voice input | post-v1 |
-| Auto-run Google Visual Search | post-v1 / never without explicit user action |
+| Item                                    | Reason                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| Live Etsy / eBay comp scraping          | No compliant API in v1; Google screenshot is the comp source   |
+| Google Lens API integration             | Manual paste only; matches Trudy’s workflow                    |
+| Publish to Etsy from coach              | Requires OAuth; separate step after approval                   |
+| Phone-first UX                          | Mac Photos paste is primary (ADR-061 can follow later)         |
+| Server-side session cache for images    | v1 may re-upload on analyze/compose/complete; optimize post-v1 |
+| Separate standalone app / repo          | Same Next.js app per ADR-072                                   |
+| Coach on **existing** items (edit flow) | post-v1; v1 is **new listing only**                            |
+| Voice input                             | post-v1                                                        |
+| Auto-run Google Visual Search           | post-v1 / never without explicit user action                   |
 
 ---
 
 ## 5. Dependencies
 
-| Dependency | Required for coach? | Notes |
-| ---------- | ------------------- | ----- |
-| `ai.api_key` in Config | **Yes** | 503 `AI_NOT_CONFIGURED` with link to Config |
-| Etsy OAuth | **No** | Local mode sufficient |
-| `ALLOW_LOCAL_WITHOUT_ETSY=true` | Recommended | Dev + hold period |
-| Existing picture storage (ADR-026) | **Yes** | On complete only |
-| Existing inventory CRUD | **Yes** | On complete |
-| Listing quality score (ADR-068) | **Yes** | Show on preview step |
-| Listing approve/publish (ADR-023) | After save | Existing workshop flows |
+| Dependency                         | Required for coach? | Notes                                       |
+| ---------------------------------- | ------------------- | ------------------------------------------- |
+| `ai.api_key` in Config             | **Yes**             | 503 `AI_NOT_CONFIGURED` with link to Config |
+| Etsy OAuth                         | **No**              | Local mode sufficient                       |
+| `ALLOW_LOCAL_WITHOUT_ETSY=true`    | Recommended         | Dev + hold period                           |
+| Existing picture storage (ADR-026) | **Yes**             | On complete only                            |
+| Existing inventory CRUD            | **Yes**             | On complete                                 |
+| Listing quality score (ADR-068)    | **Yes**             | Show on preview step                        |
+| Listing approve/publish (ADR-023)  | After save          | Existing workshop flows                     |
 
 ---
 
@@ -133,11 +133,11 @@ Estimated for one focused build slice (not calendar promises).
 
 ## 7. API summary (ADR-018 §29)
 
-| Endpoint | Input | Output |
-| -------- | ----- | ------ |
-| `POST /api/listing-coach/analyze` | multipart: item_photos[], condition_photos?, google_photos? | photo_review, identification, price, confirm_cards |
-| `POST /api/listing-coach/compose` | multipart photos + confirm_answers JSON + price | listing fields + template fields + quality_score |
-| `POST /api/listing-coach/complete` | item_number, status, condition_code, compose payload, photos | `{ item_id, item_number }` |
+| Endpoint                           | Input                                                        | Output                                             |
+| ---------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- |
+| `POST /api/listing-coach/analyze`  | multipart: item_photos[], condition_photos?, google_photos?  | photo_review, identification, price, confirm_cards |
+| `POST /api/listing-coach/compose`  | multipart photos + confirm_answers JSON + price              | listing fields + template fields + quality_score   |
+| `POST /api/listing-coach/complete` | item_number, status, condition_code, compose payload, photos | `{ item_id, item_number }`                         |
 
 Full schemas: ADR-072.
 
@@ -164,23 +164,23 @@ Pass criteria: Trudy completes flow without writing a paragraph from scratch; li
 
 ## 9. After Etsy approval
 
-| Step | Action |
-| ---- | ------ |
-| 1 | Resume compliance **Wave 36+** per DEEP_AUDIT / build doc priorities |
-| 2 | QA coach → **Approve draft** → **Publish to Etsy** on a test item |
-| 3 | Resume Etsy sync, dashboard receipts, scheduled sync (ADR-057) testing |
-| 4 | post-v1: coach for existing items; image session cache; optional comp API if compliant |
+| Step | Action                                                                                 |
+| ---- | -------------------------------------------------------------------------------------- |
+| 1    | Resume compliance **Wave 36+** per DEEP_AUDIT / build doc priorities                   |
+| 2    | QA coach → **Approve draft** → **Publish to Etsy** on a test item                      |
+| 3    | Resume Etsy sync, dashboard receipts, scheduled sync (ADR-057) testing                 |
+| 4    | post-v1: coach for existing items; image session cache; optional comp API if compliant |
 
 ---
 
 ## 10. Open questions (defaults chosen)
 
-| Question | v1 default |
-| -------- | ---------- |
-| Item number required at start or end? | **End** (after preview) — Trudy knows SKU when item is identified |
-| Default status on save? | **`In stock`** (selectable: Draft) |
-| Default condition if AI unsure? | **`Good`** with visible warning to confirm |
-| Re-use one-shot Generate on same item? | Yes — workshop modes unchanged after coach save |
+| Question                               | v1 default                                                        |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| Item number required at start or end?  | **End** (after preview) — Trudy knows SKU when item is identified |
+| Default status on save?                | **`In stock`** (selectable: Draft)                                |
+| Default condition if AI unsure?        | **`Good`** with visible warning to confirm                        |
+| Re-use one-shot Generate on same item? | Yes — workshop modes unchanged after coach save                   |
 
 ---
 
@@ -206,28 +206,28 @@ See [listing-authoring-task-cards.md](listing-authoring-task-cards.md) §4.
 
 ## 12. Sign-off
 
-| Gate | Owner | Status |
-| ---- | ----- | ------ |
-| ADR-072 accepted | Docs | Done |
-| User guide (Listing_Coach_Guide.md) | Docs | Done |
-| This scope doc | Docs | Done |
-| Implementation LC-1–LC-4 | Dev | Pending |
-| Trudy Mac acceptance test | Trudy | Pending |
-| Etsy publish path QA | Dev + Trudy | Blocked on API approval |
+| Gate                                | Owner       | Status                  |
+| ----------------------------------- | ----------- | ----------------------- |
+| ADR-072 accepted                    | Docs        | Done                    |
+| User guide (Listing_Coach_Guide.md) | Docs        | Done                    |
+| This scope doc                      | Docs        | Done                    |
+| Implementation LC-1–LC-4            | Dev         | Pending                 |
+| Trudy Mac acceptance test           | Trudy       | Pending                 |
+| Etsy publish path QA                | Dev + Trudy | Blocked on API approval |
 
 ---
 
 ## 13. Doc completion checklist (2026-05-24)
 
-| Document | Content added |
-| -------- | ------------- |
-| **ADR-072** | Validation, error codes, AI prompt contract, UI copy, focus mode, clipboard behavior |
-| **ADR-018 Appendix B29** | Full multipart + JSON schemas for analyze/compose/complete |
-| **ADR-037** | `listing.coach_complete` action |
-| **ADR-021 Notes** | Cross-ref to coach validation |
-| **ADR-034 §4** | AI required for coach; Config helper text |
-| **knowledge-base-topics-catalog** | D21–D25 Listing Coach topics |
-| **DEEP_AUDIT** | Wave LC planned entry |
+| Document                          | Content added                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| **ADR-072**                       | Validation, error codes, AI prompt contract, UI copy, focus mode, clipboard behavior |
+| **ADR-018 Appendix B29**          | Full multipart + JSON schemas for analyze/compose/complete                           |
+| **ADR-037**                       | `listing.coach_complete` action                                                      |
+| **ADR-021 Notes**                 | Cross-ref to coach validation                                                        |
+| **ADR-034 §4**                    | AI required for coach; Config helper text                                            |
+| **knowledge-base-topics-catalog** | D21–D25 Listing Coach topics                                                         |
+| **DEEP_AUDIT**                    | Wave LC planned entry                                                                |
 
 ---
 
@@ -254,12 +254,12 @@ welcome → photos → google → analyzing → review → price → confirms �
 
 ## 16. Sign-off (updated)
 
-| Gate | Owner | Status |
-| ---- | ----- | ------ |
-| ADR-072 + Appendix B29 | Docs | **Done** (2026-05-24 pass) |
-| Validation / errors / prompts / UI copy | Docs | **Done** |
-| User guide (Listing_Coach_Guide.md) | Docs | Done |
-| Knowledge base topics D21–D25 | Docs | Done |
-| Implementation LC-1–LC-4 | Dev | Pending |
-| Trudy Mac acceptance test | Trudy | Pending |
-| Etsy publish path QA | Dev + Trudy | Blocked on API approval |
+| Gate                                    | Owner       | Status                     |
+| --------------------------------------- | ----------- | -------------------------- |
+| ADR-072 + Appendix B29                  | Docs        | **Done** (2026-05-24 pass) |
+| Validation / errors / prompts / UI copy | Docs        | **Done**                   |
+| User guide (Listing_Coach_Guide.md)     | Docs        | Done                       |
+| Knowledge base topics D21–D25           | Docs        | Done                       |
+| Implementation LC-1–LC-4                | Dev         | Pending                    |
+| Trudy Mac acceptance test               | Trudy       | Pending                    |
+| Etsy publish path QA                    | Dev + Trudy | Blocked on API approval    |

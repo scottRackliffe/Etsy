@@ -33,23 +33,23 @@ Marketing quality must follow canonical guidance: [etsy-listing-template-and-req
 
 **Listing Coach** is part of **this application**, launched when the operator **adds a new listing** — not a separate product.
 
-| Entry point | Behavior |
-| ----------- | -------- |
-| **Inventory** tab → **Add new listing with Listing Coach** (primary CTA for new items) | Navigates to full-screen coach flow |
-| **Inventory** tab → quick **Add item** (item number only) | Unchanged; coach optional later from listing workshop |
-| Route | `/listing-coach` (App Router under `(app)` layout; may hide tab chrome — see ADR-024) |
+| Entry point                                                                            | Behavior                                                                              |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Inventory** tab → **Add new listing with Listing Coach** (primary CTA for new items) | Navigates to full-screen coach flow                                                   |
+| **Inventory** tab → quick **Add item** (item number only)                              | Unchanged; coach optional later from listing workshop                                 |
+| Route                                                                                  | `/listing-coach` (App Router under `(app)` layout; may hide tab chrome — see ADR-024) |
 
 User-facing name: **Listing Coach** (never “ADR-072” in UI).
 
 ### Operator constraints (v1)
 
-| Constraint | Spec |
-| ---------- | ---- |
-| Platform | **macOS** — Photos app copy/paste is the primary photo intake |
-| Etsy OAuth | **Not required** for coach analyze/compose/save (same as local inventory APIs per ADR-007 local-mode policy) |
-| Integrated AI | **Required** for analyze and compose steps (`ai.api_key` in Config per ADR-034) |
+| Constraint           | Spec                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform             | **macOS** — Photos app copy/paste is the primary photo intake                                                                             |
+| Etsy OAuth           | **Not required** for coach analyze/compose/save (same as local inventory APIs per ADR-007 local-mode policy)                              |
+| Integrated AI        | **Required** for analyze and compose steps (`ai.api_key` in Config per ADR-034)                                                           |
 | Google Visual Search | **Manual external step** — operator runs Search with Google in Photos; **pastes screenshot** into coach. No Google API integration in v1. |
-| Live sold comps | **Not scraped** — price guidance uses AI reading of pasted Google results + vision; not automated Etsy/eBay comp APIs |
+| Live sold comps      | **Not scraped** — price guidance uses AI reading of pasted Google results + vision; not automated Etsy/eBay comp APIs                     |
 
 ### Wizard steps (exact order)
 
@@ -132,21 +132,21 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
 
 The compose step **must** populate these inventory columns from confirm answers + AI (operator does not edit directly in coach):
 
-| Column | Source |
-| ------ | ------ |
-| `listing_title_strategy` | AI from confirms + guidance |
-| `listing_product_story` | AI from confirms |
-| `listing_condition_clarity` | AI from confirms + condition photos |
-| `listing_attributes` | AI from confirms + Google/vision |
-| `listing_pricing_shipping_notes` | Price step + optional accept-offer note |
-| `listing_quality_checklist` | AI self-check against Photo Guide + Keywords rules |
-| `listing_title` | AI final |
-| `listing_description` | AI final |
-| `listing_tags` | AI final (exactly up to 13, Keywords 101 rules) |
-| `listing_category_path` | AI optional |
-| `sale_revenue` | Price step |
-| `condition_code` | Suggested in analyze; operator confirm in step 5; may default `Good` if unset with warning |
-| `description` | Item number companion short description |
+| Column                           | Source                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `listing_title_strategy`         | AI from confirms + guidance                                                                |
+| `listing_product_story`          | AI from confirms                                                                           |
+| `listing_condition_clarity`      | AI from confirms + condition photos                                                        |
+| `listing_attributes`             | AI from confirms + Google/vision                                                           |
+| `listing_pricing_shipping_notes` | Price step + optional accept-offer note                                                    |
+| `listing_quality_checklist`      | AI self-check against Photo Guide + Keywords rules                                         |
+| `listing_title`                  | AI final                                                                                   |
+| `listing_description`            | AI final                                                                                   |
+| `listing_tags`                   | AI final (exactly up to 13, Keywords 101 rules)                                            |
+| `listing_category_path`          | AI optional                                                                                |
+| `sale_revenue`                   | Price step                                                                                 |
+| `condition_code`                 | Suggested in analyze; operator confirm in step 5; may default `Good` if unset with warning |
+| `description`                    | Item number companion short description                                                    |
 
 ### AI guidance inputs (mandatory on every analyze/compose call)
 
@@ -169,11 +169,11 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
 
 **§29. Listing Coach (ADR-072)**
 
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| POST | `/api/listing-coach/analyze` | Photo + optional Google images → review, identification, price suggestion, confirm question seeds |
-| POST | `/api/listing-coach/compose` | Confirm answers + images → full listing + template fields |
-| POST | `/api/listing-coach/complete` | Create inventory, store pictures, persist all fields |
+| Method | Path                          | Purpose                                                                                           |
+| ------ | ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| POST   | `/api/listing-coach/analyze`  | Photo + optional Google images → review, identification, price suggestion, confirm question seeds |
+| POST   | `/api/listing-coach/compose`  | Confirm answers + images → full listing + template fields                                         |
+| POST   | `/api/listing-coach/complete` | Create inventory, store pictures, persist all fields                                              |
 
 **Request — analyze**
 
@@ -206,9 +206,18 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
   "confirm_cards": [
     { "id": "what_is_it", "question": "What is this item?", "suggested_answer": "..." },
     { "id": "included", "question": "What's included?", "suggested_answer": "..." },
-    { "id": "condition", "question": "What condition issues should buyers know?", "suggested_answer": "..." },
+    {
+      "id": "condition",
+      "question": "What condition issues should buyers know?",
+      "suggested_answer": "..."
+    },
     { "id": "buyer", "question": "Who is this for?", "suggested_answer": "..." },
-    { "id": "special", "question": "Anything special to highlight?", "suggested_answer": "", "optional": true }
+    {
+      "id": "special",
+      "question": "Anything special to highlight?",
+      "suggested_answer": "",
+      "optional": true
+    }
   ]
 }
 ```
@@ -250,7 +259,9 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
   "status": "In stock",
   "condition_code": "Excellent",
   "sale_revenue": 65,
-  "compose": { /* full compose response fields */ }
+  "compose": {
+    /* full compose response fields */
+  }
 }
 ```
 
@@ -273,7 +284,7 @@ Errors: standard envelope; 400 validation; 503 `AI_NOT_CONFIGURED`; 429 AI rate 
 
 - Page: `src/app/(app)/listing-coach/page.tsx`
 - Components under `src/components/listing-coach/`:
-  - `PhotoPasteZone` — clipboard paste handler (`paste` event → `clipboardData.items` image/*)
+  - `PhotoPasteZone` — clipboard paste handler (`paste` event → `clipboardData.items` image/\*)
   - `GoogleResultsPasteZone`
   - `ConfirmCard`
   - `ListingPreview`
@@ -282,11 +293,11 @@ Errors: standard envelope; 400 validation; 503 `AI_NOT_CONFIGURED`; 429 AI rate 
 
 ### Relationship to ADR-023 modes
 
-| ADR-023 mode | Relationship |
-| ------------ | ------------ |
-| Manual | Still available in listing workshop after coach save |
+| ADR-023 mode             | Relationship                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| Manual                   | Still available in listing workshop after coach save                             |
 | Integrated AI (one-shot) | Still available on existing items; coach is **recommended** for **new** listings |
-| Portable import | Unchanged |
+| Portable import          | Unchanged                                                                        |
 
 Listing Coach is a **fourth operator-facing path** specialized for new listings; it uses **integrated AI** internally and sets `listing_draft_source = integrated_ai`.
 
@@ -307,46 +318,46 @@ No new outstanding type. Existing rules apply after save (e.g. missing `sale_rev
 
 **Analyze (`POST /api/listing-coach/analyze`)**
 
-| Rule | Error |
-| ---- | ----- |
-| ≥1 `item_photos[]` | 400 `fields.item_photos` |
-| ≤10 item photos, ≤5 condition, ≤3 google | 400 `BATCH_TOO_LARGE` or field max |
-| Each file passes ADR-026 (type, size, dimensions) | 400 per file |
-| AI configured | 503 `AI_NOT_CONFIGURED` |
+| Rule                                              | Error                              |
+| ------------------------------------------------- | ---------------------------------- |
+| ≥1 `item_photos[]`                                | 400 `fields.item_photos`           |
+| ≤10 item photos, ≤5 condition, ≤3 google          | 400 `BATCH_TOO_LARGE` or field max |
+| Each file passes ADR-026 (type, size, dimensions) | 400 per file                       |
+| AI configured                                     | 503 `AI_NOT_CONFIGURED`            |
 
 **Compose (`POST /api/listing-coach/compose`)**
 
-| Rule | Error |
-| ---- | ----- |
-| Same photo rules as analyze | 400 |
-| `confirm_answers` non-empty array; required card ids present (`what_is_it`, `included`, `condition`, `buyer`); `special` optional | 400 `fields.confirm_answers` |
-| Each answer ≤ 500 chars | 400 field length |
-| `sale_revenue` if provided: number > 0 | 400 `fields.sale_revenue` |
-| AI returns valid title, description, ≥1 tag | 500 `LISTING_COMPOSE_FAILED` (retry once client-side) |
+| Rule                                                                                                                              | Error                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Same photo rules as analyze                                                                                                       | 400                                                   |
+| `confirm_answers` non-empty array; required card ids present (`what_is_it`, `included`, `condition`, `buyer`); `special` optional | 400 `fields.confirm_answers`                          |
+| Each answer ≤ 500 chars                                                                                                           | 400 field length                                      |
+| `sale_revenue` if provided: number > 0                                                                                            | 400 `fields.sale_revenue`                             |
+| AI returns valid title, description, ≥1 tag                                                                                       | 500 `LISTING_COMPOSE_FAILED` (retry once client-side) |
 
 **Complete (`POST /api/listing-coach/complete`)**
 
-| Rule | Error |
-| ---- | ----- |
-| `item_number` non-empty, unique (ADR-021 inventory create) | 400 / 409 duplicate |
-| `compose` object includes `listing_title`, `listing_description`, `listing_tags` | 400 |
-| `condition_code` one of ADR-002 enum if set | 400 |
-| `status` one of inventory status enum; default `In stock` | 400 |
-| Photos re-uploaded (v1) same as analyze minimum | 400 |
-| On success: `listing_draft_state` = `generated`, `listing_draft_source` = `integrated_ai` | — |
+| Rule                                                                                      | Error               |
+| ----------------------------------------------------------------------------------------- | ------------------- |
+| `item_number` non-empty, unique (ADR-021 inventory create)                                | 400 / 409 duplicate |
+| `compose` object includes `listing_title`, `listing_description`, `listing_tags`          | 400                 |
+| `condition_code` one of ADR-002 enum if set                                               | 400                 |
+| `status` one of inventory status enum; default `In stock`                                 | 400                 |
+| Photos re-uploaded (v1) same as analyze minimum                                           | 400                 |
+| On success: `listing_draft_state` = `generated`, `listing_draft_source` = `integrated_ai` | —                   |
 
 Post-save listing content must pass same ADR-021 / ADR-068 checks as integrated one-shot generation before **Approve** (operator step).
 
 ### Error codes (API envelope)
 
-| Code | HTTP | When | User message (example) |
-| ---- | ---- | ---- | ---------------------- |
-| `AI_NOT_CONFIGURED` | 503 | No `ai.api_key` | "Listing Coach needs AI set up in Config first." |
-| `LISTING_ANALYZE_FAILED` | 500 | AI/vision error on analyze | "We couldn't review your photos. Try again." |
-| `LISTING_COMPOSE_FAILED` | 500 | AI/parse error on compose | "We couldn't write the listing. Try again." |
-| `VALIDATION_ERROR` | 400 | Missing photos, item number, etc. | Field-level `fields` object |
-| `DUPLICATE_ITEM_NUMBER` | 409 | `item_number` exists | "That item number is already in use." |
-| `BATCH_TOO_LARGE` | 400 | Too many images in one request | "Too many photos (max 10 item, 5 condition, 3 Google)." |
+| Code                     | HTTP | When                              | User message (example)                                  |
+| ------------------------ | ---- | --------------------------------- | ------------------------------------------------------- |
+| `AI_NOT_CONFIGURED`      | 503  | No `ai.api_key`                   | "Listing Coach needs AI set up in Config first."        |
+| `LISTING_ANALYZE_FAILED` | 500  | AI/vision error on analyze        | "We couldn't review your photos. Try again."            |
+| `LISTING_COMPOSE_FAILED` | 500  | AI/parse error on compose         | "We couldn't write the listing. Try again."             |
+| `VALIDATION_ERROR`       | 400  | Missing photos, item number, etc. | Field-level `fields` object                             |
+| `DUPLICATE_ITEM_NUMBER`  | 409  | `item_number` exists              | "That item number is already in use."                   |
+| `BATCH_TOO_LARGE`        | 400  | Too many images in one request    | "Too many photos (max 10 item, 5 condition, 3 Google)." |
 
 Actions array must include: link to Config for 503; retry for 500; fix field for 400.
 
@@ -383,21 +394,21 @@ Two calls — **analyze** (vision + guidance) and **compose** (vision + guidance
 
 ### UI copy (user-facing — ADR-071 tone)
 
-| Step | Heading | Body / hint |
-| ---- | ------- | ----------- |
-| 0 Welcome | Listing Coach | Paste your photos, add Google results if you have them, confirm a few answers — we'll write the listing. You don't need to write marketing copy. |
-| 1 Photos | Item photos | Click here, then press ⌘V to paste from Photos. First photo becomes the main image. |
-| 1 Photos (alt) | | Or drag photos here, or choose files. |
-| 2 Google | Google search results (optional) | In Photos, right-click your best photo → Search with Google. Screenshot the results and paste here (⌘V). |
-| 2 Google skip | | Skip — I didn't use Google |
-| 3 Review | What we found | Plain list: photo tips, identification, suggested price. |
-| 3 Review CTA | Looks right | Continue |
-| 4 Price | Suggested price | Show `$low – $high` or single value + rationale. Buttons: **Use this price** · **I know the price** · **Skip for now** |
-| 5 Confirms | Quick checks | One card at a time or stacked; **Yes, use this** · **Edit** |
-| 6 Preview | Your listing | Read-only title, description, tags, quality score. **Save to inventory** · **Back** · **Start over** |
-| 7 Save | Item number | Enter your item number (e.g. TCT-2026-042). Optional short description. **Save** |
-| Error AI | AI not set up | Go to Config → AI settings, add your key, and test connection. |
-| Success | Saved | Opening your new item in Inventory. Review and approve when ready. |
+| Step           | Heading                          | Body / hint                                                                                                                                      |
+| -------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Welcome      | Listing Coach                    | Paste your photos, add Google results if you have them, confirm a few answers — we'll write the listing. You don't need to write marketing copy. |
+| 1 Photos       | Item photos                      | Click here, then press ⌘V to paste from Photos. First photo becomes the main image.                                                              |
+| 1 Photos (alt) |                                  | Or drag photos here, or choose files.                                                                                                            |
+| 2 Google       | Google search results (optional) | In Photos, right-click your best photo → Search with Google. Screenshot the results and paste here (⌘V).                                         |
+| 2 Google skip  |                                  | Skip — I didn't use Google                                                                                                                       |
+| 3 Review       | What we found                    | Plain list: photo tips, identification, suggested price.                                                                                         |
+| 3 Review CTA   | Looks right                      | Continue                                                                                                                                         |
+| 4 Price        | Suggested price                  | Show `$low – $high` or single value + rationale. Buttons: **Use this price** · **I know the price** · **Skip for now**                           |
+| 5 Confirms     | Quick checks                     | One card at a time or stacked; **Yes, use this** · **Edit**                                                                                      |
+| 6 Preview      | Your listing                     | Read-only title, description, tags, quality score. **Save to inventory** · **Back** · **Start over**                                             |
+| 7 Save         | Item number                      | Enter your item number (e.g. TCT-2026-042). Optional short description. **Save**                                                                 |
+| Error AI       | AI not set up                    | Go to Config → AI settings, add your key, and test connection.                                                                                   |
+| Success        | Saved                            | Opening your new item in Inventory. Review and approve when ready.                                                                               |
 
 Button variants: primary = accent; secondary = neutral; destructive = Start over only (ConfirmDialog ADR-032).
 

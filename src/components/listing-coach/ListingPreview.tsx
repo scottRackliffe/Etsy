@@ -54,7 +54,7 @@ export function ListingPreview({ compose }: ListingPreviewProps) {
             </span>
           ))}
         </div>
-        </div>
+      </div>
 
       {compose.listing_category_path ? (
         <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">

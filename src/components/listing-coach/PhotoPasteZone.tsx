@@ -2,7 +2,11 @@
 
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/Button";
-import { createCoachPhoto, revokeCoachPhotos, type CoachPhoto } from "@/components/listing-coach/types";
+import {
+  createCoachPhoto,
+  revokeCoachPhotos,
+  type CoachPhoto,
+} from "@/components/listing-coach/types";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const MAX_BYTES = 15 * 1024 * 1024;

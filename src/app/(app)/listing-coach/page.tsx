@@ -466,7 +466,8 @@ export default function ListingCoachPage() {
 
       {step === "price" && analyzeResult ? (
         <div className="space-y-4">
-          {analyzeResult.price.confidence !== "low" && suggestedPriceValue(analyzeResult.price) != null ? (
+          {analyzeResult.price.confidence !== "low" &&
+          suggestedPriceValue(analyzeResult.price) != null ? (
             <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
               <p className="text-sm text-[var(--ui-body)]">
                 Suggested list price:{" "}

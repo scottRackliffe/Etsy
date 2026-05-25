@@ -1116,10 +1116,10 @@ List/detail `GET /api/customers` responses include `order_count` (ADR-066).
 
 Guided new-listing flow: analyze pasted photos (+ optional Google Visual Search screenshots), compose listing from confirm answers, create inventory row with pictures. Requires integrated AI (Config); Etsy OAuth not required when local mode is active. Full request/response shapes: **ADR-072**.
 
-| Method | Path | Auth | Purpose |
-| ------ | ---- | ---- | ------- |
-| POST | `/api/listing-coach/analyze` | App | Photo review, identification, price suggestion, confirm-card seeds |
-| POST | `/api/listing-coach/compose` | App | Final listing + template fields from confirms + images |
-| POST | `/api/listing-coach/complete` | App | Create inventory, store pictures, persist listing draft |
+| Method | Path                          | Auth | Purpose                                                            |
+| ------ | ----------------------------- | ---- | ------------------------------------------------------------------ |
+| POST   | `/api/listing-coach/analyze`  | App  | Photo review, identification, price suggestion, confirm-card seeds |
+| POST   | `/api/listing-coach/compose`  | App  | Final listing + template fields from confirms + images             |
+| POST   | `/api/listing-coach/complete` | App  | Create inventory, store pictures, persist listing draft            |
 
 All three accept `multipart/form-data` with `item_photos[]`, optional `condition_photos[]`, optional `google_photos[]`. Image validation per ADR-026. Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).

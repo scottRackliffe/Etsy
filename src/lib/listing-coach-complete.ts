@@ -7,13 +7,7 @@ import { generateThumbnail, processAndStorePicture } from "@/lib/picture-storage
 import { createInventory } from "@/lib/records";
 import { getDb } from "@/lib/sqlite";
 
-const CONDITION_CODES = new Set([
-  "Mint/Near Mint",
-  "Excellent",
-  "Very Good",
-  "Good",
-  "Fair/As-Is",
-]);
+const CONDITION_CODES = new Set(["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"]);
 
 export type CompleteListingCoachInput = {
   itemNumber: string;
@@ -51,9 +45,7 @@ export async function completeListingCoach(
   }
 
   const conditionCode =
-    input.conditionCode && CONDITION_CODES.has(input.conditionCode)
-      ? input.conditionCode
-      : "Good";
+    input.conditionCode && CONDITION_CODES.has(input.conditionCode) ? input.conditionCode : "Good";
 
   let payload: Record<string, unknown>;
   try {
@@ -121,7 +113,9 @@ export async function completeListingCoach(
     const photo = input.itemPhotos[slot - 1];
     if (!photo) continue;
     const result = await processAndStorePicture(itemId, slot, photo.buffer, "main");
-    db.prepare(`UPDATE inventory SET picture_${slot} = @path, updated_at = @updated_at WHERE id = @id`).run({
+    db.prepare(
+      `UPDATE inventory SET picture_${slot} = @path, updated_at = @updated_at WHERE id = @id`
+    ).run({
       path: result.relativePath,
       updated_at: now,
       id: itemId,
