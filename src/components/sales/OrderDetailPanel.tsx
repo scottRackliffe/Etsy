@@ -10,6 +10,7 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -257,7 +258,7 @@ export function OrderDetailPanel({
   };
 
   const saveChanges = async () => {
-    if (!orderId || !draft) return;
+    if (!orderId || !order || !draft) return;
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
@@ -280,11 +281,22 @@ export function OrderDetailPanel({
       };
       const response = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: patchHeaders(order.updated_at),
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        if (response.status === 409 && isStaleConflictPayload(data)) {
+          await loadOrder(orderId);
+          onError(
+            "Record changed elsewhere",
+            "This order was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
+            data
+          );
+          return;
+        }
+        throw data;
+      }
       if (data.order) {
         setOrder(data.order);
         setDraft(orderToDraft(data.order));

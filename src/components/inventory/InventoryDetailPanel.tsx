@@ -9,6 +9,7 @@ import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -86,6 +87,7 @@ type InventoryDetailPanelProps = {
   onItemUpdated: (item: InventoryItemDetail) => void;
   onError: (title: string, message: string, err?: unknown) => void;
   onSuccess: (title: string, message: string) => void;
+  onReloadItem?: () => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
 };
 
@@ -95,6 +97,7 @@ export function InventoryDetailPanel({
   onItemUpdated,
   onError,
   onSuccess,
+  onReloadItem,
   onDirtyChange,
 }: InventoryDetailPanelProps) {
   const [draft, setDraft] = useState<DraftFields | null>(null);
@@ -198,13 +201,24 @@ export function InventoryDetailPanel({
       };
       const response = await fetch(`/api/inventory/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: patchHeaders(item.updated_at),
         body: JSON.stringify(body),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
         item?: InventoryItemDetail;
       };
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        if (response.status === 409 && isStaleConflictPayload(data)) {
+          if (onReloadItem) await onReloadItem();
+          onError(
+            "Record changed elsewhere",
+            "This item was modified in another tab. We reloaded the latest version — re-apply your changes and save again.",
+            data
+          );
+          return;
+        }
+        throw data;
+      }
       if (data.item) {
         onItemUpdated(data.item);
         setDraft(itemToDraft(data.item));

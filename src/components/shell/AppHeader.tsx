@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { NotificationCenter } from "@/components/shell/NotificationCenter";
 
 export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { shops, iconConfig, connect, logout } = useApp();
@@ -38,6 +39,7 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <NotificationCenter />
           {onOpenSearch ? (
             <button
               type="button"

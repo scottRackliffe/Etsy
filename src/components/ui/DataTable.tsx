@@ -114,12 +114,22 @@ export function DataTable<T extends { id?: number | string }>({
       onKeyDown={handleTableKeyDown}
       role={keyboardNav ? "grid" : undefined}
     >
-      <table className="w-full text-sm">
+      <table className="w-full text-sm" role="table">
         <thead>
           <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)]">
             {columns.map((col) => (
               <th
                 key={col.key}
+                scope="col"
+                aria-sort={
+                  col.sortable && sort?.key === (col.sortKey ?? col.key)
+                    ? sort.dir === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : col.sortable
+                      ? "none"
+                      : undefined
+                }
                 className={`px-3 py-2 text-left font-medium text-[var(--ui-muted)] ${col.className ?? ""} ${
                   col.sortable ? "cursor-pointer select-none hover:text-[var(--ui-title)]" : ""
                 }`}

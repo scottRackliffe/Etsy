@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export function Modal({
   open,
@@ -16,15 +17,10 @@ export function Modal({
   maxWidth?: string;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useFocusTrap(dialogRef, open, onClose);
 
   if (!open) return null;
 
@@ -37,13 +33,21 @@ export function Modal({
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
         className={`${maxWidth} w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 shadow-2xl`}
       >
         {title && (
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[var(--ui-title)]">{title}</h3>
+            <h3 id={titleId} className="text-lg font-semibold text-[var(--ui-title)]">
+              {title}
+            </h3>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close dialog"
               className="text-[var(--ui-muted)] hover:text-[var(--ui-title)]"
             >
               &times;
