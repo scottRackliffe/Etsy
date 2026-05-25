@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -66,6 +67,7 @@ function InventoryPageInner() {
   const [detailDirty, setDetailDirty] = useState(false);
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
+  const [workshopOpen, setWorkshopOpen] = useState(false);
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
   const filteredInventory = useMemo(() => {
@@ -555,9 +557,9 @@ function InventoryPageInner() {
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Listing authoring workshop</h3>
+          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Inventory</h3>
           <p className="text-sm text-[var(--ui-muted)]">
-            Manual guided form, integrated AI generation, and hybrid import/export.
+            Item details, pictures, and listing workshop for the selected record.
           </p>
         </div>
       </div>
@@ -685,13 +687,30 @@ function InventoryPageInner() {
       </div>
       {canWorkListing ? (
         <div className="space-y-4">
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm">
-            <p>
-              Draft state: <strong>{selectedItem?.listing_draft_state ?? "draft"}</strong> |
-              Source: <strong>{selectedItem?.listing_draft_source ?? "manual"}</strong> |
-              Ready: <strong>{listingReadiness?.ready ? "yes" : "no"}</strong>
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+            <div className="text-sm">
+              <p className="font-semibold text-[var(--ui-title)]">Listing workshop</p>
+              <p className="text-xs text-[var(--ui-muted)]">
+                Draft: <strong>{selectedItem?.listing_draft_state ?? "draft"}</strong> · Ready:{" "}
+                <strong>{listingReadiness?.ready ? "yes" : "no"}</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWorkshopOpen((open) => !open)}
+              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+            >
+              {workshopOpen ? "Collapse workshop" : "Open listing workshop"}
+            </button>
           </div>
+
+          {workshopOpen ? (
+          <div className="space-y-4">
+          <p className="text-xs text-[var(--ui-muted)]">
+            <Link href="/config" className="text-[var(--ui-accent)] hover:underline">
+              Configure AI and publish settings →
+            </Link>
+          </p>
 
           <div className="flex flex-wrap gap-2">
             {(["manual", "integrated_ai", "portable_import"] as const).map((mode) => (
@@ -828,40 +847,8 @@ function InventoryPageInner() {
             )}
           </div>
 
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <h4 className="mb-2 text-sm font-semibold">Integrated AI settings</h4>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <input value={aiConfig?.model ?? ""} onChange={(e) => setAiConfig((c) => ({ provider: c?.provider ?? "openai", model: e.target.value, baseUrl: c?.baseUrl ?? null, timeoutMs: c?.timeoutMs ?? 30000, retryCount: c?.retryCount ?? 1, tokenBudget: c?.tokenBudget ?? 2000, apiKeyConfigured: c?.apiKeyConfigured ?? false }))} placeholder="Model" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={aiApiKeyDraft} onChange={(e) => setAiApiKeyDraft(e.target.value)} placeholder="New API key (leave blank to keep current)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={aiConfig?.baseUrl ?? ""} onChange={(e) => setAiConfig((c) => ({ provider: c?.provider ?? "openai", model: c?.model ?? "gpt-4.1-mini", baseUrl: e.target.value, timeoutMs: c?.timeoutMs ?? 30000, retryCount: c?.retryCount ?? 1, tokenBudget: c?.tokenBudget ?? 2000, apiKeyConfigured: c?.apiKeyConfigured ?? false }))} placeholder="Base URL (optional)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={String(aiConfig?.timeoutMs ?? 30000)} onChange={(e) => setAiConfig((c) => ({ provider: c?.provider ?? "openai", model: c?.model ?? "gpt-4.1-mini", baseUrl: c?.baseUrl ?? null, timeoutMs: Number(e.target.value) || 30000, retryCount: c?.retryCount ?? 1, tokenBudget: c?.tokenBudget ?? 2000, apiKeyConfigured: c?.apiKeyConfigured ?? false }))} placeholder="Timeout ms" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={saveAiSettings} disabled={aiSettingsSaving} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Save AI settings</button>
-              <button type="button" onClick={testAiSettings} disabled={aiSettingsSaving} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">Test connection</button>
-            </div>
           </div>
-
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <h4 className="mb-2 text-sm font-semibold">Etsy publish defaults</h4>
-            <p className="mb-3 text-xs text-[var(--ui-muted)]">Required by Etsy publish flow. Images upload one-by-one with retry and optional downscaling/compression.</p>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <input value={publishConfig.taxonomyId} onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))} placeholder="taxonomy_id" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.shippingProfileId} onChange={(e) => setPublishConfig((c) => ({ ...c, shippingProfileId: e.target.value }))} placeholder="shipping_profile_id" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.readinessStateId} onChange={(e) => setPublishConfig((c) => ({ ...c, readinessStateId: e.target.value }))} placeholder="readiness_state_id" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.imageIds} onChange={(e) => setPublishConfig((c) => ({ ...c, imageIds: e.target.value }))} placeholder="image_ids (comma-separated)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.whoMade} onChange={(e) => setPublishConfig((c) => ({ ...c, whoMade: e.target.value }))} placeholder="who_made" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.whenMade} onChange={(e) => setPublishConfig((c) => ({ ...c, whenMade: e.target.value }))} placeholder="when_made" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.imageMaxDimension} onChange={(e) => setPublishConfig((c) => ({ ...c, imageMaxDimension: e.target.value }))} placeholder="image_max_dimension (default 2000)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.imageTargetDpi} onChange={(e) => setPublishConfig((c) => ({ ...c, imageTargetDpi: e.target.value }))} placeholder="image_target_dpi (default 300)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.imageJpegQuality} onChange={(e) => setPublishConfig((c) => ({ ...c, imageJpegQuality: e.target.value }))} placeholder="image_jpeg_quality (default 82)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.imageUploadAttempts} onChange={(e) => setPublishConfig((c) => ({ ...c, imageUploadAttempts: e.target.value }))} placeholder="image_upload_attempts (default 3)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-              <input value={publishConfig.allowPartialImageUpload} onChange={(e) => setPublishConfig((c) => ({ ...c, allowPartialImageUpload: e.target.value }))} placeholder="allow_partial_image_upload (true/false)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-            </div>
-            <div className="mt-3">
-              <button type="button" onClick={savePublishSettings} disabled={aiSettingsSaving} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">Save publish defaults</button>
-            </div>
-          </div>
+          ) : null}
         </div>
       ) : (
         <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>

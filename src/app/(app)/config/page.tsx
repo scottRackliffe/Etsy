@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
 import type { ApiErrorShape, AiConfig } from "@/types";
 
 type EtsyConnectionInfo = {
@@ -641,6 +642,12 @@ export default function ConfigPage() {
             </button>
           </div>
         </div>
+      </div>
+      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ShippingInfoSection
+          onError={(title, message, err) => setApiError(title, message, err)}
+          onSuccess={(title, message) => setError({ title, message, actions: ["Settings saved."] })}
+        />
       </div>
       <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -93,6 +94,8 @@ export function OrderDetailPanel({
   const [lineItemQty, setLineItemQty] = useState("1");
   const [removeLineTarget, setRemoveLineTarget] = useState<OrderItem | null>(null);
   const [lineItemBusy, setLineItemBusy] = useState(false);
+  const [labelError, setLabelError] = useState<{ message: string; isShippingInfo?: boolean } | null>(null);
+  const router = useRouter();
 
   const loadOrder = useCallback(async (id: number) => {
     setLoading(true);
@@ -192,6 +195,34 @@ export function OrderDetailPanel({
       onError("Could not remove line item", "We could not remove that line item.", err);
     } finally {
       setLineItemBusy(false);
+    }
+  };
+
+  const printShippingLabel = async () => {
+    if (!orderId) return;
+    try {
+      const response = await fetch(`/api/orders/${orderId}/shipping-label?format=html`, {
+        headers: { Accept: "text/html" },
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        const msg = data.error?.user_message ?? "We could not generate the shipping label.";
+        setLabelError({
+          message: msg,
+          isShippingInfo: msg.toLowerCase().includes("shipping info"),
+        });
+        return;
+      }
+      const html = await response.text();
+      const win = window.open("", "_blank");
+      if (!win) {
+        onError("Pop-up blocked", "Allow pop-ups to print the shipping label.");
+        return;
+      }
+      win.document.write(html);
+      win.document.close();
+    } catch (err) {
+      onError("Could not print label", "We could not open the shipping label.", err);
     }
   };
 
@@ -517,6 +548,14 @@ export function OrderDetailPanel({
         ) : null}
         <button
           type="button"
+          onClick={() => void printShippingLabel()}
+          disabled={busy || saving || isVoid}
+          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+        >
+          Print shipping label
+        </button>
+        <button
+          type="button"
           onClick={() => window.open(`/api/reports/invoice/${order.id}?format=pdf`, "_blank")}
           className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
         >
@@ -587,6 +626,19 @@ export function OrderDetailPanel({
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={labelError != null}
+        onClose={() => setLabelError(null)}
+        onConfirm={() => {
+          setLabelError(null);
+          if (labelError?.isShippingInfo) router.push("/config#shipping");
+        }}
+        title="Cannot print shipping label"
+        description={labelError?.message ?? ""}
+        confirmLabel={labelError?.isShippingInfo ? "Go to Config" : "OK"}
+        confirmVariant={labelError?.isShippingInfo ? "accent" : "danger"}
+      />
 
       <ConfirmDialog
         open={removeLineTarget != null}
