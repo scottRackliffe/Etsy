@@ -1,14 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
   const {
     shops, selectedShopId, setSelectedShopId,
     receipts, receiptsLoading, count,
+    setBusyAction, setApiError, setError,
   } = useApp();
+
+  const router = useRouter();
 
   const paidCount = receipts.filter((r) => r.was_paid).length;
   const shippedCount = receipts.filter((r) => r.was_shipped).length;
@@ -23,6 +29,29 @@ export default function DashboardPage() {
     new Intl.NumberFormat(undefined, {
       style: "currency", currency: code || "USD",
     }).format(parseFloat(value || "0"));
+
+  const syncFromEtsy = async () => {
+    if (!selectedShopId) return;
+    setBusyAction("sync-etsy");
+    try {
+      const response = await fetch("/api/sync/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+      if (!response.ok) throw data;
+      setError({
+        title: "Etsy sync complete",
+        message: "Latest Etsy receipts were synchronized.",
+        actions: ["Review recent orders below or open the Sales tab."],
+      });
+    } catch (err) {
+      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
   return (
     <>
@@ -96,7 +125,15 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : receipts.length === 0 ? (
-          <div className="p-10 text-center text-[var(--ui-muted)]">No orders yet.</div>
+          <EmptyState
+            message="No orders yet."
+            primaryAction={
+              shops.length > 0
+                ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
+                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+            }
+            secondaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">

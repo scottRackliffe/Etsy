@@ -5,6 +5,21 @@ import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, AiConfig } from "@/types";
 
+type EtsyConnectionInfo = {
+  redirect_uri: string | null;
+  token_expires_at: string | null;
+  last_etsy_sync_at: string | null;
+};
+
+function formatConnectionTimestamp(value: string | null | undefined): string {
+  if (!value) return "Never";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
 const BUSINESS_KEYS = [
   "business_name",
   "business_address_line_1",
@@ -51,11 +66,15 @@ export default function ConfigPage() {
   const {
     aiConfig, setAiConfig, publishConfig, setPublishConfig,
     iconConfig, setIconConfig,
+    shops, connect, logout,
     setError, setApiError,
   } = useApp();
 
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [etsyInfo, setEtsyInfo] = useState<EtsyConnectionInfo | null>(null);
+  const [etsyInfoLoading, setEtsyInfoLoading] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
@@ -106,6 +125,28 @@ export default function ConfigPage() {
   useEffect(() => {
     void loadBackups();
   }, [loadBackups]);
+
+  const loadEtsyConnectionInfo = useCallback(async () => {
+    setEtsyInfoLoading(true);
+    try {
+      const response = await fetch("/api/auth/etsy/info", { headers: { Accept: "application/json" } });
+      const data = (await response.json().catch(() => ({}))) as EtsyConnectionInfo & ApiErrorShape;
+      if (!response.ok) throw data;
+      setEtsyInfo({
+        redirect_uri: data.redirect_uri ?? null,
+        token_expires_at: data.token_expires_at ?? null,
+        last_etsy_sync_at: data.last_etsy_sync_at ?? null,
+      });
+    } catch (err) {
+      setApiError("Could not load Etsy connection info", "We could not load Etsy connection details.", err);
+    } finally {
+      setEtsyInfoLoading(false);
+    }
+  }, [setApiError]);
+
+  useEffect(() => {
+    void loadEtsyConnectionInfo();
+  }, [loadEtsyConnectionInfo]);
 
   const loadBusinessProfile = useCallback(async () => {
     setBusinessLoading(true);
@@ -528,6 +569,78 @@ export default function ConfigPage() {
             {businessLoading ? "Saving…" : "Save business profile"}
           </button>
         </div>
+        <div id="etsy-connection" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Etsy connection</h4>
+          <p className="mb-3 text-xs text-[var(--ui-muted)]">OAuth status and sync metadata for your shop.</p>
+          <dl className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+            <div>
+              <dt className="text-xs text-[var(--ui-muted)]">Connection status</dt>
+              <dd className="mt-0.5">
+                <span
+                  className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                    shops.length
+                      ? "border-[var(--ui-green)]/30 bg-[var(--ui-green)]/10 text-[var(--ui-green)]"
+                      : "border-[var(--ui-border)] bg-[var(--ui-neutral)] text-[var(--ui-muted)]"
+                  }`}
+                >
+                  {shops.length ? "Connected" : "Not connected"}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--ui-muted)]">Shop name</dt>
+              <dd className="mt-0.5 text-[var(--ui-body)]">{shops[0]?.shop_name ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--ui-muted)]">Shop ID</dt>
+              <dd className="mt-0.5 font-mono text-[var(--ui-body)]">{shops[0]?.shop_id ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--ui-muted)]">Token expires</dt>
+              <dd className="mt-0.5 text-[var(--ui-body)]">
+                {etsyInfoLoading ? "Loading…" : formatConnectionTimestamp(etsyInfo?.token_expires_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--ui-muted)]">Last Etsy sync</dt>
+              <dd className="mt-0.5 text-[var(--ui-body)]">
+                {etsyInfoLoading ? "Loading…" : formatConnectionTimestamp(etsyInfo?.last_etsy_sync_at)}
+              </dd>
+            </div>
+            <div className="md:col-span-2">
+              <dt className="text-xs text-[var(--ui-muted)]">Redirect URI</dt>
+              <dd className="mt-0.5 break-all font-mono text-xs text-[var(--ui-body)]">
+                {etsyInfoLoading ? "Loading…" : etsyInfo?.redirect_uri ?? "Not configured"}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={connect}
+              className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white"
+            >
+              {shops.length ? "Reconnect Etsy" : "Connect Etsy"}
+            </button>
+            {shops.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setDisconnectOpen(true)}
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm text-[var(--ui-body)]"
+              >
+                Disconnect
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void loadEtsyConnectionInfo()}
+              disabled={etsyInfoLoading}
+              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
       </div>
       <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
@@ -792,6 +905,19 @@ export default function ConfigPage() {
         ) : null}
       </div>
 
+      <ConfirmDialog
+        open={disconnectOpen}
+        onClose={() => setDisconnectOpen(false)}
+        onConfirm={() => {
+          setDisconnectOpen(false);
+          logout();
+          void loadEtsyConnectionInfo();
+        }}
+        title="Disconnect Etsy?"
+        description="This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings."
+        confirmLabel="Disconnect"
+        confirmVariant="danger"
+      />
       <ConfirmDialog
         open={loadSampleConfirm}
         onClose={() => setLoadSampleConfirm(false)}

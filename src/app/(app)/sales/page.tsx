@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { OrderDetailPanel } from "@/components/sales/OrderDetailPanel";
 import type { ApiErrorShape, Order } from "@/types";
 
@@ -22,7 +23,11 @@ function SalesPageInner() {
     setBusyAction,
     setApiError,
     setError,
+    shops,
   } = useApp();
+
+  const router = useRouter();
+  const createOrderRef = useRef<HTMLInputElement>(null);
 
   const [newOrderNumber, setNewOrderNumber] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
@@ -389,6 +394,7 @@ function SalesPageInner() {
 
       <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-[1fr_auto_auto]">
         <input
+          ref={createOrderRef}
           value={newOrderNumber}
           onChange={(e) => setNewOrderNumber(e.target.value)}
           aria-label="New order number"
@@ -504,9 +510,23 @@ function SalesPageInner() {
         />
       </div>
 
-      {orders.length === 0 && (
-        <p className="mt-3 text-sm text-[var(--ui-muted)]">No local orders yet. Create one or sync Etsy receipts.</p>
-      )}
+      {orders.length === 0 ? (
+        <EmptyState
+          message={orderSearch.trim() ? "No orders match your filters." : "No orders yet."}
+          primaryAction={
+            orderSearch.trim()
+              ? { label: "Clear filters", onClick: () => { setOrderSearch(""); void reloadOrders(""); } }
+              : shops.length > 0
+                ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }
+                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+          }
+          secondaryAction={
+            orderSearch.trim()
+              ? undefined
+              : { label: "Create manual order", onClick: () => createOrderRef.current?.focus() }
+          }
+        />
+      ) : null}
 
       {shipModalOpen && (shipModalMode === "batch" || selectedOrder) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">

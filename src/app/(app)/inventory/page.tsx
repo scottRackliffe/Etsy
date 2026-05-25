@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
 
@@ -60,6 +61,7 @@ function InventoryPageInner() {
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
   const [inventorySearch, setInventorySearch] = useState("");
+  const createItemRef = useRef<HTMLInputElement>(null);
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
   const filteredInventory = useMemo(() => {
@@ -543,7 +545,7 @@ function InventoryPageInner() {
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-4">
-        <input value={newInventoryItemNumber} onChange={(e) => setNewInventoryItemNumber(e.target.value)} placeholder="New item number" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+        <input ref={createItemRef} value={newInventoryItemNumber} onChange={(e) => setNewInventoryItemNumber(e.target.value)} placeholder="New item number" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
         <input value={newInventoryDescription} onChange={(e) => setNewInventoryDescription(e.target.value)} placeholder="New item description" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
         <div className="flex gap-2">
           <button type="button" onClick={createInventoryRecord} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
@@ -590,6 +592,29 @@ function InventoryPageInner() {
           </button>
         </div>
         <div className="max-h-48 overflow-auto">
+          {filteredInventory.length === 0 ? (
+            <EmptyState
+              message={inventorySearch.trim() ? "No items match your filters." : "Your inventory is empty."}
+              primaryAction={
+                inventorySearch.trim()
+                  ? { label: "Clear filters", onClick: () => { setInventorySearch(""); void reloadInventory(""); } }
+                  : { label: "Add first item", onClick: () => createItemRef.current?.focus() }
+              }
+              secondaryAction={
+                inventorySearch.trim()
+                  ? undefined
+                  : {
+                      label: "Import from CSV",
+                      onClick: () =>
+                        setError({
+                          title: "CSV import coming soon",
+                          message: "Bulk CSV import is planned for a future release.",
+                          actions: ["Use Add item above to enter inventory manually."],
+                        }),
+                    }
+              }
+            />
+          ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-xs text-[var(--ui-muted)]">
@@ -618,6 +643,7 @@ function InventoryPageInner() {
               })}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 

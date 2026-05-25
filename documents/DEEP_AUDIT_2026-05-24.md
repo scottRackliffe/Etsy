@@ -357,4 +357,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 12 (2026-05-24) — implemented:** ADR-033 picture drag-reorder in PictureGrid; ADR-040 Inventory and Customers batch UI (status change/retire/delete, customer batch delete); ADR-034 Config shipping defaults, tax settings, and display preferences.
 
+**Wave 13 (2026-05-24) — implemented:** ADR-031 order line-item add/remove APIs and OrderDetailPanel UI; ADR-059 EmptyState CTAs on Sales, Inventory, Customers, Dashboard, and ActivityFeed; ADR-034 Config Etsy connection panel (`GET /api/auth/etsy/info`, reconnect/disconnect).
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

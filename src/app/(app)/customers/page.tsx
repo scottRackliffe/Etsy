@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { ApiErrorShape, Customer, CustomerAddress } from "@/types";
 
 type CustomerNote = {
@@ -27,7 +28,12 @@ function CustomersPageInner() {
     customers, setCustomers, selectedCustomerId, setSelectedCustomerId,
     customerAddresses, setCustomerAddresses,
     busyAction, setBusyAction, setApiError, setError,
+    shops,
+    selectedShopId,
   } = useApp();
+
+  const router = useRouter();
+  const createEmailRef = useRef<HTMLInputElement>(null);
 
   const [newCustomerFirstName, setNewCustomerFirstName] = useState("");
   const [newCustomerLastName, setNewCustomerLastName] = useState("");
@@ -297,6 +303,38 @@ function CustomersPageInner() {
     }
   };
 
+  const syncFromEtsy = async () => {
+    if (!selectedShopId) return;
+    setBusyAction("sync-etsy");
+    try {
+      const response = await fetch("/api/sync/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+      if (!response.ok) throw data;
+      const customersResponse = await fetch("/api/customers?limit=100", {
+        headers: { Accept: "application/json" },
+      });
+      const customersData = (await customersResponse.json().catch(() => ({}))) as ApiErrorShape & {
+        items?: Customer[];
+      };
+      if (customersResponse.ok && customersData.items) {
+        setCustomers(customersData.items);
+      }
+      setError({
+        title: "Etsy sync complete",
+        message: "Customers and orders were updated from Etsy.",
+        actions: ["Refresh the Customers tab to review new records."],
+      });
+    } catch (err) {
+      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Customers</h3>
@@ -509,7 +547,7 @@ function CustomersPageInner() {
           <p className="text-sm font-semibold">Add customer</p>
           <input value={newCustomerFirstName} onChange={(e) => setNewCustomerFirstName(e.target.value)} placeholder="First name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
           <input value={newCustomerLastName} onChange={(e) => setNewCustomerLastName(e.target.value)} placeholder="Last name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="Email" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input ref={createEmailRef} value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="Email" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
           <button
             type="button"
             onClick={createCustomerRecord}
@@ -520,11 +558,17 @@ function CustomersPageInner() {
           </button>
         </div>
       </div>
-      {customers.length === 0 && (
-        <p className="mt-3 text-sm text-[var(--ui-muted)]">
-          No customers yet. Create one from the panel on the right.
-        </p>
-      )}
+      {customers.length === 0 ? (
+        <EmptyState
+          message="No customers yet. They'll appear when you create orders or sync from Etsy."
+          primaryAction={
+            shops.length > 0
+              ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
+              : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+          }
+          secondaryAction={{ label: "Add customer", onClick: () => createEmailRef.current?.focus() }}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={batchDeleteOpen}

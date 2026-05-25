@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { EmptyState } from "@/components/ui/EmptyState";
+import type { ApiErrorShape } from "@/types";
 
 type ActivityItem = {
   id: number;
@@ -48,13 +52,15 @@ function formatTimestamp(iso: string): string {
 }
 
 export function ActivityFeed() {
+  const { shops, selectedShopId, setBusyAction, setApiError, setError: showAppMessage } = useApp();
+  const router = useRouter();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const response = await fetch("/api/activity?limit=20", {
         headers: { Accept: "application/json" },
@@ -63,13 +69,13 @@ export function ActivityFeed() {
         items?: ActivityItem[];
       };
       if (!response.ok) {
-        setError("Could not load recent activity.");
+        setLoadError("Could not load recent activity.");
         setItems([]);
         return;
       }
       setItems(data.items ?? []);
     } catch {
-      setError("Could not load recent activity.");
+      setLoadError("Could not load recent activity.");
       setItems([]);
     } finally {
       setLoading(false);
@@ -79,6 +85,30 @@ export function ActivityFeed() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const syncFromEtsy = async () => {
+    if (!selectedShopId) return;
+    setBusyAction("sync-etsy");
+    try {
+      const response = await fetch("/api/sync/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+      if (!response.ok) throw data;
+      await load();
+      showAppMessage({
+        title: "Etsy sync complete",
+        message: "Orders were synchronized from Etsy.",
+        actions: ["Activity will update as you work in the app."],
+      });
+    } catch (err) {
+      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
@@ -103,10 +133,18 @@ export function ActivityFeed() {
             <div key={idx} className="h-10 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
           ))}
         </div>
-      ) : error ? (
-        <p className="p-5 text-sm text-[var(--ui-red)]">{error}</p>
+      ) : loadError ? (
+        <p className="p-5 text-sm text-[var(--ui-red)]">{loadError}</p>
       ) : items.length === 0 ? (
-        <p className="p-10 text-center text-sm text-[var(--ui-muted)]">No activity recorded yet.</p>
+        <EmptyState
+          message="No recent activity. Start by adding inventory or syncing orders from Etsy."
+          primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
+          secondaryAction={
+            shops.length > 0
+              ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
+              : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+          }
+        />
       ) : (
         <ul className="divide-y divide-[var(--ui-border)]/70">
           {items.map((entry) => {

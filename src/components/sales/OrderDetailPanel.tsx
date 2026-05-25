@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -85,6 +86,13 @@ export function OrderDetailPanel({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [linkCustomerId, setLinkCustomerId] = useState("");
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [pickList, setPickList] = useState<Array<{ id: number; item_number: string | null; description: string | null }>>([]);
+  const [pickListLoading, setPickListLoading] = useState(false);
+  const [selectedInventoryId, setSelectedInventoryId] = useState("");
+  const [lineItemQty, setLineItemQty] = useState("1");
+  const [removeLineTarget, setRemoveLineTarget] = useState<OrderItem | null>(null);
+  const [lineItemBusy, setLineItemBusy] = useState(false);
 
   const loadOrder = useCallback(async (id: number) => {
     setLoading(true);
@@ -114,6 +122,78 @@ export function OrderDetailPanel({
     }
     void loadOrder(orderId);
   }, [orderId, loadOrder]);
+
+  const loadPickList = useCallback(async () => {
+    setPickListLoading(true);
+    try {
+      const response = await fetch("/api/inventory/pick-list", { headers: { Accept: "application/json" } });
+      const data = (await response.json().catch(() => ({}))) as {
+        items?: Array<{ id: number; item_number: string | null; description: string | null }>;
+      };
+      if (!response.ok) throw data;
+      setPickList(data.items ?? []);
+    } catch (err) {
+      onError("Could not load items", "We could not load inventory for the pick list.", err);
+    } finally {
+      setPickListLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    if (addItemOpen) void loadPickList();
+  }, [addItemOpen, loadPickList]);
+
+  const addLineItem = async () => {
+    if (!orderId || !selectedInventoryId) return;
+    setLineItemBusy(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          inventory_id: Number(selectedInventoryId),
+          quantity: Number(lineItemQty) || 1,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+      if (!response.ok) throw data;
+      if (data.order) {
+        setOrder(data.order);
+        setDraft(orderToDraft(data.order));
+        onOrderUpdated(data.order);
+      }
+      setAddItemOpen(false);
+      setSelectedInventoryId("");
+      setLineItemQty("1");
+    } catch (err) {
+      onError("Could not add line item", "We could not add the item to this order.", err);
+    } finally {
+      setLineItemBusy(false);
+    }
+  };
+
+  const removeLineItem = async () => {
+    if (!removeLineTarget) return;
+    setLineItemBusy(true);
+    try {
+      const response = await fetch(`/api/order-items/${removeLineTarget.id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+      if (!response.ok) throw data;
+      if (data.order) {
+        setOrder(data.order);
+        setDraft(orderToDraft(data.order));
+        onOrderUpdated(data.order);
+      }
+      setRemoveLineTarget(null);
+    } catch (err) {
+      onError("Could not remove line item", "We could not remove that line item.", err);
+    } finally {
+      setLineItemBusy(false);
+    }
+  };
 
   const saveChanges = async () => {
     if (!orderId || !draft) return;
@@ -284,9 +364,21 @@ export function OrderDetailPanel({
       </div>
 
       <section className="mb-4">
-        <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Line items</h5>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h5 className="text-sm font-semibold text-[var(--ui-title)]">Line items</h5>
+          {!isVoid ? (
+            <button
+              type="button"
+              onClick={() => setAddItemOpen(true)}
+              disabled={busy || saving || lineItemBusy}
+              className="rounded-lg border border-[var(--ui-border)] px-2 py-1 text-xs disabled:opacity-60"
+            >
+              + Add item
+            </button>
+          ) : null}
+        </div>
         {lineItems.length === 0 ? (
-          <p className="text-xs text-[var(--ui-muted)]">No line items on this order.</p>
+          <p className="text-xs text-[var(--ui-muted)]">No line items. Add items from inventory.</p>
         ) : (
           <table className="w-full text-left text-xs">
             <thead>
@@ -295,6 +387,7 @@ export function OrderDetailPanel({
                 <th className="py-1">Qty</th>
                 <th className="py-1">Unit</th>
                 <th className="py-1">Total</th>
+                <th className="py-1 w-16" />
               </tr>
             </thead>
             <tbody>
@@ -304,6 +397,18 @@ export function OrderDetailPanel({
                   <td className="py-1 pr-2">{line.quantity}</td>
                   <td className="py-1 pr-2">{formatMoney(line.unit_price)}</td>
                   <td className="py-1">{formatMoney(line.line_total)}</td>
+                  <td className="py-1">
+                    {!isVoid ? (
+                      <button
+                        type="button"
+                        onClick={() => setRemoveLineTarget(line)}
+                        disabled={busy || lineItemBusy}
+                        className="text-[var(--ui-red)] disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -312,7 +417,9 @@ export function OrderDetailPanel({
                 <td colSpan={3} className="py-1 text-[var(--ui-muted)]">
                   Subtotal
                 </td>
-                <td className="py-1">{formatMoney(order.subtotal)}</td>
+                <td colSpan={2} className="py-1">
+                  {formatMoney(order.subtotal)}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -428,6 +535,73 @@ export function OrderDetailPanel({
           </button>
         ) : null}
       </div>
+
+      {addItemOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
+            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Add line item</h4>
+            {pickListLoading ? (
+              <p className="text-sm text-[var(--ui-muted)]">Loading inventory…</p>
+            ) : (
+              <>
+                <label className="mb-2 block text-sm">
+                  Inventory item
+                  <select
+                    value={selectedInventoryId}
+                    onChange={(e) => setSelectedInventoryId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                  >
+                    <option value="">Select item…</option>
+                    {pickList.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.item_number ?? `#${row.id}`} — {(row.description ?? "").slice(0, 40)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="mb-4 block text-sm">
+                  Quantity
+                  <input
+                    type="number"
+                    min={1}
+                    value={lineItemQty}
+                    onChange={(e) => setLineItemQty(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                  />
+                </label>
+              </>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setAddItemOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void addLineItem()}
+                disabled={lineItemBusy || !selectedInventoryId}
+                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {lineItemBusy ? "Adding…" : "Add item"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={removeLineTarget != null}
+        onClose={() => setRemoveLineTarget(null)}
+        onConfirm={() => void removeLineItem()}
+        title="Remove line item?"
+        description={
+          lineItems.length <= 1
+            ? "This is the last line item on the order. Orders should have at least one line item when marking paid or shipped."
+            : "Remove this item from the order?"
+        }
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        busy={lineItemBusy}
+      />
     </div>
   );
 }
