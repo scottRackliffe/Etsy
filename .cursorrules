@@ -1,5 +1,5 @@
 # Etsy Sales Manager — Cursor Rules
-# Last updated: 2026-05-24
+# Last updated: 2026-05-24 (ADR-017/018 reconciliation)
 # These rules tell Cursor exactly where to look and what to follow for every domain.
 # When in doubt: read the ADR first, then implement.
 
@@ -111,23 +111,31 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-010** (Picture import) | ADR-026 (backend storage), ADR-033 (frontend upload grid). Browser uses file picker + drag-and-drop, NOT directory picker. |
 | **ADR-003** (Customer model) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
 | **ADR-004** (Shipper) | ADR-017, ADR-031 (schema mapping: purchase/shipment → orders table with tracking_number). |
-| **ADR-006** (Reports scope) | ADR-017 (schema mapping: purchase → orders + order_items), ADR-036 (per-order endpoints). |
+| **ADR-006** (Reports scope) | ADR-017, ADR-013, ADR-036; includes profit-by-item, tax summary, inventory aging, accounting export (038/039/054/056). |
 | **ADR-013** (Reports output) | ADR-036 (per-order endpoints, date range UI). Schema mapping: purchase → orders + order_items. Edge cases section added. |
-| **ADR-016** (Dashboard) | ADR-028 (shared components), ADR-037 (activity feed widget). |
-| **ADR-017** (DB schema) | ADR-031 (adds `tracking_number` to orders), ADR-037 (adds `activity_log` table). Section 5 matches DDL in section 8. |
-| **ADR-018** (API surface) | ADR-029 (search/sort/pagination query params), ADR-031 (mark-shipped, link-customer), ADR-033 (`/api/uploads`), ADR-036 (per-order report routes), ADR-037 (`/api/activity`). New endpoints in section "Additional endpoints and changes." |
+| **ADR-016** (Dashboard) | ADR-028, ADR-037 (activity feed), ADR-038/064/066 (KPI APIs per ADR-018 §10), ADR-044 (wizard overlay). |
+| **ADR-017** (DB schema) | ADR-031 (`tracking_number`), ADR-037 (`activity_log`), ADR-065 (`customer_notes`), ADR-038 (`other_costs`). §1–§7 narrative matches §8 DDL (reconciled 2026-05-24). |
+| **ADR-018** (API surface) | ADR-029–037 in Extensions §12–18; ADR-038–069 in §19–28. Full route catalog — not only sections 1–10. |
 | **ADR-019** (Etsy sync) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
 | **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
 | **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory two-panel), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). |
 | **ADR-027** (Backup) | ADR-034 (Config page UI for backup/restore section). |
+| **ADR-028** (Shared components) | ADR-024, 032, 045, 059, 060 |
+| **ADR-029** (Search/pagination) | ADR-018 §12, ADR-041 |
+| **ADR-030–031** (Detail UIs) | ADR-024, 033, 035, 046 |
+| **ADR-034** (Config) | ADR-027, 039 (`tax.default_rate`), 044 (`setup.completed`), 069 (sample data) |
+| **ADR-038–069** (Features) | SSOT per ADR; UI index in `ui-design.md`; API in ADR-018 Extensions |
 
 ### Canonical enum values (authoritative — never use alternatives)
 
 - **Inventory status:** `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired` (ADR-002, ADR-017)
 - **Condition code:** `Mint/Near Mint`, `Excellent`, `Very Good`, `Good`, `Fair/As-Is` (ADR-002, ADR-017)
 - **Order status:** `active`, `void`, `cancelled` (ADR-017)
+- **Payment status:** `unpaid`, `paid`, `refunded` (ADR-017, ADR-039)
+- **Customer note type:** `general`, `shipping_preference`, `communication`, `follow_up`, `complaint` (ADR-065)
+- **Activity log source:** `user`, `system`, `etsy_sync` (ADR-037)
 - **Listing draft state:** `draft`, `generated`, `imported`, `approved`, `published`
 - **Listing draft source:** `manual`, `integrated_ai`, `portable_import`
 - **Source channel:** `etsy`, `manual`
@@ -137,8 +145,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 
 ## 2. ACTUAL DATABASE SCHEMA (source of truth: live schema in app.sqlite)
 
-The live schema diverges from ADR-017 in some intentional ways. **Always match the live schema.**
-Run `PRAGMA table_info(<table>)` if unsure. Key divergences:
+**ADR-017 §8 DDL is canonical** for new work; `src/lib/sqlite.ts` bootstrap should converge via migrations. **Prefer live DB** when implementing today: run `PRAGMA table_info(<table>)` if unsure. Tables/columns in ADR-017 but not yet in bootstrap: `tracking_number`, `activity_log`, `customer_notes`.
 
 ### `customers` table — FLAT address structure (NOT separate customer_address table)
 ```
@@ -166,7 +173,7 @@ subtotal, shipping_total, tax_total, discount_total, grand_total,
 source_channel, notes, created_at, updated_at
 ```
 - `order_status`: active | void | cancelled
-- `payment_status`: unpaid | paid
+- `payment_status`: unpaid | paid | refunded
 - `source_channel`: etsy | manual
 - `tracking_number`: carrier tracking number (ADR-031)
 
@@ -214,7 +221,16 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `backup_directory`, `backup_schedule`, `shipping_info_usps/ups/fedex/dhl/other`,
 `shipping.default_carrier` (ADR-034), `ui.date_format` (ADR-034),
 `ui.page_size` (ADR-029/034), `ui.currency_code` (ADR-034),
-`activity_log.retention_days` (ADR-037)
+`activity_log.retention_days` (ADR-037),
+`tax.default_rate` (ADR-039), `setup.completed` (ADR-044),
+`sync.auto_interval` (ADR-057), `last_integrity_check`, `integrity_warning` (ADR-058),
+`repeat_customer_threshold` (ADR-066, optional)
+
+### `customer_notes` table — per-customer interaction log (ADR-065)
+```
+id, customer_id, note_text, note_type, created_at
+```
+- `note_type`: general | shipping_preference | communication | follow_up | complaint
 
 ### `etsy_receipts` table — raw Etsy receipt cache
 ```
@@ -253,7 +269,7 @@ id, report_name, report_params_json, artifact_path, artifact_json, generated_at
 - All list endpoints return: `{ items: [], pagination: { limit, offset, total, has_more } }`
 - PATCH semantics: omitted = unchanged; null = clear field; empty string = empty string
 - Status codes: 200 read/update, 201 created, 204 delete, 400 validation, 401 unauth, 404 not found, 409 conflict, 429 rate limit, 500 server error
-- Protected routes: resolve session from HTTP-only cookie → SQLite settings `app.session.current_user_id`
+- Protected routes: resolve session from HTTP-only cookie → SQLite settings `app.session.current_id`
 - Date fields: `YYYY-MM-DD`; timestamps: ISO 8601 UTC
 - Full endpoint spec: `documents/adr/0018-api-surface-endpoints.md`
 
@@ -315,7 +331,7 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 
 ### Key rules to always enforce:
 - **Mark as shipped**: blocked until order is paid UNLESS user explicitly chooses "Ship anyway"
-  → store `shipped_without_paid_override` audit flag on order_items when overridden
+  → store `shipped_without_paid_override` audit flag on **orders** when overridden (ADR-021, ADR-040)
 - **List on Etsy / publish**: blocked until listing_draft_state = 'approved'
 - **Listing generation**: blocked until item has item_number + description + condition_code + sale_revenue > 0 + at least one picture
 - **Can't list until complete**: listing_title + listing_description + listing_tags must all be non-empty
@@ -358,7 +374,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - User gets exactly 4 actions after generation: **Print | Export PDF | Export CSV | Cancel**
 - Global data filter: only `order_status = 'active'` orders in all purchase/revenue reports
 - Layout: 12pt Courier body, 14/16pt title, 1in margins, light grid, page numbers centered
-- Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging
+- Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging | Profit by Item | Sales Tax Summary | Inventory Aging | Accounting Export
 - Full content spec per report type: `documents/adr/0013-report-output-pdf.md`
 
 ---
@@ -373,7 +389,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Storage: paths stored in DB; files in `uploads/inventory/<item_id>/pictures/`
 - Thumbnail: JPEG, max 200px dimension; stored at `thumbnail_path`; auto-regenerated when picture_1 changes
 - Allow: JPEG, PNG, WebP, GIF; reject others; max 15 MB per file
-- Image serving: `GET /api/uploads/[...path]` (ADR-018 §15, ADR-033)
+- Image serving: `GET /api/uploads/[...path]` (ADR-018 §16, ADR-033)
 - Full spec: `documents/adr/0026-picture-storage-and-thumbnails.md` (backend) + `documents/adr/0033-image-upload-and-thumbnail-preview.md` (frontend)
 
 ---
