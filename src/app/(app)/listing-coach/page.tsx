@@ -150,6 +150,8 @@ export default function ListingCoachPage() {
   };
 
   const runCompose = async () => {
+    setStep("compose");
+    setComposeResult(null);
     setBusy(true);
     setError(null);
     try {

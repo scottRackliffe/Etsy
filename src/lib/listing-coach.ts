@@ -4,17 +4,14 @@ import { getAiConfig } from "@/lib/ai-config";
 import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidance";
 import { computeListingScore } from "@/lib/listing-score";
 import type { CoachPhotoFile } from "@/lib/listing-coach-multipart";
-
-const CONDITION_CODES = new Set(["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"]);
-
-const PHOTO_SHOT_TYPES = [
-  "hero",
-  "detail",
-  "backstamp",
-  "scale",
-  "imperfections",
-  "group",
-] as const;
+import {
+  cleanJsonResponse,
+  normalizeConditionCode,
+  normalizeConfirmCards,
+  normalizePhotoReview,
+  normalizePrice,
+  normalizeTags,
+} from "@/lib/listing-coach-normalize.mjs";
 
 export type PhotoReview = {
   present_shots: string[];
@@ -108,17 +105,6 @@ function getOpenAiClient(): OpenAI {
   });
 }
 
-function cleanJsonResponse(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("```")) {
-    return trimmed;
-  }
-  return trimmed
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
-}
-
 function clipForPrompt(content: string, maxChars = 25000): string {
   if (content.length <= maxChars) {
     return content;
@@ -132,89 +118,6 @@ function bufferToDataUrl(buffer: Buffer, filename: string): string {
     : ".jpg";
   const mimeType = IMAGE_MIME_BY_EXT[ext] ?? "image/jpeg";
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
-}
-
-function normalizeTags(rawTags: unknown): string {
-  const parsed = Array.isArray(rawTags)
-    ? rawTags
-    : typeof rawTags === "string"
-      ? rawTags.split(/[,\n]/g)
-      : [];
-
-  const tags = parsed
-    .map((tag) => String(tag).trim())
-    .filter((tag) => tag.length > 0)
-    .filter(
-      (tag, index, all) => all.findIndex((t) => t.toLowerCase() === tag.toLowerCase()) === index
-    )
-    .slice(0, 13);
-
-  if (tags.length === 0) {
-    throw new Error("AI returned empty listing tags");
-  }
-
-  return tags.join(", ");
-}
-
-function normalizeConditionCode(raw: unknown): string {
-  if (typeof raw !== "string") return "Good";
-  const trimmed = raw.trim();
-  if (CONDITION_CODES.has(trimmed)) return trimmed;
-  return "Good";
-}
-
-function normalizePhotoReview(raw: unknown): PhotoReview {
-  const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const present = Array.isArray(obj.present_shots)
-    ? obj.present_shots
-        .map(String)
-        .filter((s) => PHOTO_SHOT_TYPES.includes(s as (typeof PHOTO_SHOT_TYPES)[number]))
-    : [];
-  const missing = Array.isArray(obj.missing_shots)
-    ? obj.missing_shots
-        .map(String)
-        .filter((s) => PHOTO_SHOT_TYPES.includes(s as (typeof PHOTO_SHOT_TYPES)[number]))
-    : [];
-  const advisories = Array.isArray(obj.advisories)
-    ? obj.advisories.map(String).filter(Boolean)
-    : [];
-  return { present_shots: present, missing_shots: missing, advisories };
-}
-
-function normalizePrice(raw: unknown): PriceSuggestion {
-  const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const confidenceRaw = typeof obj.confidence === "string" ? obj.confidence.toLowerCase() : "low";
-  const confidence = confidenceRaw === "high" || confidenceRaw === "medium" ? confidenceRaw : "low";
-  const toNum = (value: unknown): number | null => {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
-  return {
-    suggested_list_price: toNum(obj.suggested_list_price),
-    suggested_price_low: toNum(obj.suggested_price_low),
-    suggested_price_high: toNum(obj.suggested_price_high),
-    confidence,
-    rationale: typeof obj.rationale === "string" ? obj.rationale.trim() : "",
-  };
-}
-
-function normalizeConfirmCards(raw: unknown): ConfirmCard[] {
-  if (!Array.isArray(raw)) return [];
-  const cards: ConfirmCard[] = [];
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") continue;
-    const obj = entry as Record<string, unknown>;
-    const id = typeof obj.id === "string" ? obj.id.trim() : "";
-    const question = typeof obj.question === "string" ? obj.question.trim() : "";
-    if (!id || !question) continue;
-    cards.push({
-      id,
-      question,
-      suggested_answer: typeof obj.suggested_answer === "string" ? obj.suggested_answer.trim() : "",
-      optional: obj.optional === true,
-    });
-  }
-  return cards.slice(0, 5);
 }
 
 function defaultConfirmCards(identification: string): ConfirmCard[] {
