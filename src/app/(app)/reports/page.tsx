@@ -1,24 +1,98 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape } from "@/types";
+
+const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "thank-you-note", label: "Thank-you note (all)" },
+  { value: "invoice", label: "Invoice (all open)" },
+  { value: "sales", label: "Sales" },
+  { value: "costs", label: "Costs" },
+  { value: "income-mtd", label: "Income MTD" },
+  { value: "income-ytd", label: "Income YTD" },
+  { value: "postal-by-vendor", label: "Postal by vendor" },
+  { value: "outstanding-items", label: "Outstanding items" },
+  { value: "ar-aging", label: "AR aging" },
+  { value: "profit-by-item", label: "Profit by item" },
+  { value: "sales-tax-summary", label: "Sales tax summary" },
+  { value: "inventory-aging", label: "Inventory aging" },
+  { value: "accounting-export", label: "Accounting export" },
+];
+
+const DATE_FILTER_REPORTS = new Set([
+  "sales",
+  "costs",
+  "postal-by-vendor",
+  "invoice",
+  "thank-you-note",
+  "profit-by-item",
+  "sales-tax-summary",
+  "accounting-export",
+]);
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function mondayThisWeek(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
 
 export default function ReportsPage() {
   const { iconConfig, busyAction, setBusyAction, setApiError, setError } = useApp();
 
   const [reportType, setReportType] = useState("sales");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [reportCsvPreview, setReportCsvPreview] = useState("");
 
   const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
     ? Math.max(80, Math.min(640, Math.floor(Number(iconConfig.reportHeaderWidthPx))))
     : 220;
 
+  const supportsDates = DATE_FILTER_REPORTS.has(reportType);
+
+  const reportQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (supportsDates && fromDate) params.set("from_date", fromDate);
+    if (supportsDates && toDate) params.set("to_date", toDate);
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  }, [supportsDates, fromDate, toDate]);
+
+  const applyPreset = (preset: string) => {
+    const today = isoToday();
+    setActivePreset(preset);
+    if (preset === "today") {
+      setFromDate(today);
+      setToDate(today);
+    } else if (preset === "week") {
+      setFromDate(mondayThisWeek());
+      setToDate(today);
+    } else if (preset === "month") {
+      setFromDate(`${today.slice(0, 8)}01`);
+      setToDate(today);
+    } else if (preset === "ytd") {
+      setFromDate(`${today.slice(0, 4)}-01-01`);
+      setToDate(today);
+    } else {
+      setFromDate("");
+      setToDate("");
+    }
+  };
+
   const previewReportCsv = async () => {
     setBusyAction("preview-report");
     try {
-      const response = await fetch(`/api/reports/${reportType}?format=csv`, {
+      const url = `/api/reports/${reportType}${reportQuery ? `${reportQuery}&format=csv` : "?format=csv"}`;
+      const response = await fetch(url, {
         headers: { Accept: "text/csv" },
       });
       const text = await response.text();
@@ -30,6 +104,12 @@ export default function ReportsPage() {
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const downloadUrl = (format: "csv" | "pdf") => {
+    const base = `/api/reports/${reportType}${reportQuery}`;
+    const join = base.includes("?") ? "&" : "?";
+    return `${base}${join}format=${format}`;
   };
 
   return (
@@ -44,29 +124,91 @@ export default function ReportsPage() {
         />
         <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={reportType}
-          onChange={(e) => setReportType(e.target.value)}
-          aria-label="Report type"
-          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-        >
+
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          <span className="mb-1 block text-[var(--ui-muted)]">Report type</span>
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value)}
+            aria-label="Report type"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+          >
+            {REPORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
+          <span className="mb-1 block text-[var(--ui-muted)]">From</span>
+          <input
+            type="date"
+            value={fromDate}
+            disabled={!supportsDates}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setActivePreset(null);
+            }}
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+          />
+        </label>
+        <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
+          <span className="mb-1 block text-[var(--ui-muted)]">To</span>
+          <input
+            type="date"
+            value={toDate}
+            disabled={!supportsDates}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setActivePreset(null);
+            }}
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+          />
+        </label>
+      </div>
+
+      {supportsDates ? (
+        <div className="mb-3 flex flex-wrap gap-2">
           {[
-            "thank-you-note", "invoice", "sales", "costs",
-            "income-mtd", "income-ytd", "postal-by-vendor",
-            "outstanding-items", "ar-aging",
-            "profit-by-item", "sales-tax-summary", "inventory-aging", "accounting-export",
-          ].map((name) => (
-            <option key={name} value={name}>{name}</option>
+            { id: "today", label: "Today" },
+            { id: "week", label: "This week" },
+            { id: "month", label: "This month" },
+            { id: "ytd", label: "YTD" },
+            { id: "all", label: "All time" },
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => applyPreset(preset.id === "all" ? "all" : preset.id)}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                activePreset === preset.id || (preset.id === "all" && !fromDate && !toDate && activePreset === "all")
+                  ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
+                  : "border-[var(--ui-border)] text-[var(--ui-body)]"
+              }`}
+            >
+              {preset.label}
+            </button>
           ))}
-        </select>
+        </div>
+      ) : (
+        <p className="mb-3 text-xs text-[var(--ui-muted)]">This report does not support date filtering.</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={previewReportCsv} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
           {busyAction === "preview-report" ? "Loading..." : "Preview CSV"}
         </button>
-        <button type="button" onClick={() => window.open(`/api/reports/${reportType}?format=csv`, "_blank")} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
+        <button type="button" onClick={() => window.open(downloadUrl("csv"), "_blank")} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
           Download CSV
         </button>
-        <button type="button" onClick={() => window.open(`/api/reports/${reportType}?format=pdf`, "_blank")} disabled={reportType === "accounting-export"} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50">
+        <button
+          type="button"
+          onClick={() => window.open(downloadUrl("pdf"), "_blank")}
+          disabled={reportType === "accounting-export"}
+          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50"
+        >
           Download PDF
         </button>
       </div>

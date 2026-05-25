@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, Order } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -17,6 +18,7 @@ function SalesPageInner() {
   const [newOrderTotal, setNewOrderTotal] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   const [shipForm, setShipForm] = useState({
     shipper: "USPS",
     tracking_number: "",
@@ -177,6 +179,29 @@ function SalesPageInner() {
     }
   };
 
+  const voidSelectedOrder = async () => {
+    if (!selectedOrderId) return;
+    setBusyAction("void-order");
+    try {
+      const response = await fetch(`/api/orders/${selectedOrderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ order_status: "void" }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+      if (!response.ok) throw data;
+      if (data.order) {
+        setOrders((current) => current.map((row) => (row.id === data.order!.id ? data.order! : row)));
+      }
+      setVoidConfirmOpen(false);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not void order", "We could not void the order.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -276,6 +301,34 @@ function SalesPageInner() {
           >
             Mark selected shipped…
           </button>
+          {selectedOrderId ? (
+            <>
+              <button
+                type="button"
+                onClick={() => window.open(`/api/reports/invoice/${selectedOrderId}?format=pdf`, "_blank")}
+                disabled={!selectedOrder}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+              >
+                Print invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(`/api/reports/thank-you-note/${selectedOrderId}?format=pdf`, "_blank")}
+                disabled={!selectedOrder}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+              >
+                Thank-you note
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoidConfirmOpen(true)}
+                disabled={busyAction != null || !selectedOrder || selectedOrder.order_status === "void"}
+                className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
+              >
+                Void order
+              </button>
+            </>
+          ) : null}
           {selectedOrder && (
             <p className="text-xs text-[var(--ui-muted)]">
               Selected: {selectedOrder.order_number ?? selectedOrder.id} | Payment:{" "}
@@ -327,6 +380,18 @@ function SalesPageInner() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={voidConfirmOpen}
+        onClose={() => setVoidConfirmOpen(false)}
+        onConfirm={() => void voidSelectedOrder()}
+        title="Void order?"
+        description="This will void the order. Voided orders are excluded from active reports."
+        affectedLabel={selectedOrder?.order_number ? `Order ${selectedOrder.order_number}` : undefined}
+        confirmLabel="Void order"
+        confirmVariant="danger"
+        busy={busyAction === "void-order"}
+      />
     </section>
   );
 }

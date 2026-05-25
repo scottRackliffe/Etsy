@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { shops, iconConfig, connect, logout } = useApp();
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const screenHeaderIconSize = Number.isFinite(Number(iconConfig.screenHeaderSizePx))
     ? Math.max(16, Math.min(256, Math.floor(Number(iconConfig.screenHeaderSizePx))))
@@ -52,7 +55,7 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
           {shops.length > 0 ? (
             <button
               type="button"
-              onClick={logout}
+              onClick={() => setDisconnectOpen(true)}
               className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm font-medium text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
             >
               Disconnect
@@ -68,6 +71,19 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={disconnectOpen}
+        onClose={() => setDisconnectOpen(false)}
+        onConfirm={() => {
+          setDisconnectOpen(false);
+          logout();
+        }}
+        title="Disconnect Etsy?"
+        description="This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings."
+        confirmLabel="Disconnect"
+        confirmVariant="danger"
+      />
     </header>
   );
 }

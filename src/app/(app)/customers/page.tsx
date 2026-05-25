@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, Customer, CustomerAddress } from "@/types";
 
 function CustomersPageInner() {
@@ -19,6 +20,7 @@ function CustomersPageInner() {
   const [newAddressCity, setNewAddressCity] = useState("");
   const [newAddressPostalCode, setNewAddressPostalCode] = useState("");
   const [newAddressCountry, setNewAddressCountry] = useState("US");
+  const [deleteAddressTarget, setDeleteAddressTarget] = useState<CustomerAddress | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -229,7 +231,7 @@ function CustomersPageInner() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => deleteAddress(address.id)}
+                      onClick={() => setDeleteAddressTarget(address)}
                       disabled={busyAction != null}
                       className="rounded border border-[var(--ui-border)] px-2 py-1"
                     >
@@ -277,6 +279,25 @@ function CustomersPageInner() {
           No customers yet. Create one from the panel on the right.
         </p>
       )}
+
+      <ConfirmDialog
+        open={deleteAddressTarget != null}
+        onClose={() => setDeleteAddressTarget(null)}
+        onConfirm={() => {
+          if (deleteAddressTarget) void deleteAddress(deleteAddressTarget.id);
+          setDeleteAddressTarget(null);
+        }}
+        title="Delete address?"
+        description="This will remove the address from the customer record."
+        affectedLabel={
+          deleteAddressTarget
+            ? [deleteAddressTarget.first_line, deleteAddressTarget.city].filter(Boolean).join(", ")
+            : undefined
+        }
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        busy={busyAction === "delete-address"}
+      />
     </section>
   );
 }

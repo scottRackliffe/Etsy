@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
 
 type PublishHistory = {
@@ -53,6 +54,7 @@ function InventoryPageInner() {
   const [workflowStep, setWorkflowStep] = useState<0 | 1 | 2>(0);
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!selectedItem) {
@@ -548,8 +550,8 @@ function InventoryPageInner() {
           <button type="button" onClick={createInventoryRecord} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
             {busyAction === "create-inventory" ? "Creating..." : "Add item"}
           </button>
-          <button type="button" onClick={deleteSelectedInventory} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-            {busyAction === "delete-inventory" ? "Deleting..." : "Delete selected"}
+          <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
+            Delete selected
           </button>
         </div>
       </div>
@@ -764,6 +766,21 @@ function InventoryPageInner() {
       ) : (
         <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          setDeleteConfirmOpen(false);
+          void deleteSelectedInventory();
+        }}
+        title="Delete item?"
+        description="This will permanently delete the item. Items linked to orders cannot be deleted."
+        affectedLabel={selectedItem?.item_number ? `Item ${selectedItem.item_number}` : undefined}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        busy={busyAction === "delete-inventory"}
+      />
     </section>
   );
 }

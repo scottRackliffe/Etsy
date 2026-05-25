@@ -402,6 +402,104 @@ function buildThankYouReport(): ReportResult {
   };
 }
 
+function loadActiveOrder(orderId: number): Record<string, unknown> | null {
+  const row = getDb()
+    .prepare("SELECT * FROM orders WHERE id = ? AND order_status = 'active'")
+    .get(orderId);
+  return row ? (row as Record<string, unknown>) : null;
+}
+
+function loadOrderLineItems(orderId: number) {
+  return getDb()
+    .prepare(
+      `
+      SELECT
+        oi.quantity,
+        ROUND(COALESCE(oi.unit_price, 0), 2) AS unit_price,
+        ROUND(COALESCE(oi.line_total, COALESCE(oi.unit_price, 0) * COALESCE(oi.quantity, 0)), 2) AS line_total,
+        COALESCE(i.description, i.item_number, CAST(i.id AS TEXT), '(item)') AS description,
+        COALESCE(i.item_number, CAST(i.id AS TEXT), '') AS item_number
+      FROM order_items oi
+      LEFT JOIN inventory i ON i.id = oi.inventory_id
+      WHERE oi.order_id = ?
+      ORDER BY oi.id ASC
+    `
+    )
+    .all(orderId) as Array<Record<string, ReportMetricValue>>;
+}
+
+function formatShipTo(order: Record<string, unknown>): string {
+  const parts = [
+    [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" "),
+    order.ship_to_address_line_1,
+    order.ship_to_address_line_2,
+    [order.ship_to_city, order.ship_to_state_province, order.ship_to_postal_code]
+      .filter(Boolean)
+      .join(", "),
+    order.ship_to_country,
+  ].filter((part) => typeof part === "string" && part.trim().length > 0);
+  return parts.join(" | ");
+}
+
+export function buildSingleOrderInvoice(orderId: number): ReportResult | null {
+  const order = loadActiveOrder(orderId);
+  if (!order) return null;
+
+  const lineItems = loadOrderLineItems(orderId);
+  const businessName = getSetting("business_name")?.trim() || "Business";
+  const orderNumber = String(order.order_number ?? orderId);
+  const paymentStatus = Number(order.was_paid) === 1 ? "Paid" : "Unpaid";
+  const shipStatus = order.shipping_date ? "Shipped" : "Not shipped";
+
+  return {
+    report_name: `invoice-${orderNumber}`,
+    generated_at: new Date().toISOString(),
+    summary: `Invoice #${orderNumber} for ${formatShipTo(order) || "customer"}.`,
+    metrics: {
+      business_name: businessName,
+      invoice_number: orderNumber,
+      order_date: String(order.order_date ?? ""),
+      ship_to: formatShipTo(order),
+      subtotal: asNumber(order.subtotal),
+      discount_total: asNumber(order.discount_total),
+      shipping_total: asNumber(order.shipping_total),
+      grand_total: asNumber(order.grand_total),
+      payment_status: paymentStatus,
+      shipping_status: shipStatus,
+    },
+    sections: [{ title: "Line items", rows: lineItems }],
+  };
+}
+
+export function buildSingleOrderThankYou(orderId: number): ReportResult | null {
+  const order = loadActiveOrder(orderId);
+  if (!order) return null;
+
+  const lineItems = loadOrderLineItems(orderId).map((row) => ({
+    description: row.description,
+    quantity: row.quantity,
+    item_number: row.item_number,
+  }));
+  const businessName = getSetting("business_name")?.trim() || "Business";
+  const customerName = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ") || "Customer";
+  const orderNumber = String(order.order_number ?? orderId);
+
+  return {
+    report_name: `thank-you-${orderNumber}`,
+    generated_at: new Date().toISOString(),
+    summary: `Thank you for your order, ${customerName}!`,
+    metrics: {
+      business_name: businessName,
+      customer_name: customerName,
+      order_number: orderNumber,
+      order_date: String(order.order_date ?? ""),
+      greeting: "Thank you for your order!",
+      closing: "We hope you enjoy your purchase!",
+    },
+    sections: [{ title: "Items in your order", rows: lineItems }],
+  };
+}
+
 function monthStartDate(): string {
   return monthStart();
 }

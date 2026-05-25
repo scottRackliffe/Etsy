@@ -349,4 +349,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 8 (2026-05-24) — implemented:** ADR-038 computed profit fields on inventory API; four new reports (`profit-by-item`, `sales-tax-summary`, `inventory-aging`, `accounting-export`); Reports tab updated; `start_date`/`end_date` aliases on report params.
 
-*Next update: After Wave 9 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 9 (2026-05-24) — implemented:** ADR-032 `ConfirmDialog` on inventory delete, address delete, void order, Etsy disconnect; ADR-036 per-order invoice/thank-you routes + Sales print buttons; Reports date range picker with presets and friendly labels.
+
+*Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
