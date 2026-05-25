@@ -19,6 +19,7 @@ import { CustomerMergeModal } from "@/components/customers/CustomerMergeModal";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
@@ -26,6 +27,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
+import { customerRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
 type CustomerNote = {
@@ -233,6 +235,11 @@ function CustomersPageInner() {
   }, [searchParams, customers, setSelectedCustomerId, setCustomers, router, pathname, setError, setApiError]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
+  useTrackRecentlyViewed(
+    "customer",
+    selectedCustomerId,
+    selectedCustomer ? customerRecentlyViewedLabel(selectedCustomer) : null
+  );
 
   const selectCustomer = (id: number) => {
     if (customerDetailDirty && id !== selectedCustomerId) {

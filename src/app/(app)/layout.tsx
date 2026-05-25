@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { ConnectionProvider } from "@/context/ConnectionContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
+import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { IntegrityWarningBanner } from "@/components/shell/IntegrityWarningBanner";
 import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
@@ -228,7 +229,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <AppProvider>
       <ConnectionProvider>
         <UnsavedChangesProvider>
-          <AppShellInner>{children}</AppShellInner>
+          <RecentlyViewedProvider>
+            <AppShellInner>{children}</AppShellInner>
+          </RecentlyViewedProvider>
         </UnsavedChangesProvider>
       </ConnectionProvider>
     </AppProvider>

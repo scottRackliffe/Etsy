@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +31,7 @@ import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
+import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -58,6 +60,14 @@ function InventoryPageInner() {
     aiConfig, setAiConfig, publishConfig, setPublishConfig,
     busyAction, setBusyAction, setApiError, setError,
   } = useApp();
+
+  const inventoryRecentRow =
+    selectedItem ?? inventory.find((row) => row.id === selectedItemId) ?? null;
+  useTrackRecentlyViewed(
+    "inventory",
+    selectedItemId,
+    inventoryRecentRow ? inventoryRecentlyViewedLabel(inventoryRecentRow) : null
+  );
 
   const searchParams = useSearchParams();
   const router = useRouter();

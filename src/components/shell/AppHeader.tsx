@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
+import { RecentlyViewedMenu } from "@/components/shell/RecentlyViewedMenu";
 
 export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { shops, iconConfig, connect, logout } = useApp();
@@ -51,6 +52,7 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
               Search
             </button>
           ) : null}
+          <RecentlyViewedMenu />
           <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass}`}>
             {shops.length ? "Connected" : "Not connected"}
           </span>

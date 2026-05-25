@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +23,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
+import { orderRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -92,6 +94,11 @@ function SalesPageInner() {
   };
 
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
+  useTrackRecentlyViewed(
+    "order",
+    selectedOrderId,
+    selectedOrder ? orderRecentlyViewedLabel(selectedOrder) : null
+  );
 
   const orderBatchFilter = useMemo(
     () => ({

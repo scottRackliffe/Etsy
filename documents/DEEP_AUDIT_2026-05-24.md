@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 30 (2026-05-24) — implemented:** ADR-063 recently viewed items — `etsy_recently_viewed` localStorage (max 20), `RecentlyViewedProvider` + `useTrackRecentlyViewed` on Inventory/Sales/Customers selection and deep links; clock button dropdown in AppHeader grouped by entity type with relative timestamps and Clear history.
+
 **Wave 29 (2026-05-24) — implemented:** ADR-058 SQLite hardening — `busy_timeout` + `synchronous=NORMAL` pragmas; startup `integrity_check` every 7 days with `last_integrity_check` / `integrity_warning` settings; `system.integrity_check_failed` activity log; `quick_check` gate before backup; `DATABASE_BUSY` → 503; `wal_checkpoint` on close/backup; `IntegrityWarningBanner` in app shell.
 
 **Wave 28 (2026-05-24) — implemented:** ADR-053 customer merge and dedup — `POST /api/customers/merge` transactional merge (orders, addresses, notes, field overrides, activity log); `GET /api/customers/duplicates` with Levenshtein/email grouping; `CustomerMergeModal` (select → preview → ConfirmDialog); `CustomerDuplicatesModal`; Customers toolbar **Merge customers** + **Find duplicates**.
