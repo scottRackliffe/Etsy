@@ -2,8 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { purgeOldActivityLog } from "@/lib/activity-log";
 import { logger } from "@/lib/logging";
+import { runStartupIntegrityCheckIfDue } from "@/lib/sqlite-integrity";
 import Database from "better-sqlite3";
 
+/**
+ * better-sqlite3 uses a single synchronous connection (not thread-safe across instances).
+ * The singleton below is the correct pattern for Next.js API routes in this app.
+ */
 let dbInstance: Database.Database | null = null;
 let schemaReady = false;
 
@@ -384,6 +389,13 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec("CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);");
 }
 
+function configureDatabasePragmas(db: Database.Database): void {
+  db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
+  db.pragma("foreign_keys = ON");
+  db.pragma("synchronous = NORMAL");
+}
+
 export function getDb(): Database.Database {
   if (dbInstance) {
     return dbInstance;
@@ -393,14 +405,14 @@ export function getDb(): Database.Database {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
   dbInstance = new Database(databasePath);
-  dbInstance.pragma("journal_mode = WAL");
-  dbInstance.pragma("foreign_keys = ON");
+  configureDatabasePragmas(dbInstance);
 
   if (!schemaReady) {
     ensureInventorySchema(dbInstance);
     ensureCoreTables(dbInstance);
     schemaReady = true;
     purgeOldActivityLog();
+    runStartupIntegrityCheckIfDue(dbInstance);
   }
 
   return dbInstance;
@@ -409,6 +421,7 @@ export function getDb(): Database.Database {
 export function resetSqliteConnection(): void {
   if (dbInstance) {
     try {
+      dbInstance.pragma("wal_checkpoint(TRUNCATE)");
       dbInstance.close();
     } catch (error) {
       logger.warn("sqlite close during reset failed", {

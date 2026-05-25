@@ -2,9 +2,11 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { ApiRouteError } from "@/lib/api-error";
 import { logActivity } from "@/lib/activity-log";
 import { logger } from "@/lib/logging";
 import { getSetting, setSetting } from "@/lib/settings-store";
+import { runQuickCheckOnDb } from "@/lib/sqlite-integrity";
 import { getSqliteDatabasePath, getDb, resetSqliteConnection } from "@/lib/sqlite";
 
 const BACKUP_FILE_RE = /^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.sqlite$/;
@@ -98,6 +100,17 @@ export async function createBackup(options?: { source?: "user" | "system" }): Pr
   const dest = path.join(dir, filename);
 
   const db = getDb();
+  if (!runQuickCheckOnDb(db)) {
+    throw new ApiRouteError({
+      status: 500,
+      code: "INTERNAL_ERROR",
+      message: "Database failed quick_check before backup",
+      userMessage:
+        "Database failed integrity check. Cannot create a reliable backup. Please contact support.",
+      actions: ["Try again later.", "Go to Config → Backup & Restore to restore from a prior backup."],
+      canRetry: false,
+    });
+  }
   db.pragma("wal_checkpoint(TRUNCATE)");
   await fsp.copyFile(getSqliteDatabasePath(), dest);
 

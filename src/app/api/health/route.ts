@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isIntegrityWarningActive } from "@/lib/sqlite-integrity";
 import { getDb } from "@/lib/sqlite";
 import { logger } from "@/lib/logging";
 
@@ -14,6 +15,7 @@ export async function GET() {
         checks: {
           app: true,
           sqlite: true,
+          integrity_warning: isIntegrityWarningActive(),
         },
         timestamp: new Date().toISOString(),
       },

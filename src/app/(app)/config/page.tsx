@@ -997,7 +997,7 @@ export default function ConfigPage() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+      <div id="backup-restore" className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h4 className="text-sm font-semibold text-[var(--ui-title)]">Backup and restore</h4>

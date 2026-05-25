@@ -6,6 +6,7 @@ import { AppProvider, useApp } from "@/context/AppContext";
 import { ConnectionProvider } from "@/context/ConnectionContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
+import { IntegrityWarningBanner } from "@/components/shell/IntegrityWarningBanner";
 import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
 import { MutationQueuedError } from "@/lib/api-fetch";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
@@ -152,6 +153,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <SkipLink />
       {setupChecked && showSetup ? <SetupWizard onDone={() => setShowSetup(false)} /> : null}
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />
+      <IntegrityWarningBanner />
       <OfflineBanner />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <ProgressModal {...syncModal} />

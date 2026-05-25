@@ -14,7 +14,8 @@ export type ApiErrorCode =
   | "NO_SAMPLE_DATA"
   | "QUERY_TOO_SHORT"
   | "BATCH_TOO_LARGE"
-  | "CONFLICT_STALE_RECORD";
+  | "CONFLICT_STALE_RECORD"
+  | "DATABASE_BUSY";
 
 export type ApiErrorPayload = {
   ok: false;
@@ -72,6 +73,12 @@ export function errorResponse(error: ApiRouteError): NextResponse<ApiErrorPayloa
   );
 }
 
+export function isDatabaseBusyError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as Error & { code?: string }).code;
+  return code === "SQLITE_BUSY" || error.message.includes("SQLITE_BUSY");
+}
+
 export function fromUnknownError(
   error: unknown,
   fallback: {
@@ -85,6 +92,16 @@ export function fromUnknownError(
 ): ApiRouteError {
   if (error instanceof ApiRouteError) {
     return error;
+  }
+  if (isDatabaseBusyError(error)) {
+    return new ApiRouteError({
+      status: 503,
+      code: "DATABASE_BUSY",
+      message: "Database is temporarily busy",
+      userMessage: "The database is busy. Please try again in a moment.",
+      actions: ["Wait a moment and try again."],
+      canRetry: true,
+    });
   }
   if (error instanceof Error) {
     return new ApiRouteError({
