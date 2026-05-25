@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 
-export function AppHeader() {
+export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { shops, iconConfig, connect, logout } = useApp();
 
   const screenHeaderIconSize = Number.isFinite(Number(iconConfig.screenHeaderSizePx))
@@ -35,6 +35,17 @@ export function AppHeader() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {onOpenSearch ? (
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm font-medium text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
+              aria-label="Search"
+              title="Search (Cmd+K)"
+            >
+              Search
+            </button>
+          ) : null}
           <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass}`}>
             {shops.length ? "Connected" : "Not connected"}
           </span>

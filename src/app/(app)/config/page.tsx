@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import type { ApiErrorShape, AiConfig } from "@/types";
+
+type BackupEntry = {
+  filename: string;
+  created_at: string;
+  size_bytes: number;
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ConfigPage() {
   const {
@@ -13,6 +25,91 @@ export default function ConfigPage() {
 
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+
+  const loadBackups = useCallback(async () => {
+    setBackupLoading(true);
+    try {
+      const response = await fetch("/api/backup", { headers: { Accept: "application/json" } });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        backups?: BackupEntry[];
+      };
+      if (!response.ok) throw data;
+      setBackups(data.backups ?? []);
+    } catch (err) {
+      setApiError("Could not load backups", "We could not load the backup list.", err);
+    } finally {
+      setBackupLoading(false);
+    }
+  }, [setApiError]);
+
+  useEffect(() => {
+    void loadBackups();
+  }, [loadBackups]);
+
+  const createBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const response = await fetch("/api/backup", { method: "POST", headers: { Accept: "application/json" } });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { filename?: string; size_bytes?: number };
+      if (!response.ok) throw data;
+      setError({
+        title: "Backup created",
+        message: `Saved ${data.filename ?? "backup"} (${formatBytes(data.size_bytes ?? 0)}).`,
+        actions: ["Your data is backed up locally."],
+      });
+      await loadBackups();
+    } catch (err) {
+      setApiError("Backup failed", "We could not create a backup.", err);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const restoreBackup = async (filename: string) => {
+    setBackupLoading(true);
+    try {
+      const response = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { pre_restore_backup?: string };
+      if (!response.ok) throw data;
+      setRestoreTarget(null);
+      setError({
+        title: "Backup restored",
+        message: `Restored from ${filename}. A safety backup was saved as ${data.pre_restore_backup ?? "pre-restore backup"}.`,
+        actions: ["Refresh the page to load restored data."],
+      });
+      await loadBackups();
+    } catch (err) {
+      setApiError("Restore failed", "We could not restore from that backup.", err);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const deleteBackup = async (filename: string) => {
+    setBackupLoading(true);
+    try {
+      const response = await fetch(`/api/backup/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      await loadBackups();
+    } catch (err) {
+      setApiError("Delete failed", "We could not delete that backup.", err);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   const saveAiSettings = async () => {
     setSaving(true);
@@ -186,6 +283,97 @@ export default function ConfigPage() {
             Save icon settings
           </button>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold text-[var(--ui-title)]">Backup and restore</h4>
+            <p className="text-xs text-[var(--ui-muted)]">Local SQLite backups (ADR-027). Rolling retention keeps recent copies.</p>
+          </div>
+          <button
+            type="button"
+            onClick={createBackup}
+            disabled={backupLoading}
+            className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            Backup now
+          </button>
+        </div>
+
+        {backupLoading && backups.length === 0 ? (
+          <p className="text-sm text-[var(--ui-muted)]">Loading backups…</p>
+        ) : backups.length === 0 ? (
+          <p className="text-sm text-[var(--ui-muted)]">No backups yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--ui-border)] text-[var(--ui-muted)]">
+                  <th className="py-2 pr-3 font-medium">File</th>
+                  <th className="py-2 pr-3 font-medium">Created</th>
+                  <th className="py-2 pr-3 font-medium">Size</th>
+                  <th className="py-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backups.slice(0, 5).map((backup) => (
+                  <tr key={backup.filename} className="border-b border-[var(--ui-border)]/60">
+                    <td className="py-2 pr-3 text-[var(--ui-body)]">{backup.filename}</td>
+                    <td className="py-2 pr-3 text-[var(--ui-muted)]">{backup.created_at}</td>
+                    <td className="py-2 pr-3 text-[var(--ui-muted)]">{formatBytes(backup.size_bytes)}</td>
+                    <td className="py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRestoreTarget(backup.filename)}
+                          disabled={backupLoading}
+                          className="rounded border border-[var(--ui-border)] px-2 py-1 text-xs"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteBackup(backup.filename)}
+                          disabled={backupLoading}
+                          className="rounded border border-[var(--ui-red)]/40 px-2 py-1 text-xs text-[var(--ui-red)]"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {restoreTarget ? (
+          <div className="mt-4 rounded-lg border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 p-3">
+            <p className="text-sm font-medium text-[var(--ui-title)]">Restore from {restoreTarget}?</p>
+            <p className="mt-1 text-xs text-[var(--ui-muted)]">
+              This replaces your current database. A safety backup is created first.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void restoreBackup(restoreTarget)}
+                disabled={backupLoading}
+                className="rounded-lg bg-[var(--ui-red)] px-3 py-2 text-sm font-semibold text-white"
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                onClick={() => setRestoreTarget(null)}
+                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

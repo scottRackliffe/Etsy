@@ -345,4 +345,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 4 (2026-05-24) — implemented:** ADR-029 list `search`/`sort_by`/`sort_dir`/filters on inventory, orders, customers APIs; ADR-027 backup POST/GET/DELETE/restore; Sales ship modal (carrier, tracking, date, ship-anyway).
 
-*Next update: After Wave 5 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 5 (2026-05-24) — implemented:** ADR-041 `GET /api/search` + global search modal (Cmd/Ctrl+K, header button); ADR-040 batch POST routes for orders/inventory/customers; Config backup section wired to backup APIs (ADR-034/027); order/inventory/customer search fields aligned with ADR-041.
+
+*Next update: After Wave 6 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

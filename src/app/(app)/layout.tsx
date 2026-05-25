@@ -1,16 +1,31 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { TabBar } from "@/components/shell/TabBar";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
+import { GlobalSearchModal } from "@/components/search/GlobalSearchModal";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { shops, loading, error, urlError, connect, setError } = useApp();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]">
-      <AppHeader />
+      <AppHeader onOpenSearch={() => setSearchOpen(true)} />
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
         {urlError && (
           <div className="rounded-xl border border-[var(--ui-yellow)]/50 bg-[var(--ui-yellow)]/10 px-4 py-3">

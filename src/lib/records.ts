@@ -79,7 +79,7 @@ export function listInventory(options: InventoryListOptions) {
     params.status = options.status.trim();
   }
   where += buildSearchClause(
-    ["item_number", "description", "listing_title", "category_tags"],
+    ["item_number", "description", "listing_title", "category_tags", "notes"],
     options.search,
     params
   );
@@ -171,7 +171,7 @@ export function listCustomers(options: CustomerListOptions) {
     params.is_active = options.is_active;
   }
   where += buildSearchClause(
-    ["first_name", "last_name", "email", "phone", "city"],
+    ["first_name", "last_name", "email", "phone", "city", "notes"],
     options.search,
     params
   );
@@ -301,6 +301,7 @@ export function listOrders(options: OrderListOptions) {
       "ship_to_last_name",
       "ship_to_city",
       "notes",
+      "tracking_number",
     ],
     options.search,
     params

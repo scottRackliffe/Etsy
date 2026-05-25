@@ -11,7 +11,9 @@ export type ApiErrorCode =
   | "LISTING_GENERATION_FAILED"
   | "INTERNAL_ERROR"
   | "SAMPLE_DATA_EXISTS"
-  | "NO_SAMPLE_DATA";
+  | "NO_SAMPLE_DATA"
+  | "QUERY_TOO_SHORT"
+  | "BATCH_TOO_LARGE";
 
 export type ApiErrorPayload = {
   ok: false;
