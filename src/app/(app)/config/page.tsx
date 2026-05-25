@@ -19,6 +19,22 @@ const BUSINESS_KEYS = [
 
 type BusinessProfile = Record<(typeof BUSINESS_KEYS)[number], string>;
 
+type ShippingSettings = {
+  default_carrier: string;
+  default_origin_zip: string;
+  default_weight_oz: string;
+};
+
+type TaxSettings = {
+  default_rate: string;
+};
+
+type DisplaySettings = {
+  date_format: string;
+  currency_code: string;
+  page_size: string;
+};
+
 type BackupEntry = {
   filename: string;
   created_at: string;
@@ -58,6 +74,18 @@ export default function ConfigPage() {
   const [sampleDataBusy, setSampleDataBusy] = useState(false);
   const [loadSampleConfirm, setLoadSampleConfirm] = useState(false);
   const [removeSampleConfirm, setRemoveSampleConfirm] = useState(false);
+  const [shippingSettings, setShippingSettings] = useState<ShippingSettings>({
+    default_carrier: "USPS",
+    default_origin_zip: "",
+    default_weight_oz: "",
+  });
+  const [taxSettings, setTaxSettings] = useState<TaxSettings>({ default_rate: "" });
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
+    date_format: "MM/DD/YYYY",
+    currency_code: "USD",
+    page_size: "25",
+  });
+  const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
 
   const loadBackups = useCallback(async () => {
     setBackupLoading(true);
@@ -99,6 +127,17 @@ export default function ConfigPage() {
         business_phone: map.get("business_phone") ?? "",
         business_email: map.get("business_email") ?? "",
       });
+      setShippingSettings({
+        default_carrier: map.get("shipping.default_carrier") ?? "USPS",
+        default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
+        default_weight_oz: map.get("shipping.default_weight_oz") ?? "",
+      });
+      setTaxSettings({ default_rate: map.get("tax.default_rate") ?? "" });
+      setDisplaySettings({
+        date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
+        currency_code: map.get("ui.currency_code") ?? "USD",
+        page_size: map.get("ui.page_size") ?? "25",
+      });
     } catch (err) {
       setApiError("Could not load business profile", "We could not load business settings.", err);
     } finally {
@@ -133,6 +172,59 @@ export default function ConfigPage() {
       setBusinessLoading(false);
     }
   };
+
+  const saveSettingsKeys = async (
+    updates: Array<{ key: string; value: string }>,
+    successTitle: string,
+    successMessage: string
+  ) => {
+    setExtraSettingsLoading(true);
+    try {
+      for (const update of updates) {
+        const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ value: update.value }),
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        if (!response.ok) throw data;
+      }
+      setError({ title: successTitle, message: successMessage, actions: ["Settings saved."] });
+    } catch (err) {
+      setApiError("Could not save settings", "We could not save those settings.", err);
+    } finally {
+      setExtraSettingsLoading(false);
+    }
+  };
+
+  const saveShippingSettings = () =>
+    void saveSettingsKeys(
+      [
+        { key: "shipping.default_carrier", value: shippingSettings.default_carrier },
+        { key: "shipping.default_origin_zip", value: shippingSettings.default_origin_zip },
+        { key: "shipping.default_weight_oz", value: shippingSettings.default_weight_oz },
+      ],
+      "Shipping defaults saved",
+      "Default carrier and package settings were updated."
+    );
+
+  const saveTaxSettings = () =>
+    void saveSettingsKeys(
+      [{ key: "tax.default_rate", value: taxSettings.default_rate }],
+      "Tax settings saved",
+      "Default sales tax rate was updated."
+    );
+
+  const saveDisplaySettings = () =>
+    void saveSettingsKeys(
+      [
+        { key: "ui.date_format", value: displaySettings.date_format },
+        { key: "ui.currency_code", value: displaySettings.currency_code },
+        { key: "ui.page_size", value: displaySettings.page_size },
+      ],
+      "Display preferences saved",
+      "Date format, currency, and page size were updated."
+    );
 
   const loadSampleData = async () => {
     setSampleDataBusy(true);
@@ -434,6 +526,98 @@ export default function ConfigPage() {
             className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {businessLoading ? "Saving…" : "Save business profile"}
+          </button>
+        </div>
+      </div>
+      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping defaults</h4>
+          <label className="mb-2 block text-xs text-[var(--ui-muted)]">
+            Default carrier
+            <select
+              value={shippingSettings.default_carrier}
+              onChange={(e) => setShippingSettings((c) => ({ ...c, default_carrier: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            >
+              {["USPS", "UPS", "FedEx", "DHL", "Other"].map((carrier) => (
+                <option key={carrier} value={carrier}>{carrier}</option>
+              ))}
+            </select>
+          </label>
+          <input
+            value={shippingSettings.default_origin_zip}
+            onChange={(e) => setShippingSettings((c) => ({ ...c, default_origin_zip: e.target.value }))}
+            placeholder="Origin postal code"
+            className="mb-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <input
+            value={shippingSettings.default_weight_oz}
+            onChange={(e) => setShippingSettings((c) => ({ ...c, default_weight_oz: e.target.value }))}
+            placeholder="Default package weight (oz)"
+            type="number"
+            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <button type="button" onClick={saveShippingSettings} disabled={extraSettingsLoading} className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            Save shipping defaults
+          </button>
+        </div>
+        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Tax settings</h4>
+          <label className="block text-xs text-[var(--ui-muted)]">
+            Default sales tax rate (decimal, e.g. 0.0825 = 8.25%)
+            <input
+              value={taxSettings.default_rate}
+              onChange={(e) => setTaxSettings({ default_rate: e.target.value })}
+              placeholder="0.0825"
+              type="number"
+              step="0.0001"
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </label>
+          <button type="button" onClick={saveTaxSettings} disabled={extraSettingsLoading} className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            Save tax settings
+          </button>
+        </div>
+        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Display preferences</h4>
+          <label className="mb-2 block text-xs text-[var(--ui-muted)]">
+            Date format
+            <select
+              value={displaySettings.date_format}
+              onChange={(e) => setDisplaySettings((c) => ({ ...c, date_format: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            >
+              {["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"].map((fmt) => (
+                <option key={fmt} value={fmt}>{fmt}</option>
+              ))}
+            </select>
+          </label>
+          <label className="mb-2 block text-xs text-[var(--ui-muted)]">
+            Currency
+            <select
+              value={displaySettings.currency_code}
+              onChange={(e) => setDisplaySettings((c) => ({ ...c, currency_code: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            >
+              {["USD", "CAD", "GBP", "EUR", "AUD"].map((code) => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs text-[var(--ui-muted)]">
+            Records per page
+            <select
+              value={displaySettings.page_size}
+              onChange={(e) => setDisplaySettings((c) => ({ ...c, page_size: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            >
+              {["10", "25", "50", "100"].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={saveDisplaySettings} disabled={extraSettingsLoading} className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            Save display preferences
           </button>
         </div>
       </div>

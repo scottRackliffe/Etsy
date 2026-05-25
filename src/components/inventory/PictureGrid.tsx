@@ -37,8 +37,43 @@ export function PictureGrid({
   const [uploadSlot, setUploadSlot] = useState<number | null>(null);
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [removeSlot, setRemoveSlot] = useState<number | null>(null);
+  const [dragSlot, setDragSlot] = useState<number | null>(null);
 
   const slots = slotPaths(item);
+
+  const applyReorder = useCallback(
+    async (fromSlot: number, toSlot: number) => {
+      if (!inventoryId || fromSlot === toSlot) return;
+      const paths = slots.map((s) => s.path);
+      const fromIdx = fromSlot - 1;
+      const toIdx = toSlot - 1;
+      if (!paths[fromIdx]) return;
+      const next = [...paths];
+      if (next[toIdx]) {
+        [next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]];
+      } else {
+        next[toIdx] = next[fromIdx];
+        next[fromIdx] = null;
+      }
+      setBusySlot(toSlot);
+      try {
+        const response = await fetch(`/api/inventory/${inventoryId}/pictures/reorder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ pictures: next.map((p) => p ?? "") }),
+        });
+        const data = (await response.json().catch(() => ({}))) as { item?: InventoryItem };
+        if (!response.ok) throw data;
+        if (data.item) onItemUpdated(data.item);
+      } catch (err) {
+        onError("Reorder failed", "We could not reorder pictures.", err);
+      } finally {
+        setBusySlot(null);
+        setDragSlot(null);
+      }
+    },
+    [inventoryId, slots, onError, onItemUpdated]
+  );
 
   const validateFile = (file: File): string | null => {
     if (!ACCEPT.split(",").includes(file.type)) {
@@ -147,13 +182,27 @@ export function PictureGrid({
           return (
             <div
               key={slot}
-              className="relative aspect-square overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)]"
+              className={`relative aspect-square overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] ${
+                dragSlot === slot ? "ring-2 ring-[var(--ui-accent)]" : ""
+              }`}
               onDragOver={(e) => {
-                if (!path && !disabled) e.preventDefault();
+                if (disabled) return;
+                if (
+                  e.dataTransfer.types.includes("application/x-picture-slot") ||
+                  (!path && e.dataTransfer.types.includes("Files"))
+                ) {
+                  e.preventDefault();
+                }
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                if (path || disabled || !inventoryId) return;
+                if (disabled || !inventoryId) return;
+                const fromRaw = e.dataTransfer.getData("application/x-picture-slot");
+                if (fromRaw) {
+                  void applyReorder(Number(fromRaw), slot);
+                  return;
+                }
+                if (path) return;
                 const file = e.dataTransfer.files?.[0];
                 if (file) void uploadFile(slot, file);
               }}
@@ -165,7 +214,19 @@ export function PictureGrid({
               ) : url ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Slot ${slot}`} className="h-full w-full object-cover" />
+                  <img
+                    src={url}
+                    alt={`Slot ${slot}`}
+                    draggable={!disabled}
+                    onDragStart={(e) => {
+                      if (disabled || !path) return;
+                      e.dataTransfer.setData("application/x-picture-slot", String(slot));
+                      e.dataTransfer.effectAllowed = "move";
+                      setDragSlot(slot);
+                    }}
+                    onDragEnd={() => setDragSlot(null)}
+                    className="h-full w-full cursor-grab object-cover active:cursor-grabbing"
+                  />
                   {slot === 1 ? (
                     <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[10px] text-white">
                       ★ Primary
@@ -198,7 +259,7 @@ export function PictureGrid({
       </div>
 
       <p className="mt-2 text-xs text-[var(--ui-muted)]">
-        Drag to upload. Slot 1 is the primary listing image.{" "}
+        Drag images between slots to reorder. Slot 1 is the primary listing image.{" "}
         <a href="https://www.etsy.com/legal/policy" target="_blank" rel="noreferrer" className="text-[var(--ui-accent)]">
           Why pictures matter
         </a>

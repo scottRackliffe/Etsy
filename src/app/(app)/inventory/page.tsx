@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
+
+const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 
 type PublishHistory = {
   item?: {
@@ -53,10 +55,118 @@ function InventoryPageInner() {
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchStatusOpen, setBatchStatusOpen] = useState(false);
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
+  const [inventorySearch, setInventorySearch] = useState("");
+
+  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
+  const filteredInventory = useMemo(() => {
+    const q = inventorySearch.trim().toLowerCase();
+    if (!q) return inventory;
+    return inventory.filter((row) => {
+      const hay = [row.item_number, row.description, row.status].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [inventory, inventorySearch]);
+  const allVisibleSelected =
+    filteredInventory.length > 0 && filteredInventory.every((row) => selectedIds.has(row.id));
+  const someVisibleSelected = filteredInventory.some((row) => selectedIds.has(row.id));
 
   const handlePictureItemUpdated = (item: InventoryItem) => {
     setSelectedItem(item);
     setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+  };
+
+  const reloadInventory = async (search?: string) => {
+    const q = search ?? inventorySearch;
+    const params = new URLSearchParams({ limit: "100", offset: "0" });
+    if (q.trim()) params.set("search", q.trim());
+    const response = await fetch(`/api/inventory?${params}`, { headers: { Accept: "application/json" } });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: InventoryItem[] };
+    if (!response.ok) throw data;
+    if (data.items) setInventory(data.items);
+  };
+
+  const toggleInventoryRow = (id: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisibleInventory = () => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredInventory.map((row) => row.id)));
+    }
+  };
+
+  const batchChangeStatus = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    setBusyAction("batch-status");
+    try {
+      const response = await fetch("/api/inventory/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action: "change_status", ids: selectedIdList, params: { status } }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        succeeded?: number;
+        failed?: Array<{ id: number; reason: string }>;
+      };
+      if (!response.ok) throw data;
+      await reloadInventory();
+      setBatchStatusOpen(false);
+      setSelectedIds(new Set());
+      setError({
+        title: "Batch status updated",
+        message: `${data.succeeded ?? 0} item(s) set to ${status}.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} failed.` : ""}`,
+        actions: ["Review items in the list."],
+      });
+    } catch (err) {
+      setApiError("Batch status failed", "We could not update selected items.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const batchDeleteInventory = async () => {
+    if (selectedIds.size === 0) return;
+    setBusyAction("batch-delete");
+    try {
+      const response = await fetch("/api/inventory/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action: "delete", ids: selectedIdList }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        succeeded?: number;
+        failed?: Array<{ id: number; reason: string }>;
+      };
+      if (!response.ok) throw data;
+      setInventory((current) => current.filter((row) => !selectedIds.has(row.id)));
+      if (selectedItemId && selectedIds.has(selectedItemId)) {
+        const remaining = inventory.filter((row) => !selectedIds.has(row.id));
+        setSelectedItemId(remaining[0]?.id ?? null);
+        setSelectedItem(remaining[0] ?? null);
+      }
+      setBatchDeleteOpen(false);
+      setSelectedIds(new Set());
+      setError({
+        title: "Batch delete complete",
+        message: `${data.succeeded ?? 0} item(s) deleted.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} skipped (have orders).` : ""}`,
+        actions: ["Items with orders cannot be deleted."],
+      });
+    } catch (err) {
+      setApiError("Batch delete failed", "We could not delete selected items.", err);
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const canWorkListing = Boolean(selectedItem);
@@ -430,20 +540,6 @@ function InventoryPageInner() {
             Manual guided form, integrated AI generation, and hybrid import/export.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-[var(--ui-muted)]">Inventory item</label>
-          <select
-            value={selectedItemId ?? ""}
-            onChange={(e) => setSelectedItemId(Number(e.target.value))}
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm text-[var(--ui-body)]"
-          >
-            {inventory.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.item_number ?? `Item ${item.id}`} - {(item.description ?? "").slice(0, 40) || "No description"}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-4">
@@ -456,6 +552,72 @@ function InventoryPageInner() {
           <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
             Delete selected
           </button>
+        </div>
+      </div>
+
+      {selectedIds.size > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2">
+          <span className="text-sm text-[var(--ui-body)]">{selectedIds.size} selected</span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setBatchStatusOpen(true)} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
+              Change status…
+            </button>
+            <button type="button" onClick={() => void batchChangeStatus("Retired")} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
+              Retire
+            </button>
+            <button type="button" onClick={() => setBatchDeleteOpen(true)} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-1.5 text-sm text-[var(--ui-red)] disabled:opacity-60">
+              Delete
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm text-[var(--ui-accent)]">
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <p className="text-sm font-semibold text-[var(--ui-title)]">Inventory items</p>
+          <input
+            value={inventorySearch}
+            onChange={(e) => setInventorySearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void reloadInventory(inventorySearch); }}
+            placeholder="Search item #, description, status…"
+            className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <button type="button" onClick={() => void reloadInventory()} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
+            Search
+          </button>
+        </div>
+        <div className="max-h-48 overflow-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs text-[var(--ui-muted)]">
+                <th className="w-8 py-1">
+                  <input type="checkbox" checked={allVisibleSelected} ref={(el) => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }} onChange={toggleAllVisibleInventory} aria-label="Select all inventory on page" />
+                </th>
+                <th className="py-1">Item #</th>
+                <th className="py-1">Description</th>
+                <th className="py-1">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInventory.map((item) => {
+                const isSelected = selectedItemId === item.id;
+                const isChecked = selectedIds.has(item.id);
+                return (
+                  <tr key={item.id} onClick={() => setSelectedItemId(item.id)} className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${isSelected ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""}`}>
+                    <td className="py-1" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={isChecked} onChange={() => toggleInventoryRow(item.id)} aria-label={`Select ${item.item_number ?? item.id}`} />
+                    </td>
+                    <td className="py-1 pr-2">{item.item_number ?? `#${item.id}`}</td>
+                    <td className="py-1 pr-2">{(item.description ?? "").slice(0, 50) || "—"}</td>
+                    <td className="py-1">{item.status ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -651,6 +813,33 @@ function InventoryPageInner() {
       ) : (
         <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>
       )}
+
+
+      {batchStatusOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
+            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Change status</h4>
+            <select value={batchStatusValue} onChange={(e) => setBatchStatusValue(e.target.value)} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm">
+              {INVENTORY_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
+            </select>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setBatchStatusOpen(false)} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">Cancel</button>
+              <button type="button" onClick={() => void batchChangeStatus(batchStatusValue)} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Apply</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={batchDeleteOpen}
+        onClose={() => setBatchDeleteOpen(false)}
+        onConfirm={() => void batchDeleteInventory()}
+        title={`Delete ${selectedIds.size} items?`}
+        description="Items with associated orders cannot be deleted and will be skipped."
+        confirmLabel="Delete items"
+        confirmVariant="danger"
+        busy={busyAction === "batch-delete"}
+      />
 
       <ConfirmDialog
         open={deleteConfirmOpen}

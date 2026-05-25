@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -42,6 +42,12 @@ function CustomersPageInner() {
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteType, setNewNoteType] = useState("general");
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+
+  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
+  const allVisibleSelected = customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
+  const someVisibleSelected = customers.some((c) => selectedIds.has(c.id));
 
   const searchParams = useSearchParams();
 
@@ -244,36 +250,123 @@ function CustomersPageInner() {
     }
   };
 
+  const toggleCustomerRow = (id: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisibleCustomers = () => {
+    if (allVisibleSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(customers.map((c) => c.id)));
+  };
+
+  const batchDeleteCustomers = async () => {
+    if (selectedIds.size === 0) return;
+    setBusyAction("batch-delete-customers");
+    try {
+      const response = await fetch("/api/customers/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action: "delete", ids: selectedIdList }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        succeeded?: number;
+        failed?: Array<{ id: number; reason: string }>;
+      };
+      if (!response.ok) throw data;
+      setCustomers((current) => current.filter((row) => !selectedIds.has(row.id)));
+      if (selectedCustomerId && selectedIds.has(selectedCustomerId)) {
+        const remaining = customers.filter((row) => !selectedIds.has(row.id));
+        setSelectedCustomerId(remaining[0]?.id ?? null);
+      }
+      setBatchDeleteOpen(false);
+      setSelectedIds(new Set());
+      setError({
+        title: "Batch delete complete",
+        message: `${data.succeeded ?? 0} customer(s) deleted.${(data.failed?.length ?? 0) > 0 ? ` ${data.failed!.length} skipped (have orders).` : ""}`,
+        actions: ["Customers with orders cannot be deleted."],
+      });
+    } catch (err) {
+      setApiError("Batch delete failed", "We could not delete selected customers.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Customers</h3>
+      {selectedIds.size > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2">
+          <span className="text-sm text-[var(--ui-body)]">{selectedIds.size} selected</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setBatchDeleteOpen(true)}
+              disabled={busyAction != null}
+              className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-1.5 text-sm text-[var(--ui-red)] disabled:opacity-60"
+            >
+              Delete
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-sm text-[var(--ui-accent)]">
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 lg:col-span-2">
           <div className="max-h-72 overflow-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-xs text-[var(--ui-muted)]">
+                  <th className="w-8 py-1">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                      }}
+                      onChange={toggleAllVisibleCustomers}
+                      aria-label="Select all customers on page"
+                    />
+                  </th>
                   <th className="py-1">Name</th>
                   <th className="py-1">Email</th>
                   <th className="py-1">Phone</th>
                 </tr>
               </thead>
               <tbody>
-                {customers.map((customer) => (
+                {customers.map((customer) => {
+                  const isChecked = selectedIds.has(customer.id);
+                  return (
                   <tr
                     key={customer.id}
                     onClick={() => setSelectedCustomerId(customer.id)}
                     className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${
-                      selectedCustomerId === customer.id ? "bg-[var(--ui-list-hover)]/60" : ""
+                      selectedCustomerId === customer.id ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""
                     }`}
                   >
+                    <td className="py-1" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCustomerRow(customer.id)}
+                        aria-label={`Select customer ${customer.id}`}
+                      />
+                    </td>
                     <td className="py-1 pr-2">
                       {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`}
                     </td>
                     <td className="py-1 pr-2">{customer.email ?? "-"}</td>
                     <td className="py-1">{customer.phone ?? "-"}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -433,6 +526,16 @@ function CustomersPageInner() {
         </p>
       )}
 
+      <ConfirmDialog
+        open={batchDeleteOpen}
+        onClose={() => setBatchDeleteOpen(false)}
+        onConfirm={() => void batchDeleteCustomers()}
+        title={`Delete ${selectedIds.size} customers?`}
+        description="Customers with existing orders cannot be deleted and will be skipped."
+        confirmLabel="Delete customers"
+        confirmVariant="danger"
+        busy={busyAction === "batch-delete-customers"}
+      />
       <ConfirmDialog
         open={deleteAddressTarget != null}
         onClose={() => setDeleteAddressTarget(null)}
