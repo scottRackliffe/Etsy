@@ -39,7 +39,7 @@ export function useProgressOperation() {
     try {
       await options.fn();
       setModal((m) => ({ ...m, statusText: "Complete" }));
-      await new Promise((r) => window.setTimeout(r, options.successDelayMs ?? 1500));
+      await new Promise((r) => window.setTimeout(r, options.successDelayMs ?? 2000));
       close();
       options.onSuccess?.();
     } catch (err) {

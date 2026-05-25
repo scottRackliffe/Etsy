@@ -17,6 +17,7 @@ import { CustomerDetailEditor } from "@/components/customers/CustomerDetailEdito
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { useEtsySync } from "@/hooks/useEtsySync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
@@ -76,6 +77,7 @@ function CustomersPageInner() {
   const [pendingCustomerId, setPendingCustomerId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
   const { setFormDirty } = useUnsavedChanges();
+  const { modal: syncModal, runSync } = useEtsySync();
 
   useEffect(() => {
     setFormDirty(customerDetailDirty);
@@ -486,28 +488,22 @@ function CustomersPageInner() {
     }
   };
 
-  const syncFromEtsy = async () => {
+  const syncFromEtsy = () => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
-    try {
-      const response = await fetch("/api/sync/etsy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
-      await reloadCustomers();
-      setError({
-        title: "Etsy sync complete",
-        message: "Customers and orders were updated from Etsy.",
-        actions: ["Refresh the Customers tab to review new records."],
-      });
-    } catch (err) {
-      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
-    } finally {
-      setBusyAction(null);
-    }
+    void runSync(selectedShopId, {
+      onSuccess: async () => {
+        await reloadCustomers();
+        setError({
+          title: "Etsy sync complete",
+          message: "Customers and orders were updated from Etsy.",
+          actions: ["Refresh the Customers tab to review new records."],
+        });
+      },
+      onError: (err) => {
+        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+      },
+    }).finally(() => setBusyAction(null));
   };
 
   return (
@@ -754,9 +750,11 @@ function CustomersPageInner() {
         open={progressOpen}
         title={progressTitle}
         statusText={progressTitle}
-        mode="indeterminate"
+        mode="determinate"
+        current={progressTotal}
         total={progressTotal}
       />
+      <ProgressModal {...syncModal} />
       <ConfirmDialog
         open={batchDeleteOpen}
         onClose={() => setBatchDeleteOpen(false)}

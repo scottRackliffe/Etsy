@@ -15,6 +15,8 @@ export type ProgressModalState = {
   userMessage?: string;
   onRetry?: () => void;
   onClose?: () => void;
+  onCancel?: () => void;
+  cancelDisabled?: boolean;
 };
 
 export function ProgressModal({
@@ -28,6 +30,8 @@ export function ProgressModal({
   userMessage,
   onRetry,
   onClose,
+  onCancel,
+  cancelDisabled = false,
 }: ProgressModalState) {
   const elapsed = useElapsedSeconds(open && !error);
   const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
@@ -89,6 +93,17 @@ export function ProgressModal({
               {statusText}
             </p>
             <p className="mt-2 text-xs text-[var(--ui-muted)]">Elapsed: {formatElapsed(elapsed)}</p>
+            {onCancel ? (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="secondary"
+                  onClick={onCancel}
+                  disabled={cancelDisabled}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

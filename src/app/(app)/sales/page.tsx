@@ -19,6 +19,7 @@ import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
+import { useEtsySync } from "@/hooks/useEtsySync";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
 import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
@@ -58,6 +59,7 @@ function SalesPageInner() {
   const [sort, setSort] = useState<SortState>({ key: "order_date", dir: "desc" });
   const batch = useBatchSelection(orders, listTotal);
   const { runBatch, busy: batchBusy, progressOpen, progressTitle, progressTotal } = useBatchOperation();
+  const { modal: syncModal, runSync } = useEtsySync();
   const [printQueueOpen, setPrintQueueOpen] = useState(false);
   const [printQueueType, setPrintQueueType] = useState<PrintQueueDocType>("invoice");
   const [shipModalOpen, setShipModalOpen] = useState(false);
@@ -225,28 +227,22 @@ function SalesPageInner() {
     setDetailRefresh((n) => n + 1);
   };
 
-  const syncEtsyOrders = async () => {
+  const syncEtsyOrders = () => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
-    try {
-      const response = await fetch("/api/sync/etsy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
-      await reloadOrders();
-      setError({
-        title: "Etsy sync complete",
-        message: "Latest Etsy receipts were synchronized.",
-        actions: ["Open Dashboard or Sales to review synced orders."],
-      });
-    } catch (err) {
-      setApiError("Could not sync Etsy orders", "We could not sync Etsy receipts.", err);
-    } finally {
-      setBusyAction(null);
-    }
+    void runSync(selectedShopId, {
+      onSuccess: async () => {
+        await reloadOrders();
+        setError({
+          title: "Etsy sync complete",
+          message: "Latest Etsy receipts were synchronized.",
+          actions: ["Open Dashboard or Sales to review synced orders."],
+        });
+      },
+      onError: (err) => {
+        setApiError("Could not sync Etsy orders", "We could not sync Etsy receipts.", err);
+      },
+    }).finally(() => setBusyAction(null));
   };
 
   const createOrderRecord = async () => {
@@ -779,10 +775,11 @@ function SalesPageInner() {
         open={progressOpen}
         title={progressTitle}
         statusText={progressTitle}
-        mode="indeterminate"
+        mode="determinate"
+        current={progressTotal}
         total={progressTotal}
-        onClose={() => undefined}
       />
+      <ProgressModal {...syncModal} />
       <ConfirmDialog
         open={discardOrderDirtyOpen}
         onClose={() => {

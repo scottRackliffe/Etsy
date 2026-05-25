@@ -368,9 +368,19 @@ function importReceipt(
 // Main sync function (ADR-019)
 // ---------------------------------------------------------------------------
 
+export type SyncProgressCallback = (progress: {
+  current: number;
+  total: number;
+  message: string;
+}) => void;
+
 export async function syncEtsyReceipts(
   cookieStore: CookieReader,
-  shopId: number
+  shopId: number,
+  options?: {
+    onProgress?: SyncProgressCallback;
+    shouldCancel?: () => boolean;
+  }
 ): Promise<SyncResult> {
   acquireSyncLock();
 
@@ -388,11 +398,25 @@ export async function syncEtsyReceipts(
   };
 
   const createdPlaceholders = new Map<string, number>();
+  let processed = 0;
+  let estimatedTotal = 0;
+
+  const reportProgress = (message: string) => {
+    options?.onProgress?.({
+      current: processed,
+      total: estimatedTotal,
+      message,
+    });
+  };
 
   try {
     let offset = 0;
 
     for (let page = 0; page < MAX_PAGES; page++) {
+      if (options?.shouldCancel?.()) {
+        result.stopped_early = true;
+        break;
+      }
       // Get a valid token (proactive refresh)
       const token = await getValidAccessToken(cookieStore);
 
@@ -411,6 +435,12 @@ export async function syncEtsyReceipts(
 
       result.pages_fetched++;
       const receipts = data.results ?? [];
+      if (estimatedTotal === 0 && (data.count ?? 0) > 0) {
+        estimatedTotal = Math.min(data.count ?? 0, MAX_PAGES * PAGE_SIZE);
+      }
+      if (estimatedTotal === 0 && receipts.length > 0) {
+        estimatedTotal = receipts.length;
+      }
 
       if (receipts.length === 0) break;
 
@@ -418,10 +448,18 @@ export async function syncEtsyReceipts(
       let allAlreadySynced = true;
 
       for (const receipt of receipts) {
+        if (options?.shouldCancel?.()) {
+          result.stopped_early = true;
+          break;
+        }
+
         const receiptId = String(receipt.receipt_id);
+        reportProgress(`Processing receipt #${receiptId}…`);
 
         if (isReceiptAlreadySynced(receiptId)) {
           result.skipped_already_imported++;
+          processed++;
+          reportProgress(`Skipped receipt #${receiptId} (already imported)`);
           continue;
         }
 
@@ -444,6 +482,8 @@ export async function syncEtsyReceipts(
           result.created_placeholder_inventory += imported.placeholderCount;
           if (imported.createdCustomer) result.created_customers++;
           if (imported.createdAddress) result.created_addresses++;
+          processed++;
+          reportProgress(`Imported receipt #${receiptId}`);
         } catch (err) {
           const reason = err instanceof Error ? err.message : String(err);
           logger.warn("etsy.sync.receipt_import_failed", {
@@ -451,7 +491,13 @@ export async function syncEtsyReceipts(
             reason,
           });
           result.skipped_errors.push({ receipt_id: receiptId, reason });
+          processed++;
         }
+      }
+
+      if (options?.shouldCancel?.()) {
+        result.stopped_early = true;
+        break;
       }
 
       // Stop paginating if all receipts on this page were already synced
@@ -465,6 +511,13 @@ export async function syncEtsyReceipts(
       offset += PAGE_SIZE;
       if (offset >= totalFromEtsy) break;
     }
+
+    if (estimatedTotal === 0) estimatedTotal = Math.max(processed, 1);
+    options?.onProgress?.({
+      current: processed,
+      total: estimatedTotal,
+      message: "Finishing sync…",
+    });
 
     // Update last sync timestamp
     setSetting(LAST_SYNC_KEY, new Date().toISOString());

@@ -7,7 +7,7 @@ import { ConnectionProvider } from "@/context/ConnectionContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
-import { apiFetch, MutationQueuedError } from "@/lib/api-fetch";
+import { MutationQueuedError } from "@/lib/api-fetch";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { KeyboardShortcutsModal } from "@/components/shell/KeyboardShortcutsModal";
@@ -16,9 +16,14 @@ import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { GlobalSearchModal } from "@/components/search/GlobalSearchModal";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useEtsySync } from "@/hooks/useEtsySync";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { useToast } from "@/hooks/useToast";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } = useApp();
+  const { modal: syncModal, runSync } = useEtsySync();
+  const toast = useToast();
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -70,33 +75,40 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     })();
   }, [loading]);
 
-  const syncFromEtsy = useCallback(async () => {
+  const syncFromEtsy = useCallback(() => {
     if (!selectedShopId) return;
-    try {
-      const response = await apiFetch("/api/sync/etsy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw data;
-      setError({
-        title: "Etsy sync complete",
-        message: "Orders were synchronized from Etsy.",
-        actions: ["Open Sales to review imported orders."],
-      });
-    } catch (err) {
-      if (err instanceof MutationQueuedError) {
+    void runSync(selectedShopId, {
+      onSuccess: (result) => {
+        const synced = result.synced ?? 0;
+        const skipped = result.skipped_already_imported ?? 0;
         setError({
-          title: "Sync queued",
-          message: err.message,
-          actions: ["Sync will run automatically when connection returns."],
+          title: "Etsy sync complete",
+          message: `Synced ${synced} orders${skipped > 0 ? ` (${skipped} already imported)` : ""}.`,
+          actions: ["Open Sales to review imported orders."],
         });
-        return;
-      }
-      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
-    }
-  }, [selectedShopId, setApiError, setError]);
+      },
+      onCancelled: (result) => {
+        const processed = result.synced ?? 0;
+        toast.showToast(
+          processed > 0
+            ? `Sync cancelled. ${processed} receipts were processed before cancel.`
+            : "Sync cancelled.",
+          "info"
+        );
+      },
+      onError: (err) => {
+        if (err instanceof MutationQueuedError) {
+          setError({
+            title: "Sync queued",
+            message: err.message,
+            actions: ["Sync will run automatically when connection returns."],
+          });
+          return;
+        }
+        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+      },
+    });
+  }, [selectedShopId, runSync, setApiError, setError, toast]);
 
   const shortcuts = useMemo(
     () => [
@@ -140,6 +152,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />
       <OfflineBanner />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ProgressModal {...syncModal} />
       <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} pathname={pathname} />
       <main
         id="main-content"

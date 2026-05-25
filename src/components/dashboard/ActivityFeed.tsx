@@ -11,7 +11,8 @@ import {
   formatActivityTimestamp,
   type ActivityItem,
 } from "@/lib/activity-display";
-import type { ApiErrorShape } from "@/types";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { useEtsySync } from "@/hooks/useEtsySync";
 
 export function ActivityFeed({
   onViewAll,
@@ -21,6 +22,7 @@ export function ActivityFeed({
   onSyncComplete?: () => void;
 }) {
   const { shops, selectedShopId, setBusyAction, setApiError, setError: showAppMessage } = useApp();
+  const { modal: syncModal, runSync } = useEtsySync();
   const router = useRouter();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,32 +56,28 @@ export function ActivityFeed({
     void load();
   }, [load]);
 
-  const syncFromEtsy = async () => {
+  const syncFromEtsy = () => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
-    try {
-      const response = await fetch("/api/sync/etsy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
-      await load();
-      onSyncComplete?.();
-      showAppMessage({
-        title: "Etsy sync complete",
-        message: "Orders were synchronized from Etsy.",
-        actions: ["Activity will update as you work in the app."],
-      });
-    } catch (err) {
-      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
-    } finally {
-      setBusyAction(null);
-    }
+    void runSync(selectedShopId, {
+      onSuccess: async () => {
+        await load();
+        onSyncComplete?.();
+        showAppMessage({
+          title: "Etsy sync complete",
+          message: "Orders were synchronized from Etsy.",
+          actions: ["Activity will update as you work in the app."],
+        });
+      },
+      onError: (err) => {
+        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+      },
+    }).finally(() => setBusyAction(null));
   };
 
   return (
+    <>
+    <ProgressModal {...syncModal} />
     <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">
         <div>
@@ -151,5 +149,6 @@ export function ActivityFeed({
         </ul>
       )}
     </section>
+    </>
   );
 }

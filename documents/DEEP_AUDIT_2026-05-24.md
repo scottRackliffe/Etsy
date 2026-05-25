@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 26 (2026-05-24) — implemented:** ADR-043 progress indicators — in-memory job store (`/api/jobs/[jobId]` GET/DELETE); Etsy sync returns `202` + `job_id` with determinate progress, cancel, and `JOB_ALREADY_RUNNING`; `useEtsySync` + `useJobPoll` client polling (2s); `ProgressModal` cancel button and elapsed time; wired sync on layout shortcut, dashboard, sales, customers, and activity feed; backup/reports keep indeterminate `useProgressOperation`.
+
 **Wave 25 (2026-05-24) — implemented:** ADR-042 completion on top of Wave 18 — trim-aware `formStatesEqual` / `deep-equal-form`; global discard clears drafts via `registerOnDiscard`; unsaved dialog copy (`Keep editing` / `Discard changes`); `CustomerDetailEditor` with controlled fields + list-switch guard; Config snapshot dirty guard + `beforeunload`; listing workshop dirty tracking + `draft:listing_workshop:<id>` autosave/recovery; `cleanupOldDrafts` once in `UnsavedChangesProvider`.
 
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

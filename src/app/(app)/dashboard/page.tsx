@@ -9,7 +9,8 @@ import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
-import { useProgressOperation } from "@/hooks/useProgressOperation";
+import { useEtsySync } from "@/hooks/useEtsySync";
+import { useToast } from "@/hooks/useToast";
 import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
@@ -23,7 +24,8 @@ export default function DashboardPage() {
   const [repeatCustomersMonth, setRepeatCustomersMonth] = useState<number | null>(null);
   const [activityLogKey, setActivityLogKey] = useState(0);
   const activityLogRef = useRef<HTMLDivElement>(null);
-  const { modal: progressModal, run: runWithProgress } = useProgressOperation();
+  const { modal: syncModal, runSync } = useEtsySync();
+  const toast = useToast();
 
   useEffect(() => {
     void fetch("/api/dashboard/stats", { headers: { Accept: "application/json" } })
@@ -48,36 +50,29 @@ export default function DashboardPage() {
       style: "currency", currency: code || "USD",
     }).format(parseFloat(value || "0"));
 
-  const syncFromEtsy = async () => {
+  const syncFromEtsy = () => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
-    try {
-      await runWithProgress({
-        title: "Syncing Etsy orders",
-        statusText: "Fetching and importing receipts from Etsy…",
-        fn: async () => {
-          const response = await fetch("/api/sync/etsy", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
-          });
-          const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-          if (!response.ok) throw data;
-        },
-        onSuccess: () => {
-          setActivityLogKey((k) => k + 1);
-          setError({
-            title: "Etsy sync complete",
-            message: "Latest Etsy receipts were synchronized.",
-            actions: ["Review recent orders below or open the Sales tab."],
-          });
-        },
-      });
-    } catch {
-      /* progress modal shows error */
-    } finally {
-      setBusyAction(null);
-    }
+    void runSync(selectedShopId, {
+      onSuccess: () => {
+        setActivityLogKey((k) => k + 1);
+        setError({
+          title: "Etsy sync complete",
+          message: "Latest Etsy receipts were synchronized.",
+          actions: ["Review recent orders below or open the Sales tab."],
+        });
+      },
+      onCancelled: (result) => {
+        const n = result.synced ?? 0;
+        toast.showToast(
+          n > 0 ? `Sync cancelled. ${n} receipts were processed before cancel.` : "Sync cancelled.",
+          "info"
+        );
+      },
+      onError: () => {
+        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", null);
+      },
+    }).finally(() => setBusyAction(null));
   };
 
   const scrollToActivityLog = () => {
@@ -86,7 +81,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <ProgressModal {...progressModal} />
+      <ProgressModal {...syncModal} />
       <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
