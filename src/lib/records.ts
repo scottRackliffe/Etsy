@@ -220,14 +220,18 @@ export function deleteCustomer(id: number): boolean {
   return result.changes > 0;
 }
 
-export function listPurchases(limit: number, offset: number) {
+export function listPurchases(limit: number, offset: number, inventoryId?: number) {
   const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) AS c FROM purchases").get() as { c: number }).c;
+  const where = inventoryId ? "WHERE inventory_id = ?" : "";
+  const countParams = inventoryId ? [inventoryId] : [];
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM purchases ${where}`).get(...countParams) as { c: number }
+  ).c;
   const items = db
     .prepare(
-      "SELECT * FROM purchases ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC LIMIT ? OFFSET ?"
+      `SELECT * FROM purchases ${where} ORDER BY COALESCE(updated_at, created_at, '') DESC, id DESC LIMIT ? OFFSET ?`
     )
-    .all(limit, offset);
+    .all(...(inventoryId ? [inventoryId, limit, offset] : [limit, offset]));
   return { items, total };
 }
 
@@ -254,6 +258,11 @@ export function patchPurchase(id: number, input: Record<string, unknown>) {
   if (!patch) return getPurchase(id);
   db.prepare(patch.sql).run(patch.params);
   return getPurchase(id);
+}
+
+export function deletePurchase(id: number): boolean {
+  const result = getDb().prepare("DELETE FROM purchases WHERE id = ?").run(id);
+  return result.changes > 0;
 }
 
 export type OrderListOptions = {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { ApiErrorShape } from "@/types";
 
 const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
@@ -212,16 +213,27 @@ export default function ReportsPage() {
           Download PDF
         </button>
       </div>
+      {reportCsvPreview.trim().length === 0 ? (
+        <EmptyState
+          message="No data for the selected date range or filters."
+          primaryAction={
+            supportsDates
+              ? { label: "Adjust date range", onClick: () => { setFromDate(""); setToDate(""); setActivePreset(null); } }
+              : { label: "Preview CSV", onClick: () => void previewReportCsv() }
+          }
+          secondaryAction={
+            supportsDates && (fromDate || toDate)
+              ? { label: "Clear filters", onClick: () => { setFromDate(""); setToDate(""); setActivePreset(null); } }
+              : undefined
+          }
+        />
+      ) : (
       <textarea
         readOnly
         value={reportCsvPreview}
         aria-label="Report CSV preview"
         className="mt-3 min-h-80 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
       />
-      {reportCsvPreview.trim().length === 0 && (
-        <p className="mt-2 text-xs text-[var(--ui-muted)]">
-          Choose a report and click Preview CSV to inspect report output.
-        </p>
       )}
     </section>
   );

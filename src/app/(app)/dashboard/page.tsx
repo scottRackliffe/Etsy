@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
 import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
@@ -102,6 +103,8 @@ export default function DashboardPage() {
           </article>
         </div>
       </section>
+
+      <InventoryValueWidget />
 
       <ActivityFeed />
 

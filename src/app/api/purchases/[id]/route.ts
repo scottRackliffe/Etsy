@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { getPurchase, patchPurchase } from "@/lib/records";
+import { getPurchase, patchPurchase, deletePurchase } from "@/lib/records";
 
 async function getPurchaseId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -73,6 +73,34 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         message: "Failed to update purchase",
         userMessage: "We could not update the purchase.",
         actions: ["Retry in a moment.", "Check request data and retry."],
+      })
+    );
+  }
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    requireEtsyAccessToken(await cookies());
+    const id = await getPurchaseId(context);
+    const deleted = deletePurchase(id);
+    if (!deleted) {
+      throw new ApiRouteError({
+        status: 404,
+        code: "NOT_FOUND",
+        message: "Purchase not found",
+        userMessage: "The requested purchase was not found.",
+        actions: ["Refresh and retry."],
+        canRetry: false,
+      });
+    }
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    return errorResponse(
+      fromUnknownError(error, {
+        code: "INTERNAL_ERROR",
+        message: "Failed to delete purchase",
+        userMessage: "We could not delete the purchase.",
+        actions: ["Retry in a moment."],
       })
     );
   }

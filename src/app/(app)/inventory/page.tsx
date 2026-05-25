@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inventory/InventoryDetailPanel";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
 
@@ -62,6 +63,9 @@ function InventoryPageInner() {
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
   const [inventorySearch, setInventorySearch] = useState("");
   const createItemRef = useRef<HTMLInputElement>(null);
+  const [detailDirty, setDetailDirty] = useState(false);
+  const [pendingItemId, setPendingItemId] = useState<number | null>(null);
+  const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
   const filteredInventory = useMemo(() => {
@@ -79,6 +83,20 @@ function InventoryPageInner() {
   const handlePictureItemUpdated = (item: InventoryItem) => {
     setSelectedItem(item);
     setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+  };
+
+  const handleDetailItemUpdated = (item: InventoryItemDetail) => {
+    setSelectedItem(item);
+    setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+  };
+
+  const selectInventoryItem = (id: number) => {
+    if (detailDirty && id !== selectedItemId) {
+      setPendingItemId(id);
+      setDiscardDirtyOpen(true);
+      return;
+    }
+    setSelectedItemId(id);
   };
 
   const reloadInventory = async (search?: string) => {
@@ -631,7 +649,7 @@ function InventoryPageInner() {
                 const isSelected = selectedItemId === item.id;
                 const isChecked = selectedIds.has(item.id);
                 return (
-                  <tr key={item.id} onClick={() => setSelectedItemId(item.id)} className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${isSelected ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""}`}>
+                  <tr key={item.id} onClick={() => selectInventoryItem(item.id)} className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${isSelected ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""}`}>
                     <td className="py-1" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={isChecked} onChange={() => toggleInventoryRow(item.id)} aria-label={`Select ${item.item_number ?? item.id}`} />
                     </td>
@@ -646,6 +664,15 @@ function InventoryPageInner() {
           )}
         </div>
       </div>
+
+      <InventoryDetailPanel
+        item={selectedItem as InventoryItemDetail | null}
+        busy={busyAction != null}
+        onItemUpdated={handleDetailItemUpdated}
+        onError={(title, message, err) => setApiError(title, message, err)}
+        onSuccess={(title, message) => setError({ title, message, actions: [] })}
+        onDirtyChange={setDetailDirty}
+      />
 
       <div className="mb-4">
         <PictureGrid
@@ -865,6 +892,24 @@ function InventoryPageInner() {
         confirmLabel="Delete items"
         confirmVariant="danger"
         busy={busyAction === "batch-delete"}
+      />
+
+      <ConfirmDialog
+        open={discardDirtyOpen}
+        onClose={() => {
+          setDiscardDirtyOpen(false);
+          setPendingItemId(null);
+        }}
+        onConfirm={() => {
+          setDiscardDirtyOpen(false);
+          if (pendingItemId != null) setSelectedItemId(pendingItemId);
+          setPendingItemId(null);
+          setDetailDirty(false);
+        }}
+        title="Discard unsaved changes?"
+        description="You have unsaved inventory edits. Switch items anyway?"
+        confirmLabel="Discard changes"
+        confirmVariant="danger"
       />
 
       <ConfirmDialog

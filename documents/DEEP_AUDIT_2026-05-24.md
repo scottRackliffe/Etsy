@@ -359,4 +359,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 13 (2026-05-24) — implemented:** ADR-031 order line-item add/remove APIs and OrderDetailPanel UI; ADR-059 EmptyState CTAs on Sales, Inventory, Customers, Dashboard, and ActivityFeed; ADR-034 Config Etsy connection panel (`GET /api/auth/etsy/info`, reconnect/disconnect).
 
+**Wave 14 (2026-05-24) — implemented:** ADR-030 InventoryDetailPanel (core fields, vendor purchases, dirty guard); ADR-038 profitability row; ADR-064 dashboard inventory value widget + profit KPIs; ADR-059 Reports preview empty state; purchases `inventory_id` filter and DELETE.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

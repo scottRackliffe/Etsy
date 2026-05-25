@@ -9,7 +9,13 @@ export async function GET(request: NextRequest) {
   try {
     requireEtsyAccessToken(await cookies());
     const { limit, offset } = parsePagination(request.nextUrl.searchParams);
-    const { items, total } = listPurchases(limit, offset);
+    const inventoryIdRaw = request.nextUrl.searchParams.get("inventory_id");
+    const inventoryId = inventoryIdRaw ? Number(inventoryIdRaw) : undefined;
+    const { items, total } = listPurchases(
+      limit,
+      offset,
+      Number.isInteger(inventoryId) && inventoryId! > 0 ? inventoryId : undefined
+    );
     return NextResponse.json({
       ok: true,
       items,
