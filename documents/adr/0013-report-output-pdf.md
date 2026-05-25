@@ -14,7 +14,7 @@ ADR-006 defines the set of reports (thank you note, invoice, sales, costs, incom
 
 ## Decision
 
-> **Data model (2026-05-24):** Queries use `orders` + `order_items`; global filter `orders.order_status = 'active'`. Legacy "purchase row" wording in this section maps per Notes schema table.
+> **Data model (2026-05-24):** Queries use `orders` + `order_items`; global filter `orders.order_status = 'active'`. Legacy term mapping in Notes schema table.
 
 **Primary report output is PDF, with CSV export for the same report data.** All reports listed in ADR-006 (including profit-by-item, sales tax summary, inventory aging, and accounting export per ADR-038/039/054/056) are generated with a printable PDF view and support CSV export from the same filtered dataset.
 
@@ -37,62 +37,62 @@ ADR-006 defines the set of reports (thank you note, invoice, sales, costs, incom
 
 **Report content (exact — no ambiguity)**
 
-The following specifies the **exact content** that each report must include. Data sources are per ADR-006; field names refer to ADR-017 schema. Layout follows the full spec above; content is fixed.
+The following specifies the **exact content** that each report must include. Data sources are per ADR-006; field names refer to ADR-017 (`orders`, `order_items`, `inventory`, `other_costs`). Layout follows the full spec above; content is fixed.
 
-**Report data filter (global — single source of truth):** For every report that uses **purchase** data (thank you note, invoice, sales, income MTD/YTD, postal by vendor, AR aging), include **only** purchase rows where **order_status = 'active'**. Exclude void and cancelled orders (ADR-017). Each report below applies this filter unless otherwise noted.
+**Report data filter (global — single source of truth):** For every report that uses order/sales data (thank you note, invoice, sales, income MTD/YTD, postal by vendor, AR aging), include **only** `orders` where `order_status = 'active'`. Exclude void and cancelled orders (ADR-017). Each report below applies this filter unless otherwise noted.
 
 **Date-range defaults (global):** If a report supports date filters and no `from_date` / `to_date` is provided, use **All time** (subject to the global active-order filter). If only `from_date` is provided, filter from `from_date` through today. If only `to_date` is provided, filter through `to_date`.
 
 ---
 
-**Thank you note** (per order; order_id = one or more purchase rows)
+**Thank you note** (per order; one `orders` row)
 
 - **Data filter:** Per global rule above (active orders only).
-- **Required content:** (1) A greeting (e.g. “Thank you for your order”). (3) Ship-to name: ship_to_first_name, ship_to_last_name (from any purchase row in the order; same for whole order). (4) Order date: date_of_purchase (from any purchase row). (5) List of items: for each purchase row in the order, show the linked inventory’s description (or item_number if description empty) and quantity (1 per row unless we add quantity to purchase). (5) A closing (e.g. “We hope you enjoy your purchase.”). Optional: business name from settings.
-- **Data:** All purchase rows with that order_id; join inventory for description/item_number. Use first row for ship-to name and date.
+- **Required content:** (1) A greeting (e.g. “Thank you for your order”). (2) Ship-to name: `orders.ship_to_first_name`, `ship_to_last_name`. (3) Order date: `orders.order_date`. (4) List of items: for each `order_items` row on the order, show linked `inventory.description` (or `item_number` if description empty) and `order_items.quantity`. (5) A closing (e.g. “We hope you enjoy your purchase.”). Optional: business name from settings.
+- **Data:** `orders` by id; `order_items` joined to `inventory` for line text.
 
 ---
 
 **Invoice** (per order)
 
 - **Data filter:** Per global rule above (active orders only).
-- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business_name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (2) “Invoice” or “Invoice #” + order_id. (3) Buyer / ship-to: ship_to_first_name, ship_to_last_name, ship_to_address_line_1, ship_to_address_line_2, ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code (from any purchase row). (5) Date: date_of_purchase. (6) Table of line items: for each purchase row — inventory description (or item_number), quantity (1), unit price (`inventory.sale_revenue` for that linked row), line total. (7) Subtotal (sum of line totals). (8) Discount: if any purchase row has discount_amount > 0, show total discount and subtract from subtotal. (9) Shipping: sum of purchase.shipping_cost for the order; show shipper if set. (10) Total (subtotal − discount + shipping or as applicable). (11) Payment/shipping status: e.g. “Paid” / “Unpaid”, “Shipped” / “Not shipped” (from was_paid, shipping_date/shipper per purchase).
-- **Data:** All purchase rows with that order_id; join inventory for description, item_number, sale_revenue. Snapshot address from purchase.
+- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business_name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to_*` snapshot fields. (5) Date: `orders.order_date`. (6) Table of line items: for each `order_items` row — inventory description (or item_number), `quantity`, unit price (`order_items.unit_price` or `inventory.sale_revenue` per implementation), `line_total`. (7) Subtotal (`orders.subtotal` or sum of line totals). (8) Discount: if `orders.discount_total` > 0, show and subtract. (9) Shipping: `orders.seller_shipping_cost`; show `orders.shipper` if set. (10) Total (`orders.grand_total` or subtotal − discount + shipping). (11) Payment/shipping status from `orders.was_paid`, `orders.shipping_date`, `orders.shipper`.
+- **Data:** `orders` + `order_items` joined to `inventory`; ship-to from order snapshot only.
 
 ---
 
 **Sales** (date range optional)
 
-- **Required content:** (1) Title: “Sales Report”. (2) Date range (if provided: from_date – to_date; else “All time”). (3) Table: columns = Date (date_of_purchase), Order ID, Customer (ship_to name or customer name), Item (inventory description or item_number), Revenue (`inventory.sale_revenue`), optionally Paid/Shipped. One row per purchase (or one row per order with line count and total). (4) Total revenue (sum of non-null `inventory.sale_revenue` for displayed rows; treat NULL as 0 for totals).
-- **Data:** purchase joined to inventory; per global filter (active only). Filter by date_of_purchase if from_date/to_date given.
+- **Required content:** (1) Title: “Sales Report”. (2) Date range (if provided: from_date – to_date; else “All time”). (3) Table: columns = Date (`orders.order_date`), Order ID, Customer (ship-to name or customer name), Item (inventory description or item_number), Revenue (`inventory.sale_revenue` or line revenue), optionally Paid/Shipped. One row per `order_items` line (or one row per order with line count and total — pick one layout; document in implementation). (4) Total revenue (sum of displayed line revenue; treat NULL as 0).
+- **Data:** `orders` joined to `order_items` and `inventory`; per global filter. Filter by `orders.order_date` when from_date/to_date given.
 
 ---
 
 **Costs** (date range optional)
 
-- **Required content:** (1) Title: “Costs Report”. (2) Date range if provided. (3) Table: item (item_number or description), purchase cost, shipping cost (inventory), other costs (sum of inventory_other_cost.amount for that item), total cost per item. (4) Sum of purchase cost, shipping cost, other costs across items. Optionally filter by date (e.g. date_purchased in range) if we report costs by period.
-- **Data:** inventory; join inventory_other_cost; sum other costs per item. Purchase-level shipping cost (on purchase table) can be included in a separate section or in “shipping cost” total per ADR-006.
+- **Required content:** (1) Title: “Costs Report”. (2) Date range if provided. (3) Table: item (item_number or description), purchase cost (`inventory.purchase_cost`), shipping cost (`inventory.shipping_cost`), other costs (sum of `other_costs.amount` for that item), total cost per item. (4) Sum across items. Optionally filter by `inventory.date_purchased` in range.
+- **Data:** `inventory` left join `other_costs`; aggregate other costs per item. Seller shipping on sold orders (`orders.seller_shipping_cost`) may appear in a separate section per ADR-006.
 
 ---
 
 **Income — month to date**
 
-- **Required content:** (1) Title: “Income — Month to Date”. (2) Month and year (e.g. “February 2025”). (3) Total revenue: sum of non-null `inventory.sale_revenue` for all inventory items linked from purchases where `date_of_purchase` is in the current month (NULL treated as 0 in totals). (4) Optional: count of orders or transactions.
-- **Data:** Per ADR-006: sum sale revenue from inventory for purchases in current month. Per global filter (active only).
+- **Required content:** (1) Title: “Income — Month to Date”. (2) Month and year (e.g. “February 2025”). (3) Total revenue: sum of non-null `inventory.sale_revenue` for items linked via `order_items` from active `orders` where `orders.order_date` is in the current month (NULL treated as 0). (4) Optional: count of orders.
+- **Data:** Per ADR-006; active orders only.
 
 ---
 
 **Income — year to date**
 
-- **Required content:** (1) Title: “Income — Year to Date”. (2) Year (e.g. “2025”). (3) Total revenue: sum of non-null `inventory.sale_revenue` for purchases in the current year (NULL treated as 0 in totals). (4) Optional: count of orders.
-- **Data:** Same as MTD but for current year. Per global filter (active only).
+- **Required content:** (1) Title: “Income — Year to Date”. (2) Year (e.g. “2025”). (3) Total revenue: same as MTD for the current calendar year. (4) Optional: count of orders.
+- **Data:** Same as MTD but for current year; active orders only.
 
 ---
 
 **Postal costs by vendor**
 
-- **Required content:** (1) Title: “Postal Costs by Vendor”. (2) Date range if provided. (3) Table: Vendor (shipper name: USPS, UPS, FedEx, DHL, Other), Amount (sum of purchase.shipping_cost for that shipper). (4) Total (sum across vendors). Include a row for “Other” even if 0; include “Unspecified” or “Other” for rows where shipper is null (per ADR-005).
-- **Data:** purchase table; per global filter (active only). Group by shipper; sum shipping_cost. Null shipper → “Other” or “Unspecified.”
+- **Required content:** (1) Title: “Postal Costs by Vendor”. (2) Date range if provided. (3) Table: Vendor (`orders.shipper`: USPS, UPS, FedEx, DHL, Other), Amount (sum of `orders.seller_shipping_cost` for that shipper). (4) Total across vendors. Include “Other” / “Unspecified” for null shipper (per ADR-005).
+- **Data:** `orders` table; per global filter. `GROUP BY shipper`; `SUM(seller_shipping_cost)`.
 
 ---
 
@@ -105,8 +105,8 @@ The following specifies the **exact content** that each report must include. Dat
 
 **AR aging** (new report; ADR-006)
 
-- **Required content:** (1) Title: "AR Aging" (or "Accounts Receivable Aging"). (2) Date range or "as of" date. (3) Table: unpaid orders (was_paid = 0 or not paid) grouped by age bucket: e.g. 0–30 days, 31–60 days, 61–90 days, 90+ days from date_of_purchase. Columns: Order ID, Customer, Amount, Days outstanding. (4) Totals per bucket and grand total.
-- **Data:** purchase rows with was_paid = 0 (or equivalent); per global filter (active only). Group by order_id; age = days from date_of_purchase to report date.
+- **Required content:** (1) Title: "AR Aging" (or "Accounts Receivable Aging"). (2) Date range or "as of" date. (3) Table: unpaid orders (`orders.was_paid = 0`) grouped by age bucket: 0–30, 31–60, 61–90, 90+ days from `orders.order_date`. Columns: Order ID, Customer, Amount (`orders.grand_total` or subtotal), Days outstanding. (4) Totals per bucket and grand total.
+- **Data:** Active `orders` with `was_paid = 0`; age = days from `order_date` to report date.
 
 ---
 
@@ -152,7 +152,7 @@ ADR-036 adds a date range picker UI to the Reports page: From/To date inputs wit
 
 ### Schema mapping (updated 2026-05-24)
 
-The report content specifications in this ADR use original data model terms. The implementation maps as follows:
+The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 
 | ADR-013 term | Implementation | Notes |
 |-------------|----------------|-------|

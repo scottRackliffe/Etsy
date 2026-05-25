@@ -18,7 +18,7 @@ The outstanding panel and full-page Outstanding tab (ADR-009) show a data-driven
 
 The outstanding list is the **union** of the following item types. Each type has an exact definition and a query rule (SQL or equivalent). The list is ordered by user-configurable sort (ADR-020 sort order; default date first). The panel may show a capped number (e.g. top 20); the full-page Outstanding tab shows the full list. Clicking an item puts context in place (navigate to tab and select record) per ADR-009.
 
-**Exclude void/cancelled orders:** For every outstanding type that is **order-based** (types 1, 2, 6 — orders paid but not shipped, orders not yet paid, orders missing shipping cost), include **only** orders where **every** purchase row in that order has **order_status = 'active'**. Do not show void or cancelled orders on the outstanding list; they need no action. (ADR-017: order_status one of active, void, cancelled.)
+**Exclude void/cancelled orders:** For order-based types (1, 2, 6), include only `orders` where `order_status = 'active'`. Exclude void and cancelled orders from the outstanding list.
 
 **Item types and query rules:**
 
@@ -26,31 +26,31 @@ The outstanding list is the **union** of the following item types. Each type has
 
 ### 1. Orders paid but not yet shipped
 
-**Definition:** Purchase rows that represent an order that has been marked paid but not yet shipped (no shipping date or shipper recorded).
+**Definition:** Orders marked paid but not yet shipped (missing shipping date, shipper, or seller shipping cost).
 
-**Query rule:** Select distinct order_id where: (1) the order is **paid** — every purchase row in that order has `was_paid = 1` (treat `was_paid` IS NULL as 0 for legacy rows). (2) The order is **not yet shipped** — at least one purchase row in that order has `shipping_date` IS NULL OR `shipper` IS NULL OR `shipping_cost` IS NULL. So: paid orders that still need shipping info.
+**Query rule:** From `orders` where `order_status = 'active'` AND `was_paid = 1` AND (`shipping_date` IS NULL OR `shipper` IS NULL OR `seller_shipping_cost` IS NULL).
 
-**Grouping:** One outstanding item per **order_id** (not per purchase row). So: distinct order_id where at least one purchase row in that order satisfies the condition above. Display: one row per order, e.g. “Order #&lt;order_id&gt; – &lt;ship_to_first_name&gt; &lt;ship_to_last_name&gt; – not shipped”.
+**Grouping:** One outstanding item per `orders.id`. Display: e.g. “Order #&lt;order_number&gt; – &lt;ship_to_first_name&gt; &lt;ship_to_last_name&gt; – not shipped”.
 
-**Target on click:** Sales tab; open/select the order (all purchase rows with that order_id). Record = order_id.
+**Target on click:** Sales tab; `record = orders.id` (deep-link `orderId`).
 
 ---
 
 ### 2. Orders not yet marked paid
 
-**Definition:** Orders that the user has not yet marked as paid (e.g. payment received but not recorded in the app).
+**Definition:** Active orders not yet marked paid in the app.
 
-**Query rule:** Select distinct order_id where **every** purchase row in that order has `was_paid = 0` or `was_paid` IS NULL. The purchase table includes `was_paid` (ADR-017). “Mark as paid” sets was_paid = 1 for all purchase rows in the order.
+**Query rule:** From `orders` where `order_status = 'active'` AND (`was_paid = 0` OR `was_paid` IS NULL). “Mark as paid” sets `orders.was_paid = 1` (ADR-018).
 
-**Target on click:** Sales tab; select the order. Record = order_id.
+**Target on click:** Sales tab; `record = orders.id`.
 
 ---
 
 ### 3. New Etsy orders not yet synced
 
-**Definition:** Etsy receipts that exist in the Etsy API but do not yet have any corresponding purchase row in the local DB (no purchase.etsy_receipt_id matching that receipt).
+**Definition:** Etsy receipts in the API with no matching local order (`orders.etsy_receipt_id`).
 
-**Query rule:** Not a pure SQL query. (1) Fetch receipts from Etsy (same as dashboard, e.g. last N receipts). (2) For each receipt id, check whether there exists a row in `purchase` with `etsy_receipt_id` = that id. (3) If no such row exists, the receipt is “new Etsy order not yet synced.” Display one outstanding item per such receipt, e.g. “Etsy order #&lt;receipt_id&gt; – not synced”.
+**Query rule:** Not pure SQL. (1) Fetch receipts from Etsy (e.g. last 200). (2) For each `receipt_id`, check for `orders.etsy_receipt_id` = that id. (3) If none, emit outstanding item “Etsy order #&lt;receipt_id&gt; – not synced”.
 
 **Rate-limit and failure behavior:** Cache the fetched Etsy receipt-id set for 5 minutes to reduce repeated API calls from panel/tab refreshes. If Etsy returns HTTP 429, keep showing cached results and surface “Etsy sync status may be delayed.” If Etsy is unavailable, omit this type from the list for that refresh and show “Etsy sync status unavailable.”
 
@@ -77,10 +77,7 @@ One outstanding item per inventory row. Display: e.g. “Item &lt;item_number&gt
 
 **Definition:** Customers that have zero addresses, or for which every address is “incomplete” (missing required fields for shipping).
 
-**Query rule:** Required address fields for “complete”: address_line_1, city, country, postal_code (per ADR-003 and typical shipping). List customers where `customer.id` is **not in** the set of customer ids that have at least one complete address:
-
-- complete-address set = `SELECT customer_id FROM customer_address WHERE address_line_1 IS NOT NULL AND address_line_1 <> '' AND city IS NOT NULL AND city <> '' AND country IS NOT NULL AND country <> '' AND postal_code IS NOT NULL AND postal_code <> ''`
-- outstanding set = customers with `id NOT IN (complete-address set)`
+**Query rule:** A customer is complete if either (a) flat `customers.address_1`, `city`, `country`, `postal_code` are all non-empty, OR (b) at least one `addresses` row for that customer has `first_line`, `city`, `country`, `postal_code` non-empty. Outstanding = customers failing both checks.
 
 One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt; &lt;last_name&gt; – no address” or “incomplete address”.
 
@@ -90,11 +87,11 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ### 6. Orders missing shipping cost (in scope)
 
-**Definition:** Orders that have been shipped (shipper and shipping_date set) but shipping_cost is NULL or zero and should be filled for accurate “postal costs by vendor” report.
+**Definition:** Shipped orders (`shipper` and `shipping_date` set) with missing `seller_shipping_cost` for postal-by-vendor reporting.
 
-**Query rule:** Distinct order_id where at least one purchase row has shipper IS NOT NULL and shipping_date IS NOT NULL and (shipping_cost IS NULL or shipping_cost = 0). **In scope for v1.**
+**Query rule:** From `orders` where `order_status = 'active'` AND `shipper` IS NOT NULL AND `shipping_date` IS NOT NULL AND (`seller_shipping_cost` IS NULL OR `seller_shipping_cost = 0`).
 
-**Target on click:** Sales tab; open/select the order. Record = order_id.
+**Target on click:** Sales tab; `record = orders.id`.
 
 ---
 
@@ -112,12 +109,12 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 | Type                            | Data source                | Query / logic                                                          | One item per       | Click target         |
 | ------------------------------- | -------------------------- | ---------------------------------------------------------------------- | ------------------ | -------------------- |
-| Paid but not shipped            | purchase                   | order_id where any row has shipping_date/shipper/shipping_cost missing | order_id           | Sales, order         |
-| Not yet marked paid             | purchase                   | order_id where all rows have was_paid = 0                              | order_id           | Sales, order         |
-| New Etsy not synced             | Etsy API + purchase        | Receipt ids with no purchase.etsy_receipt_id                           | receipt            | Sales, sync or order |
-| In stock not listed             | inventory                  | status In stock/Draft and date_listed empty                            | inventory id       | Inventory, item      |
-| Customer no/incomplete address  | customer, customer_address | Customer with no complete address                                      | customer id        | Customers, customer  |
-| Missing shipping cost           | purchase                   | order with shipper/shipping_date set but shipping_cost null/0          | order_id           | Sales, order         |
+| Paid but not shipped            | orders                     | active, was_paid=1, missing ship date/shipper/seller_shipping_cost     | orders.id          | Sales, order         |
+| Not yet marked paid             | orders                     | active, was_paid=0                                                     | orders.id          | Sales, order         |
+| New Etsy not synced             | Etsy API + orders          | receipt_id with no orders.etsy_receipt_id                              | receipt_id         | Sales, sync          |
+| In stock not listed             | inventory                  | status In stock/Draft and date_listed empty                            | inventory.id       | Inventory, item      |
+| Customer no/incomplete address  | customers, addresses       | no complete flat or ship-to address                                    | customers.id       | Customers, customer  |
+| Missing shipping cost           | orders                     | shipped but seller_shipping_cost null/0                                | orders.id          | Sales, order         |
 | Validation/context-check issues | DB or computed             | records with unresolved validation/context failures                    | record or order_id | Tab and record       |
 
 ---
@@ -126,7 +123,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ---
 
-**was_paid:** The purchase table includes **was_paid** (INTEGER 0/1, default 0) per ADR-017. The query rules above use it as written.
+**was_paid:** On `orders` (INTEGER 0/1, default 0) per ADR-017. Query rules above use `orders.was_paid`.
 
 ## Consequences
 

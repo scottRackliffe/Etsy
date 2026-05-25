@@ -14,55 +14,59 @@ The application must maintain a “customer inventory”: who bought what, when,
 
 ## Decision
 
-**Customer table (one row per person)**
+> **Terminology (2026-05-24):** **Customer sale** = `orders` + `order_items`. **Vendor buy** = `purchases` table (inventory sourcing only). Canonical DDL: ADR-017.
 
-One customer record per **person** (not per order). That person can have **multiple purchases** and **multiple ship-to addresses**; the same customer_id links all their purchases and addresses. This supports discounts, loyalty, and repeat-customer reporting.
+**`customers` table (one row per person)**
 
-Store in the database:
+One row per buyer. Multiple orders and multiple ship-to addresses link via `customer_id`.
 
-- **Name:** customer first name, customer last name
-- **Optional:** email (e.g. from Etsy)
-- **Audit:** created_at, updated_at
+- **Identity:** `first_name`, `last_name`, optional `email`, `phone`
+- **Primary/billing address (v1):** flat fields `address_1`, `address_2`, `city`, `state`, `postal_code`, `country` on the customer row
+- **Optional:** `notes`, `currency_code` (display; v1 ops use USD)
+- **Audit:** `created_at`, `updated_at`
 
-(Addresses are stored in the **customer_address** table below.)
+**`addresses` table (multiple ship-to rows per customer)**
 
-**Customer_address table (multiple rows per customer)**
+Convenience for input when creating orders. User may pick a saved address; the order still stores a **snapshot** on `orders`.
 
-The system **must hold multiple ship-to addresses** per customer. This is a **convenience for input**: when creating a purchase, the user picks from the customer's saved addresses (e.g. Home, Work). Each row is one address for that customer.
+- **Links:** `customer_id` → `customers`
+- **Fields:** `first_line`, `second_line`, `city`, `state`, `postal_code`, `country`, optional `label`, `is_default`
+- **Audit:** `created_at`, `updated_at`
 
-- **Links:** customer_id (FK to customer)
-- **Address:** addr line 1, addr line 2, city, state/province, country, postal code
-- **Optional:** label (e.g. "Home", "Work") to help the user choose when creating an order
-- **Audit:** created_at, updated_at
+**`orders` table (customer sale header)**
 
-**Purchase/shipment table (e.g. customer_purchases or sales)**
+Holds payment, shipping, totals, and **ship-to snapshot** at time of sale. Invoices and thank-you notes read from `orders` + `order_items`, not live customer/address rows.
 
-The purchase record **holds all data as it appeared at the time** of the sale. When the user picks a customer and (optionally) one of their addresses, the app copies that address — and the customer name — onto the purchase record at save time. So the purchase is a **snapshot**: invoices and thank-you notes always show what was actually used then; later changes to the customer or their addresses do not change past orders.
+- **Links:** `customer_id` (nullable for guest Etsy orders), optional `etsy_receipt_id`
+- **Snapshot:** `ship_to_first_name`, `ship_to_last_name`, `ship_to_address_line_1`, `ship_to_address_line_2`, `ship_to_city`, `ship_to_state_province`, `ship_to_country`, `ship_to_postal_code`
+- **Dates / money:** `order_date`, `subtotal`, `discount_total`, `shipping_total`, `tax_total`, `grand_total`, `seller_shipping_cost` (ADR-004)
+- **Status:** `order_status` (active | void | cancelled), `was_paid`, `payment_status`, `shipper`, `shipping_date`, `tracking_number`
+- **Audit:** `created_at`, `updated_at`
 
-- **Links:** customer_id (FK to customer), **customer_address_id** (optional FK — which address was picked, for convenience; the canonical data is the snapshot below), inventory_id (FK to inventory — “item purchased”). **Order grouping (optional):** Add an **order_id** (or local_receipt_id) column so multiple purchase rows can belong to the same order (one row per item). Etsy receipt ID groups Etsy orders; for manual orders the app assigns a local order id when creating a “New order.” Thank-you note and invoice are generated per order (all purchase rows with the same order_id); see ADR-006.
-- **Snapshot (stored on this record):** **Ship-to name** (first name, last name as at time of purchase), **Ship-to address** (addr line 1, addr line 2, city, state/province, country, postal code as at time of purchase). These are copied from the customer and chosen address when the purchase is saved.
-- **Date:** date of purchase (and optionally shipping date if not on inventory)
-- **Discount:** **discount amount** (e.g. currency amount applied to this sale) — identified per sale so invoices and reports show the discount for each transaction
-- **Optional:** Etsy receipt/order ID for linking to Etsy
-- **Optional:** notes
-- **Audit:** created_at
+**`order_items` table (line items)**
 
-“Item purchased” and “date” are stored on this purchase record; the full ship-to name and address as they were at the time are stored on this purchase record (snapshot). Every field listed for “customer inventory” is stored in the database.
+One row per item sold on an order.
+
+- **Links:** `order_id` → `orders`, `inventory_id` → `inventory`
+- **Fields:** `quantity`, `unit_price`, `line_total`
+- **Audit:** `created_at`, `updated_at`
+
+Thank-you note and invoice are generated **per order** (all `order_items` for that `orders.id`). See ADR-006.
 
 ## Consequences
 
 - **Positive**
-  - Purchase record holds a **snapshot** of ship-to name and address at time of sale; invoices and history stay correct even if the customer or their addresses change later.
-  - One place for customer name; multiple addresses per customer as a convenience for input (user picks when entering a purchase).
-  - Clear relationship: **one customer (person) → many addresses, many purchases** → many inventory items; supports discounts and repeat-customer visibility.
+  - `orders` row holds a **snapshot** of ship-to name and address at time of sale; invoices and history stay correct even if the customer or their addresses change later.
+  - One place for customer name; multiple `addresses` rows per customer as a convenience for input (user picks when creating an order).
+  - Clear relationship: **one customer → many addresses, many orders** → many inventory items; supports discounts and repeat-customer visibility.
   - Discount amount per sale keeps invoices and reports accurate.
   - Supports reports (thank you note, invoice, sales) and future features (e.g. marking shipped, shipper per shipment).
 - **Negative**
-  - Slightly more schema (customer_address table) and UI to pick address when creating an order; acceptable for correct modeling.
+  - Slightly more schema (`addresses` table) and UI to pick address when creating an order; acceptable for correct modeling.
 
 ## Notes
 
-- Shipping cost and shipper are stored on the purchase/shipment record (ADR-004), not only on inventory.
+- Shipping cost and shipper are stored on the `orders` row (ADR-004), not only on inventory.
 - Customer data may be initially populated from Etsy orders and then edited or extended in-app.
 
 ### Schema mapping (updated 2026-05-24)

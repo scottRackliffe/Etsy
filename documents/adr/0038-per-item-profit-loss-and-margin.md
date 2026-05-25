@@ -55,7 +55,7 @@ The `other_costs_total` field is the `SUM(other_costs.amount)` for convenience. 
 
 **New report endpoint:**
 
-`GET /api/reports/profit-by-item` — see §4 below.
+`GET /api/reports/profit-by-item` — see §4 below. Query dates: canonical `from_date` / `to_date` (ADR-018); aliases `start_date` / `end_date` accepted.
 
 **Dashboard KPI endpoint update:**
 
@@ -126,8 +126,8 @@ A new report type added to the reports system (ADR-006, ADR-013).
 **Empty data:** If no items match the filter, the report body shows: "No sold items found for the selected date range."
 
 **API endpoint:**
-- `GET /api/reports/profit-by-item?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&format=pdf` → PDF
-- `GET /api/reports/profit-by-item?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&format=csv` → CSV
+- `GET /api/reports/profit-by-item?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=pdf` → PDF
+- `GET /api/reports/profit-by-item?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=csv` → CSV
 - Default date range: current calendar month if no dates provided
 - Response follows ADR-013 report format rules (12pt Courier body, 1in margins, page numbers centered)
 

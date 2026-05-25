@@ -38,12 +38,13 @@ All other inventory fields (pictures, thumbnail, condition_notes, category_tags,
 
 ---
 
-### 2. Inventory other cost (ADR-002)
+### 2. Inventory other cost (ADR-002, ADR-017 `other_costs`)
 
-| Field       | Rule                                   | Error message if violated                         |
-| ----------- | -------------------------------------- | ------------------------------------------------- |
-| amount      | Required. Number >= 0.                 | “Amount is required and must be zero or greater.” |
-| description | Required. Non-empty string after trim. | “Description is required.”                        |
+| Field      | Rule                                   | Error message if violated                         |
+| ---------- | -------------------------------------- | ------------------------------------------------- |
+| amount     | Required. Number >= 0.                 | “Amount is required and must be zero or greater.” |
+| cost_type  | Optional. Non-empty string if present. | —                                                 |
+| note       | Optional.                              | —                                                 |
 
 inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no client-supplied inventory_id in body.
 
@@ -61,42 +62,41 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 ---
 
-### 4. Customer address (ADR-003)
+### 4. Customer address (`addresses`, ADR-003)
 
-| Field          | Rule                                                                                                                                                                                                                                                      | Error message if violated     |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| address_line_1 | Required for “complete” address (used in outstanding list). For create/update: required if we enforce “at least one complete address per customer” elsewhere; here we allow partial. **Decision:** Required on create/update—non-empty string after trim. | “Address line 1 is required.” |
-| address_line_2 | Optional.                                                                                                                                                                                                                                                 | —                             |
-| city           | Required. Non-empty string after trim.                                                                                                                                                                                                                    | “City is required.”           |
-| state_province | Optional.                                                                                                                                                                                                                                                 | —                             |
-| country        | Required. Non-empty string after trim.                                                                                                                                                                                                                    | “Country is required.”        |
-| postal_code    | Required. Non-empty string after trim.                                                                                                                                                                                                                    | “Postal code is required.”    |
-| label          | Optional.                                                                                                                                                                                                                                                 | —                             |
+| Field       | Rule                                                                 | Error message if violated   |
+| ----------- | -------------------------------------------------------------------- | --------------------------- |
+| first_line  | Required on create/update — non-empty after trim.                     | “Address line 1 is required.” |
+| second_line | Optional.                                                            | —                           |
+| city        | Required. Non-empty after trim.                                      | “City is required.”         |
+| state       | Optional.                                                            | —                           |
+| country     | Required. Non-empty after trim.                                      | “Country is required.”      |
+| postal_code | Required. Non-empty after trim.                                      | “Postal code is required.”  |
+| label       | Optional.                                                            | —                           |
 
 ---
 
-### 5. Purchase / order (ADR-003, ADR-004)
+### 5. Order (ADR-003, ADR-004, ADR-017)
 
-**Create order (POST /api/orders):**
+**Create order (`POST /api/orders`):**
 
-| Field                   | Rule                                                                         | Error message if violated                           |
-| ----------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- |
-| customer_id             | Required. Must exist in customer table.                                      | “Customer is required.” / “Customer not found.”     |
-| customer_address_id     | Optional. If present, must exist and must belong to customer_id.             | “Address not found or does not belong to customer.” |
-| items                   | Required. Non-empty array. Each element: { inventory_id, discount_amount? }. | “At least one item is required.”                    |
-| items[].inventory_id    | Required. Must exist in inventory table.                                     | “Invalid or missing inventory item.”                |
-| items[].discount_amount | Optional. If present, number >= 0.                                           | “Discount must be zero or greater.”                 |
-| date_of_purchase        | Optional. If present, valid date YYYY-MM-DD. Default: today.                 | “Invalid date.”                                     |
+| Field                | Rule                                                              | Error message if violated                       |
+| -------------------- | ----------------------------------------------------------------- | ----------------------------------------------- |
+| customer_id          | Optional. If present, must exist in `customers`.                  | “Customer not found.”                           |
+| items                | Required. Non-empty array of `{ inventory_id, quantity?, unit_price? }`. | “At least one item is required.”     |
+| items[].inventory_id | Required. Must exist in `inventory`.                              | “Invalid or missing inventory item.”            |
+| order_date           | Optional. Valid `YYYY-MM-DD`. Default: today.                       | “Invalid date.”                                 |
 
-**Update purchase (PATCH /api/purchases/[id]):**
+**Update order (`PATCH /api/orders/[id]`):**
 
-| Field           | Rule                                                        | Error message if violated                |
-| --------------- | ----------------------------------------------------------- | ---------------------------------------- |
-| shipping_date   | Optional. If present, valid date YYYY-MM-DD.                | “Invalid date.”                          |
-| shipper         | Optional. If present, one of: USPS, UPS, FedEx, DHL, Other. | “Invalid shipper.”                       |
-| shipping_cost   | Optional. If present, number >= 0.                          | “Shipping cost must be zero or greater.” |
-| discount_amount | Optional. If present, number >= 0.                          | “Discount must be zero or greater.”      |
-| was_paid        | Optional. If present, 0 or 1.                               | —                                        |
+| Field                 | Rule                                                        | Error message if violated                |
+| --------------------- | ----------------------------------------------------------- | ---------------------------------------- |
+| shipping_date         | Optional. Valid `YYYY-MM-DD`.                               | “Invalid date.”                          |
+| shipper               | Optional. One of: USPS, UPS, FedEx, DHL, Other.             | “Invalid shipper.”                       |
+| seller_shipping_cost  | Optional. Number >= 0.                                      | “Shipping cost must be zero or greater.” |
+| discount_total        | Optional. Number >= 0.                                      | “Discount must be zero or greater.”      |
+| was_paid              | Optional. 0 or 1.                                           | —                                        |
+| tracking_number       | Optional. String.                                           | —                                        |
 
 **Ship until paid or override:** The system **does not allow** "Mark as shipped" until the **order** is paid (`orders.was_paid = 1`), **unless** the user explicitly chooses "Ship anyway" with confirmation (ADR-031, ADR-040). No silent ship-when-unpaid. On override, set `orders.shipped_without_paid_override = 1` on the order header (ADR-017) — not on `order_items`. Applies to `POST /api/orders/[id]/mark-shipped` and batch `mark_shipped`.
 
@@ -118,7 +118,7 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 | Report                         | Parameter          | Rule                                                                 | Error message if violated                 |
 | ------------------------------ | ------------------ | -------------------------------------------------------------------- | ----------------------------------------- |
-| Thank-you note, Invoice        | order_id           | Required. Must exist (at least one purchase row with that order_id). | “Order is required.” / “Order not found.” |
+| Thank-you note, Invoice        | order_id           | Required. Must exist in `orders`.                                    | “Order is required.” / “Order not found.” |
 | Sales, Costs, Postal by vendor | from_date, to_date | Optional. If present, valid YYYY-MM-DD; from_date <= to_date.        | “Invalid date range.”                     |
 | Income MTD / YTD               | —                  | None.                                                                | —                                         |
 
