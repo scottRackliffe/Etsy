@@ -138,3 +138,96 @@ export function findCustomerDuplicates(input: {
 
   return [...byId.values()].slice(0, 5);
 }
+
+export type CustomerDuplicateGroupMember = {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  order_count: number;
+};
+
+export type CustomerDuplicateGroup = {
+  customers: CustomerDuplicateGroupMember[];
+  match_reason: string;
+};
+
+function customerNameSimilar(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): boolean {
+  const lnA = normalize(a.last_name ?? "");
+  const lnB = normalize(b.last_name ?? "");
+  const fnA = normalize(a.first_name ?? "");
+  const fnB = normalize(b.first_name ?? "");
+  if (!lnA || !lnB || lnA !== lnB) return false;
+  if (!fnA || !fnB) return false;
+  return levenshtein(fnA, fnB) <= 2;
+}
+
+function customerEmailMatch(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): boolean {
+  const emailA = normalize(a.email ?? "");
+  const emailB = normalize(b.email ?? "");
+  return emailA.length > 0 && emailA === emailB;
+}
+
+function duplicateMatchReason(a: CustomerDuplicateGroupMember, b: CustomerDuplicateGroupMember): string {
+  if (customerEmailMatch(a, b)) return "Same email address";
+  return "Same last name, similar first name";
+}
+
+export function findCustomerDuplicateGroups(): CustomerDuplicateGroup[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT c.id, c.first_name, c.last_name, c.email,
+        (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND o.order_status = 'active') AS order_count
+       FROM customers c
+       ORDER BY c.id`
+    )
+    .all() as CustomerDuplicateGroupMember[];
+
+  const parent = rows.map((_, i) => i);
+  const find = (i: number): number => {
+    if (parent[i] === i) return i;
+    parent[i] = find(parent[i]);
+    return parent[i];
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  for (let i = 0; i < rows.length; i += 1) {
+    for (let j = i + 1; j < rows.length; j += 1) {
+      if (customerEmailMatch(rows[i], rows[j]) || customerNameSimilar(rows[i], rows[j])) {
+        union(i, j);
+      }
+    }
+  }
+
+  const groups = new Map<number, CustomerDuplicateGroupMember[]>();
+  for (let i = 0; i < rows.length; i += 1) {
+    const root = find(i);
+    const list = groups.get(root) ?? [];
+    list.push(rows[i]);
+    groups.set(root, list);
+  }
+
+  const result: CustomerDuplicateGroup[] = [];
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    members.sort((a, b) => a.id - b.id);
+    let matchReason = "Potential duplicate customers";
+    for (let i = 0; i < members.length; i += 1) {
+      for (let j = i + 1; j < members.length; j += 1) {
+        if (customerEmailMatch(members[i], members[j]) || customerNameSimilar(members[i], members[j])) {
+          matchReason = duplicateMatchReason(members[i], members[j]);
+          break;
+        }
+      }
+      if (matchReason !== "Potential duplicate customers") break;
+    }
+    result.push({ customers: members, match_reason: matchReason });
+  }
+
+  return result.sort((a, b) => a.customers[0].id - b.customers[0].id);
+}

@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 28 (2026-05-24) — implemented:** ADR-053 customer merge and dedup — `POST /api/customers/merge` transactional merge (orders, addresses, notes, field overrides, activity log); `GET /api/customers/duplicates` with Levenshtein/email grouping; `CustomerMergeModal` (select → preview → ConfirmDialog); `CustomerDuplicatesModal`; Customers toolbar **Merge customers** + **Find duplicates**.
+
 **Wave 27 (2026-05-24) — implemented:** ADR-044 setup wizard completion — focus trap, step ARIA labels, labeled business fields + country, optional Etsy skip on step 3, `?sync=etsy` from wizard, sample-data 409 handling; ADR-044 §6 empty-state copy on Sales/Inventory/Customers; ADR-057 scheduled auto-sync — `sync.auto_interval` Config UI, `useAutoEtsySync` in layout, `EtsySyncStatus` dashboard widget.
 
 **Wave 26 (2026-05-24) — implemented:** ADR-043 progress indicators — in-memory job store (`/api/jobs/[jobId]` GET/DELETE); Etsy sync returns `202` + `job_id` with determinate progress, cancel, and `JOB_ALREADY_RUNNING`; `useEtsySync` + `useJobPoll` client polling (2s); `ProgressModal` cancel button and elapsed time; wired sync on layout shortcut, dashboard, sales, customers, and activity feed; backup/reports keep indeterminate `useProgressOperation`.

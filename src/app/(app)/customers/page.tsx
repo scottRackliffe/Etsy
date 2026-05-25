@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { CustomerDetailEditor } from "@/components/customers/CustomerDetailEditor";
+import { CustomerDuplicatesModal } from "@/components/customers/CustomerDuplicatesModal";
+import { CustomerMergeModal } from "@/components/customers/CustomerMergeModal";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
@@ -76,6 +78,10 @@ function CustomersPageInner() {
   const [customerDetailDirty, setCustomerDetailDirty] = useState(false);
   const [pendingCustomerId, setPendingCustomerId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
+  const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  const [duplicatesModalOpen, setDuplicatesModalOpen] = useState(false);
+  const [mergePrimaryId, setMergePrimaryId] = useState<number | null>(null);
+  const [mergeSecondaryId, setMergeSecondaryId] = useState<number | null>(null);
   const { setFormDirty } = useUnsavedChanges();
   const { modal: syncModal, runSync } = useEtsySync();
 
@@ -506,6 +512,22 @@ function CustomersPageInner() {
     }).finally(() => setBusyAction(null));
   };
 
+  const openMergeModal = (primaryId?: number | null, secondaryId?: number | null) => {
+    setMergePrimaryId(primaryId ?? null);
+    setMergeSecondaryId(secondaryId ?? null);
+    setMergeModalOpen(true);
+  };
+
+  const handleCustomerMerged = async (primaryId: number) => {
+    await reloadCustomers();
+    setSelectedCustomerId(primaryId);
+    setError({
+      title: "Customers merged",
+      message: "Orders and addresses were moved to the primary customer.",
+      actions: [],
+    });
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Customers</h3>
@@ -540,6 +562,12 @@ function CustomersPageInner() {
               placeholder="Search name, email, phone…"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
+            <Button variant="accent" size="sm" onClick={() => openMergeModal()}>
+              Merge customers
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setDuplicatesModalOpen(true)}>
+              Find duplicates
+            </Button>
           </div>
           <FilterChipRow
             label="Active"
@@ -813,6 +841,24 @@ function CustomersPageInner() {
         cancelLabel="Keep editing"
         confirmLabel="Discard changes"
         confirmVariant="danger"
+      />
+      <CustomerMergeModal
+        open={mergeModalOpen}
+        onClose={() => {
+          setMergeModalOpen(false);
+          setMergePrimaryId(null);
+          setMergeSecondaryId(null);
+        }}
+        initialPrimaryId={mergePrimaryId}
+        initialSecondaryId={mergeSecondaryId}
+        onMerged={(primaryId) => void handleCustomerMerged(primaryId)}
+        onError={(title, message, err) => setApiError(title, message, err)}
+      />
+      <CustomerDuplicatesModal
+        open={duplicatesModalOpen}
+        onClose={() => setDuplicatesModalOpen(false)}
+        onMergeGroup={(primaryId, secondaryId) => openMergeModal(primaryId, secondaryId)}
+        onError={(title, message, err) => setApiError(title, message, err)}
       />
     </section>
   );
