@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { EtsySyncStatus } from "@/components/dashboard/EtsySyncStatus";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useToast } from "@/hooks/useToast";
@@ -104,6 +105,10 @@ export default function DashboardPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <EtsySyncStatus connected={shops.length > 0} />
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">

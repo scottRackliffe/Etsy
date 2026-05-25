@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { ApiErrorShape } from "@/types";
+
+const STEP_NAMES = ["Welcome", "Your Business", "Connect Etsy", "Get Started"];
 
 const BUSINESS_KEYS = [
   "business_name",
@@ -37,6 +40,7 @@ async function markSetupComplete(): Promise<void> {
 
 export function SetupWizard({ onDone }: { onDone: () => void }) {
   const router = useRouter();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const { shops, connect, setError, setApiError } = useApp();
   const [step, setStep] = useState(0);
   const [business, setBusiness] = useState<BusinessDraft>({
@@ -50,6 +54,8 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   });
   const [sampleConfirmOpen, setSampleConfirmOpen] = useState(false);
   const [sampleBusy, setSampleBusy] = useState(false);
+
+  useFocusTrap(dialogRef, true);
 
   const connectedShop = shops[0] ?? null;
 
@@ -79,11 +85,14 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
     if (step === 1) void loadBusiness();
   }, [step, loadBusiness]);
 
-  const finish = async (navigateTo?: string) => {
+  const finish = async (navigateTo?: string, triggerSync?: boolean) => {
     try {
       await markSetupComplete();
       onDone();
-      if (navigateTo) router.push(navigateTo);
+      if (navigateTo) {
+        const url = triggerSync ? `${navigateTo}?sync=etsy` : navigateTo;
+        router.push(url);
+      }
     } catch (err) {
       setApiError("Could not save setup", "We could not save setup progress.", err);
     }
@@ -111,6 +120,15 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+      if (response.status === 409) {
+        setSampleConfirmOpen(false);
+        setError({
+          title: "Sample data already loaded",
+          message: "Remove existing sample data from Config before loading again.",
+          actions: ["Open Config → Sample data to remove demo records."],
+        });
+        return;
+      }
       if (!response.ok) throw data;
       setSampleConfirmOpen(false);
       await finish("/dashboard");
@@ -127,10 +145,13 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   };
 
   const dots = (
-    <div className="mb-6 flex justify-center gap-2" aria-hidden>
+    <div className="mb-6 flex justify-center gap-2">
       {[0, 1, 2, 3].map((i) => (
         <span
           key={i}
+          role="presentation"
+          aria-label={`Step ${i + 1} of 4: ${STEP_NAMES[i]}`}
+          aria-current={i === step ? "step" : undefined}
           className={`h-2 w-2 rounded-full ${
             i <= step ? "bg-[var(--ui-accent)]" : "border border-[var(--ui-border)] bg-transparent"
           }`}
@@ -146,7 +167,10 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
       aria-modal="true"
       aria-label="Setup wizard"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-6 shadow-2xl">
+      <div
+        ref={dialogRef}
+        className="w-full max-w-lg rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-6 shadow-2xl"
+      >
         {dots}
 
         {step === 0 ? (
@@ -170,40 +194,63 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         {step === 1 ? (
           <>
             <h2 className="text-xl font-semibold text-[var(--ui-title)]">Your Business</h2>
-            <p className="mt-1 text-sm text-[var(--ui-muted)]">Tell us about your shop. You can change these anytime in Config.</p>
+            <p className="mt-1 text-sm text-[var(--ui-muted)]">
+              Tell us about your shop. You can change these anytime in Config.
+            </p>
             <div className="mt-4 space-y-2">
-              <input
-                value={business.business_name}
-                onChange={(e) => setBusiness((b) => ({ ...b, business_name: e.target.value }))}
-                placeholder="Business name"
-                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
-              />
-              <input
-                value={business.business_address_line_1}
-                onChange={(e) => setBusiness((b) => ({ ...b, business_address_line_1: e.target.value }))}
-                placeholder="Address line 1"
-                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
-              />
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Business name
+                <input
+                  value={business.business_name}
+                  onChange={(e) => setBusiness((b) => ({ ...b, business_name: e.target.value }))}
+                  placeholder="e.g., Trudy's Classic Treasures"
+                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                />
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Address line 1
+                <input
+                  value={business.business_address_line_1}
+                  onChange={(e) => setBusiness((b) => ({ ...b, business_address_line_1: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                />
+              </label>
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={business.business_city}
-                  onChange={(e) => setBusiness((b) => ({ ...b, business_city: e.target.value }))}
-                  placeholder="City"
-                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
-                />
-                <input
-                  value={business.business_state_province}
-                  onChange={(e) => setBusiness((b) => ({ ...b, business_state_province: e.target.value }))}
-                  placeholder="State"
-                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
-                />
+                <label className="block text-xs text-[var(--ui-muted)]">
+                  City
+                  <input
+                    value={business.business_city}
+                    onChange={(e) => setBusiness((b) => ({ ...b, business_city: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  />
+                </label>
+                <label className="block text-xs text-[var(--ui-muted)]">
+                  State / province
+                  <input
+                    value={business.business_state_province}
+                    onChange={(e) => setBusiness((b) => ({ ...b, business_state_province: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  />
+                </label>
               </div>
-              <input
-                value={business.business_postal_code}
-                onChange={(e) => setBusiness((b) => ({ ...b, business_postal_code: e.target.value }))}
-                placeholder="Postal code"
-                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-[var(--ui-muted)]">
+                  Postal code
+                  <input
+                    value={business.business_postal_code}
+                    onChange={(e) => setBusiness((b) => ({ ...b, business_postal_code: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  />
+                </label>
+                <label className="block text-xs text-[var(--ui-muted)]">
+                  Country
+                  <input
+                    value={business.business_country}
+                    onChange={(e) => setBusiness((b) => ({ ...b, business_country: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  />
+                </label>
+              </div>
             </div>
             <div className="mt-6 flex justify-between">
               <Button variant="secondary" onClick={() => setStep(0)}>
@@ -237,7 +284,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               <Button variant="secondary" onClick={() => setStep(1)}>
                 Back
               </Button>
-              <Button variant="accent" onClick={() => setStep(3)} disabled={!connectedShop}>
+              <Button variant="accent" onClick={() => setStep(3)}>
                 Next
               </Button>
             </div>
@@ -252,15 +299,15 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               <button
                 type="button"
                 onClick={() => void finish("/inventory")}
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)]"
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent)]"
               >
                 <p className="font-medium text-[var(--ui-title)]">Add Your First Item</p>
                 <p className="text-xs text-[var(--ui-muted)]">Start building your inventory</p>
               </button>
               <button
                 type="button"
-                onClick={() => void finish(connectedShop ? "/sales" : "/sales")}
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)]"
+                onClick={() => void finish("/sales", connectedShop != null)}
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent)]"
               >
                 <p className="font-medium text-[var(--ui-title)]">
                   {connectedShop ? "Sync Etsy Orders" : "Explore Sales"}
@@ -272,7 +319,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               <button
                 type="button"
                 onClick={() => void finish("/tutorial")}
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)]"
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent)]"
               >
                 <p className="font-medium text-[var(--ui-title)]">Explore Tutorials</p>
                 <p className="text-xs text-[var(--ui-muted)]">Learn tips and best practices</p>
@@ -280,7 +327,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               <button
                 type="button"
                 onClick={() => setSampleConfirmOpen(true)}
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)]"
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent)]"
               >
                 <p className="font-medium text-[var(--ui-title)]">Load sample data</p>
                 <p className="text-xs text-[var(--ui-muted)]">Explore with demo records</p>

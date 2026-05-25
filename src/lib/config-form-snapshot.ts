@@ -1,4 +1,5 @@
 import type { AiConfig } from "@/types";
+import type { AutoSyncInterval } from "@/lib/auto-sync-interval";
 
 export type BusinessProfileSnapshot = {
   business_name: string;
@@ -55,6 +56,7 @@ export type ConfigFormSnapshot = {
   taxSettings: TaxSettingsSnapshot;
   displaySettings: DisplaySettingsSnapshot;
   backupSchedule: string;
+  autoSyncInterval: AutoSyncInterval;
   publishConfig: PublishConfigSnapshot;
   iconConfig: IconConfigSnapshot;
   aiModel: string;
@@ -71,6 +73,7 @@ export function buildConfigFormSnapshot(input: {
   taxSettings: TaxSettingsSnapshot;
   displaySettings: DisplaySettingsSnapshot;
   backupSchedule: string;
+  autoSyncInterval: AutoSyncInterval;
   publishConfig: PublishConfigSnapshot;
   iconConfig: IconConfigSnapshot;
   aiConfig: AiConfig | null;
@@ -82,6 +85,7 @@ export function buildConfigFormSnapshot(input: {
     taxSettings: input.taxSettings,
     displaySettings: input.displaySettings,
     backupSchedule: input.backupSchedule,
+    autoSyncInterval: input.autoSyncInterval,
     publishConfig: input.publishConfig,
     iconConfig: input.iconConfig,
     aiModel: input.aiConfig?.model ?? "gpt-4.1-mini",

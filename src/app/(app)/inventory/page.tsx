@@ -847,7 +847,7 @@ function InventoryPageInner() {
         />
         {listTotal === 0 ? (
           <EmptyState
-            message={inventorySearch.trim() || statusFilter ? "No items match your filters." : "Your inventory is empty."}
+            message={inventorySearch.trim() || statusFilter ? "No items match your filters." : "No items yet. Add your first inventory item to get started."}
             primaryAction={
               inventorySearch.trim() || statusFilter
                 ? {

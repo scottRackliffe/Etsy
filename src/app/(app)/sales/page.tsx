@@ -227,7 +227,7 @@ function SalesPageInner() {
     setDetailRefresh((n) => n + 1);
   };
 
-  const syncEtsyOrders = () => {
+  const syncEtsyOrders = useCallback(() => {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     void runSync(selectedShopId, {
@@ -243,7 +243,15 @@ function SalesPageInner() {
         setApiError("Could not sync Etsy orders", "We could not sync Etsy receipts.", err);
       },
     }).finally(() => setBusyAction(null));
-  };
+  }, [selectedShopId, runSync, reloadOrders, setError, setApiError, setBusyAction]);
+
+  const syncTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (searchParams.get("sync") !== "etsy" || !selectedShopId || syncTriggeredRef.current) return;
+    syncTriggeredRef.current = true;
+    router.replace(pathname);
+    syncEtsyOrders();
+  }, [searchParams, selectedShopId, router, pathname, syncEtsyOrders]);
 
   const createOrderRecord = async () => {
     if (!newOrderNumber.trim()) {
@@ -637,7 +645,7 @@ function SalesPageInner() {
 
       {listTotal === 0 ? (
         <EmptyState
-          message={orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter ? "No orders match your filters." : "No orders yet."}
+          message={orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter ? "No orders match your filters." : "No orders yet. Sync from Etsy or create your first manual order."}
           primaryAction={
             orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
               ? {

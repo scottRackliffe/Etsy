@@ -727,7 +727,7 @@ function CustomersPageInner() {
       </div>
       {listTotal === 0 ? (
         <EmptyState
-          message={customerSearch.trim() || activeFilter !== "1" ? "No customers match your filters." : "No customers yet. They'll appear when you create orders or sync from Etsy."}
+          message={customerSearch.trim() || activeFilter !== "1" ? "No customers match your filters." : "No customers yet. Customers are created automatically when you sync Etsy orders or add manual orders."}
           primaryAction={
             customerSearch.trim() || activeFilter !== "1"
               ? {

@@ -17,6 +17,7 @@ import { GlobalSearchModal } from "@/components/search/GlobalSearchModal";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useEtsySync } from "@/hooks/useEtsySync";
+import { useAutoEtsySync } from "@/hooks/useAutoEtsySync";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useToast } from "@/hooks/useToast";
 
@@ -24,6 +25,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } = useApp();
   const { modal: syncModal, runSync } = useEtsySync();
   const toast = useToast();
+  useAutoEtsySync({ connected: shops.length > 0, shopId: selectedShopId });
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);

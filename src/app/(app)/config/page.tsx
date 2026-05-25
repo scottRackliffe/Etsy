@@ -4,8 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
-import { buildConfigFormSnapshot, type ConfigFormSnapshot } from "@/lib/config-form-snapshot";
+import {
+  AUTO_SYNC_OPTIONS,
+  parseAutoSyncInterval,
+  type AutoSyncInterval,
+} from "@/lib/auto-sync-interval";
 import { formStatesEqual } from "@/lib/deep-equal-form";
+import { buildConfigFormSnapshot, type ConfigFormSnapshot } from "@/lib/config-form-snapshot";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
@@ -112,6 +117,7 @@ export default function ConfigPage() {
     page_size: "25",
   });
   const [backupSchedule, setBackupSchedule] = useState("manual");
+  const [autoSyncInterval, setAutoSyncInterval] = useState<AutoSyncInterval>("off");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
@@ -125,6 +131,7 @@ export default function ConfigPage() {
         taxSettings,
         displaySettings,
         backupSchedule,
+        autoSyncInterval,
         publishConfig,
         iconConfig,
         aiConfig,
@@ -136,6 +143,7 @@ export default function ConfigPage() {
       taxSettings,
       displaySettings,
       backupSchedule,
+      autoSyncInterval,
       publishConfig,
       iconConfig,
       aiConfig,
@@ -165,6 +173,7 @@ export default function ConfigPage() {
     setTaxSettings(configBaseline.taxSettings);
     setDisplaySettings(configBaseline.displaySettings);
     setBackupSchedule(configBaseline.backupSchedule);
+    setAutoSyncInterval(configBaseline.autoSyncInterval);
     setPublishConfig(configBaseline.publishConfig);
     setIconConfig(configBaseline.iconConfig);
     setAiApiKeyDraft("");
@@ -183,6 +192,13 @@ export default function ConfigPage() {
   useEffect(() => {
     return registerOnDiscard(restoreConfigFromBaseline);
   }, [registerOnDiscard, restoreConfigFromBaseline]);
+
+  const saveAutoSyncSettings = () =>
+    void saveSettingsKeys(
+      [{ key: "sync.auto_interval", value: autoSyncInterval }],
+      "Auto-sync saved",
+      "Etsy orders will sync automatically while the app is open."
+    );
 
   const loadBackups = useCallback(async () => {
     setBackupLoading(true);
@@ -258,6 +274,7 @@ export default function ConfigPage() {
         page_size: map.get("ui.page_size") ?? "25",
       });
       setBackupSchedule(map.get("backup_schedule") ?? "manual");
+      setAutoSyncInterval(parseAutoSyncInterval(map.get("sync.auto_interval")));
       setConfigBaseline(
         buildConfigFormSnapshot({
           businessProfile: {
@@ -283,6 +300,7 @@ export default function ConfigPage() {
             page_size: map.get("ui.page_size") ?? "25",
           },
           backupSchedule: map.get("backup_schedule") ?? "manual",
+          autoSyncInterval: parseAutoSyncInterval(map.get("sync.auto_interval")),
           publishConfig,
           iconConfig,
           aiConfig,
@@ -738,6 +756,33 @@ export default function ConfigPage() {
               <dd className="mt-0.5 text-[var(--ui-body)]">
                 {etsyInfoLoading ? "Loading…" : formatConnectionTimestamp(etsyInfo?.last_etsy_sync_at)}
               </dd>
+            </div>
+            <div className="md:col-span-2">
+              <dt className="text-xs text-[var(--ui-muted)]">Auto-sync interval</dt>
+              <dd className="mt-1 flex flex-wrap items-center gap-2">
+                <select
+                  value={autoSyncInterval}
+                  onChange={(e) => setAutoSyncInterval(parseAutoSyncInterval(e.target.value))}
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-1.5 text-sm"
+                >
+                  {AUTO_SYNC_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={saveAutoSyncSettings}
+                  disabled={extraSettingsLoading}
+                  className="rounded-lg border border-[var(--ui-border)] px-2 py-1.5 text-xs disabled:opacity-60"
+                >
+                  Save auto-sync
+                </button>
+              </dd>
+              <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                Runs only while this app is open in your browser.
+              </p>
             </div>
             <div className="md:col-span-2">
               <dt className="text-xs text-[var(--ui-muted)]">Redirect URI</dt>
