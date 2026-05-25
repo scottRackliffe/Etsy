@@ -10,6 +10,7 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
@@ -22,6 +23,7 @@ type OrderDetailPanelProps = {
   busy: boolean;
   onOrderUpdated: (order: Order) => void;
   onError: (title: string, message: string, err?: unknown) => void;
+  onSuccess?: (title: string, message: string) => void;
   onMarkPaid: () => void;
   onMarkShipped: () => void;
   onVoid: () => void;
@@ -85,6 +87,7 @@ export function OrderDetailPanel({
   busy,
   onOrderUpdated,
   onError,
+  onSuccess,
   onMarkPaid,
   onMarkShipped,
   onVoid,
@@ -279,7 +282,7 @@ export function OrderDetailPanel({
         tracking_number: draft.tracking_number.trim() || null,
         notes: draft.notes.trim() || null,
       };
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await apiFetch(`/api/orders/${orderId}`, {
         method: "PATCH",
         headers: patchHeaders(order.updated_at),
         body: JSON.stringify(payload),
@@ -304,6 +307,14 @@ export function OrderDetailPanel({
         onOrderUpdated(data.order);
       }
     } catch (err) {
+      if (err instanceof MutationQueuedError) {
+        onSuccess?.("Saved locally", err.message);
+        return;
+      }
+      if (err instanceof MutationQueueFullError) {
+        onError("Too many pending changes", err.message, err);
+        return;
+      }
       onError("Could not save order", "We could not save order changes.", err);
     } finally {
       setSaving(false);

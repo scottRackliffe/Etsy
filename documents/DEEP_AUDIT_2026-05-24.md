@@ -375,4 +375,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 21 (2026-05-24) — implemented:** ADR-045 skip link, `:focus-visible`, `DataTable` `aria-sort`, modal dialog ARIA + `useFocusTrap`, toast live regions; ADR-046 `If-Match` / `CONFLICT_STALE_RECORD` on inventory/orders/customers/addresses PATCH with client `patchHeaders` and stale reload on order/inventory/customer detail saves; ADR-051 `NotificationCenter` in header, `localStorage` notification log, `setError`/`setApiError`/`useToast` → `addNotificationEntry`.
 
+**Wave 22 (2026-05-24) — implemented:** ADR-050 connection states (`online` / `offline` / `server-unreachable`) via `navigator.onLine` + 30s `/api/health` ping; `OfflineBanner` and `StaleDataBadge`; `apiFetch` with 30s timeout, transient retry, and `esm_mutation_queue` localStorage replay on reconnect; `useApi` options; order/inventory/customer PATCH and Etsy sync use `apiFetch`.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

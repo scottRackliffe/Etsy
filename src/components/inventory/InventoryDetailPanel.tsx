@@ -9,6 +9,7 @@ import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
@@ -199,7 +200,7 @@ export function InventoryDetailPanel({
         condition_notes: draft.condition_notes.trim() || null,
         notes: draft.notes.trim() || null,
       };
-      const response = await fetch(`/api/inventory/${item.id}`, {
+      const response = await apiFetch(`/api/inventory/${item.id}`, {
         method: "PATCH",
         headers: patchHeaders(item.updated_at),
         body: JSON.stringify(body),
@@ -226,6 +227,14 @@ export function InventoryDetailPanel({
       }
       onSuccess("Item updated", "Inventory details were saved.");
     } catch (err) {
+      if (err instanceof MutationQueuedError) {
+        onSuccess("Saved locally", err.message);
+        return;
+      }
+      if (err instanceof MutationQueueFullError) {
+        onError("Too many pending changes", err.message, err);
+        return;
+      }
       onError("Could not save item", "We could not save inventory changes.", err);
     } finally {
       setSaving(false);

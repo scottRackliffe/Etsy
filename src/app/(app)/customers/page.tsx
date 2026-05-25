@@ -13,6 +13,7 @@ import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
+import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
@@ -251,7 +252,7 @@ function CustomersPageInner() {
     if (!selectedCustomerId || !selectedCustomer) return;
     setBusyAction("update-customer");
     try {
-      const response = await fetch(`/api/customers/${selectedCustomerId}`, {
+      const response = await apiFetch(`/api/customers/${selectedCustomerId}`, {
         method: "PATCH",
         headers: patchHeaders(selectedCustomer.updated_at),
         body: JSON.stringify(payload),
@@ -276,6 +277,18 @@ function CustomersPageInner() {
       }
       setError(null);
     } catch (err) {
+      if (err instanceof MutationQueuedError) {
+        setError({
+          title: "Saved locally",
+          message: err.message,
+          actions: ["Changes will sync automatically when connection returns."],
+        });
+        return;
+      }
+      if (err instanceof MutationQueueFullError) {
+        setApiError("Too many pending changes", err.message, err);
+        return;
+      }
       setApiError("Could not update customer", "We could not update this customer.", err);
     } finally {
       setBusyAction(null);

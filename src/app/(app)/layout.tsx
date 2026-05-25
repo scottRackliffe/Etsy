@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppProvider, useApp } from "@/context/AppContext";
+import { ConnectionProvider } from "@/context/ConnectionContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
+import { OfflineBanner } from "@/components/shell/OfflineBanner";
+import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
+import { apiFetch, MutationQueuedError } from "@/lib/api-fetch";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { KeyboardShortcutsModal } from "@/components/shell/KeyboardShortcutsModal";
@@ -69,7 +73,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const syncFromEtsy = useCallback(async () => {
     if (!selectedShopId) return;
     try {
-      const response = await fetch("/api/sync/etsy", {
+      const response = await apiFetch("/api/sync/etsy", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
@@ -82,6 +86,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         actions: ["Open Sales to review imported orders."],
       });
     } catch (err) {
+      if (err instanceof MutationQueuedError) {
+        setError({
+          title: "Sync queued",
+          message: err.message,
+          actions: ["Sync will run automatically when connection returns."],
+        });
+        return;
+      }
       setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
     }
   }, [selectedShopId, setApiError, setError]);
@@ -126,6 +138,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <SkipLink />
       {setupChecked && showSetup ? <SetupWizard onDone={() => setShowSetup(false)} /> : null}
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />
+      <OfflineBanner />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} pathname={pathname} />
       <main
@@ -178,6 +191,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {shops.length > 0 && (
           <>
             <TabBar />
+            <div className="flex justify-end">
+              <StaleDataBadge />
+            </div>
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
             <div className="text-xs text-[var(--ui-muted)]">
@@ -193,9 +209,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppProvider>
-      <UnsavedChangesProvider>
-        <AppShellInner>{children}</AppShellInner>
-      </UnsavedChangesProvider>
+      <ConnectionProvider>
+        <UnsavedChangesProvider>
+          <AppShellInner>{children}</AppShellInner>
+        </UnsavedChangesProvider>
+      </ConnectionProvider>
     </AppProvider>
   );
 }

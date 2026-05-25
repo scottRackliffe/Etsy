@@ -634,6 +634,7 @@ function SalesPageInner() {
           busy={busyAction != null}
           onOrderUpdated={updateOrderInList}
           onError={(title, message, err) => setApiError(title, message, err)}
+          onSuccess={(title, message) => setError({ title, message, actions: [] })}
           onMarkPaid={() => void markSelectedOrderPaid()}
           onMarkShipped={() => openShipModal("single")}
           onVoid={() => setVoidConfirmOpen(true)}
