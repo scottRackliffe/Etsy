@@ -11,6 +11,7 @@ export function ConfirmDialog({
   description,
   affectedLabel,
   confirmLabel,
+  cancelLabel = "Cancel",
   confirmVariant = "danger",
   busy,
 }: {
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   description: string;
   affectedLabel?: string;
   confirmLabel: string;
+  cancelLabel?: string;
   confirmVariant?: "danger" | "accent";
   busy?: boolean;
 }) {
@@ -34,7 +36,7 @@ export function ConfirmDialog({
       ) : null}
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancel
+          {cancelLabel}
         </Button>
         <Button variant={confirmVariant} onClick={onConfirm} busy={busy}>
           {confirmLabel}

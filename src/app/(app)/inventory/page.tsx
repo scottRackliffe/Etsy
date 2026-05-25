@@ -18,6 +18,13 @@ import { PaginationBar } from "@/components/ui/PaginationBar";
 import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inventory/InventoryDetailPanel";
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
+import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
+import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { formStatesEqual } from "@/lib/deep-equal-form";
+import {
+  itemToListingWorkshopDraft,
+  type ListingWorkshopDraft,
+} from "@/lib/listing-workshop-draft";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -112,14 +119,43 @@ function InventoryPageInner() {
   const [inventorySearch, setInventorySearch] = useState("");
   const createItemRef = useRef<HTMLInputElement>(null);
   const [detailDirty, setDetailDirty] = useState(false);
-  const { setFormDirty } = useUnsavedChanges();
-
-  useEffect(() => {
-    setFormDirty(detailDirty);
-  }, [detailDirty, setFormDirty]);
+  const [listingBaseline, setListingBaseline] = useState<ListingWorkshopDraft | null>(null);
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
   const [workshopOpen, setWorkshopOpen] = useState(false);
+  const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
+
+  const listingDirty = useMemo(() => {
+    if (!selectedItem || !listingBaseline) return false;
+    return !formStatesEqual(itemToListingWorkshopDraft(selectedItem), listingBaseline);
+  }, [selectedItem, listingBaseline]);
+
+  useEffect(() => {
+    setFormDirty(detailDirty || listingDirty);
+  }, [detailDirty, listingDirty, setFormDirty]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setListingBaseline(itemToListingWorkshopDraft(selectedItem));
+    } else {
+      setListingBaseline(null);
+    }
+  }, [selectedItemId, selectedItem?.updated_at]);
+
+  const listingDraftCurrent = selectedItem ? itemToListingWorkshopDraft(selectedItem) : null;
+  const {
+    recovery: listingRecovery,
+    recoveryLabel: listingRecoveryLabel,
+    dismissRecovery: dismissListingRecovery,
+    markDraftClean: markListingDraftClean,
+  } = useEntityDraft({
+    entityType: "listing_workshop",
+    entityId: selectedItemId,
+    current: listingDraftCurrent,
+    entityVersion: selectedItem?.updated_at,
+    isDirty: listingDirty,
+    enabled: workshopOpen && selectedItemId != null,
+  });
   const [importOpen, setImportOpen] = useState(false);
   const [inventoryDuplicates, setInventoryDuplicates] = useState<
     Array<{ id: number; item_number: string | null; description: string | null }>
@@ -200,12 +236,49 @@ function InventoryPageInner() {
   }, [selectedItemId]);
 
   const selectInventoryItem = (id: number) => {
-    if (detailDirty && id !== selectedItemId) {
+    if ((detailDirty || listingDirty) && id !== selectedItemId) {
       setPendingItemId(id);
       setDiscardDirtyOpen(true);
       return;
     }
     setSelectedItemId(id);
+  };
+
+  useEffect(() => {
+    return registerOnDiscard(() => {
+      if (!selectedItem || !listingBaseline) return;
+      setSelectedItem({
+        ...selectedItem,
+        listing_title: listingBaseline.listing_title,
+        listing_description: listingBaseline.listing_description,
+        listing_tags: listingBaseline.listing_tags,
+        listing_category_path: listingBaseline.listing_category_path,
+        listing_title_strategy: listingBaseline.listing_title_strategy,
+        listing_product_story: listingBaseline.listing_product_story,
+        listing_condition_clarity: listingBaseline.listing_condition_clarity,
+        listing_attributes: listingBaseline.listing_attributes,
+        listing_pricing_shipping_notes: listingBaseline.listing_pricing_shipping_notes,
+        listing_quality_checklist: listingBaseline.listing_quality_checklist,
+      });
+    });
+  }, [selectedItem, listingBaseline, registerOnDiscard, setSelectedItem]);
+
+  const applyListingRecovery = (state: ListingWorkshopDraft) => {
+    if (!selectedItem) return;
+    setSelectedItem({
+      ...selectedItem,
+      listing_title: state.listing_title,
+      listing_description: state.listing_description,
+      listing_tags: state.listing_tags,
+      listing_category_path: state.listing_category_path,
+      listing_title_strategy: state.listing_title_strategy,
+      listing_product_story: state.listing_product_story,
+      listing_condition_clarity: state.listing_condition_clarity,
+      listing_attributes: state.listing_attributes,
+      listing_pricing_shipping_notes: state.listing_pricing_shipping_notes,
+      listing_quality_checklist: state.listing_quality_checklist,
+    });
+    dismissListingRecovery();
   };
 
   const reloadInventory = useCallback(async () => {
@@ -354,6 +427,7 @@ function InventoryPageInner() {
         listing_draft_state: "draft",
         listing_draft_source: "manual",
       });
+      markListingDraftClean();
       setError(null);
     } catch (err) {
       setApiError("Could not save listing draft", "We could not save this draft.", err);
@@ -859,6 +933,13 @@ function InventoryPageInner() {
 
           {workshopOpen ? (
           <div className="space-y-4">
+          {listingRecovery && listingRecoveryLabel ? (
+            <DraftRecoveryBanner
+              savedAtLabel={listingRecoveryLabel}
+              onRestore={() => applyListingRecovery(listingRecovery.formState)}
+              onDiscard={dismissListingRecovery}
+            />
+          ) : null}
           <p className="text-xs text-[var(--ui-muted)]">
             <Link href="/config" className="text-[var(--ui-accent)] hover:underline">
               Configure AI and publish settings →
@@ -1061,8 +1142,9 @@ function InventoryPageInner() {
           setPendingItemId(null);
           setDetailDirty(false);
         }}
-        title="Discard unsaved changes?"
-        description="You have unsaved inventory edits. Switch items anyway?"
+        title="Unsaved changes"
+        description="You have unsaved changes that will be lost. What would you like to do?"
+        cancelLabel="Keep editing"
         confirmLabel="Discard changes"
         confirmVariant="danger"
       />

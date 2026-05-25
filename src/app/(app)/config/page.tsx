@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { useBeforeUnload } from "@/hooks/useBeforeUnload";
+import { buildConfigFormSnapshot, type ConfigFormSnapshot } from "@/lib/config-form-snapshot";
+import { formStatesEqual } from "@/lib/deep-equal-form";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
@@ -109,7 +113,76 @@ export default function ConfigPage() {
   });
   const [backupSchedule, setBackupSchedule] = useState("manual");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
+  const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
+  const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
   const { modal: progressModal, run: runWithProgress } = useProgressOperation();
+
+  const configSnapshot = useMemo(
+    () =>
+      buildConfigFormSnapshot({
+        businessProfile,
+        shippingSettings,
+        taxSettings,
+        displaySettings,
+        backupSchedule,
+        publishConfig,
+        iconConfig,
+        aiConfig,
+        aiApiKeyDraft,
+      }),
+    [
+      businessProfile,
+      shippingSettings,
+      taxSettings,
+      displaySettings,
+      backupSchedule,
+      publishConfig,
+      iconConfig,
+      aiConfig,
+      aiApiKeyDraft,
+    ]
+  );
+
+  const configDirty = useMemo(() => {
+    if (!configBaseline) return false;
+    return !formStatesEqual(configSnapshot, configBaseline);
+  }, [configSnapshot, configBaseline]);
+
+  useEffect(() => {
+    setFormDirty(configDirty);
+  }, [configDirty, setFormDirty]);
+
+  useBeforeUnload(configDirty);
+
+  const markConfigClean = useCallback(() => {
+    setConfigBaseline(configSnapshot);
+  }, [configSnapshot]);
+
+  const restoreConfigFromBaseline = useCallback(() => {
+    if (!configBaseline) return;
+    setBusinessProfile(configBaseline.businessProfile);
+    setShippingSettings(configBaseline.shippingSettings);
+    setTaxSettings(configBaseline.taxSettings);
+    setDisplaySettings(configBaseline.displaySettings);
+    setBackupSchedule(configBaseline.backupSchedule);
+    setPublishConfig(configBaseline.publishConfig);
+    setIconConfig(configBaseline.iconConfig);
+    setAiApiKeyDraft("");
+    if (aiConfig) {
+      setAiConfig({
+        ...aiConfig,
+        model: configBaseline.aiModel,
+        baseUrl: configBaseline.aiBaseUrl,
+        timeoutMs: configBaseline.aiTimeoutMs,
+        retryCount: configBaseline.aiRetryCount,
+        tokenBudget: configBaseline.aiTokenBudget,
+      });
+    }
+  }, [configBaseline, aiConfig, setAiConfig, setPublishConfig, setIconConfig]);
+
+  useEffect(() => {
+    return registerOnDiscard(restoreConfigFromBaseline);
+  }, [registerOnDiscard, restoreConfigFromBaseline]);
 
   const loadBackups = useCallback(async () => {
     setBackupLoading(true);
@@ -185,12 +258,43 @@ export default function ConfigPage() {
         page_size: map.get("ui.page_size") ?? "25",
       });
       setBackupSchedule(map.get("backup_schedule") ?? "manual");
+      setConfigBaseline(
+        buildConfigFormSnapshot({
+          businessProfile: {
+            business_name: map.get("business_name") ?? "",
+            business_address_line_1: map.get("business_address_line_1") ?? "",
+            business_address_line_2: map.get("business_address_line_2") ?? "",
+            business_city: map.get("business_city") ?? "",
+            business_state_province: map.get("business_state_province") ?? "",
+            business_postal_code: map.get("business_postal_code") ?? "",
+            business_country: map.get("business_country") ?? "US",
+            business_phone: map.get("business_phone") ?? "",
+            business_email: map.get("business_email") ?? "",
+          },
+          shippingSettings: {
+            default_carrier: map.get("shipping.default_carrier") ?? "USPS",
+            default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
+            default_weight_oz: map.get("shipping.default_weight_oz") ?? "",
+          },
+          taxSettings: { default_rate: map.get("tax.default_rate") ?? "" },
+          displaySettings: {
+            date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
+            currency_code: map.get("ui.currency_code") ?? "USD",
+            page_size: map.get("ui.page_size") ?? "25",
+          },
+          backupSchedule: map.get("backup_schedule") ?? "manual",
+          publishConfig,
+          iconConfig,
+          aiConfig,
+          aiApiKeyDraft: "",
+        })
+      );
     } catch (err) {
       setApiError("Could not load business profile", "We could not load business settings.", err);
     } finally {
       setBusinessLoading(false);
     }
-  }, [setApiError]);
+  }, [setApiError, publishConfig, iconConfig, aiConfig]);
 
   useEffect(() => {
     void loadBusinessProfile();
@@ -213,6 +317,7 @@ export default function ConfigPage() {
         message: "Your business details were saved for invoices and reports.",
         actions: ["Generate a report to verify the header."],
       });
+      markConfigClean();
     } catch (err) {
       setApiError("Could not save business profile", "We could not save business settings.", err);
     } finally {
@@ -237,6 +342,7 @@ export default function ConfigPage() {
         if (!response.ok) throw data;
       }
       setError({ title: successTitle, message: successMessage, actions: ["Settings saved."] });
+      markConfigClean();
     } catch (err) {
       setApiError("Could not save settings", "We could not save those settings.", err);
     } finally {
@@ -421,6 +527,7 @@ export default function ConfigPage() {
       if (data.config) setAiConfig(data.config);
       setAiApiKeyDraft("");
       setError(null);
+      markConfigClean();
     } catch (err) {
       setApiError("Could not save AI settings", "We could not save AI settings.", err);
     } finally {
@@ -479,6 +586,7 @@ export default function ConfigPage() {
         message: "Etsy publish defaults were saved successfully.",
         actions: ["You can now publish approved listing drafts to Etsy."],
       });
+      markConfigClean();
     } catch (err) {
       setApiError("Could not save publish settings", "We could not save Etsy publish settings.", err);
     } finally {
@@ -509,6 +617,7 @@ export default function ConfigPage() {
         message: "Screen and report icon configuration was updated.",
         actions: ["Refresh or switch tabs to verify icon rendering."],
       });
+      markConfigClean();
     } catch (err) {
       setApiError("Could not save icon settings", "We could not save icon settings.", err);
     } finally {

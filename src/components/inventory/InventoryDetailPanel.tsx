@@ -8,7 +8,9 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { formStatesEqual } from "@/lib/deep-equal-form";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, InventoryItem } from "@/types";
@@ -125,9 +127,10 @@ export function InventoryDetailPanel({
 
   const isDirty = useMemo(() => {
     if (!item || !draft) return false;
-    return JSON.stringify(draft) !== JSON.stringify(itemToDraft(item));
+    return !formStatesEqual(draft, itemToDraft(item));
   }, [item, draft]);
 
+  const { registerOnDiscard } = useUnsavedChanges();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
     entityType: "inventory",
     entityId: item?.id ?? null,
@@ -136,6 +139,14 @@ export function InventoryDetailPanel({
     isDirty,
     enabled: Boolean(item),
   });
+
+  useEffect(() => {
+    if (!item) return;
+    return registerOnDiscard(() => {
+      setDraft(itemToDraft(item));
+      setRecoveryApplied(false);
+    });
+  }, [item, registerOnDiscard]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);

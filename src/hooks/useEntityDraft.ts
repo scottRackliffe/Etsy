@@ -9,9 +9,9 @@ import {
   loadDraft,
   saveDraft,
   type DraftPayload,
-  cleanupOldDrafts,
 } from "@/lib/form-draft";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 
 const AUTOSAVE_MS = 30_000;
 
@@ -38,12 +38,20 @@ export function useEntityDraft<T>({
   const [recovery, setRecovery] = useState<DraftPayload<T> | null>(null);
   const lastSavedRef = useRef<string>("");
   const key = entityId != null && enabled ? draftKey(entityType, entityId) : null;
+  const { registerOnDiscard } = useUnsavedChanges();
 
   useBeforeUnload(enabled && isDirty);
 
+  const markDraftClean = useCallback(() => {
+    if (key) clearDraft(key);
+    lastSavedRef.current = "";
+    setRecovery(null);
+  }, [key]);
+
   useEffect(() => {
-    cleanupOldDrafts();
-  }, []);
+    if (!enabled) return;
+    return registerOnDiscard(markDraftClean);
+  }, [enabled, registerOnDiscard, markDraftClean]);
 
   useEffect(() => {
     if (!key || !enabled) {
@@ -77,12 +85,6 @@ export function useEntityDraft<T>({
     }, AUTOSAVE_MS);
     return () => window.clearInterval(timer);
   }, [key, enabled, isDirty, current, entityVersion]);
-
-  const markDraftClean = useCallback(() => {
-    if (key) clearDraft(key);
-    lastSavedRef.current = "";
-    setRecovery(null);
-  }, [key]);
 
   const dismissRecovery = useCallback(() => {
     if (key) clearDraft(key);

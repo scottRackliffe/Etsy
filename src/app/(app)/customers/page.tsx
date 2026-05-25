@@ -13,8 +13,10 @@ import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { CustomerDetailEditor } from "@/components/customers/CustomerDetailEditor";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
@@ -70,6 +72,14 @@ function CustomersPageInner() {
   const [newNoteType, setNewNoteType] = useState("general");
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [customerDetailDirty, setCustomerDetailDirty] = useState(false);
+  const [pendingCustomerId, setPendingCustomerId] = useState<number | null>(null);
+  const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
+  const { setFormDirty } = useUnsavedChanges();
+
+  useEffect(() => {
+    setFormDirty(customerDetailDirty);
+  }, [customerDetailDirty, setFormDirty]);
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
@@ -215,6 +225,15 @@ function CustomersPageInner() {
   }, [searchParams, customers, setSelectedCustomerId, setCustomers, router, pathname, setError, setApiError]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
+
+  const selectCustomer = (id: number) => {
+    if (customerDetailDirty && id !== selectedCustomerId) {
+      setPendingCustomerId(id);
+      setDiscardDirtyOpen(true);
+      return;
+    }
+    setSelectedCustomerId(id);
+  };
 
   const loadCustomerNotes = useCallback(async (customerId: number) => {
     setNotesLoading(true);
@@ -549,7 +568,7 @@ function CustomersPageInner() {
               allVisibleSelected: batch.allVisibleSelected,
               indeterminate: batch.headerIndeterminate,
             }}
-            onRowClick={(customer) => setSelectedCustomerId(customer.id)}
+            onRowClick={(customer) => selectCustomer(customer.id)}
             sort={sort}
             onSortChange={(next) => {
               setPage(0);
@@ -570,38 +589,12 @@ function CustomersPageInner() {
             </div>
           )}
           {selectedCustomer && (
-            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-              <input
-                defaultValue={selectedCustomer.first_name ?? ""}
-                onBlur={(e) => updateSelectedCustomer({ first_name: e.target.value })}
-                placeholder="First name"
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-              <input
-                defaultValue={selectedCustomer.last_name ?? ""}
-                onBlur={(e) => updateSelectedCustomer({ last_name: e.target.value })}
-                placeholder="Last name"
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-              <input
-                defaultValue={selectedCustomer.phone ?? ""}
-                onBlur={(e) => updateSelectedCustomer({ phone: e.target.value })}
-                placeholder="Phone"
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-              <input
-                defaultValue={selectedCustomer.address_1 ?? ""}
-                onBlur={(e) => updateSelectedCustomer({ address_1: e.target.value })}
-                placeholder="Address"
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-              <input
-                defaultValue={selectedCustomer.postal_code ?? ""}
-                onBlur={(e) => updateSelectedCustomer({ postal_code: e.target.value })}
-                placeholder="Postal code"
-                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-            </div>
+            <CustomerDetailEditor
+              customer={selectedCustomer}
+              busy={busyAction != null}
+              onDirtyChange={setCustomerDetailDirty}
+              onPatch={updateSelectedCustomer}
+            />
           )}
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
@@ -802,6 +795,26 @@ function CustomersPageInner() {
         confirmLabel="Delete"
         confirmVariant="danger"
         busy={busyAction === "delete-note"}
+      />
+      <ConfirmDialog
+        open={discardDirtyOpen}
+        onClose={() => {
+          setDiscardDirtyOpen(false);
+          setPendingCustomerId(null);
+        }}
+        onConfirm={() => {
+          setDiscardDirtyOpen(false);
+          setCustomerDetailDirty(false);
+          if (pendingCustomerId != null) {
+            setSelectedCustomerId(pendingCustomerId);
+            setPendingCustomerId(null);
+          }
+        }}
+        title="Unsaved changes"
+        description="You have unsaved changes that will be lost. What would you like to do?"
+        cancelLabel="Keep editing"
+        confirmLabel="Discard changes"
+        confirmVariant="danger"
       />
     </section>
   );

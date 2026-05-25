@@ -9,7 +9,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { formStatesEqual } from "@/lib/deep-equal-form";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { isStaleConflictPayload, patchHeaders } from "@/lib/patch-json";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
@@ -111,9 +113,10 @@ export function OrderDetailPanel({
 
   const isDirty = useMemo(() => {
     if (!order || !draft) return false;
-    return JSON.stringify(draft) !== JSON.stringify(orderToDraft(order));
+    return !formStatesEqual(draft, orderToDraft(order));
   }, [order, draft]);
 
+  const { registerOnDiscard } = useUnsavedChanges();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
     entityType: "order",
     entityId: orderId,
@@ -122,6 +125,14 @@ export function OrderDetailPanel({
     isDirty,
     enabled: Boolean(orderId && order),
   });
+
+  useEffect(() => {
+    if (!order) return;
+    return registerOnDiscard(() => {
+      setDraft(orderToDraft(order));
+      setRecoveryApplied(false);
+    });
+  }, [order, registerOnDiscard]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
