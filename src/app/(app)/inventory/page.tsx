@@ -1,14 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChipRow } from "@/components/ui/FilterChipRow";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inventory/InventoryDetailPanel";
+import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
-import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { usePagination } from "@/hooks/usePagination";
+import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 
@@ -68,19 +74,15 @@ function InventoryPageInner() {
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
   const [workshopOpen, setWorkshopOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
-  const filteredInventory = useMemo(() => {
-    const q = inventorySearch.trim().toLowerCase();
-    if (!q) return inventory;
-    return inventory.filter((row) => {
-      const hay = [row.item_number, row.description, row.status].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-  }, [inventory, inventorySearch]);
-  const allVisibleSelected =
-    filteredInventory.length > 0 && filteredInventory.every((row) => selectedIds.has(row.id));
-  const someVisibleSelected = filteredInventory.some((row) => selectedIds.has(row.id));
+  const allVisibleSelected = inventory.length > 0 && inventory.every((row) => selectedIds.has(row.id));
+  const someVisibleSelected = inventory.some((row) => selectedIds.has(row.id));
 
   const handlePictureItemUpdated = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -101,15 +103,32 @@ function InventoryPageInner() {
     setSelectedItemId(id);
   };
 
-  const reloadInventory = async (search?: string) => {
-    const q = search ?? inventorySearch;
-    const params = new URLSearchParams({ limit: "100", offset: "0" });
-    if (q.trim()) params.set("search", q.trim());
+  const reloadInventory = useCallback(async () => {
+    const params = new URLSearchParams({
+      limit: String(pageSize),
+      offset: String(offset),
+    });
+    if (debouncedInventorySearch.trim()) params.set("search", debouncedInventorySearch.trim());
+    if (statusFilter) params.set("status", statusFilter);
+    if (sort) {
+      params.set("sort_by", sort.key);
+      params.set("sort_dir", sort.dir);
+    }
     const response = await fetch(`/api/inventory?${params}`, { headers: { Accept: "application/json" } });
-    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: InventoryItem[] };
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      items?: InventoryItem[];
+      pagination?: PaginationInfo;
+    };
     if (!response.ok) throw data;
     if (data.items) setInventory(data.items);
-  };
+    if (data.pagination) setTotal(data.pagination.total);
+  }, [debouncedInventorySearch, pageSize, offset, statusFilter, sort, setInventory, setTotal]);
+
+  useEffect(() => {
+    void reloadInventory().catch((err) =>
+      setApiError("Could not load inventory", "We could not load inventory.", err)
+    );
+  }, [reloadInventory, setApiError]);
 
   const toggleInventoryRow = (id: number) => {
     setSelectedIds((current) => {
@@ -124,9 +143,43 @@ function InventoryPageInner() {
     if (allVisibleSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredInventory.map((row) => row.id)));
+      setSelectedIds(new Set(inventory.map((row) => row.id)));
     }
   };
+
+  const inventoryColumns = useMemo(
+    () => [
+      {
+        key: "select",
+        header: "",
+        className: "w-8",
+        render: (item: InventoryItem) => (
+          <div onClick={(e) => e.stopPropagation()} role="presentation">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(item.id)}
+              onChange={() => toggleInventoryRow(item.id)}
+              aria-label={`Select ${item.item_number ?? item.id}`}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "item_number",
+        header: "Item #",
+        sortable: true,
+        render: (item: InventoryItem) => item.item_number ?? `#${item.id}`,
+      },
+      {
+        key: "description",
+        header: "Description",
+        sortable: true,
+        render: (item: InventoryItem) => (item.description ?? "").slice(0, 50) || "—",
+      },
+      { key: "status", header: "Status", sortable: true },
+    ],
+    [selectedIds]
+  );
 
   const batchChangeStatus = async (status: string) => {
     if (selectedIds.size === 0) return;
@@ -602,71 +655,69 @@ function InventoryPageInner() {
           <p className="text-sm font-semibold text-[var(--ui-title)]">Inventory items</p>
           <input
             value={inventorySearch}
-            onChange={(e) => setInventorySearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void reloadInventory(inventorySearch); }}
+            onChange={(e) => {
+              setPage(0);
+              setInventorySearch(e.target.value);
+            }}
             placeholder="Search item #, description, status…"
             className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
           />
-          <button type="button" onClick={() => void reloadInventory()} disabled={busyAction != null} className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60">
-            Search
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm"
+          >
+            Import CSV
           </button>
         </div>
-        <div className="max-h-48 overflow-auto">
-          {filteredInventory.length === 0 ? (
-            <EmptyState
-              message={inventorySearch.trim() ? "No items match your filters." : "Your inventory is empty."}
-              primaryAction={
-                inventorySearch.trim()
-                  ? { label: "Clear filters", onClick: () => { setInventorySearch(""); void reloadInventory(""); } }
-                  : { label: "Add first item", onClick: () => createItemRef.current?.focus() }
-              }
-              secondaryAction={
-                inventorySearch.trim()
-                  ? undefined
-                  : {
-                      label: "Import from CSV",
-                      onClick: () =>
-                        setError({
-                          title: "CSV import coming soon",
-                          message: "Bulk CSV import is planned for a future release.",
-                          actions: ["Use Add item above to enter inventory manually."],
-                        }),
-                    }
-              }
+        <FilterChipRow
+          label="Status"
+          value={statusFilter}
+          onChange={(value) => {
+            setPage(0);
+            setStatusFilter(value);
+          }}
+          options={INVENTORY_STATUSES.map((status) => ({ value: status, label: status }))}
+        />
+        {listTotal === 0 ? (
+          <EmptyState
+            message={inventorySearch.trim() || statusFilter ? "No items match your filters." : "Your inventory is empty."}
+            primaryAction={
+              inventorySearch.trim() || statusFilter
+                ? {
+                    label: "Clear filters",
+                    onClick: () => {
+                      setInventorySearch("");
+                      setStatusFilter(null);
+                      setPage(0);
+                    },
+                  }
+                : { label: "Add first item", onClick: () => createItemRef.current?.focus() }
+            }
+            secondaryAction={
+              inventorySearch.trim() || statusFilter
+                ? undefined
+                : { label: "Import from CSV", onClick: () => setImportOpen(true) }
+            }
+          />
+        ) : (
+          <>
+            <DataTable
+              columns={inventoryColumns}
+              data={inventory}
+              selectedId={selectedItemId}
+              onRowClick={(item) => selectInventoryItem(item.id)}
+              sort={sort}
+              onSortChange={(next) => {
+                setPage(0);
+                setSort(next ?? { key: "updated_at", dir: "desc" });
+              }}
+              emptyMessage="No items on this page."
             />
-          ) : (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs text-[var(--ui-muted)]">
-                <th className="w-8 py-1">
-                  <input type="checkbox" checked={allVisibleSelected} ref={(el) => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }} onChange={toggleAllVisibleInventory} aria-label="Select all inventory on page" />
-                </th>
-                <th className="py-1">Item #</th>
-                <th className="py-1">Description</th>
-                <th className="py-1">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInventory.map((item) => {
-                const isSelected = selectedItemId === item.id;
-                const isChecked = selectedIds.has(item.id);
-                return (
-                  <tr key={item.id} onClick={() => selectInventoryItem(item.id)} className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${isSelected ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""}`}>
-                    <td className="py-1" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={isChecked} onChange={() => toggleInventoryRow(item.id)} aria-label={`Select ${item.item_number ?? item.id}`} />
-                    </td>
-                    <td className="py-1 pr-2">{item.item_number ?? `#${item.id}`}</td>
-                    <td className="py-1 pr-2">{(item.description ?? "").slice(0, 50) || "—"}</td>
-                    <td className="py-1">{item.status ?? "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          )}
-        </div>
+            <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
+          </>
+        )}
       </div>
-
       <InventoryDetailPanel
         item={selectedItem as InventoryItemDetail | null}
         busy={busyAction != null}
@@ -854,6 +905,14 @@ function InventoryPageInner() {
         <p className="text-sm text-[var(--ui-muted)]">Create inventory items first to use listing authoring features.</p>
       )}
 
+
+      <InventoryImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => void reloadInventory()}
+        onError={(title, message, err) => setApiError(title, message, err)}
+        onSuccess={(title, message) => setError({ title, message, actions: [] })}
+      />
 
       {batchStatusOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">

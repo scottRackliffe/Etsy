@@ -4,8 +4,13 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { ApiErrorShape, Customer, CustomerAddress } from "@/types";
+import { FilterChipRow } from "@/components/ui/FilterChipRow";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { usePagination } from "@/hooks/usePagination";
+import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
 type CustomerNote = {
   id: number;
@@ -50,10 +55,74 @@ function CustomersPageInner() {
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const [activeFilter, setActiveFilter] = useState<string | null>("1");
+  const [sort, setSort] = useState<SortState>({ key: "last_name", dir: "asc" });
+
+  const reloadCustomers = useCallback(async () => {
+    const params = new URLSearchParams({
+      limit: String(pageSize),
+      offset: String(offset),
+    });
+    if (debouncedCustomerSearch.trim()) params.set("search", debouncedCustomerSearch.trim());
+    if (activeFilter === "1") params.set("is_active", "1");
+    if (activeFilter === "0") params.set("is_active", "0");
+    if (sort) {
+      params.set("sort_by", sort.key);
+      params.set("sort_dir", sort.dir);
+    }
+    const response = await fetch(`/api/customers?${params}`, { headers: { Accept: "application/json" } });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      items?: Customer[];
+      pagination?: PaginationInfo;
+    };
+    if (!response.ok) throw data;
+    if (data.items) setCustomers(data.items);
+    if (data.pagination) setTotal(data.pagination.total);
+  }, [debouncedCustomerSearch, pageSize, offset, activeFilter, sort, setCustomers, setTotal]);
+
+  useEffect(() => {
+    void reloadCustomers().catch((err) =>
+      setApiError("Could not load customers", "We could not load customers.", err)
+    );
+  }, [reloadCustomers, setApiError]);
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
   const allVisibleSelected = customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
   const someVisibleSelected = customers.some((c) => selectedIds.has(c.id));
+
+  const customerColumns = useMemo(
+    () => [
+      {
+        key: "select",
+        header: "",
+        className: "w-8",
+        render: (customer: Customer) => (
+          <div onClick={(e) => e.stopPropagation()} role="presentation">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(customer.id)}
+              onChange={() => toggleCustomerRow(customer.id)}
+              aria-label={`Select customer ${customer.id}`}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "name",
+        header: "Name",
+        sortable: true,
+        sortKey: "last_name",
+        render: (customer: Customer) =>
+          [customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`,
+      },
+      { key: "email", header: "Email", sortable: true },
+      { key: "phone", header: "Phone", sortable: true },
+    ],
+    [selectedIds]
+  );
 
   const searchParams = useSearchParams();
 
@@ -314,15 +383,7 @@ function CustomersPageInner() {
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
-      const customersResponse = await fetch("/api/customers?limit=100", {
-        headers: { Accept: "application/json" },
-      });
-      const customersData = (await customersResponse.json().catch(() => ({}))) as ApiErrorShape & {
-        items?: Customer[];
-      };
-      if (customersResponse.ok && customersData.items) {
-        setCustomers(customersData.items);
-      }
+      await reloadCustomers();
       setError({
         title: "Etsy sync complete",
         message: "Customers and orders were updated from Etsy.",
@@ -358,56 +419,42 @@ function CustomersPageInner() {
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 lg:col-span-2">
-          <div className="max-h-72 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs text-[var(--ui-muted)]">
-                  <th className="w-8 py-1">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
-                      }}
-                      onChange={toggleAllVisibleCustomers}
-                      aria-label="Select all customers on page"
-                    />
-                  </th>
-                  <th className="py-1">Name</th>
-                  <th className="py-1">Email</th>
-                  <th className="py-1">Phone</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map((customer) => {
-                  const isChecked = selectedIds.has(customer.id);
-                  return (
-                  <tr
-                    key={customer.id}
-                    onClick={() => setSelectedCustomerId(customer.id)}
-                    className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${
-                      selectedCustomerId === customer.id ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""
-                    }`}
-                  >
-                    <td className="py-1" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCustomerRow(customer.id)}
-                        aria-label={`Select customer ${customer.id}`}
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`}
-                    </td>
-                    <td className="py-1 pr-2">{customer.email ?? "-"}</td>
-                    <td className="py-1">{customer.phone ?? "-"}</td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <input
+              value={customerSearch}
+              onChange={(e) => {
+                setPage(0);
+                setCustomerSearch(e.target.value);
+              }}
+              placeholder="Search name, email, phone…"
+              className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
           </div>
+          <FilterChipRow
+            label="Active"
+            value={activeFilter}
+            onChange={(value) => {
+              setPage(0);
+              setActiveFilter(value);
+            }}
+            options={[
+              { value: "1", label: "Active only" },
+              { value: "0", label: "Inactive" },
+            ]}
+          />
+          <DataTable
+            columns={customerColumns}
+            data={customers}
+            selectedId={selectedCustomerId}
+            onRowClick={(customer) => setSelectedCustomerId(customer.id)}
+            sort={sort}
+            onSortChange={(next) => {
+              setPage(0);
+              setSort(next ?? { key: "last_name", dir: "asc" });
+            }}
+            emptyMessage="No customers on this page."
+          />
+          <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
           {selectedCustomer && (
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
               <input
@@ -558,13 +605,22 @@ function CustomersPageInner() {
           </button>
         </div>
       </div>
-      {customers.length === 0 ? (
+      {listTotal === 0 ? (
         <EmptyState
-          message="No customers yet. They'll appear when you create orders or sync from Etsy."
+          message={customerSearch.trim() || activeFilter !== "1" ? "No customers match your filters." : "No customers yet. They'll appear when you create orders or sync from Etsy."}
           primaryAction={
-            shops.length > 0
-              ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-              : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
+            customerSearch.trim() || activeFilter !== "1"
+              ? {
+                  label: "Clear filters",
+                  onClick: () => {
+                    setCustomerSearch("");
+                    setActiveFilter("1");
+                    setPage(0);
+                  },
+                }
+              : shops.length > 0
+                ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
+                : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }
           }
           secondaryAction={{ label: "Add customer", onClick: () => createEmailRef.current?.focus() }}
         />

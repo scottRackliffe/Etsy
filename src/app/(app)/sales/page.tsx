@@ -4,9 +4,14 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChipRow } from "@/components/ui/FilterChipRow";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { OrderDetailPanel } from "@/components/sales/OrderDetailPanel";
-import type { ApiErrorShape, Order } from "@/types";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { usePagination } from "@/hooks/usePagination";
+import type { ApiErrorShape, Order, PaginationInfo } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
 
@@ -32,6 +37,12 @@ function SalesPageInner() {
   const [newOrderNumber, setNewOrderNumber] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
+  const debouncedOrderSearch = useDebouncedValue(orderSearch, 300);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [shippingFilter, setShippingFilter] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState>({ key: "order_date", dir: "desc" });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [shipModalMode, setShipModalMode] = useState<"single" | "batch">("single");
@@ -50,18 +61,83 @@ function SalesPageInner() {
   const allVisibleSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o.id));
   const someVisibleSelected = orders.some((o) => selectedIds.has(o.id));
 
+  const orderColumns = useMemo(
+    () => [
+      {
+        key: "select",
+        header: "",
+        className: "w-8",
+        render: (order: Order) => (
+          <div onClick={(e) => e.stopPropagation()} role="presentation">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(order.id)}
+              onChange={() => toggleRow(order.id)}
+              aria-label={`Select order ${order.order_number ?? order.id}`}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "order_number",
+        header: "Order",
+        sortable: true,
+        render: (order: Order) => order.order_number ?? `Order ${order.id}`,
+      },
+      { key: "order_date", header: "Date", sortable: true },
+      { key: "grand_total", header: "Total", sortable: true },
+      { key: "payment_status", header: "Payment", sortable: true },
+      {
+        key: "shipped",
+        header: "Shipped",
+        render: (order: Order) => (order.shipping_date ? "Yes" : "No"),
+      },
+    ],
+    [selectedIds]
+  );
+
   const reloadOrders = useCallback(
     async (search?: string) => {
-      const q = search ?? orderSearch;
-      const params = new URLSearchParams({ limit: "100", offset: "0" });
+      const q = search ?? debouncedOrderSearch;
+      const params = new URLSearchParams({
+        limit: String(pageSize),
+        offset: String(offset),
+      });
       if (q.trim()) params.set("search", q.trim());
+      if (paymentFilter) params.set("payment_status", paymentFilter);
+      if (shippingFilter) params.set("shipping_status", shippingFilter);
+      if (sourceFilter) params.set("source_channel", sourceFilter);
+      if (sort) {
+        params.set("sort_by", sort.key);
+        params.set("sort_dir", sort.dir);
+      }
       const response = await fetch(`/api/orders?${params}`, { headers: { Accept: "application/json" } });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: Order[] };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        items?: Order[];
+        pagination?: PaginationInfo;
+      };
       if (!response.ok) throw data;
       if (data.items) setOrders(data.items);
+      if (data.pagination) setTotal(data.pagination.total);
     },
-    [orderSearch, setOrders]
+    [
+      debouncedOrderSearch,
+      pageSize,
+      offset,
+      paymentFilter,
+      shippingFilter,
+      sourceFilter,
+      sort,
+      setOrders,
+      setTotal,
+    ]
   );
+
+  useEffect(() => {
+    void reloadOrders().catch((err) =>
+      setApiError("Could not load orders", "We could not load orders.", err)
+    );
+  }, [reloadOrders, setApiError]);
 
   const searchParams = useSearchParams();
 
@@ -424,76 +500,79 @@ function SalesPageInner() {
             <p className="text-sm font-semibold">Local orders</p>
             <input
               value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void reloadOrders(orderSearch);
+              onChange={(e) => {
+                setPage(0);
+                setOrderSearch(e.target.value);
               }}
               aria-label="Search orders"
               placeholder="Search order #, name, city…"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
-            <button
-              type="button"
-              onClick={() => void reloadOrders()}
-              disabled={busyAction != null}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm disabled:opacity-60"
-            >
-              Search
-            </button>
+            {orders.length > 0 ? (
+              <label className="flex items-center gap-1 text-xs text-[var(--ui-muted)]">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                  }}
+                  onChange={toggleAllVisible}
+                />
+                Select page
+              </label>
+            ) : null}
           </div>
-          <div className="max-h-[28rem] overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs text-[var(--ui-muted)]">
-                  <th className="w-8 py-1">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
-                      }}
-                      onChange={toggleAllVisible}
-                      aria-label="Select all orders on page"
-                    />
-                  </th>
-                  <th className="py-1">Order</th>
-                  <th className="py-1">Date</th>
-                  <th className="py-1">Total</th>
-                  <th className="py-1">Payment</th>
-                  <th className="py-1">Shipped</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => {
-                  const isSelected = selectedOrderId === order.id;
-                  const isChecked = selectedIds.has(order.id);
-                  return (
-                    <tr
-                      key={order.id}
-                      onClick={() => setSelectedOrderId(order.id)}
-                      className={`cursor-pointer border-t border-[var(--ui-border)]/60 ${
-                        isSelected ? "bg-[var(--ui-list-hover)]/60" : isChecked ? "bg-[var(--ui-accent)]/10" : ""
-                      }`}
-                    >
-                      <td className="py-1" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleRow(order.id)}
-                          aria-label={`Select order ${order.order_number ?? order.id}`}
-                        />
-                      </td>
-                      <td className="py-1 pr-2">{order.order_number ?? `Order ${order.id}`}</td>
-                      <td className="py-1 pr-2">{order.order_date ?? "-"}</td>
-                      <td className="py-1 pr-2">{order.grand_total ?? 0}</td>
-                      <td className="py-1 pr-2">{order.payment_status ?? "unknown"}</td>
-                      <td className="py-1">{order.shipping_date ? "Yes" : "No"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="mb-3 space-y-2">
+            <FilterChipRow
+              label="Payment"
+              value={paymentFilter}
+              onChange={(value) => {
+                setPage(0);
+                setPaymentFilter(value);
+              }}
+              options={[
+                { value: "paid", label: "Paid" },
+                { value: "unpaid", label: "Unpaid" },
+              ]}
+            />
+            <FilterChipRow
+              label="Shipping"
+              value={shippingFilter}
+              onChange={(value) => {
+                setPage(0);
+                setShippingFilter(value);
+              }}
+              options={[
+                { value: "shipped", label: "Shipped" },
+                { value: "not_shipped", label: "Not shipped" },
+              ]}
+            />
+            <FilterChipRow
+              label="Source"
+              value={sourceFilter}
+              onChange={(value) => {
+                setPage(0);
+                setSourceFilter(value);
+              }}
+              options={[
+                { value: "etsy", label: "Etsy" },
+                { value: "manual", label: "Manual" },
+              ]}
+            />
           </div>
+          <DataTable
+            columns={orderColumns}
+            data={orders}
+            selectedId={selectedOrderId}
+            onRowClick={(order) => setSelectedOrderId(order.id)}
+            sort={sort}
+            onSortChange={(next) => {
+              setPage(0);
+              setSort(next ?? { key: "order_date", dir: "desc" });
+            }}
+            emptyMessage="No orders on this page."
+          />
+          <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
         </div>
 
         <OrderDetailPanel
@@ -510,12 +589,21 @@ function SalesPageInner() {
         />
       </div>
 
-      {orders.length === 0 ? (
+      {listTotal === 0 ? (
         <EmptyState
-          message={orderSearch.trim() ? "No orders match your filters." : "No orders yet."}
+          message={orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter ? "No orders match your filters." : "No orders yet."}
           primaryAction={
-            orderSearch.trim()
-              ? { label: "Clear filters", onClick: () => { setOrderSearch(""); void reloadOrders(""); } }
+            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+              ? {
+                  label: "Clear filters",
+                  onClick: () => {
+                    setOrderSearch("");
+                    setPaymentFilter(null);
+                    setShippingFilter(null);
+                    setSourceFilter(null);
+                    setPage(0);
+                  },
+                }
               : shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }
                 : { label: "Connect Etsy first", onClick: () => router.push("/config#etsy-connection"), variant: "secondary" }

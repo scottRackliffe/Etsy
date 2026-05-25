@@ -363,4 +363,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 15 (2026-05-24) — implemented:** ADR-030 collapsible listing workshop (default collapsed) with Config link instead of duplicate AI/publish settings; ADR-034 Config Shipping Info section (`#shipping`); local HTML shipping label (`GET /api/orders/[id]/shipping-label`) + Sales print button; Tutorial tab search/index with `system/tips/` file APIs.
 
+**Wave 16 (2026-05-24) — implemented:** ADR-028/029 DataTable with sortable columns, PaginationBar, and FilterChipRow on Sales/Customers/Inventory; server-side search/filter/sort/pagination wired to list APIs; ADR-047 inventory CSV import preview/import APIs and Import modal.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
