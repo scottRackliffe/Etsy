@@ -103,6 +103,7 @@ export default function ConfigPage() {
   });
   const [businessLoading, setBusinessLoading] = useState(false);
   const [sampleDataBusy, setSampleDataBusy] = useState(false);
+  const [sampleDataLoaded, setSampleDataLoaded] = useState<boolean | null>(null);
   const [loadSampleConfirm, setLoadSampleConfirm] = useState(false);
   const [removeSampleConfirm, setRemoveSampleConfirm] = useState(false);
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>({
@@ -397,6 +398,24 @@ export default function ConfigPage() {
       "Date format, currency, and page size were updated."
     );
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/seed/sample-data", {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as { loaded?: boolean };
+        if (response.ok) {
+          setSampleDataLoaded(Boolean(data.loaded));
+        } else {
+          setSampleDataLoaded(false);
+        }
+      } catch {
+        setSampleDataLoaded(false);
+      }
+    })();
+  }, []);
+
   const loadSampleData = async () => {
     setSampleDataBusy(true);
     try {
@@ -410,6 +429,7 @@ export default function ConfigPage() {
         orders_created?: number;
       };
       if (!response.ok) throw data;
+      setSampleDataLoaded(true);
       setLoadSampleConfirm(false);
       setError({
         title: "Sample data loaded",
@@ -434,6 +454,7 @@ export default function ConfigPage() {
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
         throw data;
       }
+      setSampleDataLoaded(false);
       setRemoveSampleConfirm(false);
       setError({
         title: "Sample data removed",
@@ -973,28 +994,37 @@ export default function ConfigPage() {
       </div>
 
       <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-        <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Sample data</h4>
+        <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Sample Data</h4>
         <p className="mb-3 text-xs text-[var(--ui-muted)]">
-          Load demo inventory, customers, and orders to explore the app. Remove when you are ready for real data.
+          Load example inventory, customers, and orders to explore the application.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setLoadSampleConfirm(true)}
-            disabled={sampleDataBusy}
+            disabled={sampleDataBusy || sampleDataLoaded === true}
             className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            Load sample data
+            Load Sample Data
           </button>
-          <button
-            type="button"
-            onClick={() => setRemoveSampleConfirm(true)}
-            disabled={sampleDataBusy}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-          >
-            Remove sample data
-          </button>
+          {sampleDataLoaded ? (
+            <button
+              type="button"
+              onClick={() => setRemoveSampleConfirm(true)}
+              disabled={sampleDataBusy}
+              className="rounded-lg border border-[var(--ui-red)]/50 bg-[var(--ui-red)]/10 px-3 py-2 text-sm font-semibold text-[var(--ui-red)] disabled:opacity-60"
+            >
+              Remove Sample Data
+            </button>
+          ) : null}
         </div>
+        <p className="mt-3 text-xs text-[var(--ui-muted)]">
+          {sampleDataLoaded === null
+            ? "Checking sample data status…"
+            : sampleDataLoaded
+              ? "Sample data is loaded."
+              : "No sample data loaded."}
+        </p>
       </div>
 
       <div id="backup-restore" className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
@@ -1136,9 +1166,9 @@ export default function ConfigPage() {
         open={loadSampleConfirm}
         onClose={() => setLoadSampleConfirm(false)}
         onConfirm={() => void loadSampleData()}
-        title="Load sample data?"
-        description="This adds demo inventory, customers, and orders prefixed with SAMPLE-. You can remove them later."
-        confirmLabel="Load sample data"
+        title="Load Sample Data?"
+        description="This will add sample items, customers, and orders. Your existing data will not be affected."
+        confirmLabel="Load Sample Data"
         busy={sampleDataBusy}
       />
       <ConfirmDialog
@@ -1147,7 +1177,7 @@ export default function ConfigPage() {
         onConfirm={() => void removeSampleData()}
         title="Remove sample data?"
         description="All SAMPLE- prefixed records will be deleted. Your real data is not affected."
-        confirmLabel="Remove sample data"
+        confirmLabel="Remove Sample Data"
         confirmVariant="danger"
         busy={sampleDataBusy}
       />

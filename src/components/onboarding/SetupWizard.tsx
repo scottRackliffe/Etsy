@@ -355,8 +355,8 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         onClose={() => setSampleConfirmOpen(false)}
         onConfirm={() => void loadSampleData()}
         title="Load sample data?"
-        description="This adds demo inventory, customers, and orders prefixed with SAMPLE-."
-        confirmLabel="Load sample data"
+        description="This will add sample items, customers, and orders. Your existing data will not be affected."
+        confirmLabel="Load Sample Data"
         busy={sampleBusy}
       />
     </div>

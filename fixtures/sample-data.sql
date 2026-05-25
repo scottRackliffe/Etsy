@@ -269,5 +269,4 @@ INSERT INTO order_items (order_id, inventory_id, quantity, unit_price, line_tota
 SELECT o.id, i.id, 1, 60.00, 60.00, datetime('now'), datetime('now')
 FROM orders o, inventory i WHERE o.order_number = 'SAMPLE-ORD-008' AND i.item_number = 'SAMPLE-010';
 
--- tracking_number (ADR-031): uncomment after migration adds orders.tracking_number
--- UPDATE orders SET tracking_number = '9400111899223344556677' WHERE order_number = 'SAMPLE-ORD-001';
+UPDATE orders SET tracking_number = '9400111899223344556677' WHERE order_number = 'SAMPLE-ORD-001';

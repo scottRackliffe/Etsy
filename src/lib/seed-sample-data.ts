@@ -25,16 +25,18 @@ export function loadSampleData(): {
   const sqlPath = path.join(process.cwd(), "fixtures", "sample-data.sql");
   let sql = fs.readFileSync(sqlPath, "utf8");
   sql = sql.replace(/^--.*$/gm, "");
-  const hasTracking = (
-    getDb()
-      .prepare("PRAGMA table_info(orders)")
-      .all() as Array<{ name: string }>
-  ).some((c) => c.name === "tracking_number");
-  if (hasTracking) {
-    sql += `\nUPDATE orders SET tracking_number = '9400111899223344556677' WHERE order_number = 'SAMPLE-ORD-001';\n`;
-  }
 
   const db = getDb();
+  const hasTracking = (
+    db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>
+  ).some((c) => c.name === "tracking_number");
+  if (!hasTracking) {
+    sql = sql.replace(
+      /UPDATE orders SET tracking_number = '9400111899223344556677' WHERE order_number = 'SAMPLE-ORD-001';?\s*/g,
+      ""
+    );
+  }
+
   const load = db.transaction(() => {
     db.exec(sql);
   });
@@ -86,9 +88,6 @@ export function removeSampleData(): boolean {
     db.prepare(`DELETE FROM order_items WHERE inventory_id IN (${placeholders})`).run(...ids);
     db.prepare(`DELETE FROM other_costs WHERE inventory_id IN (${placeholders})`).run(...ids);
     db.prepare("DELETE FROM orders WHERE order_number LIKE 'SAMPLE-ORD-%'").run();
-    db.prepare(
-      `DELETE FROM orders WHERE id NOT IN (SELECT DISTINCT order_id FROM order_items WHERE order_id IS NOT NULL)`
-    ).run();
 
     const orphanCustomers = db
       .prepare(

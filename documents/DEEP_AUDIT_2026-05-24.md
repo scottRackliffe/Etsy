@@ -381,6 +381,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
 
+**Wave 34 (2026-05-24) — implemented:** ADR-069 sample/demo data completion — `GET /api/seed/sample-data` status endpoint; sample-data routes work without Etsy OAuth (local app); `fixtures/sample-data.sql` tracking_number inline; safer remove cascade; Config **Sample Data** section with loaded/not-loaded status, disabled Load when present, danger Remove when loaded, ADR-032 confirm copy.
+
 **Wave 33 (2026-05-24) — implemented:** ADR-067 undo/redo — client-side undo stack (max 10) in `UndoRedoProvider` / `useUndoRedo`; `patchWithUndo` wraps successful PATCH with previous/new field snapshots and `If-Match`; success toast with **Undo** button (5s); Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z in app layout (skipped in text inputs); stacks cleared on route change; wired on Inventory/Sales inline edits and inventory/order/customer detail panel saves.
 
 **Wave 32 (2026-05-24) — implemented:** ADR-068 listing quality score — `computeListingScore` rubric in `src/lib/listing-score.ts`; `GET /api/inventory/[id]/listing-score`; `ListingQualityScore` badge + tips in listing workshop header; sortable **Quality** column on Inventory list (client-side page sort).

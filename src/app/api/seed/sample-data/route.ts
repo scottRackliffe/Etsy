@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { hasSampleData, loadSampleData, removeSampleData } from "@/lib/seed-sample-data";
+
+export async function GET() {
+  try {
+    return NextResponse.json({ ok: true, loaded: hasSampleData() });
+  } catch (error) {
+    return errorResponse(
+      fromUnknownError(error, {
+        code: "INTERNAL_ERROR",
+        message: "Failed to check sample data status",
+        userMessage: "We could not check sample data status.",
+        actions: ["Retry in a moment."],
+      })
+    );
+  }
+}
 
 export async function POST() {
   try {
-    requireEtsyAccessToken(await cookies());
     if (hasSampleData()) {
       throw new ApiRouteError({
         status: 409,
@@ -35,7 +47,6 @@ export async function POST() {
 
 export async function DELETE() {
   try {
-    requireEtsyAccessToken(await cookies());
     if (!removeSampleData()) {
       throw new ApiRouteError({
         status: 404,
