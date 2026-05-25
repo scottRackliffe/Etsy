@@ -41,7 +41,7 @@ If a carrier workflow needs additional fields (for example phone, service class,
 
 ## Data used for the label
 
-- **From the order (ship-to):** ship_to_first_name, ship_to_last_name, ship_to_address_line_1, ship_to_address_line_2 (if present), ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code (from any purchase row for that order_id).
+- **From the order (ship-to snapshot on `orders`):** `ship_to_first_name`, `ship_to_last_name`, `ship_to_address_line_1`, `ship_to_address_line_2` (optional), `ship_to_city`, `ship_to_state_province`, `ship_to_country`, `ship_to_postal_code` for the selected `orders.id`.
 - **From Shipping Info (stored):** Whatever is required for the chosen shipper to complete the label (e.g. return address, account number). Stored per carrier; user enters it in Config → Shipping Info.
 
 ---

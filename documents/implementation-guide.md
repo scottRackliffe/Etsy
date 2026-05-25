@@ -26,7 +26,7 @@ This document gives a **high-level** implementation order. All detailed behavior
 
 ## Phase 2: Tabbed UI and Sales
 
-- Layout: tabs, commands panel, outstanding panel (or placeholder), configurable sides per **ADR-009**.
+- Layout: v1 = header + tab bar + full-width main content per **ADR-009** / **ADR-024** (commands panel and outstanding **side panel** deferred post-v1; Outstanding is a full tab; actions inline per **ui-design.md**).
 - Tab set and command lists per **ui-design.md** §2 and §3.
 - Sales tab: order list (from DB and/or Etsy), commands (New order, Sync, Mark paid/shipped, etc.) per ui-design. New order and “add sale” use item pick list per **ADR-015**.
 - Etsy sync: implement **ADR-019** (sync endpoint and step-by-step import).

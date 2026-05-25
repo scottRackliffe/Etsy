@@ -14,18 +14,18 @@ Users need to record multiple sales for the same customer (e.g. in-person or non
 
 ## Decision
 
-- **Allow the user to add another sale to the current customer.** From the Customers tab (with a customer selected) or from Sales, the user can record a sale for that customer. They can record **multiple sales** for the same customer in sequence (add sale → choose item → save → add another sale for same customer if needed).
+- **Allow the user to add another sale to the current customer.** From Customers (customer selected) or Sales, record a sale as an **`orders`** row with one or more **`order_items`**. User can add **multiple orders** for the same customer in sequence (add sale → pick item(s) → save → add another).
 
 - **Item sold is chosen from a pick list** that shows:
   - A **picture icon** (thumbnail) of the item — **created when the item is entered** (when the user adds the inventory item or adds its first picture). We do not generate the icon on demand when the pick list is shown; we create and store it at item entry time.
   - The **item name** (and optionally item number or short description)
-    Each row in the list is selectable (one item = one sale line when recording a sale).
+    Each row is selectable (one pick = one `order_items` line; multi-item orders may pick repeatedly or use multi-select per UI spec).
 
 - **Selection methods:**
   - **Scroll** — User scrolls through the list of items (picture icon + name) and selects one.
   - **Type to filter** — User can enter the item name (or part of it); the list **narrows** to matching items, still showing picture icon and name. As they type, the possibilities decrease so they can quickly find and select the right item.
 
-- **Scope:** This applies when recording a manual sale (new order or “add sale for this customer”). The same pick list pattern can be used wherever the app needs “choose an inventory item” (e.g. link order to item, mark item sold).
+- **Scope:** Manual sales (`source_channel = 'manual'`, ADR-017). Same pick list wherever the app needs “choose an inventory item” (new order, add line to order, mark sold).
 
 ## Consequences
 

@@ -40,9 +40,9 @@ Store the following in the database:
 
 **Other costs**
 
-- Use a **separate table** (e.g. `inventory_other_costs`) for “other costs” so each item can have multiple cost lines.
-- Each row: reference to inventory item, **amount**, **description** (text), and optional created_at.
-- This supports multiple entries such as “Repair $5”, “Cleaning $2”, etc., all stored in the database.
+- Use table **`other_costs`** (ADR-017) so each item can have multiple cost lines.
+- Each row: `inventory_id`, **`amount`** (required, ≥ 0), **`cost_type`** (optional label, e.g. “Repair”), **`note`** (optional detail), `created_at`, `updated_at`.
+- Supports entries such as repair, cleaning, etc., queryable per item and in cost/profit reports (ADR-038).
 
 ## Consequences
 
@@ -57,7 +57,7 @@ Store the following in the database:
 
 ## Notes
 
-- Shipper is not on inventory; it is on the purchase/shipment record (see ADR-004).
-- Sale revenue and dates may be filled when an item is sold and linked to a customer purchase.
+- Shipper and seller postage are on **`orders`** (see ADR-004), not inventory.
+- Sale revenue and dates may be filled when an item is sold via **`order_items`** / `orders`.
 - How pictures are imported (upload, import from folder, replace, reorder, remove) is defined in ADR-010; the same mechanisms apply to condition_picture_1–5 (upload/replace/remove; typically no “import from folder” for condition pics).
 - **Etsy condition codes:** We use the **commonly used antique condition terms** on Etsy (Mint/Near Mint, Excellent, Very Good, Good, Fair/As-Is). Map to Etsy Listing API condition field if/when it exposes an enum. Documentation and photos (condition_notes, condition_picture_1–5) are required for accurate selling; specific terms (patina, crazing, foxing) are standard.

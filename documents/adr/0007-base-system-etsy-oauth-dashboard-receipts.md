@@ -32,8 +32,8 @@ Build and ship a **base system** with the following:
   - `GET /api/shop` — Return the connected user’s shops (from Etsy API).
   - `GET /api/receipts?shop_id=&limit=&offset=` — Return shop receipts (orders) for the given shop (from Etsy API).
 
-- **Dashboard (single page)**  
-  The dashboard’s exact content, structure, and behavior are specified in **[ADR-016](0016-dashboard-content-and-behavior.md)** (no ambiguity). In short: if not connected, show connect CTA and link to `/api/auth/etsy`; if connected, show shop selector and a table of recent receipts (date, order #, ship-to, total, paid, shipped). Etsy data and auth/session state are persisted in SQLite. “Disconnect” invalidates auth/session records and clears session cookie id.
+- **Dashboard**  
+  Exact content in **[ADR-016](0016-dashboard-content-and-behavior.md)**. v1: if not connected → connect CTA (`GET /api/auth/etsy`); if connected → shop selector + Etsy **receipts preview** (not persisted long-term; ADR-016). Local sales KPIs use persisted **`orders`** via `GET /api/dashboard` and related endpoints (ADR-018 §10, ADR-038/064/066). Disconnect clears session per ADR-025.
 
 - **Etsy API client (`src/lib/etsy.ts`)**  
   Centralized helpers: config from env, PKCE generation, auth URL building, token exchange, and typed API calls to Etsy (shops, receipts) with `x-api-key` and Bearer token.
@@ -69,6 +69,6 @@ Token refresh is **required for production**. Users must not have to re-connect 
 
 ## Notes
 
-- Base system does not include the inventory, customer, or report features described in other ADRs; those are planned additions with database storage.
+- OAuth/receipts proxy are the foundation; inventory, customers, orders, reports, and features ADR-008–069 build on the same SQLite model (ADR-017). Receipts preview ≠ synced `orders`; sync is ADR-019.
 - Redirect URI must be registered in the Etsy developer app and match `ETSY_REDIRECT_URI` exactly.
 - Token refresh: call Etsy's token endpoint with `grant_type=refresh_token` and the stored refresh token when the access token is expired or about to expire; update the SQLite auth/session token record. Required for production use.

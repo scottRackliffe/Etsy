@@ -182,7 +182,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 23. Mark as paid
 
-**Summary:** A single endpoint sets was_paid = 1 for all purchase rows in an order (e.g. PATCH /api/orders/[order_id]/mark-paid or equivalent). The API does not require the client to PATCH each purchase row individually.
+**Summary:** A single action sets `orders.was_paid = 1` (and `payment_status = 'paid'`) on the order header — e.g. `POST /api/orders/[id]/mark-paid` per ADR-018. The client does not update each `order_items` row separately.
 
 **SSOT:** [ADR-018](adr/0018-api-surface-endpoints.md) (API; add mark-paid endpoint if not already listed); [ADR-021](adr/0021-validation-and-business-rules.md) (was_paid validation).
 

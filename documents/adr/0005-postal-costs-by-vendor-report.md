@@ -14,17 +14,19 @@ The user wants a report showing postal/shipping costs broken down by carrier. Th
 
 ## Decision
 
+> **Data source (2026-05-24):** `orders` table per ADR-004 and ADR-013. Global filter: `order_status = 'active'` only.
+
 - **Report name:** “Postal costs by vendor” (or equivalent).
-- **Metric:** Sum of **seller’s shipping cost** (the amount the seller pays to the carrier) for each vendor.
-- **Vendors:** **USPS**, **UPS**, **FedEx**, **DHL**, and **Other** (from the shipper field on purchase/shipment records; see ADR-004).
-- **Data source:** Database: purchase/shipment table, grouped by shipper, summing the stored shipping cost field.
-- **Scope:** All time or a chosen date range (from_date, to_date). No additional filters (e.g. by month only) in scope unless added in a future ADR.
+- **Metric:** Sum of **`orders.seller_shipping_cost`** (seller’s actual postage spend) per carrier.
+- **Vendors:** **USPS**, **UPS**, **FedEx**, **DHL**, **Other** — from **`orders.shipper`** (ADR-004).
+- **Query:** `SELECT shipper, SUM(seller_shipping_cost) FROM orders WHERE order_status = 'active' [AND order_date in range] GROUP BY shipper`. Null shipper → “Other” or “Unspecified” (ADR-013).
+- **Scope:** All time or date range via **`from_date` / `to_date`** on `orders.order_date`. Output PDF + CSV per ADR-013.
 
 ## Consequences
 
 - **Positive**
   - Clear definition: report reflects actual spend per carrier, including DHL.
-  - Aligns with ADR-004 (shipper and shipping cost on purchases).
+  - Aligns with ADR-004 (`orders.shipper`, `orders.seller_shipping_cost`).
 - **Negative**
   - None significant; requires that users (or Etsy import) populate shipper and shipping cost when recording a sale/shipment.
 

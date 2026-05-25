@@ -143,14 +143,17 @@ developer will guess — which means bugs. Before finishing any ADR change:
 
 ---
 
-## 2. ACTUAL DATABASE SCHEMA (source of truth: live schema in app.sqlite)
+## 2. DATABASE SCHEMA (canonical: ADR-017 — docs are king)
 
-**ADR-017 §8 DDL is canonical** for new work; `src/lib/sqlite.ts` bootstrap should converge via migrations. **Prefer live DB** when implementing today: run `PRAGMA table_info(<table>)` if unsure. Tables/columns in ADR-017 but not yet in bootstrap: `tracking_number`, `activity_log`, `customer_notes`.
+**ADR-017 §8 DDL is the only schema source of truth.** `src/lib/sqlite.ts` and `migrations/` must converge to match ADR-017; never change ADR-017 to match incomplete code. Open compliance gaps: `documents/database/SCHEMA_RECONCILIATION.md` and `documents/no-developer-questions-build.md` §5.
 
-### `customers` table — FLAT address structure (NOT separate customer_address table)
+When verifying an existing database: `PRAGMA table_info(<table>)`. Known spec-not-yet-in-bootstrap (add migrations): `orders.tracking_number`, tables `activity_log`, `customer_notes`.
+
+### `customers` table — flat billing address + ship-to via `addresses`
 ```
 id, first_name, last_name, email, phone,
 address_1, address_2, city, state, postal_code, country,
+default_address_id, currency_code, is_active,
 notes, created_at, updated_at
 ```
 

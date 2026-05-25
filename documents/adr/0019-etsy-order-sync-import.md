@@ -6,83 +6,92 @@ Accepted
 
 ## Date
 
-2025-02-15
+2025-02-15 (Decision aligned 2026-05-24)
 
 ## Context
 
-The app can fetch Etsy receipts via the API (ADR-007). When the user triggers “Sync from Etsy,” we must define exactly how those receipts become rows in the local database (customer, customer_address, purchase) so there is no ambiguity. This covers: which receipts are imported, how we avoid duplicates, how we create or match customers and addresses, and how we create purchase rows and link to Etsy.
+The app can fetch Etsy receipts via the API (ADR-007). When the user triggers “Sync from Etsy,” we must define exactly how those receipts become local rows (`customers`, `addresses`, `orders`, `order_items`) so there is no ambiguity. This covers: which receipts are imported, how we avoid duplicates, how we create or match customers and addresses, and how we create orders and line items linked to Etsy.
 
 ## Decision
 
-**Trigger:** (1) **Manual:** The user runs “Sync from Etsy” (Sales tab or Config). The app calls the sync endpoint (e.g. POST /api/sync/etsy) with optional shop_id. (2) **On startup:** When the system starts (app load / user session start), the app runs a full Etsy sync (same logic as manual) once when the user is authenticated with Etsy. Sync runs only when the user is authenticated with valid SQLite-backed auth/session token state.
+> **Terminology (2026-05-24):** One Etsy receipt → one `orders` row + one `order_items` row per Etsy line item. Vendor buys use `purchases` only. Canonical DDL: ADR-017.
 
-**Last sync date:** After every successful sync (startup or manual), update the setting `last_etsy_sync_at` (ADR-017) with the current datetime (ISO 8601). Display it in the UI (e.g. "Last synced: 15 Feb 2025, 10:30 AM" on Dashboard, Sales, or Config).
+**Trigger:** (1) **Manual:** User runs “Sync from Etsy” (Sales or Config). App calls `POST /api/sync/etsy` with optional `shop_id`. (2) **On startup:** When authenticated with Etsy, run the same sync once per session start (optional per ADR-057). Sync only when valid OAuth session exists (ADR-025).
 
-**Scope:** One shop per sync. If no shop_id is provided, use the shop the user last selected (e.g. from settings or session) or the first shop in the list.
+**Last sync date:** After every successful sync, update setting `last_etsy_sync_at` (ADR-017) to current datetime (ISO 8601). Display in UI (Dashboard, Sales, or Config).
+
+**Scope:** One shop per sync. If `shop_id` omitted, use last selected shop from settings/session or first shop in list.
 
 **Steps (exact order):**
 
-1. **Fetch receipts from Etsy** for the chosen shop (same API as GET /api/receipts), with `limit=200` by default (configurable). If more receipts exist, import the most recent 200 in that run; older receipts are imported in subsequent sync runs. Use the same Etsy API client and token as the dashboard.
+1. **Fetch receipts** from Etsy for the chosen shop (same API as `GET /api/receipts`), `limit=200` default. If more exist, import the most recent 200 per run; older receipts in later runs. Use ADR-025 token handling.
 
-2. **For each receipt in the response:**
-   - **Skip if already imported:** If any row in `purchase` has `etsy_receipt_id` equal to this receipt’s id (Etsy receipt_id), skip this receipt entirely (no duplicate orders).
+2. **For each receipt:**
+   - **Skip if already imported:** If any `orders` row has `etsy_receipt_id` = this receipt’s id, skip entirely (idempotent).
    - **Resolve or create customer:**
-     - **Match by email:** If the receipt has a buyer email, look up `customer` by that email (exact match, case-insensitive). If found, use that customer_id.
-     - **Else create customer:** Create a new row in `customer` with first_name and last_name from the receipt buyer name (split on first space: first token = first_name, rest = last_name; if no space, put all in first_name), and email from receipt if present. Use the new customer_id.
-   - **Resolve or create ship-to address:**
-     - Receipt has ship-to name and address (first_line, second_line, city, state, zip, country). Look for an existing `customer_address` for this customer_id with same address_line_1, city, postal_code, country (normalize whitespace and case for comparison). If found, use that customer_address_id.
-     - Else create a new row in `customer_address` for this customer_id with: address_line_1 = first_line, address_line_2 = second_line, city, state_province = state, country, postal_code = zip; label = null or “Etsy import”. Use the new id.
-   - **Create purchase row(s) for this receipt:**
-     - **order_id:** Set to the Etsy receipt_id (as string) for all rows created for this receipt.
-     - **One row per line item:** Etsy receipts can have multiple listings (line items). Create one `purchase` row per line item with:
-       - order_id = receipt_id (string)
-       - customer_id = (resolved above)
-       - customer_address_id = (resolved above)
-       - inventory_id = **resolve by Etsy listing_id:** Look up `inventory` where `etsy_listing_id` equals this line’s Etsy listing_id. If found, use that inventory_id. If not found, setting inventory_id to NULL is not allowed per schema (ADR-017). **Decision:** Create a single placeholder inventory row per missing Etsy listing_id: description = “Imported from Etsy (listing_id …)” or listing title from Etsy, item_number = “etsy-” + listing_id, status = “Listed”, then use that inventory_id. This preserves referential integrity and allows later cleanup.
-     - **Snapshot:** Copy ship-to name and address from the receipt into ship_to_first_name, ship_to_last_name, ship_to_address_line_1, ship_to_address_line_2, ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code.
-   - **Dates and amounts:** date_of_purchase = receipt creation date (convert from Etsy timestamp to YYYY-MM-DD). shipping_date = null initially. discount_amount = 0 or from Etsy if available. sale_revenue on the linked inventory: set from line item price if we have it (Etsy API); else leave null for user to fill.
-   - **was_paid:** Set purchase.was_paid = 1 if the Etsy receipt has was_paid = true; else 0. So synced orders from Etsy that were already marked paid on Etsy appear as paid in the app.
-   - **Etsy linkage:** etsy_receipt_id = receipt_id (string). notes = null or “Synced from Etsy”.
-   - **Shipper/shipping:** shipper = null, shipping_cost = null (user fills when they mark shipped).
-   - **After all line items:** If the receipt has a single “total” and we have multiple line items, we do not split the total across rows; sale_revenue on inventory is set from the line item price when the Etsy API provides it. If Etsy does not provide per-line price, leave sale_revenue null.
+     - **Match by email:** If buyer email present, lookup `customers` by email (case-insensitive). Use `customers.id` if found.
+     - **Else create:** Insert `customers` with `first_name` / `last_name` from buyer name (first token = first_name, remainder = last_name; if no space, all in first_name), `email` from receipt when present.
+   - **Resolve or create ship-to address (optional convenience row):**
+     - Compare receipt ship-to to existing `addresses` for this `customer_id` (`first_line`, `city`, `postal_code`, `country` — normalize whitespace/case). If match, keep id for reference only.
+     - Else insert `addresses` with `first_line`, `second_line`, `city`, `state`, `postal_code`, `country` from Etsy; `label` null or `"Etsy import"`.
+     - **Snapshot:** Copy ship-to onto the new `orders` row (`ship_to_*` columns). Invoices/history use snapshot, not live address rows (ADR-003).
+   - **Create `orders` header for this receipt:**
+     - `order_number` = Etsy `receipt_id` (string)
+     - `etsy_receipt_id` = receipt id (dedup key)
+     - `customer_id` = resolved customer
+     - `order_date` = receipt creation date (`YYYY-MM-DD`)
+     - `order_status` = `'active'`
+     - `source_channel` = `'etsy'`
+     - `was_paid` = 1 if Etsy `was_paid` true, else 0
+     - `payment_status` = `'paid'` or `'unpaid'` consistent with `was_paid`
+     - Ship-to snapshot fields from receipt
+     - Totals from receipt when available: `subtotal`, `shipping_total`, `tax_total`, `discount_total`, `grand_total` (map from Etsy fields)
+     - `shipper`, `seller_shipping_cost`, `shipping_date`, `tracking_number` = null initially (user fills on mark shipped)
+     - `notes` = null or `"Synced from Etsy"`
+   - **Create `order_items` (one per Etsy line item):**
+     - `order_id` = new order id
+     - `inventory_id` = resolve by Etsy `listing_id`: exact match on `inventory.etsy_listing_id`. If multiple matches, first by `id ASC`. If none: **create placeholder inventory** (required — `inventory_id` NOT NULL):
+       - `item_number` = `"etsy-" + listing_id`
+       - `description` = listing title from API or `"Imported from Etsy (listing_id …)"`
+       - `status` = `"Listed"`, `quantity` = 1, `is_listed` = 1, `etsy_listing_id` = listing_id, other fields null
+     - `quantity` = from Etsy line or 1
+     - `unit_price` / `line_total` = from Etsy line price when provided; else derive from inventory `sale_revenue` or leave for user
+     - Update linked `inventory.sale_revenue` from line price when Etsy provides it (do not split receipt total across lines artificially)
 
-3. **Idempotency:** A receipt that was already synced (existing purchase.etsy_receipt_id) is never processed again. No update of existing purchase rows during sync; sync only creates new rows.
+3. **Idempotency:** Existing `orders.etsy_receipt_id` → skip receipt. **No update** of existing orders on re-sync; local DB is system of record after import. User edits locally for Etsy status changes.
 
-4. **Response:** Return a summary, e.g. { synced: number of receipts processed (new), created_orders: number of new order_ids, created_purchases: number of new purchase rows }.
+4. **Response:** Summary per ADR-018, e.g. `{ synced, created_orders, created_order_items?, skipped?, errors? }`. Count `created_orders` = new `orders` rows; line items counted separately if exposed.
 
 **Edge cases (no ambiguity):**
 
-- **Receipt with no line items:** Skip receipt entirely. Do not create customer or address rows for receipts with zero line items.
-- **Same buyer, multiple receipts:** Each receipt gets its own order_id (etsy_receipt_id). Customer and address are reused when matched.
-- **Token expired during sync:** Use token refresh middleware (ADR-025) to refresh automatically. If refresh fails (revoked token), abort the sync and return 401 to the client with `ETSY_TOKEN_REVOKED`.
-- **Matching rules for `etsy_listing_id`:** Exact string match. The `etsy_listing_id` column on `inventory` is the canonical link. If multiple inventory rows have the same `etsy_listing_id`, use the first match by `id ASC` (oldest). The user should resolve duplicates manually.
-- **Placeholder inventory field defaults:** When creating a placeholder inventory row for an unrecognized Etsy listing_id, use: `item_number = "etsy-" + listing_id`, `description = listing title from Etsy API (or "Imported from Etsy (listing_id …)" if title unavailable)`, `status = "Listed"`, `quantity = 1`, `is_listed = 1`, `etsy_listing_id = the Etsy listing_id`, `listing_draft_state = NULL`, all other fields = NULL. The placeholder is editable by the user.
-- **Update policy for already-synced receipts:** Receipts that match an existing `purchase.etsy_receipt_id` are skipped entirely. No fields on existing purchase rows are updated during sync. If the user wants updated data from Etsy (e.g. a status change), they must manually edit the local record. Re-sync does not overwrite. This is intentional: the local database is the system of record once data is imported.
-- **Partial-failure handling:** Sync processes receipts sequentially. If one receipt fails to import (e.g. database constraint error, unexpected data shape), log the error with receipt_id, skip that receipt, and continue with the next. The response includes a `skipped` array with `{ receipt_id, reason }` for each failed receipt alongside the `synced` count. The sync is successful if at least one receipt was processed; it is a failure only if zero receipts could be processed (return 500 with user-actionable error).
-- **Etsy API pagination during sync:** If `has_more` is true in the Etsy response, fetch the next page (up to 5 pages or 1000 receipts per sync run). Stop early if all remaining receipts are already synced (check `etsy_receipt_id` before fetching next page).
-- **Duplicate buyer email handling:** Email match is case-insensitive (LOWER comparison). If email is null or empty on the receipt, fall back to name match: LOWER(first_name) + LOWER(last_name). If no name or email match, create a new customer.
-- **Concurrent sync protection:** Only one sync may run at a time. The sync endpoint sets a `sync_in_progress` key in `settings` at the start and clears it at the end (in a `finally` block). If a second sync request arrives while one is in progress, return 409 with `user_message`: "A sync is already in progress. Please wait for it to complete."
+- **Receipt with no line items:** Skip; do not create customer/order.
+- **Same buyer, multiple receipts:** Each receipt → separate `orders` row; reuse customer/address when matched.
+- **Token expired during sync:** ADR-025 refresh; on revoked token abort with 401 `ETSY_TOKEN_REVOKED`.
+- **Placeholder inventory:** Defaults as in schema mapping Notes; editable; appears in pick list (ADR-015).
+- **Partial failure:** Process sequentially; on failure log `receipt_id`, append to `skipped`, continue. Success if ≥1 receipt imported; total failure only if zero processed (500).
+- **Pagination:** If Etsy `has_more`, fetch up to 5 pages or 1000 receipts per run; stop early if remaining pages are all already synced.
+- **Duplicate buyer:** Email match case-insensitive; if no email, name match `LOWER(first_name)+LOWER(last_name)`; else new customer.
+- **Concurrent sync:** `sync_in_progress` in `settings`; second request → 409 “A sync is already in progress.”
 
 ## Consequences
 
-- **Positive:** Unambiguous sync behavior; no duplicate orders; every purchase row has valid inventory_id (via placeholder when needed).
-- **Negative:** Placeholder inventory rows may accumulate; UI should allow user to “link to real item” or merge later (implementation detail in Inventory/Orders flows).
+- **Positive:** Unambiguous sync; no duplicate orders; every `order_items` row has valid `inventory_id` (placeholder when needed).
+- **Negative:** Placeholder inventory may accumulate; UI should support relink/merge (Inventory/Sales flows).
 
 ## Notes
 
-- Etsy API receipt/listing shape: use the actual Etsy Open API v3 receipt and transaction/listing structure; field names in this ADR map to that structure (receipt_id, buyer email, ship-to fields, line items with listing_id and price). Implementer must map Etsy response fields to our schema.
-- Thumbnail for placeholder inventory: leave thumbnail_path null; pick list shows placeholder icon per ADR-015.
-- Placeholder inventory behavior: placeholder rows use `status = 'Listed'` and appear in item pick lists (ADR-015). Users can edit, relink, or merge placeholders with existing inventory records during cleanup.
+- Map Etsy Open API v3 receipt/transaction fields to this schema; field names in steps above are logical names.
+- Thumbnail for placeholder: `thumbnail_path` null; placeholder icon in pick list (ADR-015).
+- Scheduled auto-sync: ADR-057.
 
-### Schema mapping (updated 2026-05-24)
+### Schema mapping (legacy terms)
 
-This ADR uses the original data model terms. The implementation maps as follows:
-
-| ADR-019 term | Implementation | Notes |
-|-------------|----------------|-------|
-| purchase (row) | `orders` (header) + `order_items` (line items) | Each Etsy receipt → one `orders` row + one `order_items` row per line item |
-| customer_address | `addresses` table | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
-| purchase.etsy_receipt_id | `orders.etsy_receipt_id` | Dedup key for idempotent sync |
-| purchase.order_id | `orders.order_number` | Set to Etsy receipt_id for Etsy-sourced orders |
-| purchase.was_paid | `orders.was_paid` | |
-| purchase.customer_address_id | `orders.ship_to_*` columns | Snapshot fields on orders table; optional FK to `addresses` |
+| Legacy / ADR-019 shorthand | Canonical (ADR-017) |
+|---------------------------|---------------------|
+| purchase row | `orders` + `order_items` |
+| customer / customer_address | `customers` / `addresses` |
+| purchase.etsy_receipt_id | `orders.etsy_receipt_id` |
+| purchase.order_id | `orders.order_number` |
+| date_of_purchase | `orders.order_date` |
+| purchase.was_paid | `orders.was_paid` |
+| customer_address_id on sale | `orders.ship_to_*` snapshot (no FK required v1) |
