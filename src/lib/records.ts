@@ -155,11 +155,11 @@ export type CustomerListOptions = {
 };
 
 const CUSTOMER_SORT: Record<string, string> = {
-  last_name: "last_name",
-  first_name: "first_name",
-  email: "email",
-  updated_at: "COALESCE(updated_at, created_at, '')",
-  created_at: "created_at",
+  last_name: "c.last_name",
+  first_name: "c.first_name",
+  email: "c.email",
+  updated_at: "COALESCE(c.updated_at, c.created_at, '')",
+  created_at: "c.created_at",
 };
 
 export function listCustomers(options: CustomerListOptions) {
@@ -167,11 +167,11 @@ export function listCustomers(options: CustomerListOptions) {
   const params: Record<string, unknown> = {};
   let where = "WHERE 1=1";
   if (options.is_active === 0 || options.is_active === 1) {
-    where += " AND is_active = @is_active";
+    where += " AND c.is_active = @is_active";
     params.is_active = options.is_active;
   }
   where += buildSearchClause(
-    ["first_name", "last_name", "email", "phone", "city", "notes"],
+    ["c.first_name", "c.last_name", "c.email", "c.phone", "c.city", "c.notes"],
     options.search,
     params
   );
@@ -180,11 +180,21 @@ export function listCustomers(options: CustomerListOptions) {
   const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
 
   const total = (
-    db.prepare(`SELECT COUNT(*) AS c FROM customers ${where}`).get(params) as { c: number }
+    db.prepare(`SELECT COUNT(*) AS c FROM customers c ${where}`).get(params) as { c: number }
   ).c;
   const items = db
     .prepare(
-      `SELECT * FROM customers ${where} ORDER BY ${sortCol} ${dir}, id DESC LIMIT @limit OFFSET @offset`
+      `SELECT c.*, COALESCE(oc.order_count, 0) AS order_count
+       FROM customers c
+       LEFT JOIN (
+         SELECT customer_id, COUNT(*) AS order_count
+         FROM orders
+         WHERE order_status = 'active' AND customer_id IS NOT NULL
+         GROUP BY customer_id
+       ) oc ON oc.customer_id = c.id
+       ${where}
+       ORDER BY ${sortCol} ${dir}, c.id DESC
+       LIMIT @limit OFFSET @offset`
     )
     .all({ ...params, limit: options.limit, offset: options.offset });
   return { items, total };

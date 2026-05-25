@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +17,16 @@ export default function DashboardPage() {
   } = useApp();
 
   const router = useRouter();
+  const [repeatCustomersMonth, setRepeatCustomersMonth] = useState<number | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/dashboard/stats", { headers: { Accept: "application/json" } })
+      .then((r) => r.json())
+      .then((data: { repeat_customers_this_month?: number }) =>
+        setRepeatCustomersMonth(data.repeat_customers_this_month ?? 0)
+      )
+      .catch(() => setRepeatCustomersMonth(null));
+  }, []);
 
   const paidCount = receipts.filter((r) => r.was_paid).length;
   const shippedCount = receipts.filter((r) => r.was_shipped).length;
@@ -80,7 +91,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Receipts</p>
             <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">{count}</p>
@@ -92,6 +103,12 @@ export default function DashboardPage() {
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Shipped</p>
             <p className="mt-2 text-2xl font-semibold text-[var(--ui-accent)]">{shippedCount}</p>
+          </article>
+          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Repeat customers (month)</p>
+            <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">
+              {repeatCustomersMonth ?? "—"}
+            </p>
           </article>
           <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Gross total</p>

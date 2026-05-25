@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
@@ -44,16 +44,49 @@ function InventoryPageInner() {
   } = useApp();
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [scrollToItemId, setScrollToItemId] = useState<number | null>(null);
 
   useEffect(() => {
     const raw = searchParams.get("itemId");
     if (!raw) return;
     const id = Number(raw);
     if (!Number.isFinite(id)) return;
-    if (inventory.some((row) => row.id === id)) {
-      setSelectedItemId(id);
-    }
-  }, [searchParams, inventory, setSelectedItemId]);
+
+    const applyDeepLink = async () => {
+      if (inventory.some((row) => row.id === id)) {
+        setSelectedItemId(id);
+        setScrollToItemId(id);
+        router.replace(pathname);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/inventory/${id}`, { headers: { Accept: "application/json" } });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
+        if (!response.ok || !data.item) {
+          setError({
+            title: "Item not found",
+            message: "That inventory item may have been deleted.",
+            actions: ["Choose another item from the list."],
+          });
+          router.replace(pathname);
+          return;
+        }
+        setInventory((current) =>
+          current.some((row) => row.id === id) ? current : [data.item!, ...current]
+        );
+        setSelectedItemId(id);
+        setSelectedItem(data.item!);
+        setScrollToItemId(id);
+        router.replace(pathname);
+      } catch (err) {
+        setApiError("Could not open item", "We could not load the linked inventory item.", err);
+      }
+    };
+
+    void applyDeepLink();
+  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, router, pathname, setError, setApiError]);
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
@@ -713,6 +746,7 @@ function InventoryPageInner() {
                 setSort(next ?? { key: "updated_at", dir: "desc" });
               }}
               emptyMessage="No items on this page."
+              scrollToId={scrollToItemId}
             />
             <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
           </>

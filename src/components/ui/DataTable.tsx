@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 export type Column<T> = {
   key: string;
   header: string;
@@ -20,6 +22,7 @@ export function DataTable<T extends { id?: number | string }>({
   rowKey,
   sort,
   onSortChange,
+  scrollToId,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -29,7 +32,13 @@ export function DataTable<T extends { id?: number | string }>({
   rowKey?: (row: T, index: number) => string | number;
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
+  scrollToId?: number | string | null;
 }) {
+  const scrolledRef = useRef<number | string | null>(null);
+
+  useEffect(() => {
+    scrolledRef.current = null;
+  }, [scrollToId]);
   if (data.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-[var(--ui-muted)]">{emptyMessage}</div>
@@ -82,6 +91,17 @@ export function DataTable<T extends { id?: number | string }>({
             return (
               <tr
                 key={key}
+                ref={(el) => {
+                  if (
+                    scrollToId != null &&
+                    row.id === scrollToId &&
+                    el &&
+                    scrolledRef.current !== scrollToId
+                  ) {
+                    scrolledRef.current = scrollToId;
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                }}
                 onClick={() => onRowClick?.(row)}
                 className={`border-b border-[var(--ui-border)] transition-colors ${
                   onRowClick ? "cursor-pointer" : ""

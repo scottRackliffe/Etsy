@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -359,11 +360,14 @@ export function OrderDetailPanel({
       </div>
 
       {customerName && order.customer_id ? (
-        <p className="mb-3 text-sm">
-          Customer:{" "}
+        <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <span>Customer:</span>
           <Link href={`/customers?customerId=${order.customer_id}`} className="text-[var(--ui-accent)] hover:underline">
             {customerName}
           </Link>
+          <RepeatCustomerBadge
+            orderCount={customers.find((c) => c.id === order.customer_id)?.order_count}
+          />
         </p>
       ) : null}
 

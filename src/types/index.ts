@@ -90,6 +90,7 @@ export type Customer = {
   currency_code: string | null;
   is_active: number | null;
   notes: string | null;
+  order_count?: number;
   created_at: string | null;
   updated_at: string | null;
 };

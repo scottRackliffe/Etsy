@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
@@ -32,7 +32,9 @@ function SalesPageInner() {
   } = useApp();
 
   const router = useRouter();
+  const pathname = usePathname();
   const createOrderRef = useRef<HTMLInputElement>(null);
+  const [scrollToOrderId, setScrollToOrderId] = useState<number | null>(null);
 
   const [newOrderNumber, setNewOrderNumber] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
@@ -146,10 +148,39 @@ function SalesPageInner() {
     if (!raw) return;
     const id = Number(raw);
     if (!Number.isFinite(id)) return;
-    if (orders.some((row) => row.id === id)) {
-      setSelectedOrderId(id);
-    }
-  }, [searchParams, orders, setSelectedOrderId]);
+
+    const applyDeepLink = async () => {
+      if (orders.some((row) => row.id === id)) {
+        setSelectedOrderId(id);
+        setScrollToOrderId(id);
+        router.replace(pathname);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/orders/${id}`, { headers: { Accept: "application/json" } });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+        if (!response.ok || !data.order) {
+          setError({
+            title: "Order not found",
+            message: "That order may have been deleted.",
+            actions: ["Choose another order from the list."],
+          });
+          router.replace(pathname);
+          return;
+        }
+        setOrders((current) =>
+          current.some((row) => row.id === id) ? current : [data.order as Order, ...current]
+        );
+        setSelectedOrderId(id);
+        setScrollToOrderId(id);
+        router.replace(pathname);
+      } catch (err) {
+        setApiError("Could not open order", "We could not load the linked order.", err);
+      }
+    };
+
+    void applyDeepLink();
+  }, [searchParams, orders, setSelectedOrderId, setOrders, router, pathname, setError, setApiError]);
 
   const updateOrderInList = (order: Order) => {
     setOrders((current) => current.map((row) => (row.id === order.id ? order : row)));
@@ -571,6 +602,7 @@ function SalesPageInner() {
               setSort(next ?? { key: "order_date", dir: "desc" });
             }}
             emptyMessage="No orders on this page."
+            scrollToId={scrollToOrderId}
           />
           <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
         </div>

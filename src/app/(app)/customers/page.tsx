@@ -1,13 +1,15 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
+import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
@@ -38,7 +40,9 @@ function CustomersPageInner() {
   } = useApp();
 
   const router = useRouter();
+  const pathname = usePathname();
   const createEmailRef = useRef<HTMLInputElement>(null);
+  const [scrollToCustomerId, setScrollToCustomerId] = useState<number | null>(null);
 
   const [newCustomerFirstName, setNewCustomerFirstName] = useState("");
   const [newCustomerLastName, setNewCustomerLastName] = useState("");
@@ -115,8 +119,12 @@ function CustomersPageInner() {
         header: "Name",
         sortable: true,
         sortKey: "last_name",
-        render: (customer: Customer) =>
-          [customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`,
+        render: (customer: Customer) => (
+          <span className="inline-flex items-center gap-1.5">
+            {[customer.first_name, customer.last_name].filter(Boolean).join(" ") || `Customer ${customer.id}`}
+            <RepeatCustomerBadge orderCount={customer.order_count} />
+          </span>
+        ),
       },
       { key: "email", header: "Email", sortable: true },
       { key: "phone", header: "Phone", sortable: true },
@@ -131,10 +139,39 @@ function CustomersPageInner() {
     if (!raw) return;
     const id = Number(raw);
     if (!Number.isFinite(id)) return;
-    if (customers.some((row) => row.id === id)) {
-      setSelectedCustomerId(id);
-    }
-  }, [searchParams, customers, setSelectedCustomerId]);
+
+    const applyDeepLink = async () => {
+      if (customers.some((row) => row.id === id)) {
+        setSelectedCustomerId(id);
+        setScrollToCustomerId(id);
+        router.replace(pathname);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/customers/${id}`, { headers: { Accept: "application/json" } });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { customer?: Customer };
+        if (!response.ok || !data.customer) {
+          setError({
+            title: "Customer not found",
+            message: "That customer may have been deleted.",
+            actions: ["Choose another customer from the list."],
+          });
+          router.replace(pathname);
+          return;
+        }
+        setCustomers((current) =>
+          current.some((row) => row.id === id) ? current : [data.customer!, ...current]
+        );
+        setSelectedCustomerId(id);
+        setScrollToCustomerId(id);
+        router.replace(pathname);
+      } catch (err) {
+        setApiError("Could not open customer", "We could not load the linked customer.", err);
+      }
+    };
+
+    void applyDeepLink();
+  }, [searchParams, customers, setSelectedCustomerId, setCustomers, router, pathname, setError, setApiError]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
 
@@ -453,8 +490,18 @@ function CustomersPageInner() {
               setSort(next ?? { key: "last_name", dir: "asc" });
             }}
             emptyMessage="No customers on this page."
+            scrollToId={scrollToCustomerId}
           />
           <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
+          {selectedCustomer && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-[var(--ui-title)]">
+                {[selectedCustomer.first_name, selectedCustomer.last_name].filter(Boolean).join(" ") ||
+                  `Customer ${selectedCustomer.id}`}
+              </p>
+              <RepeatCustomerBadge orderCount={selectedCustomer.order_count} />
+            </div>
+          )}
           {selectedCustomer && (
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
               <input
@@ -527,6 +574,10 @@ function CustomersPageInner() {
               </div>
             </div>
           )}
+          <CustomerOrderHistory
+            customerId={selectedCustomerId}
+            onError={(title, message, err) => setApiError(title, message, err)}
+          />
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
               <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Interaction notes</p>

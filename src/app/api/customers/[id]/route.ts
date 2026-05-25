@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { deleteCustomer, getCustomer, patchCustomer } from "@/lib/records";
+import { getCustomerActiveOrderCount } from "@/lib/customer-orders";
 
 async function getCustomerId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -36,7 +37,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         canRetry: false,
       });
     }
-    return NextResponse.json({ ok: true, customer });
+    return NextResponse.json({
+      ok: true,
+      customer: {
+        ...(customer as Record<string, unknown>),
+        order_count: getCustomerActiveOrderCount(id),
+      },
+    });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

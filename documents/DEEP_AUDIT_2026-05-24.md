@@ -365,4 +365,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 16 (2026-05-24) — implemented:** ADR-028/029 DataTable with sortable columns, PaginationBar, and FilterChipRow on Sales/Customers/Inventory; server-side search/filter/sort/pagination wired to list APIs; ADR-047 inventory CSV import preview/import APIs and Import modal.
 
+**Wave 17 (2026-05-24) — implemented:** ADR-052 customer order history timeline + `GET /api/customers/[id]/orders`; ADR-066 repeat customer badge and `order_count` on customer list/detail/order panel; ADR-035 deep-link fetch-if-missing, URL cleanup, and DataTable `scrollToId`; dashboard repeat-customers KPI from `/api/dashboard/stats`.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
