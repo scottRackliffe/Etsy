@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { ApiErrorShape } from "@/types";
 
 const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
@@ -121,6 +122,18 @@ export default function ReportsPage() {
     const join = base.includes("?") ? "&" : "?";
     return `${base}${join}format=${format}`;
   };
+
+  useKeyboardShortcuts([
+    {
+      key: "p",
+      modifiers: ["meta"],
+      action: () => {
+        if (reportType !== "accounting-export") {
+          window.open(downloadUrl("pdf"), "_blank");
+        }
+      },
+    },
+  ]);
 
   return (
     <>

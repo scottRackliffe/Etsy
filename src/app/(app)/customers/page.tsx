@@ -12,6 +12,7 @@ import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistor
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
+import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
 type CustomerNote = {
@@ -47,6 +48,9 @@ function CustomersPageInner() {
   const [newCustomerFirstName, setNewCustomerFirstName] = useState("");
   const [newCustomerLastName, setNewCustomerLastName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [customerDuplicates, setCustomerDuplicates] = useState<
+    Array<{ id: number; first_name: string | null; last_name: string | null; email: string | null }>
+  >([]);
   const [newAddressFirstLine, setNewAddressFirstLine] = useState("");
   const [newAddressCity, setNewAddressCity] = useState("");
   const [newAddressPostalCode, setNewAddressPostalCode] = useState("");
@@ -61,6 +65,36 @@ function CustomersPageInner() {
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
+
+  const checkCustomerDuplicate = async () => {
+    const first = newCustomerFirstName.trim();
+    const last = newCustomerLastName.trim();
+    const email = newCustomerEmail.trim();
+    if ((!first || !last) && !email) {
+      setCustomerDuplicates([]);
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      if (first) params.set("first_name", first);
+      if (last) params.set("last_name", last);
+      if (email) params.set("email", email);
+      const response = await fetch(`/api/customers/check-duplicate?${params}`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        duplicates?: Array<{
+          id: number;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+        }>;
+      };
+      if (response.ok) setCustomerDuplicates(data.duplicates ?? []);
+    } catch {
+      setCustomerDuplicates([]);
+    }
+  };
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [activeFilter, setActiveFilter] = useState<string | null>("1");
   const [sort, setSort] = useState<SortState>({ key: "last_name", dir: "asc" });
@@ -255,6 +289,7 @@ function CustomersPageInner() {
       setNewCustomerEmail("");
       setNewCustomerFirstName("");
       setNewCustomerLastName("");
+      setCustomerDuplicates([]);
       setError(null);
     } catch (err) {
       setApiError("Could not create customer", "We could not create the customer.", err);
@@ -491,6 +526,7 @@ function CustomersPageInner() {
             }}
             emptyMessage="No customers on this page."
             scrollToId={scrollToCustomerId}
+            keyboardNav
           />
           <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
           {selectedCustomer && (
@@ -644,8 +680,21 @@ function CustomersPageInner() {
         <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <p className="text-sm font-semibold">Add customer</p>
           <input value={newCustomerFirstName} onChange={(e) => setNewCustomerFirstName(e.target.value)} placeholder="First name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input value={newCustomerLastName} onChange={(e) => setNewCustomerLastName(e.target.value)} placeholder="Last name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input ref={createEmailRef} value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="Email" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input value={newCustomerLastName} onChange={(e) => setNewCustomerLastName(e.target.value)} onBlur={() => void checkCustomerDuplicate()} placeholder="Last name" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input ref={createEmailRef} value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} onBlur={() => void checkCustomerDuplicate()} placeholder="Email" className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          {customerDuplicates.length > 0 ? (
+            <DuplicateWarning
+              message="A similar customer may already exist."
+              links={customerDuplicates.map((row) => ({
+                href: `/customers?customerId=${row.id}`,
+                label:
+                  [row.first_name, row.last_name].filter(Boolean).join(" ") ||
+                  row.email ||
+                  `Customer ${row.id}`,
+              }))}
+              onDismiss={() => setCustomerDuplicates([])}
+            />
+          ) : null}
           <button
             type="button"
             onClick={createCustomerRecord}

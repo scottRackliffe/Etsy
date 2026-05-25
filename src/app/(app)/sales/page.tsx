@@ -621,6 +621,7 @@ function SalesPageInner() {
             }}
             emptyMessage="No orders on this page."
             scrollToId={scrollToOrderId}
+            keyboardNav
           />
           <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
         </div>

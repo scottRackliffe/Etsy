@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { AppHeader } from "@/components/shell/AppHeader";
+import { KeyboardShortcutsModal } from "@/components/shell/KeyboardShortcutsModal";
 import { TabBar } from "@/components/shell/TabBar";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { GlobalSearchModal } from "@/components/search/GlobalSearchModal";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
-  const { shops, loading, error, urlError, connect, setError } = useApp();
+  const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } = useApp();
+  const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -36,10 +44,88 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(timer);
   }, [shops.length]);
 
+  useEffect(() => {
+    if (loading) return;
+    void (async () => {
+      try {
+        const response = await fetch("/api/settings/setup.completed", {
+          headers: { Accept: "application/json" },
+        });
+        if (response.status === 404) {
+          setShowSetup(true);
+        } else if (response.ok) {
+          const data = (await response.json()) as { value?: string };
+          setShowSetup(data.value !== "true");
+        }
+      } catch {
+        setShowSetup(false);
+      } finally {
+        setSetupChecked(true);
+      }
+    })();
+  }, [loading]);
+
+  const syncFromEtsy = useCallback(async () => {
+    if (!selectedShopId) return;
+    try {
+      const response = await fetch("/api/sync/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ shop_id: selectedShopId, limit: 100 }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw data;
+      setError({
+        title: "Etsy sync complete",
+        message: "Orders were synchronized from Etsy.",
+        actions: ["Open Sales to review imported orders."],
+      });
+    } catch (err) {
+      setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
+    }
+  }, [selectedShopId, setApiError, setError]);
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: "k",
+        modifiers: ["meta" as const],
+        action: () => setSearchOpen(true),
+        enabled: !searchOpen,
+      },
+      {
+        key: "?",
+        action: () => setHelpOpen(true),
+      },
+      {
+        key: "Escape",
+        action: () => {
+          if (helpOpen) setHelpOpen(false);
+          else if (searchOpen) setSearchOpen(false);
+        },
+        allowInInput: true,
+      },
+      {
+        key: "s",
+        modifiers: ["meta" as const, "shift" as const],
+        action: () => void syncFromEtsy(),
+        enabled:
+          shops.length > 0 &&
+          Boolean(selectedShopId) &&
+          (pathname.startsWith("/dashboard") || pathname.startsWith("/sales")),
+      },
+    ],
+    [helpOpen, pathname, searchOpen, selectedShopId, shops.length, syncFromEtsy]
+  );
+
+  useKeyboardShortcuts(shortcuts);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]">
+      {setupChecked && showSetup ? <SetupWizard onDone={() => setShowSetup(false)} /> : null}
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} pathname={pathname} />
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
         {urlError && (
           <div className="rounded-xl border border-[var(--ui-yellow)]/50 bg-[var(--ui-yellow)]/10 px-4 py-3">

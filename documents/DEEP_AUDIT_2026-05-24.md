@@ -371,4 +371,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 19 (2026-05-24) — implemented:** ADR-037 full activity log on Dashboard (filters, search, pagination, View all); record-level `ActivityTimeline` on order/inventory detail panels; ADR-043 `ProgressModal` + indeterminate progress for Etsy sync, backup create/restore, and report CSV preview.
 
+**Wave 20 (2026-05-24) — implemented:** ADR-044 first-run `SetupWizard` (`setup.completed` setting, 4-step onboarding); ADR-049 `useKeyboardShortcuts` + help modal (`?`), global sync shortcut, table arrow navigation on DataTable; ADR-048 duplicate detection APIs and inline warnings on inventory/customer create.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

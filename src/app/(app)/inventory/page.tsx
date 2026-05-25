@@ -14,7 +14,9 @@ import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inv
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
+import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview, PaginationInfo } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -114,7 +116,38 @@ function InventoryPageInner() {
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [inventoryDuplicates, setInventoryDuplicates] = useState<
+    Array<{ id: number; item_number: string | null; description: string | null }>
+  >([]);
   const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
+
+  useKeyboardShortcuts([
+    {
+      key: "i",
+      modifiers: ["meta", "shift"],
+      action: () => setImportOpen(true),
+    },
+  ]);
+
+  const checkInventoryDuplicate = async () => {
+    const desc = newInventoryDescription.trim();
+    if (desc.length < 5) {
+      setInventoryDuplicates([]);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/inventory/check-duplicate?description=${encodeURIComponent(desc)}`,
+        { headers: { Accept: "application/json" } }
+      );
+      const data = (await response.json().catch(() => ({}))) as {
+        duplicates?: Array<{ id: number; item_number: string | null; description: string | null }>;
+      };
+      if (response.ok) setInventoryDuplicates(data.duplicates ?? []);
+    } catch {
+      setInventoryDuplicates([]);
+    }
+  };
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
@@ -527,6 +560,7 @@ function InventoryPageInner() {
       }
       setNewInventoryItemNumber("");
       setNewInventoryDescription("");
+      setInventoryDuplicates([]);
       setError(null);
     } catch (err) {
       setApiError("Could not create inventory", "We could not create the inventory item.", err);
@@ -656,17 +690,35 @@ function InventoryPageInner() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-4">
-        <input ref={createItemRef} value={newInventoryItemNumber} onChange={(e) => setNewInventoryItemNumber(e.target.value)} placeholder="New item number" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-        <input value={newInventoryDescription} onChange={(e) => setNewInventoryDescription(e.target.value)} placeholder="New item description" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-        <div className="flex gap-2">
-          <button type="button" onClick={createInventoryRecord} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
-            {busyAction === "create-inventory" ? "Creating..." : "Add item"}
-          </button>
-          <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-            Delete selected
-          </button>
+      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+          <input ref={createItemRef} value={newInventoryItemNumber} onChange={(e) => setNewInventoryItemNumber(e.target.value)} placeholder="New item number" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
+          <input
+            value={newInventoryDescription}
+            onChange={(e) => setNewInventoryDescription(e.target.value)}
+            onBlur={() => void checkInventoryDuplicate()}
+            placeholder="New item description"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={createInventoryRecord} disabled={busyAction != null} className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {busyAction === "create-inventory" ? "Creating..." : "Add item"}
+            </button>
+            <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
+              Delete selected
+            </button>
+          </div>
         </div>
+        {inventoryDuplicates.length > 0 ? (
+          <DuplicateWarning
+            message="Similar items found. Continue creating?"
+            links={inventoryDuplicates.map((row) => ({
+              href: `/inventory?itemId=${row.id}`,
+              label: `${row.item_number ?? `#${row.id}`} — ${(row.description ?? "").slice(0, 40)}`,
+            }))}
+            onDismiss={() => setInventoryDuplicates([])}
+          />
+        ) : null}
       </div>
 
       {selectedIds.size > 0 ? (
@@ -753,6 +805,7 @@ function InventoryPageInner() {
               }}
               emptyMessage="No items on this page."
               scrollToId={scrollToItemId}
+              keyboardNav
             />
             <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
           </>
