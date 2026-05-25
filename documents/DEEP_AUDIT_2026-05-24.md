@@ -353,4 +353,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 10 (2026-05-24) — implemented:** ADR-033 `PictureGrid` on Inventory (10-slot upload/delete/drag-drop); ADR-065 customer interaction notes UI; ADR-037 dashboard activity feed widget; ADR-034 business profile section + ADR-069 sample data load/remove on Config.
 
+**Wave 11 (2026-05-24) — implemented:** ADR-031 order detail panel on Sales (line items, ship-to, financials, shipping, notes, link customer, save); ADR-040 Sales batch multi-select with mark paid / mark shipped / void via `/api/orders/batch`.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
