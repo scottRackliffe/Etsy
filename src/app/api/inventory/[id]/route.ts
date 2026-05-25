@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { enrichInventoryItem } from "@/lib/inventory-profit";
 import { deleteInventory, getInventory, patchInventory } from "@/lib/records";
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
@@ -36,7 +37,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         canRetry: false,
       });
     }
-    return NextResponse.json({ ok: true, item });
+    return NextResponse.json({
+      ok: true,
+      item: enrichInventoryItem(item as Record<string, unknown>),
+    });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {
@@ -65,7 +69,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
-    return NextResponse.json({ ok: true, item });
+    return NextResponse.json({
+      ok: true,
+      item: enrichInventoryItem(item as Record<string, unknown>),
+    });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

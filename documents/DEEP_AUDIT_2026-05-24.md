@@ -347,4 +347,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 5 (2026-05-24) — implemented:** ADR-041 `GET /api/search` + global search modal (Cmd/Ctrl+K, header button); ADR-040 batch POST routes for orders/inventory/customers; Config backup section wired to backup APIs (ADR-034/027); order/inventory/customer search fields aligned with ADR-041.
 
-*Next update: After Wave 6 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
+**Wave 8 (2026-05-24) — implemented:** ADR-038 computed profit fields on inventory API; four new reports (`profit-by-item`, `sales-tax-summary`, `inventory-aging`, `accounting-export`); Reports tab updated; `start_date`/`end_date` aliases on report params.
+
+*Next update: After Wave 9 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

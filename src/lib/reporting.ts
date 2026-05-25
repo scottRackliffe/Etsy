@@ -402,6 +402,479 @@ function buildThankYouReport(): ReportResult {
   };
 }
 
+function monthStartDate(): string {
+  return monthStart();
+}
+
+function yearStartDate(): string {
+  return yearStart();
+}
+
+function agingBucket(days: number): string {
+  if (days <= 30) return "Fresh";
+  if (days <= 60) return "Moderate";
+  if (days <= 90) return "Aging";
+  if (days <= 180) return "Slow";
+  return "Stale";
+}
+
+function buildProfitByItemReport(params?: ReportParams): ReportResult {
+  const db = getDb();
+  const from = params?.from_date ?? monthStartDate();
+  const to = params?.to_date ?? isoDateOnly(new Date());
+  const { dateClause, dateParams } = buildDateClause("i.date_of_sale", from, to);
+  const dateLabel = describeDateRange(from, to);
+
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        i.item_number,
+        i.description,
+        i.date_of_sale,
+        ROUND(COALESCE(i.purchase_cost, 0), 2) AS purchase_cost,
+        ROUND(COALESCE(i.shipping_cost, 0), 2) AS shipping_in,
+        ROUND(COALESCE(oc.other_total, 0), 2) AS other_costs,
+        ROUND(COALESCE(i.purchase_cost, 0) + COALESCE(i.shipping_cost, 0) + COALESCE(oc.other_total, 0), 2) AS total_cost,
+        ROUND(COALESCE(i.sale_revenue, 0), 2) AS sale_revenue,
+        ROUND(
+          COALESCE(i.sale_revenue, 0) -
+          (COALESCE(i.purchase_cost, 0) + COALESCE(i.shipping_cost, 0) + COALESCE(oc.other_total, 0)),
+          2
+        ) AS net_profit,
+        CASE
+          WHEN COALESCE(i.sale_revenue, 0) = 0 THEN NULL
+          ELSE ROUND(
+            ((COALESCE(i.sale_revenue, 0) -
+              (COALESCE(i.purchase_cost, 0) + COALESCE(i.shipping_cost, 0) + COALESCE(oc.other_total, 0)))
+              * 100.0 / i.sale_revenue),
+            2
+          )
+        END AS margin_pct
+      FROM inventory i
+      LEFT JOIN (
+        SELECT inventory_id, SUM(amount) AS other_total
+        FROM other_costs
+        GROUP BY inventory_id
+      ) oc ON oc.inventory_id = i.id
+      WHERE i.status = 'Sold' ${dateClause}
+      ORDER BY i.date_of_sale DESC, i.item_number ASC
+    `
+    )
+    .all(...dateParams) as Array<{
+    item_number: string;
+    description: string;
+    date_of_sale: string;
+    purchase_cost: number;
+    shipping_in: number;
+    other_costs: number;
+    total_cost: number;
+    sale_revenue: number;
+    net_profit: number;
+    margin_pct: number | null;
+  }>;
+
+  const totals = rows.reduce(
+    (acc, row) => {
+      acc.purchase_cost += row.purchase_cost;
+      acc.shipping_in += row.shipping_in;
+      acc.other_costs += row.other_costs;
+      acc.total_cost += row.total_cost;
+      acc.sale_revenue += row.sale_revenue;
+      acc.net_profit += row.net_profit;
+      return acc;
+    },
+    { purchase_cost: 0, shipping_in: 0, other_costs: 0, total_cost: 0, sale_revenue: 0, net_profit: 0 }
+  );
+
+  const weightedMargin =
+    totals.sale_revenue > 0
+      ? Number(((totals.net_profit / totals.sale_revenue) * 100).toFixed(2))
+      : 0;
+
+  return {
+    report_name: "profit-by-item",
+    generated_at: new Date().toISOString(),
+    summary:
+      rows.length === 0
+        ? "No sold items found for the selected date range."
+        : `Profit by item — ${dateLabel}.`,
+    metrics: {
+      date_range: dateLabel,
+      item_count: rows.length,
+      total_purchase_cost: Number(totals.purchase_cost.toFixed(2)),
+      total_sale_revenue: Number(totals.sale_revenue.toFixed(2)),
+      total_net_profit: Number(totals.net_profit.toFixed(2)),
+      weighted_margin_pct: weightedMargin,
+    },
+    sections: [{ title: "Sold items", rows: rows as unknown as Array<Record<string, ReportMetricValue>> }],
+  };
+}
+
+function buildSalesTaxSummaryReport(params?: ReportParams): ReportResult {
+  const db = getDb();
+  const from = params?.from_date ?? yearStartDate();
+  const to = params?.to_date ?? isoDateOnly(new Date());
+  const { dateClause, dateParams } = buildDateClause("o.order_date", from, to);
+  const dateLabel = describeDateRange(from, to);
+
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        strftime('%Y-%m', o.order_date) AS month_key,
+        COUNT(*) AS order_count,
+        ROUND(SUM(COALESCE(o.subtotal, 0)), 2) AS gross_sales,
+        ROUND(SUM(CASE WHEN COALESCE(o.tax_total, 0) > 0 THEN COALESCE(o.subtotal, 0) ELSE 0 END), 2) AS taxable_sales,
+        ROUND(SUM(COALESCE(o.tax_total, 0)), 2) AS tax_collected
+      FROM orders o
+      WHERE o.order_status = 'active' ${dateClause}
+      GROUP BY month_key
+      ORDER BY month_key ASC
+    `
+    )
+    .all(...dateParams) as Array<{
+    month_key: string;
+    order_count: number;
+    gross_sales: number;
+    taxable_sales: number;
+    tax_collected: number;
+  }>;
+
+  const formatted = rows.map((row) => {
+    const [y, m] = row.month_key.split("-");
+    const monthName = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    const effectiveRate =
+      row.taxable_sales > 0
+        ? Number(((row.tax_collected / row.taxable_sales) * 100).toFixed(2))
+        : "—";
+    return {
+      month: monthName,
+      order_count: row.order_count,
+      gross_sales: row.gross_sales,
+      taxable_sales: row.taxable_sales,
+      tax_collected: row.tax_collected,
+      effective_rate_pct: effectiveRate,
+    };
+  });
+
+  const totalOrders = formatted.reduce((s, r) => s + asNumber(r.order_count), 0);
+  const totalGross = formatted.reduce((s, r) => s + asNumber(r.gross_sales), 0);
+  const totalTaxable = formatted.reduce((s, r) => s + asNumber(r.taxable_sales), 0);
+  const totalTax = formatted.reduce((s, r) => s + asNumber(r.tax_collected), 0);
+
+  return {
+    report_name: "sales-tax-summary",
+    generated_at: new Date().toISOString(),
+    summary:
+      formatted.length === 0
+        ? "No orders found for the selected date range."
+        : `Sales tax summary — ${dateLabel}.`,
+    metrics: {
+      date_range: dateLabel,
+      order_count: totalOrders,
+      gross_sales: Number(totalGross.toFixed(2)),
+      taxable_sales: Number(totalTaxable.toFixed(2)),
+      tax_collected: Number(totalTax.toFixed(2)),
+      effective_rate_pct:
+        totalTaxable > 0 ? Number(((totalTax / totalTaxable) * 100).toFixed(2)) : "—",
+    },
+    sections: [{ title: "Monthly tax summary", rows: formatted }],
+  };
+}
+
+function buildInventoryAgingReport(): ReportResult {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        item_number,
+        description,
+        status,
+        ROUND(COALESCE(purchase_cost, 0), 2) AS purchase_cost,
+        ROUND(COALESCE(sale_revenue, 0), 2) AS sale_revenue,
+        date_purchased,
+        date_listed,
+        CAST(
+          julianday('now') - julianday(COALESCE(date_purchased, date_listed, created_at))
+          AS INTEGER
+        ) AS days_in_stock
+      FROM inventory
+      WHERE status IN ('Draft', 'In stock', 'Listed', 'Reserved')
+      ORDER BY days_in_stock DESC, item_number ASC
+    `
+    )
+    .all() as Array<{
+    item_number: string;
+    description: string;
+    status: string;
+    purchase_cost: number;
+    sale_revenue: number;
+    date_purchased: string | null;
+    date_listed: string | null;
+    days_in_stock: number;
+  }>;
+
+  const enriched = rows.map((row) => ({
+    ...row,
+    aging_bucket: agingBucket(row.days_in_stock),
+  }));
+
+  const totalCost = enriched.reduce((s, r) => s + r.purchase_cost, 0);
+  const avgDays =
+    enriched.length > 0
+      ? Number(
+          (enriched.reduce((s, r) => s + r.days_in_stock, 0) / enriched.length).toFixed(1)
+        )
+      : 0;
+
+  return {
+    report_name: "inventory-aging",
+    generated_at: new Date().toISOString(),
+    summary:
+      enriched.length === 0
+        ? "No unsold inventory items found."
+        : "Inventory aging for unsold items.",
+    metrics: {
+      item_count: enriched.length,
+      total_purchase_cost: Number(totalCost.toFixed(2)),
+      avg_days_in_stock: avgDays,
+    },
+    sections: [
+      { title: "Aging inventory", rows: enriched as unknown as Array<Record<string, ReportMetricValue>> },
+    ],
+  };
+}
+
+export type AccountingExportRow = {
+  Date: string;
+  "Transaction Type": string;
+  Reference: string;
+  Description: string;
+  Debit: string;
+  Credit: string;
+  Account: string;
+};
+
+export function buildAccountingExportRows(params?: ReportParams): AccountingExportRow[] {
+  const db = getDb();
+  const rows: AccountingExportRow[] = [];
+
+  const sales = db
+    .prepare(
+      `
+      SELECT
+        o.order_date AS tx_date,
+        COALESCE(o.order_number, CAST(o.id AS TEXT)) AS reference,
+        ROUND(COALESCE(oi.line_total, oi.unit_price * oi.quantity, 0), 2) AS amount,
+        COALESCE(i.description, '') AS item_description,
+        COALESCE(i.item_number, CAST(i.id AS TEXT)) AS item_number
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      LEFT JOIN inventory i ON i.id = oi.inventory_id
+      WHERE o.order_status = 'active'
+    `
+    )
+    .all() as Array<{
+    tx_date: string;
+    reference: string;
+    amount: number;
+    item_description: string;
+    item_number: string;
+  }>;
+
+  for (const row of sales) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Sale",
+      Reference: row.reference,
+      Description: `Sale: ${row.item_description} (${row.item_number})`,
+      Debit: "",
+      Credit: row.amount.toFixed(2),
+      Account: "Sales Revenue",
+    });
+  }
+
+  const shipping = db
+    .prepare(
+      `
+      SELECT order_date AS tx_date, order_number, ROUND(COALESCE(seller_shipping_cost, 0), 2) AS amount
+      FROM orders
+      WHERE order_status = 'active' AND COALESCE(seller_shipping_cost, 0) > 0
+    `
+    )
+    .all() as Array<{ tx_date: string; order_number: string; amount: number }>;
+
+  for (const row of shipping) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Shipping",
+      Reference: row.order_number,
+      Description: `Shipping: Order ${row.order_number}`,
+      Debit: row.amount.toFixed(2),
+      Credit: "",
+      Account: "Shipping Expense",
+    });
+  }
+
+  const taxRows = db
+    .prepare(
+      `
+      SELECT order_date AS tx_date, order_number, ROUND(COALESCE(tax_total, 0), 2) AS amount
+      FROM orders
+      WHERE order_status = 'active' AND COALESCE(tax_total, 0) > 0
+    `
+    )
+    .all() as Array<{ tx_date: string; order_number: string; amount: number }>;
+
+  for (const row of taxRows) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Tax",
+      Reference: row.order_number,
+      Description: `Tax collected: Order ${row.order_number}`,
+      Debit: "",
+      Credit: row.amount.toFixed(2),
+      Account: "Tax Collected",
+    });
+  }
+
+  const purchases = db
+    .prepare(
+      `
+      SELECT
+        p.purchase_date AS tx_date,
+        COALESCE(i.item_number, CAST(p.inventory_id AS TEXT)) AS item_number,
+        COALESCE(i.description, '') AS item_description,
+        ROUND(COALESCE(p.purchase_price, 0), 2) AS purchase_price,
+        ROUND(COALESCE(p.shipping_price, 0), 2) AS shipping_price
+      FROM purchases p
+      LEFT JOIN inventory i ON i.id = p.inventory_id
+    `
+    )
+    .all() as Array<{
+    tx_date: string;
+    item_number: string;
+    item_description: string;
+    purchase_price: number;
+    shipping_price: number;
+  }>;
+
+  for (const row of purchases) {
+    const date = row.tx_date?.slice(0, 10) ?? "";
+    if (params?.from_date && date < params.from_date) continue;
+    if (params?.to_date && date > params.to_date) continue;
+    if (row.purchase_price > 0) {
+      rows.push({
+        Date: date,
+        "Transaction Type": "Purchase",
+        Reference: row.item_number,
+        Description: `Purchase: ${row.item_description} (${row.item_number})`,
+        Debit: row.purchase_price.toFixed(2),
+        Credit: "",
+        Account: "Cost of Goods",
+      });
+    }
+    if (row.shipping_price > 0) {
+      rows.push({
+        Date: date,
+        "Transaction Type": "Purchase",
+        Reference: row.item_number,
+        Description: `Purchase shipping: ${row.item_description} (${row.item_number})`,
+        Debit: row.shipping_price.toFixed(2),
+        Credit: "",
+        Account: "Cost of Goods",
+      });
+    }
+  }
+
+  const otherCosts = db
+    .prepare(
+      `
+      SELECT
+        date(oc.created_at) AS tx_date,
+        oc.cost_type,
+        ROUND(COALESCE(oc.amount, 0), 2) AS amount,
+        COALESCE(i.item_number, CAST(oc.inventory_id AS TEXT)) AS item_number
+      FROM other_costs oc
+      LEFT JOIN inventory i ON i.id = oc.inventory_id
+    `
+    )
+    .all() as Array<{ tx_date: string; cost_type: string; amount: number; item_number: string }>;
+
+  for (const row of otherCosts) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    if (row.amount <= 0) continue;
+    rows.push({
+      Date: row.tx_date,
+      "Transaction Type": "Other Cost",
+      Reference: row.item_number,
+      Description: `Other cost: ${row.cost_type} - ${row.item_number}`,
+      Debit: row.amount.toFixed(2),
+      Credit: "",
+      Account: "Other Expense",
+    });
+  }
+
+  rows.sort((a, b) => {
+    const dateCmp = a.Date.localeCompare(b.Date);
+    if (dateCmp !== 0) return dateCmp;
+    return a["Transaction Type"].localeCompare(b["Transaction Type"]);
+  });
+
+  return rows;
+}
+
+export function buildAccountingExportCsv(params?: ReportParams): string {
+  const rows = buildAccountingExportRows(params);
+  const header = ["Date", "Transaction Type", "Reference", "Description", "Debit", "Credit", "Account"];
+  const lines = [header.join(",")];
+  for (const row of rows) {
+    lines.push(
+      [
+        toCsvValue(row.Date),
+        toCsvValue(row["Transaction Type"]),
+        toCsvValue(row.Reference),
+        toCsvValue(row.Description),
+        toCsvValue(row.Debit),
+        toCsvValue(row.Credit),
+        toCsvValue(row.Account),
+      ].join(",")
+    );
+  }
+  return lines.join("\n");
+}
+
+function buildAccountingExportReport(params?: ReportParams): ReportResult {
+  const rows = buildAccountingExportRows(params);
+  return {
+    report_name: "accounting-export",
+    generated_at: new Date().toISOString(),
+    summary: describeDateRange(params?.from_date, params?.to_date),
+    metrics: {
+      date_range: describeDateRange(params?.from_date, params?.to_date),
+      row_count: rows.length,
+    },
+    sections: [
+      {
+        title: "Accounting export",
+        rows: rows as unknown as Array<Record<string, ReportMetricValue>>,
+      },
+    ],
+  };
+}
+
 export type ReportParams = {
   from_date?: string;
   to_date?: string;
@@ -416,6 +889,10 @@ export function buildReport(reportName: string, params?: ReportParams): ReportRe
   if (reportName === "ar-aging") return buildArAgingReport();
   if (reportName === "invoice") return buildInvoiceReport();
   if (reportName === "thank-you-note") return buildThankYouReport();
+  if (reportName === "profit-by-item") return buildProfitByItemReport(params);
+  if (reportName === "sales-tax-summary") return buildSalesTaxSummaryReport(params);
+  if (reportName === "inventory-aging") return buildInventoryAgingReport();
+  if (reportName === "accounting-export") return buildAccountingExportReport(params);
   const generated_at = new Date().toISOString();
   return {
     report_name: reportName,

@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { InventoryValidationError, prepareInventoryPayload } from "@/lib/inventory-validation";
+import { enrichInventoryItem, enrichInventoryItems } from "@/lib/inventory-profit";
 import { createInventory, listInventory } from "@/lib/records";
 
 export async function GET(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json({
       ok: true,
-      items,
+      items: enrichInventoryItems(items as Record<string, unknown>[]),
       pagination: {
         limit,
         offset,

@@ -55,6 +55,7 @@ export default function ReportsPage() {
             "thank-you-note", "invoice", "sales", "costs",
             "income-mtd", "income-ytd", "postal-by-vendor",
             "outstanding-items", "ar-aging",
+            "profit-by-item", "sales-tax-summary", "inventory-aging", "accounting-export",
           ].map((name) => (
             <option key={name} value={name}>{name}</option>
           ))}
@@ -65,7 +66,7 @@ export default function ReportsPage() {
         <button type="button" onClick={() => window.open(`/api/reports/${reportType}?format=csv`, "_blank")} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
           Download CSV
         </button>
-        <button type="button" onClick={() => window.open(`/api/reports/${reportType}?format=pdf`, "_blank")} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
+        <button type="button" onClick={() => window.open(`/api/reports/${reportType}?format=pdf`, "_blank")} disabled={reportType === "accounting-export"} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50">
           Download PDF
         </button>
       </div>
