@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { PictureGrid } from "@/components/inventory/PictureGrid";
 import type { ApiErrorShape, InventoryItem, AiConfig, ListingMode, PublishPreview } from "@/types";
 
 type PublishHistory = {
@@ -45,9 +46,6 @@ function InventoryPageInner() {
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
-  const [pictureSlotDraft, setPictureSlotDraft] = useState("1");
-  const [picturePathDraft, setPicturePathDraft] = useState("");
-  const [pictureReorderDraft, setPictureReorderDraft] = useState("");
   const [listingMode, setListingMode] = useState<ListingMode>("manual");
   const [importPayload, setImportPayload] = useState("");
   const [exportPackage, setExportPackage] = useState<unknown | null>(null);
@@ -56,31 +54,10 @@ function InventoryPageInner() {
   const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  useEffect(() => {
-    if (!selectedItem) {
-      setPictureReorderDraft("");
-      return;
-    }
-    const next = Array.from({ length: 10 }, (_, index) => {
-      const key = `picture_${index + 1}` as keyof InventoryItem;
-      const value = selectedItem[key];
-      return typeof value === "string" ? value : "";
-    })
-      .filter((value) => value.trim().length > 0)
-      .join(", ");
-    setPictureReorderDraft(next);
-  }, [selectedItem]);
-
-  const selectedItemPictures = selectedItem
-    ? Array.from({ length: 10 }, (_, index) => {
-        const slot = index + 1;
-        const key = `picture_${slot}` as keyof InventoryItem;
-        const value = selectedItem[key];
-        return typeof value === "string" && value.trim().length > 0
-          ? { slot, path: value }
-          : { slot, path: null };
-      })
-    : [];
+  const handlePictureItemUpdated = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+  };
 
   const canWorkListing = Boolean(selectedItem);
   const canPublish =
@@ -358,80 +335,6 @@ function InventoryPageInner() {
     }
   };
 
-  const addPictureToSelected = async () => {
-    if (!selectedItemId || !picturePathDraft.trim()) return;
-    setBusyAction("add-picture");
-    try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/pictures`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ slot: Number(pictureSlotDraft), path: picturePathDraft.trim() }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
-      if (!response.ok) throw data;
-      if (data.item) {
-        setSelectedItem(data.item);
-        setInventory((current) => current.map((row) => (row.id === data.item!.id ? data.item! : row)));
-      }
-      setPicturePathDraft("");
-      setError(null);
-    } catch (err) {
-      setApiError("Could not add picture", "We could not add this picture reference.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const removePictureFromSelected = async (slot: number) => {
-    if (!selectedItemId) return;
-    setBusyAction("remove-picture");
-    try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/pictures/${slot}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
-      if (!response.ok) throw data;
-      if (data.item) {
-        setSelectedItem(data.item);
-        setInventory((current) => current.map((row) => (row.id === data.item!.id ? data.item! : row)));
-      }
-      setError(null);
-    } catch (err) {
-      setApiError("Could not remove picture", "We could not remove this picture slot.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const reorderPicturesForSelected = async () => {
-    if (!selectedItemId) return;
-    setBusyAction("reorder-pictures");
-    try {
-      const pictures = pictureReorderDraft
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0)
-        .slice(0, 10);
-      const response = await fetch(`/api/inventory/${selectedItemId}/pictures/reorder`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ pictures }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };
-      if (!response.ok) throw data;
-      if (data.item) {
-        setSelectedItem(data.item);
-        setInventory((current) => current.map((row) => (row.id === data.item!.id ? data.item! : row)));
-      }
-      setError(null);
-    } catch (err) {
-      setApiError("Could not reorder pictures", "We could not reorder picture references.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
   const saveAiSettings = async () => {
     setAiSettingsSaving(true);
     try {
@@ -556,33 +459,15 @@ function InventoryPageInner() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-        <p className="mb-2 text-sm font-semibold">Pictures</p>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
-          <input value={pictureSlotDraft} onChange={(e) => setPictureSlotDraft(e.target.value)} placeholder="Slot (1-10)" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <input value={picturePathDraft} onChange={(e) => setPicturePathDraft(e.target.value)} placeholder="Picture path or URL" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2" />
-          <button type="button" onClick={addPictureToSelected} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-            {busyAction === "add-picture" ? "Saving..." : "Set slot"}
-          </button>
-          <button type="button" onClick={() => removePictureFromSelected(Number(pictureSlotDraft))} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-            {busyAction === "remove-picture" ? "Removing..." : "Clear slot"}
-          </button>
-        </div>
-        <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
-          <input value={pictureReorderDraft} onChange={(e) => setPictureReorderDraft(e.target.value)} placeholder="Reorder: comma-separated paths for slots 1..10" className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
-          <button type="button" onClick={reorderPicturesForSelected} disabled={busyAction != null || !selectedItemId} className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60">
-            {busyAction === "reorder-pictures" ? "Reordering..." : "Reorder"}
-          </button>
-        </div>
-        <div className="mt-2 grid grid-cols-1 gap-1 text-xs md:grid-cols-2">
-          {selectedItemPictures.map((entry) => (
-            <div key={`pic-slot-${entry.slot}`} className="rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-1">
-              Slot {entry.slot}: {entry.path ?? "(empty)"}
-            </div>
-          ))}
-        </div>
+      <div className="mb-4">
+        <PictureGrid
+          inventoryId={selectedItemId}
+          item={selectedItem}
+          disabled={busyAction != null}
+          onItemUpdated={handlePictureItemUpdated}
+          onError={(title, message, err) => setApiError(title, message, err)}
+        />
       </div>
-
       {canWorkListing ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm">

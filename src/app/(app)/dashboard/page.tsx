@@ -2,6 +2,7 @@
 
 import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 
 export default function DashboardPage() {
   const {
@@ -72,6 +73,8 @@ export default function DashboardPage() {
           </article>
         </div>
       </section>
+
+      <ActivityFeed />
 
       <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">

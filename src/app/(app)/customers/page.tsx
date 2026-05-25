@@ -1,10 +1,26 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, Customer, CustomerAddress } from "@/types";
+
+type CustomerNote = {
+  id: number;
+  customer_id: number;
+  note_text: string;
+  note_type: string;
+  created_at: string;
+};
+
+const NOTE_TYPES = [
+  { value: "general", label: "General" },
+  { value: "shipping_preference", label: "Shipping preference" },
+  { value: "communication", label: "Communication" },
+  { value: "follow_up", label: "Follow up" },
+  { value: "complaint", label: "Complaint" },
+];
 
 function CustomersPageInner() {
   const {
@@ -21,6 +37,11 @@ function CustomersPageInner() {
   const [newAddressPostalCode, setNewAddressPostalCode] = useState("");
   const [newAddressCountry, setNewAddressCountry] = useState("US");
   const [deleteAddressTarget, setDeleteAddressTarget] = useState<CustomerAddress | null>(null);
+  const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteType, setNewNoteType] = useState("general");
+  const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -35,6 +56,31 @@ function CustomersPageInner() {
   }, [searchParams, customers, setSelectedCustomerId]);
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? null;
+
+  const loadCustomerNotes = useCallback(async (customerId: number) => {
+    setNotesLoading(true);
+    try {
+      const response = await fetch(`/api/customers/${customerId}/notes?limit=50`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { items?: CustomerNote[] };
+      if (!response.ok) throw data;
+      setCustomerNotes(data.items ?? []);
+    } catch (err) {
+      setApiError("Could not load notes", "We could not load customer notes.", err);
+      setCustomerNotes([]);
+    } finally {
+      setNotesLoading(false);
+    }
+  }, [setApiError]);
+
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setCustomerNotes([]);
+      return;
+    }
+    void loadCustomerNotes(selectedCustomerId);
+  }, [selectedCustomerId, loadCustomerNotes]);
 
   const updateSelectedCustomer = async (payload: Record<string, unknown>) => {
     if (!selectedCustomerId) return;
@@ -153,6 +199,51 @@ function CustomersPageInner() {
     }
   };
 
+  const addCustomerNote = async () => {
+    if (!selectedCustomerId || !newNoteText.trim()) return;
+    setBusyAction("add-note");
+    try {
+      const response = await fetch(`/api/customers/${selectedCustomerId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ note_text: newNoteText.trim(), note_type: newNoteType }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { note?: CustomerNote };
+      if (!response.ok) throw data;
+      if (data.note) {
+        setCustomerNotes((current) => [data.note!, ...current]);
+      }
+      setNewNoteText("");
+      setError(null);
+    } catch (err) {
+      setApiError("Could not save note", "We could not save the customer note.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const deleteCustomerNote = async () => {
+    if (!deleteNoteTarget) return;
+    setBusyAction("delete-note");
+    try {
+      const response = await fetch(`/api/customer-notes/${deleteNoteTarget.id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setCustomerNotes((current) => current.filter((row) => row.id !== deleteNoteTarget.id));
+      setDeleteNoteTarget(null);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not delete note", "We could not delete that note.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Customers</h3>
@@ -258,6 +349,68 @@ function CustomersPageInner() {
               </div>
             </div>
           )}
+          {selectedCustomer && (
+            <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+              <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Interaction notes</p>
+              {notesLoading ? (
+                <p className="text-xs text-[var(--ui-muted)]">Loading notes…</p>
+              ) : customerNotes.length === 0 ? (
+                <p className="text-xs text-[var(--ui-muted)]">No notes yet for this customer.</p>
+              ) : (
+                <ul className="mb-3 max-h-40 space-y-2 overflow-auto">
+                  {customerNotes.map((note) => (
+                    <li key={note.id} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[var(--ui-body)]">{note.note_text}</p>
+                          <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">
+                            {note.note_type.replace(/_/g, " ")} · {new Date(note.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteNoteTarget(note)}
+                          disabled={busyAction != null}
+                          className="shrink-0 rounded border border-[var(--ui-border)] px-2 py-0.5"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+                <textarea
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  placeholder="Add a note about this customer…"
+                  rows={2}
+                  maxLength={2000}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                />
+                <select
+                  value={newNoteType}
+                  onChange={(e) => setNewNoteType(e.target.value)}
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                >
+                  {NOTE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={addCustomerNote}
+                disabled={busyAction != null || !newNoteText.trim()}
+                className="mt-2 rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {busyAction === "add-note" ? "Saving…" : "Add note"}
+              </button>
+            </div>
+          )}
         </div>
         <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <p className="text-sm font-semibold">Add customer</p>
@@ -297,6 +450,17 @@ function CustomersPageInner() {
         confirmLabel="Delete"
         confirmVariant="danger"
         busy={busyAction === "delete-address"}
+      />
+      <ConfirmDialog
+        open={deleteNoteTarget != null}
+        onClose={() => setDeleteNoteTarget(null)}
+        onConfirm={() => void deleteCustomerNote()}
+        title="Delete note?"
+        description="This note will be permanently removed from the customer record."
+        affectedLabel={deleteNoteTarget?.note_text.slice(0, 80)}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        busy={busyAction === "delete-note"}
       />
     </section>
   );

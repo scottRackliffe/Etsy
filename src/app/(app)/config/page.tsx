@@ -2,7 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ApiErrorShape, AiConfig } from "@/types";
+
+const BUSINESS_KEYS = [
+  "business_name",
+  "business_address_line_1",
+  "business_address_line_2",
+  "business_city",
+  "business_state_province",
+  "business_postal_code",
+  "business_country",
+  "business_phone",
+  "business_email",
+] as const;
+
+type BusinessProfile = Record<(typeof BUSINESS_KEYS)[number], string>;
 
 type BackupEntry = {
   filename: string;
@@ -28,6 +43,21 @@ export default function ConfigPage() {
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
+    business_name: "",
+    business_address_line_1: "",
+    business_address_line_2: "",
+    business_city: "",
+    business_state_province: "",
+    business_postal_code: "",
+    business_country: "US",
+    business_phone: "",
+    business_email: "",
+  });
+  const [businessLoading, setBusinessLoading] = useState(false);
+  const [sampleDataBusy, setSampleDataBusy] = useState(false);
+  const [loadSampleConfirm, setLoadSampleConfirm] = useState(false);
+  const [removeSampleConfirm, setRemoveSampleConfirm] = useState(false);
 
   const loadBackups = useCallback(async () => {
     setBackupLoading(true);
@@ -48,6 +78,111 @@ export default function ConfigPage() {
   useEffect(() => {
     void loadBackups();
   }, [loadBackups]);
+
+  const loadBusinessProfile = useCallback(async () => {
+    setBusinessLoading(true);
+    try {
+      const response = await fetch("/api/settings?limit=500", { headers: { Accept: "application/json" } });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        items?: Array<{ key: string; value: string }>;
+      };
+      if (!response.ok) throw data;
+      const map = new Map((data.items ?? []).map((row) => [row.key, row.value]));
+      setBusinessProfile({
+        business_name: map.get("business_name") ?? "",
+        business_address_line_1: map.get("business_address_line_1") ?? "",
+        business_address_line_2: map.get("business_address_line_2") ?? "",
+        business_city: map.get("business_city") ?? "",
+        business_state_province: map.get("business_state_province") ?? "",
+        business_postal_code: map.get("business_postal_code") ?? "",
+        business_country: map.get("business_country") ?? "US",
+        business_phone: map.get("business_phone") ?? "",
+        business_email: map.get("business_email") ?? "",
+      });
+    } catch (err) {
+      setApiError("Could not load business profile", "We could not load business settings.", err);
+    } finally {
+      setBusinessLoading(false);
+    }
+  }, [setApiError]);
+
+  useEffect(() => {
+    void loadBusinessProfile();
+  }, [loadBusinessProfile]);
+
+  const saveBusinessProfile = async () => {
+    setBusinessLoading(true);
+    try {
+      for (const key of BUSINESS_KEYS) {
+        const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ value: businessProfile[key] }),
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        if (!response.ok) throw data;
+      }
+      setError({
+        title: "Business profile saved",
+        message: "Your business details were saved for invoices and reports.",
+        actions: ["Generate a report to verify the header."],
+      });
+    } catch (err) {
+      setApiError("Could not save business profile", "We could not save business settings.", err);
+    } finally {
+      setBusinessLoading(false);
+    }
+  };
+
+  const loadSampleData = async () => {
+    setSampleDataBusy(true);
+    try {
+      const response = await fetch("/api/seed/sample-data", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+        items_created?: number;
+        customers_created?: number;
+        orders_created?: number;
+      };
+      if (!response.ok) throw data;
+      setLoadSampleConfirm(false);
+      setError({
+        title: "Sample data loaded",
+        message: `Added ${data.items_created ?? 0} items, ${data.customers_created ?? 0} customers, and ${data.orders_created ?? 0} orders.`,
+        actions: ["Refresh other tabs to see demo records."],
+      });
+    } catch (err) {
+      setApiError("Could not load sample data", "We could not load sample data.", err);
+    } finally {
+      setSampleDataBusy(false);
+    }
+  };
+
+  const removeSampleData = async () => {
+    setSampleDataBusy(true);
+    try {
+      const response = await fetch("/api/seed/sample-data", {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setRemoveSampleConfirm(false);
+      setError({
+        title: "Sample data removed",
+        message: "Demo inventory, customers, and orders were removed.",
+        actions: ["Refresh other tabs to see updated data."],
+      });
+    } catch (err) {
+      setApiError("Could not remove sample data", "We could not remove sample data.", err);
+    } finally {
+      setSampleDataBusy(false);
+    }
+  };
 
   const createBackup = async () => {
     setBackupLoading(true);
@@ -230,6 +365,78 @@ export default function ConfigPage() {
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Configuration</h3>
+      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Business profile</h4>
+          <p className="mb-3 text-xs text-[var(--ui-muted)]">Used on invoices, thank-you notes, and report headers.</p>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <input
+              value={businessProfile.business_name}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_name: e.target.value }))}
+              placeholder="Business name"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={businessProfile.business_address_line_1}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_address_line_1: e.target.value }))}
+              placeholder="Address line 1"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={businessProfile.business_address_line_2}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_address_line_2: e.target.value }))}
+              placeholder="Address line 2 (optional)"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
+            />
+            <input
+              value={businessProfile.business_city}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_city: e.target.value }))}
+              placeholder="City"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={businessProfile.business_state_province}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_state_province: e.target.value }))}
+              placeholder="State / Province"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={businessProfile.business_postal_code}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_postal_code: e.target.value }))}
+              placeholder="Postal code"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={businessProfile.business_country}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_country: e.target.value }))}
+              placeholder="Country"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={businessProfile.business_phone}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_phone: e.target.value }))}
+              placeholder="Phone"
+              type="tel"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+            <input
+              value={businessProfile.business_email}
+              onChange={(e) => setBusinessProfile((c) => ({ ...c, business_email: e.target.value }))}
+              placeholder="Email"
+              type="email"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveBusinessProfile}
+            disabled={businessLoading}
+            className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {businessLoading ? "Saving…" : "Save business profile"}
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
           <h4 className="mb-2 text-sm font-semibold">AI settings</h4>
@@ -281,6 +488,31 @@ export default function ConfigPage() {
           <input value={iconConfig.reportHeaderWidthPx} onChange={(e) => setIconConfig((c) => ({ ...c, reportHeaderWidthPx: e.target.value }))} placeholder="Report icon width px" className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm" />
           <button type="button" onClick={saveIconSettings} disabled={saving} className="mt-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm">
             Save icon settings
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+        <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Sample data</h4>
+        <p className="mb-3 text-xs text-[var(--ui-muted)]">
+          Load demo inventory, customers, and orders to explore the app. Remove when you are ready for real data.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setLoadSampleConfirm(true)}
+            disabled={sampleDataBusy}
+            className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            Load sample data
+          </button>
+          <button
+            type="button"
+            onClick={() => setRemoveSampleConfirm(true)}
+            disabled={sampleDataBusy}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+          >
+            Remove sample data
           </button>
         </div>
       </div>
@@ -375,6 +607,26 @@ export default function ConfigPage() {
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={loadSampleConfirm}
+        onClose={() => setLoadSampleConfirm(false)}
+        onConfirm={() => void loadSampleData()}
+        title="Load sample data?"
+        description="This adds demo inventory, customers, and orders prefixed with SAMPLE-. You can remove them later."
+        confirmLabel="Load sample data"
+        busy={sampleDataBusy}
+      />
+      <ConfirmDialog
+        open={removeSampleConfirm}
+        onClose={() => setRemoveSampleConfirm(false)}
+        onConfirm={() => void removeSampleData()}
+        title="Remove sample data?"
+        description="All SAMPLE- prefixed records will be deleted. Your real data is not affected."
+        confirmLabel="Remove sample data"
+        confirmVariant="danger"
+        busy={sampleDataBusy}
+      />
     </section>
   );
 }

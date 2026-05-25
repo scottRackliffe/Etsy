@@ -351,4 +351,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 9 (2026-05-24) — implemented:** ADR-032 `ConfirmDialog` on inventory delete, address delete, void order, Etsy disconnect; ADR-036 per-order invoice/thank-you routes + Sales print buttons; Reports date range picker with presets and friendly labels.
 
+**Wave 10 (2026-05-24) — implemented:** ADR-033 `PictureGrid` on Inventory (10-slot upload/delete/drag-drop); ADR-065 customer interaction notes UI; ADR-037 dashboard activity feed widget; ADR-034 business profile section + ADR-069 sample data load/remove on Config.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*
