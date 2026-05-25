@@ -1,18 +1,23 @@
+import { HelpTooltip } from "@/components/ui/HelpTooltip";
+
 export function FormField({
   label,
   htmlFor,
   error,
+  helpText,
   children,
 }: {
   label: string;
   htmlFor?: string;
   error?: string;
+  helpText?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="text-xs font-medium text-[var(--ui-muted)]">
+      <label htmlFor={htmlFor} className="flex items-center text-xs font-medium text-[var(--ui-muted)]">
         {label}
+        {helpText ? <HelpTooltip text={helpText} /> : null}
       </label>
       {children}
       {error && <p className="text-xs text-[var(--ui-red)]">{error}</p>}

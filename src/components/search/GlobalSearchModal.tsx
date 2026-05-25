@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/Badge";
 
 type SearchOrder = {
   id: number;
@@ -94,6 +95,15 @@ function ResultSection({
   );
 }
 
+function badgeVariantForStatus(status: string | undefined): "success" | "warning" | "error" | "info" | "neutral" {
+  const s = (status ?? "").toLowerCase();
+  if (s === "active" || s === "sold" || s === "listed" || s === "paid") return "success";
+  if (s === "void" || s === "cancelled" || s === "retired") return "error";
+  if (s === "unpaid" || s === "draft" || s === "reserved") return "warning";
+  if (s === "etsy" || s === "in stock") return "info";
+  return "neutral";
+}
+
 function ResultRow({
   primary,
   secondary,
@@ -115,11 +125,7 @@ function ResultRow({
         <p className="truncate text-sm font-medium text-[var(--ui-title)]">{primary}</p>
         {secondary ? <p className="truncate text-xs text-[var(--ui-muted)]">{secondary}</p> : null}
       </div>
-      {badge ? (
-        <span className="shrink-0 rounded-full border border-[var(--ui-border)] px-2 py-0.5 text-xs text-[var(--ui-muted)]">
-          {badge}
-        </span>
-      ) : null}
+      {badge ? <Badge label={badge} variant={badgeVariantForStatus(badge)} /> : null}
     </button>
   );
 }
@@ -200,7 +206,12 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="max-h-[70vh] w-full max-w-xl overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-2xl">
+      <div
+        className="max-h-[70vh] w-full max-w-xl overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Global search"
+      >
         <div className="flex items-center gap-2 border-b border-[var(--ui-border)] px-4 py-3">
           <span className="text-[var(--ui-muted)]">{loading ? "…" : "⌕"}</span>
           <input

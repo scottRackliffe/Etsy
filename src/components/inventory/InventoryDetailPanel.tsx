@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
+import { useEntityDraft } from "@/hooks/useEntityDraft";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -109,15 +111,26 @@ export function InventoryDetailPanel({
   });
   const [buyBusy, setBuyBusy] = useState(false);
   const [deleteBuyTarget, setDeleteBuyTarget] = useState<VendorPurchase | null>(null);
+  const [recoveryApplied, setRecoveryApplied] = useState(false);
 
   useEffect(() => {
     setDraft(item ? itemToDraft(item) : null);
+    setRecoveryApplied(false);
   }, [item]);
 
   const isDirty = useMemo(() => {
     if (!item || !draft) return false;
     return JSON.stringify(draft) !== JSON.stringify(itemToDraft(item));
   }, [item, draft]);
+
+  const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
+    entityType: "inventory",
+    entityId: item?.id ?? null,
+    current: draft,
+    entityVersion: item?.updated_at,
+    isDirty,
+    enabled: Boolean(item),
+  });
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -194,6 +207,7 @@ export function InventoryDetailPanel({
       if (data.item) {
         onItemUpdated(data.item);
         setDraft(itemToDraft(data.item));
+        markDraftClean();
       }
       onSuccess("Item updated", "Inventory details were saved.");
     } catch (err) {
@@ -271,9 +285,25 @@ export function InventoryDetailPanel({
   }
 
   const inputClass = "w-full";
+  const showRecovery =
+    recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
   return (
     <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+      {showRecovery ? (
+        <DraftRecoveryBanner
+          savedAtLabel={recoveryLabel}
+          onRestore={() => {
+            setDraft(recovery.formState);
+            setRecoveryApplied(true);
+            dismissRecovery();
+          }}
+          onDiscard={() => {
+            dismissRecovery();
+            setRecoveryApplied(true);
+          }}
+        />
+      ) : null}
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h4 className="text-sm font-semibold text-[var(--ui-title)]">
@@ -330,16 +360,28 @@ export function InventoryDetailPanel({
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Financials</p>
           <div className="grid grid-cols-2 gap-2">
-            <FormField label="Purchase cost">
+            <FormField
+              label="Purchase cost"
+              helpText="What you paid to acquire this item from the vendor (not including shipping to you)."
+            >
               <TextInput type="number" value={draft.purchase_cost} onChange={(v) => setDraft((c) => ({ ...c!, purchase_cost: v }))} disabled={busy || saving} className={inputClass} />
             </FormField>
-            <FormField label="Inbound shipping">
+            <FormField
+              label="Inbound shipping"
+              helpText="Your cost to receive this item from the vendor/seller."
+            >
               <TextInput type="number" value={draft.shipping_cost} onChange={(v) => setDraft((c) => ({ ...c!, shipping_cost: v }))} disabled={busy || saving} className={inputClass} />
             </FormField>
-            <FormField label="Sale price">
+            <FormField
+              label="Sale price"
+              helpText="The price the buyer paid (or will pay) for this item."
+            >
               <TextInput type="number" value={draft.sale_revenue} onChange={(v) => setDraft((c) => ({ ...c!, sale_revenue: v }))} disabled={busy || saving} className={inputClass} />
             </FormField>
-            <FormField label="Category / tags">
+            <FormField
+              label="Category / tags"
+              helpText="Comma-separated tags for organizing inventory (e.g., 'glassware, depression era, pink')."
+            >
               <TextInput value={draft.category_tags} onChange={(v) => setDraft((c) => ({ ...c!, category_tags: v }))} disabled={busy || saving} className={inputClass} />
             </FormField>
           </div>
@@ -387,7 +429,10 @@ export function InventoryDetailPanel({
 
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">Condition</p>
-          <FormField label="Condition">
+          <FormField
+            label="Condition"
+            helpText="Rate the item's physical condition using standard vintage/antique grading terms."
+          >
             <SelectInput
               value={draft.condition_code}
               onChange={(v) => setDraft((c) => ({ ...c!, condition_code: v }))}

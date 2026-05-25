@@ -105,6 +105,7 @@ export default function ConfigPage() {
     currency_code: "USD",
     page_size: "25",
   });
+  const [backupSchedule, setBackupSchedule] = useState("manual");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
 
   const loadBackups = useCallback(async () => {
@@ -180,6 +181,7 @@ export default function ConfigPage() {
         currency_code: map.get("ui.currency_code") ?? "USD",
         page_size: map.get("ui.page_size") ?? "25",
       });
+      setBackupSchedule(map.get("backup_schedule") ?? "manual");
     } catch (err) {
       setApiError("Could not load business profile", "We could not load business settings.", err);
     } finally {
@@ -834,6 +836,37 @@ export default function ConfigPage() {
             className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             Backup now
+          </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <label className="text-xs text-[var(--ui-muted)]">
+            Automatic backup
+            <select
+              value={backupSchedule}
+              onChange={(e) => setBackupSchedule(e.target.value)}
+              className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+            >
+              <option value="manual">Manual only</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              void saveSettingsKeys(
+                [{ key: "backup_schedule", value: backupSchedule }],
+                "Backup schedule saved",
+                backupSchedule === "manual"
+                  ? "Backups will run only when you choose Backup now."
+                  : `Automatic ${backupSchedule} backups run while the app is open.`
+              )
+            }
+            disabled={extraSettingsLoading}
+            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+          >
+            Save schedule
           </button>
         </div>
 

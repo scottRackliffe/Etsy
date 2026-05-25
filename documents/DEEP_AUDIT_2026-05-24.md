@@ -367,4 +367,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 17 (2026-05-24) — implemented:** ADR-052 customer order history timeline + `GET /api/customers/[id]/orders`; ADR-066 repeat customer badge and `order_count` on customer list/detail/order panel; ADR-035 deep-link fetch-if-missing, URL cleanup, and DataTable `scrollToId`; dashboard repeat-customers KPI from `/api/dashboard/stats`.
 
+**Wave 18 (2026-05-24) — implemented:** ADR-042 unsaved-changes guard (`UnsavedChangesContext`, tab navigation intercept, `beforeunload`, order/inventory draft autosave + recovery banners); ADR-041 global search polish (Badge on results, suppress Cmd/Ctrl+K when dialog open); ADR-060 contextual help (`FormField` `helpText`, key inventory/order fields); ADR-027 backup schedule Config UI + `POST /api/backup/scheduled` with hourly client check.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

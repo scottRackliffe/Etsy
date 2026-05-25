@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppProvider, useApp } from "@/context/AppContext";
+import { UnsavedChangesProvider } from "@/context/UnsavedChangesContext";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { TabBar } from "@/components/shell/TabBar";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
@@ -14,13 +15,26 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (searchOpen) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("[role='dialog']")) return;
         e.preventDefault();
         setSearchOpen(true);
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (shops.length === 0) return;
+    const runScheduled = () => {
+      void fetch("/api/backup/scheduled", { method: "POST", headers: { Accept: "application/json" } });
+    };
+    runScheduled();
+    const timer = window.setInterval(runScheduled, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [shops.length]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]">
@@ -87,7 +101,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppProvider>
-      <AppShellInner>{children}</AppShellInner>
+      <UnsavedChangesProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </UnsavedChangesProvider>
     </AppProvider>
   );
 }

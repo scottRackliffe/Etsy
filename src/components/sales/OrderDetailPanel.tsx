@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
+import { HelpTooltip } from "@/components/ui/HelpTooltip";
+import { useEntityDraft } from "@/hooks/useEntityDraft";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -20,6 +23,7 @@ type OrderDetailPanelProps = {
   onMarkPaid: () => void;
   onMarkShipped: () => void;
   onVoid: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 type DraftFields = {
@@ -82,6 +86,7 @@ export function OrderDetailPanel({
   onMarkPaid,
   onMarkShipped,
   onVoid,
+  onDirtyChange,
 }: OrderDetailPanelProps) {
   const [order, setOrder] = useState<Order | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
@@ -96,7 +101,30 @@ export function OrderDetailPanel({
   const [removeLineTarget, setRemoveLineTarget] = useState<OrderItem | null>(null);
   const [lineItemBusy, setLineItemBusy] = useState(false);
   const [labelError, setLabelError] = useState<{ message: string; isShippingInfo?: boolean } | null>(null);
+  const [recoveryApplied, setRecoveryApplied] = useState(false);
   const router = useRouter();
+
+  const isDirty = useMemo(() => {
+    if (!order || !draft) return false;
+    return JSON.stringify(draft) !== JSON.stringify(orderToDraft(order));
+  }, [order, draft]);
+
+  const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
+    entityType: "order",
+    entityId: orderId,
+    current: draft,
+    entityVersion: order?.updated_at,
+    isDirty,
+    enabled: Boolean(orderId && order),
+  });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    setRecoveryApplied(false);
+  }, [orderId]);
 
   const loadOrder = useCallback(async (id: number) => {
     setLoading(true);
@@ -259,6 +287,7 @@ export function OrderDetailPanel({
       if (data.order) {
         setOrder(data.order);
         setDraft(orderToDraft(data.order));
+        markDraftClean();
         onOrderUpdated(data.order);
       }
     } catch (err) {
@@ -321,9 +350,12 @@ export function OrderDetailPanel({
   const isShipped = Boolean(order.shipping_date);
   const isVoid = order.order_status === "void";
 
-  const field = (key: keyof DraftFields, label: string, type = "text") => (
+  const field = (key: keyof DraftFields, label: string, type = "text", helpText?: string) => (
     <label className="block text-xs text-[var(--ui-muted)]">
-      {label}
+      <span className="inline-flex items-center">
+        {label}
+        {helpText ? <HelpTooltip text={helpText} /> : null}
+      </span>
       <input
         type={type}
         value={draft[key]}
@@ -334,8 +366,25 @@ export function OrderDetailPanel({
     </label>
   );
 
+  const showRecovery =
+    recovery && recoveryLabel && !recoveryApplied && !isDirty;
+
   return (
     <div className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+      {showRecovery ? (
+        <DraftRecoveryBanner
+          savedAtLabel={recoveryLabel}
+          onRestore={() => {
+            setDraft(recovery.formState);
+            setRecoveryApplied(true);
+            dismissRecovery();
+          }}
+          onDiscard={() => {
+            dismissRecovery();
+            setRecoveryApplied(true);
+          }}
+        />
+      ) : null}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h4 className="text-xl font-semibold text-[var(--ui-title)]">
@@ -486,8 +535,13 @@ export function OrderDetailPanel({
             <span className="block text-sm font-semibold text-[var(--ui-title)]">{formatMoney(order.grand_total)}</span>
           </p>
           {field("shipping_total", "Shipping (buyer pays")}
-          {field("seller_shipping_cost", "Shipping cost (seller)")}
-          {field("tax_total", "Tax")}
+          {field(
+            "seller_shipping_cost",
+            "Shipping cost (seller)",
+            "text",
+            "What you paid the carrier to ship this order to the buyer."
+          )}
+          {field("tax_total", "Tax", "text", "Total sales tax collected on this order.")}
           {field("discount_total", "Discount")}
         </div>
       </section>
@@ -512,7 +566,14 @@ export function OrderDetailPanel({
             </select>
           </label>
           {field("shipping_date", "Ship date", "date")}
-          <div className="sm:col-span-2">{field("tracking_number", "Tracking number")}</div>
+          <div className="sm:col-span-2">
+            {field(
+              "tracking_number",
+              "Tracking number",
+              "text",
+              "The carrier tracking number for this shipment. Customers can use this to track their package."
+            )}
+          </div>
         </div>
       </section>
 

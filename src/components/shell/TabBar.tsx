@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 
 const TABS: Array<{ id: string; label: string; href: string }> = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard" },
@@ -16,6 +17,16 @@ const TABS: Array<{ id: string; label: string; href: string }> = [
 
 export function TabBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { confirmLeave } = useUnsavedChanges();
+
+  const handleTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (pathname === href || pathname.startsWith(`${href}/`)) return;
+    event.preventDefault();
+    void confirmLeave().then((allowed) => {
+      if (allowed) router.push(href);
+    });
+  };
 
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 shadow-sm">
@@ -28,6 +39,7 @@ export function TabBar() {
               href={tab.href}
               role="tab"
               aria-selected={isActive}
+              onClick={(event) => handleTabClick(event, tab.href)}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-[var(--ui-accent)] text-white"

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -104,6 +105,11 @@ function InventoryPageInner() {
   const [inventorySearch, setInventorySearch] = useState("");
   const createItemRef = useRef<HTMLInputElement>(null);
   const [detailDirty, setDetailDirty] = useState(false);
+  const { setFormDirty } = useUnsavedChanges();
+
+  useEffect(() => {
+    setFormDirty(detailDirty);
+  }, [detailDirty, setFormDirty]);
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
   const [workshopOpen, setWorkshopOpen] = useState(false);

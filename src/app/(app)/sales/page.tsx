@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -51,12 +52,29 @@ function SalesPageInner() {
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   const [batchVoidConfirmOpen, setBatchVoidConfirmOpen] = useState(false);
   const [detailRefresh, setDetailRefresh] = useState(0);
+  const [orderDetailDirty, setOrderDetailDirty] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
+  const [discardOrderDirtyOpen, setDiscardOrderDirtyOpen] = useState(false);
+  const { setFormDirty } = useUnsavedChanges();
   const [shipForm, setShipForm] = useState({
     shipper: "USPS",
     tracking_number: "",
     shipping_date: new Date().toISOString().slice(0, 10),
     ship_anyway: false,
   });
+
+  useEffect(() => {
+    setFormDirty(orderDetailDirty);
+  }, [orderDetailDirty, setFormDirty]);
+
+  const selectOrder = (id: number) => {
+    if (orderDetailDirty && id !== selectedOrderId) {
+      setPendingOrderId(id);
+      setDiscardOrderDirtyOpen(true);
+      return;
+    }
+    setSelectedOrderId(id);
+  };
 
   const selectedOrder = orders.find((row) => row.id === selectedOrderId) ?? null;
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
@@ -595,7 +613,7 @@ function SalesPageInner() {
             columns={orderColumns}
             data={orders}
             selectedId={selectedOrderId}
-            onRowClick={(order) => setSelectedOrderId(order.id)}
+            onRowClick={(order) => selectOrder(order.id)}
             sort={sort}
             onSortChange={(next) => {
               setPage(0);
@@ -618,6 +636,7 @@ function SalesPageInner() {
           onMarkPaid={() => void markSelectedOrderPaid()}
           onMarkShipped={() => openShipModal("single")}
           onVoid={() => setVoidConfirmOpen(true)}
+          onDirtyChange={setOrderDetailDirty}
         />
       </div>
 
@@ -734,6 +753,23 @@ function SalesPageInner() {
         confirmLabel="Void orders"
         confirmVariant="danger"
         busy={busyAction === "batch-void"}
+      />
+      <ConfirmDialog
+        open={discardOrderDirtyOpen}
+        onClose={() => {
+          setDiscardOrderDirtyOpen(false);
+          setPendingOrderId(null);
+        }}
+        onConfirm={() => {
+          setDiscardOrderDirtyOpen(false);
+          if (pendingOrderId != null) setSelectedOrderId(pendingOrderId);
+          setPendingOrderId(null);
+          setOrderDetailDirty(false);
+        }}
+        title="Discard unsaved changes?"
+        description="You have unsaved order edits. Switch orders anyway?"
+        confirmLabel="Discard changes"
+        confirmVariant="danger"
       />
     </section>
   );

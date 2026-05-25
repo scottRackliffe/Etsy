@@ -88,7 +88,7 @@ export async function listBackups(): Promise<{ backups: BackupEntry[]; total: nu
   return { backups, total: backups.length };
 }
 
-export async function createBackup(): Promise<{
+export async function createBackup(options?: { source?: "user" | "system" }): Promise<{
   filename: string;
   size_bytes: number;
   backup_count: number;
@@ -111,7 +111,7 @@ export async function createBackup(): Promise<{
     entityType: "backup",
     entityLabel: filename,
     detail: { size_bytes: stat.size, backup_count },
-    source: "user",
+    source: options?.source ?? "user",
   });
 
   return { filename, size_bytes: stat.size, backup_count };
