@@ -130,10 +130,15 @@ Search aliases:
 - D18 Handling incomplete inventory records
 - D19 Linking inventory to orders
 - D20 Placeholder inventory records from sync
+- **D21 Listing Coach — paste photos from Mac Photos (⌘V)** → [Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md)
+- **D22 Listing Coach — Google Visual Search screenshot step**
+- **D23 Listing Coach — confirm suggested answers (no blank writing)**
+- **D24 Listing Coach — suggested price and when to override**
+- **D25 Listing Coach — review preview and save to inventory**
 
 Search aliases:
 
-- inventory, listing, generate listing, readiness, tags, title, description, category
+- inventory, listing, generate listing, readiness, tags, title, description, category, listing coach, paste photos, google search
 
 ## E. Pictures and media workflows
 

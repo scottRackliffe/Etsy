@@ -97,7 +97,23 @@ Before requesting listing generation:
 - If AI request fails:
   - retry once,
   - verify image paths and AI configuration,
-  - use fallback manual listing entry if needed.
+  - use **Listing Coach** (ADR-072) or fallback manual listing entry if needed.
+
+---
+
+## 7. Listing Coach (ADR-072)
+
+For **new listings**, the preferred path is **Listing Coach** — a guided flow where the operator:
+
+1. Pastes item photos from macOS Photos (⌘C/⌘V) and optional **Google Visual Search** screenshots.
+2. Receives AI photo review against Photo Guide and marketing docs.
+3. Confirms AI-suggested answers to short questions (not blank writing tasks).
+4. Reviews suggested **street value / list price** with override or skip.
+5. Saves a composed listing (title, description, tags, hidden template fields) to a new inventory row.
+
+**Does not replace** §3 picture requirements: all pasted item and condition photos are sent to AI on analyze and compose calls. **Does not require** Etsy OAuth. **Requires** integrated AI configuration.
+
+Full spec: **ADR-072**. User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
 
 ---
 

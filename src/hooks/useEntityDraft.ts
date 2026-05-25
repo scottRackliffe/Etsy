@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   clearDraft,
   draftKey,
@@ -35,41 +35,43 @@ export function useEntityDraft<T>({
   dismissRecovery: () => void;
   markDraftClean: () => void;
 } {
-  const [recovery, setRecovery] = useState<DraftPayload<T> | null>(null);
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const lastSavedRef = useRef<string>("");
   const key = entityId != null && enabled ? draftKey(entityType, entityId) : null;
   const { registerOnDiscard } = useUnsavedChanges();
+
+  const recoveryScope = key && enabled ? `${key}:${entityVersion ?? ""}` : "";
+  const [loadedScope, setLoadedScope] = useState(recoveryScope);
+  if (recoveryScope !== loadedScope) {
+    setLoadedScope(recoveryScope);
+    setRecoveryDismissed(false);
+  }
+
+  const storedRecovery = useMemo((): DraftPayload<T> | null => {
+    if (!key || !enabled) return null;
+    const existing = loadDraft<T>(key);
+    if (!existing) return null;
+    if (isDraftStale(existing.entityVersion, entityVersion)) {
+      clearDraft(key);
+      return null;
+    }
+    return existing;
+  }, [key, entityVersion, enabled]);
+
+  const recovery = recoveryDismissed ? null : storedRecovery;
 
   useBeforeUnload(enabled && isDirty);
 
   const markDraftClean = useCallback(() => {
     if (key) clearDraft(key);
     lastSavedRef.current = "";
-    setRecovery(null);
+    setRecoveryDismissed(true);
   }, [key]);
 
   useEffect(() => {
     if (!enabled) return;
     return registerOnDiscard(markDraftClean);
   }, [enabled, registerOnDiscard, markDraftClean]);
-
-  useEffect(() => {
-    if (!key || !enabled) {
-      setRecovery(null);
-      return;
-    }
-    const existing = loadDraft<T>(key);
-    if (!existing) {
-      setRecovery(null);
-      return;
-    }
-    if (isDraftStale(existing.entityVersion, entityVersion)) {
-      clearDraft(key);
-      setRecovery(null);
-      return;
-    }
-    setRecovery(existing);
-  }, [key, entityVersion, enabled]);
 
   useEffect(() => {
     if (!key || !enabled || !isDirty || current == null) return;
@@ -88,7 +90,7 @@ export function useEntityDraft<T>({
 
   const dismissRecovery = useCallback(() => {
     if (key) clearDraft(key);
-    setRecovery(null);
+    setRecoveryDismissed(true);
   }, [key]);
 
   const recoveryLabel = recovery ? formatDraftTime(recovery.savedAt) : null;

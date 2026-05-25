@@ -42,7 +42,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dashboard**      | Quick view of activity and outstanding items (e.g. orders to ship).                                                                                                                                                                                                                         |
 | **Sales / Orders** | See Etsy orders in one place; mark paid/shipped; print labels, thank-you notes, invoices; link orders to your inventory and customers.                                                                                                                                                      |
-| **Inventory**      | Track each item: description, costs (purchase, shipping, other), dates (purchased, listed, sold), **up to 10 photos**, and **condition** (grade + notes + up to 5 condition pictures). Use the **directory picker and preview** to add pictures from a folder and confirm the right images. |
+| **Inventory**      | Track each item: description, costs, dates, photos, condition. **Listing Coach** (Inventory → Add new listing with Listing Coach) lets you paste photos from Photos, add your Google search screenshot, answer a few short questions, and get a composed **title, description, and tags** — see [Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md). |
 | **Customers**      | Store buyer names and addresses; link purchases to customers; use data for thank-you notes and invoices.                                                                                                                                                                                    |
 | **Reports**        | Thank-you note, invoice, sales list, costs, **income month-to-date and year-to-date**, and **postal costs by vendor** (USPS, UPS, FedEx, DHL) so you know where your money goes.                                                                                                            |
 | **Config**         | Connect/disconnect Etsy, set default shipper, business details for invoices; optional link to your own “why pictures matter” or other guides.                                                                                                                                               |
@@ -63,7 +63,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 ### Titles and keywords
 
 - **Titles** and **tags** feed Etsy search. Use terms buyers actually search for. Include material, era, style, color, size where relevant. Avoid stuffing; keep it readable.
-- This app doesn’t write your Etsy title or tags; use the app to track the **item** and **costs**; use Etsy (or Etsy’s listing tools) to optimize title and tags for search.
+- Use **Listing Coach** in the app to generate title, description, and tags from your photos (and optional Google Visual Search results). Review the draft before approving and publishing. For manual control, use the listing workshop on an existing item.
 
 ### Descriptions
 

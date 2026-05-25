@@ -28,7 +28,7 @@ We considered three options:
 
 ## Decision
 
-The system will support all three modes with a single canonical listing-draft workflow.
+The system will support **four operator-facing paths** with a single canonical listing-draft workflow (fourth path added 2026-05-24 — **ADR-072**).
 
 ### Canonical modes
 
@@ -40,6 +40,9 @@ The system will support all three modes with a single canonical listing-draft wo
 
 3. **Portable AI handoff mode (export/import)**  
    System exports a versioned JSON package plus item picture references and explicit generation instructions. User runs any external AI manually and imports the generated JSON back into the app.
+
+4. **Listing Coach mode (guided new listing — ADR-072)**  
+   Recommended when **adding a new listing**. Operator pastes photos from macOS Photos (⌘C/⌘V), optionally pastes Google Visual Search screenshots, confirms AI-suggested answers to short questions, reviews price guidance, and receives a composed listing saved to inventory. Uses integrated AI; does not require Etsy OAuth. See ADR-072.
 
 ### Product default
 
@@ -116,5 +119,6 @@ Import package must include:
 
 - ADR-018 remains the canonical API surface and must be updated to include export/import/approve endpoints before finalizing this workflow in production.
 - ADR-021 validation rules apply equally to manual, integrated AI, and imported draft content.
-- User-facing docs must not expose ADR terminology; they should describe this as “Manual,” “Generate in app,” and “Import AI draft.”
+- User-facing docs must not expose ADR terminology; they should describe this as “Manual,” “Generate in app,” “Import AI draft,” and **“Listing Coach”** (new listings).
+- **ADR-072** is the canonical spec for Listing Coach; it extends integrated AI with clipboard photo intake, Google Visual Search screenshot support, confirm-card UX, and price guidance.
 - “Guided winning-listing form” content source should stay aligned with user documentation and quality guidance in `documents/etsy-listing-template-and-requirements.md` and related tips content.

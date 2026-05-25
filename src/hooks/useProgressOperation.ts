@@ -29,42 +29,46 @@ export function useProgressOperation() {
 
   const run = useCallback(
     async (options: RunOptions) => {
-      lastRunRef.current = options;
-      setModal({
-        open: true,
-        title: options.title,
-        statusText: options.statusText,
-        mode: options.mode ?? "indeterminate",
-        error: null,
-      });
-      try {
-        await options.fn();
-        setModal((m) => ({ ...m, statusText: "Complete" }));
-        await new Promise((r) => window.setTimeout(r, options.successDelayMs ?? 2000));
-        close();
-        options.onSuccess?.();
-      } catch (err) {
-        const message =
-          err &&
-          typeof err === "object" &&
-          "error" in err &&
-          err.error &&
-          typeof err.error === "object" &&
-          "user_message" in err.error &&
-          typeof (err.error as { user_message?: string }).user_message === "string"
-            ? (err.error as { user_message: string }).user_message
-            : "Something went wrong. Please try again.";
-        setModal((m) => ({
-          ...m,
-          error: message,
-          userMessage: message,
-          onRetry: () => {
-            if (lastRunRef.current) void run(lastRunRef.current);
-          },
-          onClose: close,
-        }));
-        throw err;
+      async function runOperation(opts: RunOptions): Promise<void> {
+        lastRunRef.current = opts;
+        setModal({
+          open: true,
+          title: opts.title,
+          statusText: opts.statusText,
+          mode: opts.mode ?? "indeterminate",
+          error: null,
+        });
+        try {
+          await opts.fn();
+          setModal((m) => ({ ...m, statusText: "Complete" }));
+          await new Promise((r) => window.setTimeout(r, opts.successDelayMs ?? 2000));
+          close();
+          opts.onSuccess?.();
+        } catch (err) {
+          const message =
+            err &&
+            typeof err === "object" &&
+            "error" in err &&
+            err.error &&
+            typeof err.error === "object" &&
+            "user_message" in err.error &&
+            typeof (err.error as { user_message?: string }).user_message === "string"
+              ? (err.error as { user_message: string }).user_message
+              : "Something went wrong. Please try again.";
+          setModal((m) => ({
+            ...m,
+            error: message,
+            userMessage: message,
+            onRetry: () => {
+              if (lastRunRef.current) void runOperation(lastRunRef.current);
+            },
+            onClose: close,
+          }));
+          throw err;
+        }
       }
+
+      await runOperation(options);
     },
     [close]
   );

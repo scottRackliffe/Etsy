@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  activityEntityHref,
   formatActivityAction,
   formatActivityDetail,
   formatActivityTimestamp,

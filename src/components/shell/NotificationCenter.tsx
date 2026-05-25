@@ -19,16 +19,13 @@ const DOT_CLASS: Record<string, string> = {
 };
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => listNotifications());
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const unreadCount = unreadNotificationCount(notifications);
 
-  const refresh = () => setNotifications(listNotifications());
-
   useEffect(() => {
-    refresh();
-    const handler = () => refresh();
+    const handler = () => setNotifications(listNotifications());
     window.addEventListener("esm-notifications-changed", handler);
     return () => window.removeEventListener("esm-notifications-changed", handler);
   }, []);
@@ -85,7 +82,6 @@ export function NotificationCenter() {
                 type="button"
                 onClick={() => {
                   markAllNotificationsRead();
-                  refresh();
                 }}
                 className="text-xs text-[var(--ui-accent)] hover:underline"
               >
@@ -120,7 +116,6 @@ export function NotificationCenter() {
                             href={n.action.url}
                             onClick={() => {
                               markNotificationRead(n.id);
-                              refresh();
                               setOpen(false);
                             }}
                             className="mt-1 inline-block text-xs text-[var(--ui-accent)] hover:underline"
@@ -132,7 +127,6 @@ export function NotificationCenter() {
                             type="button"
                             onClick={() => {
                               markNotificationRead(n.id);
-                              refresh();
                             }}
                             className="mt-1 text-xs text-[var(--ui-muted)] hover:underline"
                           >

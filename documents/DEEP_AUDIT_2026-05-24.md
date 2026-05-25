@@ -384,6 +384,8 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 35 (2026-05-24) — implemented:** ADR-055 print queue for batch printing — `print-queue` localStorage (max 50, duplicate guard); `PrintQueueMenu` in header with badge, grouped list, checkboxes, Print all/selected, clear confirm; `POST /api/reports/print-queue` combined PDF (invoice, thank-you, label pages); Sales detail **Add to queue** buttons; batch add from Sales list.
 
+**Wave LC (planned — active during Etsy hold) — ADR-072 Listing Coach:** Doc complete (ADR-072, LISTING_COACH_SCOPE, Appendix B29, Listing_Coach_Guide). Implementation pending LC-1–LC-4. `/listing-coach` wizard; paste from Photos + Google screenshot; analyze/compose/complete APIs; Inventory primary CTA. No Etsy OAuth required; AI Config required. Compliance waves 36+ remain on hold until OAuth QA.
+
 **Wave 34 (2026-05-24) — implemented:** ADR-069 sample/demo data completion — `GET /api/seed/sample-data` status endpoint; sample-data routes work without Etsy OAuth (local app); `fixtures/sample-data.sql` tracking_number inline; safer remove cascade; Config **Sample Data** section with loaded/not-loaded status, disabled Load when present, danger Remove when loaded, ADR-032 confirm copy.
 
 **Wave 33 (2026-05-24) — implemented:** ADR-067 undo/redo — client-side undo stack (max 10) in `UndoRedoProvider` / `useUndoRedo`; `patchWithUndo` wraps successful PATCH with previous/new field snapshots and `If-Match`; success toast with **Undo** button (5s); Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z in app layout (skipped in text inputs); stacks cleared on route change; wired on Inventory/Sales inline edits and inventory/order/customer detail panel saves.

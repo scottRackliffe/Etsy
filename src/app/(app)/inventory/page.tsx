@@ -45,7 +45,6 @@ import type { InlineEditResult } from "@/components/ui/DataTable";
 import type {
   ApiErrorShape,
   InventoryItem,
-  AiConfig,
   ListingMode,
   PublishPreview,
   PaginationInfo,
@@ -86,9 +85,6 @@ function InventoryPageInner() {
     publishHistory,
     setPublishHistory,
     aiConfig,
-    setAiConfig,
-    publishConfig,
-    setPublishConfig,
     busyAction,
     setBusyAction,
     setApiError,
@@ -107,9 +103,11 @@ function InventoryPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const [scrollToItemId, setScrollToItemId] = useState<number | null>(null);
+  const [workshopOpen, setWorkshopOpen] = useState(false);
 
   useEffect(() => {
     const raw = searchParams.get("itemId");
+    const openWorkshop = searchParams.get("openWorkshop") === "1";
     if (!raw) return;
     const id = Number(raw);
     if (!Number.isFinite(id)) return;
@@ -118,6 +116,7 @@ function InventoryPageInner() {
       if (inventory.some((row) => row.id === id)) {
         setSelectedItemId(id);
         setScrollToItemId(id);
+        if (openWorkshop) setWorkshopOpen(true);
         router.replace(pathname);
         return;
       }
@@ -143,6 +142,7 @@ function InventoryPageInner() {
         setSelectedItemId(id);
         setSelectedItem(data.item!);
         setScrollToItemId(id);
+        if (openWorkshop) setWorkshopOpen(true);
         router.replace(pathname);
       } catch (err) {
         setApiError("Could not open item", "We could not load the linked inventory item.", err);
@@ -168,8 +168,6 @@ function InventoryPageInner() {
   const [importPayload, setImportPayload] = useState("");
   const [exportPackage, setExportPackage] = useState<unknown | null>(null);
   const [workflowStep, setWorkflowStep] = useState<0 | 1 | 2>(0);
-  const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
-  const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
@@ -177,10 +175,11 @@ function InventoryPageInner() {
   const [inventorySearch, setInventorySearch] = useState("");
   const createItemRef = useRef<HTMLInputElement>(null);
   const [detailDirty, setDetailDirty] = useState(false);
+  const listingBaselineKey = selectedItem ? `${selectedItemId}:${selectedItem.updated_at}` : "";
+  const [listingBaselineSyncKey, setListingBaselineSyncKey] = useState("");
   const [listingBaseline, setListingBaseline] = useState<ListingWorkshopDraft | null>(null);
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
-  const [workshopOpen, setWorkshopOpen] = useState(false);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
 
   const listingDirty = useMemo(() => {
@@ -192,13 +191,10 @@ function InventoryPageInner() {
     setFormDirty(detailDirty || listingDirty);
   }, [detailDirty, listingDirty, setFormDirty]);
 
-  useEffect(() => {
-    if (selectedItem) {
-      setListingBaseline(itemToListingWorkshopDraft(selectedItem));
-    } else {
-      setListingBaseline(null);
-    }
-  }, [selectedItemId, selectedItem?.updated_at]);
+  if (listingBaselineKey !== listingBaselineSyncKey) {
+    setListingBaselineSyncKey(listingBaselineKey);
+    setListingBaseline(selectedItem ? itemToListingWorkshopDraft(selectedItem) : null);
+  }
 
   const listingDraftCurrent = selectedItem ? itemToListingWorkshopDraft(selectedItem) : null;
   const {
@@ -282,10 +278,13 @@ function InventoryPageInner() {
     setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
   };
 
-  const handleDetailItemUpdated = (item: InventoryItemDetail) => {
-    setSelectedItem(item);
-    setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
-  };
+  const handleDetailItemUpdated = useCallback(
+    (item: InventoryItemDetail) => {
+      setSelectedItem(item);
+      setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+    },
+    [setSelectedItem, setInventory]
+  );
 
   const reloadSelectedInventoryItem = useCallback(async () => {
     if (!selectedItemId) return;
@@ -297,7 +296,7 @@ function InventoryPageInner() {
     };
     if (!response.ok || !data.item) throw data;
     handleDetailItemUpdated(data.item);
-  }, [selectedItemId]);
+  }, [selectedItemId, handleDetailItemUpdated]);
 
   const selectInventoryItem = (id: number) => {
     if ((detailDirty || listingDirty) && id !== selectedItemId) {
@@ -820,113 +819,6 @@ function InventoryPageInner() {
     }
   };
 
-  const saveAiSettings = async () => {
-    setAiSettingsSaving(true);
-    try {
-      const response = await fetch("/api/settings/ai", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          provider: "openai",
-          model: aiConfig?.model ?? "gpt-4.1-mini",
-          api_key: aiApiKeyDraft || undefined,
-          base_url: aiConfig?.baseUrl ?? "",
-          timeout_ms: aiConfig?.timeoutMs ?? 30000,
-          retry_count: aiConfig?.retryCount ?? 1,
-          token_budget: aiConfig?.tokenBudget ?? 2000,
-        }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        config?: AiConfig;
-      };
-      if (!response.ok) throw data;
-      if (data.config) setAiConfig(data.config);
-      setAiApiKeyDraft("");
-      setError(null);
-    } catch (err) {
-      setApiError("Could not save AI settings", "We could not save AI settings.", err);
-    } finally {
-      setAiSettingsSaving(false);
-    }
-  };
-
-  const testAiSettings = async () => {
-    setAiSettingsSaving(true);
-    try {
-      const response = await fetch("/api/settings/ai/test-connection", {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
-      setError({
-        title: "AI connection is ready",
-        message: "Your integrated AI provider responded successfully.",
-        actions: ["You can now use Generate in app for listing drafts."],
-      });
-    } catch (err) {
-      setApiError("AI connection test failed", "We could not verify AI connection.", err);
-    } finally {
-      setAiSettingsSaving(false);
-    }
-  };
-
-  const savePublishSettings = async () => {
-    setAiSettingsSaving(true);
-    try {
-      const updates: Array<{ key: string; value: string }> = [
-        { key: "etsy.publish.taxonomy_id", value: publishConfig.taxonomyId.trim() },
-        { key: "etsy.publish.shipping_profile_id", value: publishConfig.shippingProfileId.trim() },
-        { key: "etsy.publish.readiness_state_id", value: publishConfig.readinessStateId.trim() },
-        { key: "etsy.publish.image_ids", value: publishConfig.imageIds.trim() },
-        { key: "etsy.publish.who_made", value: publishConfig.whoMade.trim() || "i_did" },
-        { key: "etsy.publish.when_made", value: publishConfig.whenMade.trim() || "before_2000" },
-        {
-          key: "etsy.publish.image_max_dimension",
-          value: publishConfig.imageMaxDimension.trim() || "2000",
-        },
-        {
-          key: "etsy.publish.image_target_dpi",
-          value: publishConfig.imageTargetDpi.trim() || "300",
-        },
-        {
-          key: "etsy.publish.image_jpeg_quality",
-          value: publishConfig.imageJpegQuality.trim() || "82",
-        },
-        {
-          key: "etsy.publish.allow_partial_image_upload",
-          value: publishConfig.allowPartialImageUpload.trim() || "false",
-        },
-        {
-          key: "etsy.publish.image_upload_attempts",
-          value: publishConfig.imageUploadAttempts.trim() || "3",
-        },
-      ];
-      for (const update of updates) {
-        const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ value: update.value }),
-        });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        if (!response.ok) throw data;
-      }
-      setError({
-        title: "Publish settings saved",
-        message: "Etsy publish defaults were saved successfully.",
-        actions: ["You can now publish approved listing drafts to Etsy."],
-      });
-    } catch (err) {
-      setApiError(
-        "Could not save publish settings",
-        "We could not save Etsy publish settings.",
-        err
-      );
-    } finally {
-      setAiSettingsSaving(false);
-    }
-  };
-
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -954,7 +846,13 @@ function InventoryPageInner() {
             placeholder="New item description"
             className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/listing-coach"
+              className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-black hover:opacity-90"
+            >
+              Add with Listing Coach
+            </Link>
             <button
               type="button"
               onClick={createInventoryRecord}

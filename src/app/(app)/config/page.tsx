@@ -1060,6 +1060,9 @@ export default function ConfigPage() {
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold">AI settings</h4>
+            <p className="mb-2 text-xs text-[var(--ui-muted)]">
+              Required for <strong>Listing Coach</strong> and Generate in app listing content.
+            </p>
             <input
               value={aiConfig?.model ?? ""}
               onChange={(e) =>

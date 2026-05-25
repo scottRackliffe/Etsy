@@ -66,6 +66,8 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Undo/redo | `documents/adr/0067-undo-redo.md` |
 | Listing quality score and SEO hints | `documents/adr/0068-listing-quality-score.md` |
 | Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
+| Listing Coach (guided new listing) | `documents/adr/0072-listing-coach-guided-new-listing-flow.md` |
+| User guide: Listing Coach | `system/tips/Listing_Coach_Guide.md` |
 | Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
 | Visual design system and UI consistency | `documents/adr/0071-visual-design-system-and-ui-consistency.md` |
 | UI color tokens (hex) | `documents/System_Colors.md` (usage rules: ADR-071) |
@@ -138,7 +140,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-034** (Config) | ADR-027 backup, 039 `tax.default_rate`, 044 `setup.completed`, 057 sync, 069 sample data |
 | **ADR-035** (Deep links) | ADR-020 outstanding, 024 routing query params, 063 recent |
 | **ADR-036** (Reports date picker) | ADR-006, 013 PDF/CSV, 018 §17 per-order docs |
-| **ADR-037** (Activity log) | ADR-017 `activity_log`, 016 dashboard feed, 018 §18, 069 load/remove |
+| **ADR-037** (Activity log) | ADR-017 `activity_log`, 016 dashboard feed, 018 §18, 069 load/remove, **072** `listing.coach_complete` |
 | **ADR-038** (Profit/margin) | ADR-002/017 `other_costs`, 006 reports, 018 §26, 054 aging |
 | **ADR-039** (Tax) | ADR-006 tax report, 013 output, 034/017 `tax.default_rate`, orders `tax_total` |
 | **ADR-040** (Bulk batch) | ADR-021 ship override on **orders**, 032 confirm, 055 print queue, 018 §21 |
@@ -171,6 +173,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-067** (Undo/redo) | ADR-037 audit optional, 021 mutation scope |
 | **ADR-068** (Listing quality) | ADR-023 workshop, 030 inventory, 018 §24 |
 | **ADR-069** (Sample data) | ADR-044 wizard, 034 Config, `fixtures/sample-data.sql`, 018 §27 |
+| **ADR-072** (Listing Coach) | ADR-023 (4th mode), 018 §29, 024 `/listing-coach`, 030/033 pictures, 068 score, 037 activity, ui-design §5.3, Listing_Coach_Guide.md |
 | **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
 | **ADR-071** (Design system) | ADR-028, 045, 059, 060, System_Colors.md, ui-design §1b–1d |
 
@@ -531,6 +534,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Priority 50: Undo/redo (ADR-067)
 - Priority 51: Listing quality score and SEO hints (ADR-068)
 - Priority 52: Sample/demo data for new users (ADR-069)
+- Priority 53: Listing Coach guided new listing (ADR-072)
 
 ---
 

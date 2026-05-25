@@ -389,10 +389,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [loading, setApiError]);
 
   // Load selected item details
-  useEffect(() => {
-    if (!selectedItemId) return;
+  const [publishScopeId, setPublishScopeId] = useState<number | null>(selectedItemId);
+  if (selectedItemId !== publishScopeId) {
+    setPublishScopeId(selectedItemId);
     setPublishPreview(null);
     setPublishHistory(null);
+  }
+
+  useEffect(() => {
+    if (!selectedItemId) return;
     fetch(`/api/inventory/${selectedItemId}`, { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as ApiErrorShape & { item?: InventoryItem };

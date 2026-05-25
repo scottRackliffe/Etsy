@@ -34,13 +34,16 @@ export function InlineEditableCell({
   onTabNext,
   autoFocus,
 }: InlineEditableCellProps) {
+  const editSeed = editing ? `${String(value)}` : "";
   const [draft, setDraft] = useState<string | number | boolean>(value);
+  const [draftSeed, setDraftSeed] = useState(editSeed);
   const skipBlurCommitRef = useRef(false);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
 
-  useEffect(() => {
+  if (editSeed !== draftSeed) {
+    setDraftSeed(editSeed);
     if (editing) setDraft(value);
-  }, [editing, value]);
+  }
 
   useEffect(() => {
     if (editing && autoFocus) {

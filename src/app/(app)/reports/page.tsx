@@ -7,7 +7,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import type { ApiErrorShape } from "@/types";
 
 const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "thank-you-note", label: "Thank You Note" },
@@ -49,7 +48,7 @@ function mondayThisWeek(): string {
 }
 
 export default function ReportsPage() {
-  const { iconConfig, busyAction, setBusyAction, setApiError, setError } = useApp();
+  const { iconConfig, busyAction, setBusyAction, setError } = useApp();
 
   const [reportType, setReportType] = useState("sales");
   const [fromDate, setFromDate] = useState("");

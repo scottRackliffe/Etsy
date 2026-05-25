@@ -268,7 +268,7 @@ function importReceipt(
   const createdCustomer = customerCountAfter > customerCountBefore;
 
   // Resolve or create address
-  const addressId = resolveOrCreateAddress(customerId, receipt);
+  resolveOrCreateAddress(customerId, receipt);
   const addressCountAfter = (
     db.prepare("SELECT COUNT(*) AS c FROM addresses").get() as { c: number }
   ).c;

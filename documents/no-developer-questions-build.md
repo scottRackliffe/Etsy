@@ -299,6 +299,7 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 50. **Undo/redo** — Last N operation undo stack per ADR-067.
 51. **Listing quality score and SEO hints** — Listing score widget per ADR-068.
 52. **Sample/demo data for new users** — Optional demo seed per ADR-069.
+53. **Listing Coach (guided new listing)** — Photos paste, Google Visual Search screenshot, AI compose per ADR-072.
 
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 
@@ -336,3 +337,5 @@ When all priorities are complete, the build is ready for autonomous implementati
 **Recommended before bulk UI (priorities 11+):** Critical batch in audit §8 step 1–3 (mark-shipped semantics, order enums, migration 003, `/api/uploads`, seed API).
 
 **Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — Phase 1b complete (ADR-070/071, ui-design §1b–1d); signed off 2026-05-24.
+
+**Etsy OAuth hold (2026-05-24):** Compliance remediation waves **36+** paused until MyEMS API key is approved. **Listing Coach (priority 53, ADR-072)** is the active build track — see [LISTING_COACH_SCOPE.md](LISTING_COACH_SCOPE.md). Waves **1–35** remain complete on `feature/final-system-completion`.

@@ -117,11 +117,13 @@ Save: "Save shipping defaults" button.
 
 ---
 
-### Section 4: AI settings (EXISTING — no changes)
+### Section 4: AI settings (EXISTING — minor enhancement)
 
 Existing card with model, API key, base URL, timeout. Already implemented.
 
-Minor enhancement: API key input should use `type="password"`.
+- API key input should use `type="password"`.
+- **Listing Coach (ADR-072)** requires a configured AI key. When missing, coach routes return **503** `AI_NOT_CONFIGURED`; Config should show helper text: "Required for Listing Coach and Generate in app."
+- **Test connection** must succeed before coach is offered as primary Inventory CTA (optional UI gate; API enforces regardless).
 
 ---
 

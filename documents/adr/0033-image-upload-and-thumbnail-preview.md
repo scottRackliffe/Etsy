@@ -147,3 +147,7 @@ The "+ Add" button supports multi-file selection:
   - Requires an image serving endpoint or static file configuration.
   - Drag-and-drop needs touch fallback for mobile.
   - Upload progress adds UI complexity.
+
+## Notes
+
+- **Listing Coach (ADR-072):** Uses the same file type/size limits (ADR-026) but adds **clipboard paste** (`⌘V` from macOS Photos) on `/listing-coach`. Pasted images are held in client memory until **complete** uploads to inventory via picture API. Inventory `PictureGrid` may add paste in post-v1; v1 paste is coach-only.

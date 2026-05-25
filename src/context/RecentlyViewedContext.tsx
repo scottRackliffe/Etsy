@@ -26,11 +26,7 @@ type RecentlyViewedContextValue = {
 const RecentlyViewedContext = createContext<RecentlyViewedContextValue | null>(null);
 
 export function RecentlyViewedProvider({ children }: { children: ReactNode }) {
-  const [entries, setEntries] = useState<RecentlyViewedEntry[]>([]);
-
-  useEffect(() => {
-    setEntries(loadRecentlyViewed());
-  }, []);
+  const [entries, setEntries] = useState<RecentlyViewedEntry[]>(() => loadRecentlyViewed());
 
   const addRecentlyViewed = useCallback(
     (entityType: RecentlyViewedEntityType, id: number, label: string) => {

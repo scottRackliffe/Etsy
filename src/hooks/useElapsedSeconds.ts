@@ -4,21 +4,23 @@ import { useEffect, useState } from "react";
 
 export function useElapsedSeconds(active: boolean): number {
   const [elapsed, setElapsed] = useState(0);
+  const [activeSession, setActiveSession] = useState(active);
+
+  if (active !== activeSession) {
+    setActiveSession(active);
+    if (active) setElapsed(0);
+  }
 
   useEffect(() => {
-    if (!active) {
-      setElapsed(0);
-      return;
-    }
+    if (!active) return;
     const start = Date.now();
-    setElapsed(0);
     const timer = window.setInterval(() => {
       setElapsed(Math.floor((Date.now() - start) / 1000));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, [active, activeSession]);
 
-  return elapsed;
+  return active ? elapsed : 0;
 }
 
 export function formatElapsed(seconds: number): string {

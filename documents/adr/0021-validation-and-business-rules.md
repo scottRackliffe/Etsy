@@ -134,6 +134,10 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 - “Non-empty string after trim” means: value is string, and after trimming leading/trailing whitespace, length > 0. Empty string or whitespace-only is invalid when field is required.
 - Client and server must both enforce these rules; server is authoritative (client may validate for UX but server must reject invalid data).
 
+### Listing Coach (ADR-072)
+
+Validation for `POST /api/listing-coach/*` is defined in **ADR-072 § Validation**. Coach **complete** uses the same `item_number` uniqueness and inventory field rules as `POST /api/inventory`. Composed listing fields must satisfy listing title/description/tags rules before workshop **Approve** (same as integrated AI generation).
+
 ### Schema mapping (updated 2026-05-24)
 
 This ADR uses original data model terms. The implementation maps as follows:

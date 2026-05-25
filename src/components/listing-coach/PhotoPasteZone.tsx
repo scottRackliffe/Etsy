@@ -1,0 +1,200 @@
+"use client";
+
+import { useCallback, useRef } from "react";
+import { Button } from "@/components/ui/Button";
+import { createCoachPhoto, revokeCoachPhotos, type CoachPhoto } from "@/components/listing-coach/types";
+
+const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const MAX_BYTES = 15 * 1024 * 1024;
+
+type PhotoPasteZoneProps = {
+  photos: CoachPhoto[];
+  onChange: (photos: CoachPhoto[]) => void;
+  maxPhotos: number;
+  title: string;
+  pasteHint: string;
+  emptyHint?: string;
+};
+
+function validateFile(file: File): string | null {
+  if (!ACCEPT.split(",").includes(file.type)) {
+    return "File must be JPEG, PNG, WebP, or GIF.";
+  }
+  if (file.size > MAX_BYTES) {
+    return "Each image must be 15 MB or smaller.";
+  }
+  return null;
+}
+
+export function PhotoPasteZone({
+  photos,
+  onChange,
+  maxPhotos,
+  title,
+  pasteHint,
+  emptyHint,
+}: PhotoPasteZoneProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const zoneRef = useRef<HTMLDivElement>(null);
+
+  const addFiles = useCallback(
+    (files: FileList | File[]) => {
+      const incoming = Array.from(files);
+      if (incoming.length === 0) return;
+      const room = maxPhotos - photos.length;
+      if (room <= 0) return;
+
+      const next = [...photos];
+      for (const file of incoming.slice(0, room)) {
+        const err = validateFile(file);
+        if (err) continue;
+        next.push(createCoachPhoto(file));
+      }
+      if (next.length !== photos.length) {
+        onChange(next);
+      }
+    },
+    [maxPhotos, onChange, photos]
+  );
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        event.preventDefault();
+        addFiles(files);
+      }
+    },
+    [addFiles]
+  );
+
+  const removePhoto = (id: string) => {
+    const removed = photos.find((p) => p.id === id);
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
+    onChange(photos.filter((p) => p.id !== id));
+  };
+
+  const movePhoto = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= photos.length) return;
+    const next = [...photos];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  };
+
+  const clearAll = () => {
+    revokeCoachPhotos(photos);
+    onChange([]);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-[var(--ui-title)]">{title}</h4>
+        {photos.length > 0 ? (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-xs text-[var(--ui-muted)] hover:text-[var(--ui-body)]"
+          >
+            Clear all
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        ref={zoneRef}
+        tabIndex={0}
+        onPaste={handlePaste}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+        }}
+        className="rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
+      >
+        <p className="text-sm font-medium text-[var(--ui-title)]">{pasteHint}</p>
+        <p className="mt-1 text-xs text-[var(--ui-muted)]">
+          {emptyHint ?? `Up to ${maxPhotos} images · JPEG, PNG, WebP, GIF · max 15 MB each`}
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => zoneRef.current?.focus()}>
+            Click to paste (⌘V)
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+            Choose files…
+          </Button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPT}
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {photos.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {photos.map((photo, index) => (
+            <div
+              key={photo.id}
+              className="relative overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.previewUrl}
+                alt={`Photo ${index + 1}`}
+                className="aspect-square w-full object-cover"
+              />
+              {index === 0 ? (
+                <span className="absolute left-1 top-1 rounded bg-[var(--ui-accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  Hero
+                </span>
+              ) : null}
+              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => movePhoto(index, -1)}
+                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
+                  aria-label="Move left"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removePhoto(photo.id)}
+                  className="rounded px-1 text-[10px] text-[var(--ui-red)]"
+                >
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  disabled={index === photos.length - 1}
+                  onClick={() => movePhoto(index, 1)}
+                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
+                  aria-label="Move right"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}

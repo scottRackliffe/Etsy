@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useId, useRef } from "react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export function Modal({

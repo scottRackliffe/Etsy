@@ -77,6 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | ------------------------ | ----------- | ------------------------------------------------------------------------ |
 | `listing.draft_saved`    | `inventory` | Manual draft saved                                                       |
 | `listing.ai_generated`   | `inventory` | AI listing content generated                                             |
+| `listing.coach_complete` | `inventory` | Listing Coach saved new item. `detail_json`: `{ picture_count, google_photos_count, price_confidence, sale_revenue_set: boolean }` |
 | `listing.exported`       | `inventory` | Portable AI package exported. `detail_json`: `{ export_id }`             |
 | `listing.imported`       | `inventory` | Portable AI draft imported. `detail_json`: `{ export_id, source_label }` |
 | `listing.approved`       | `inventory` | Draft approved for publishing                                            |

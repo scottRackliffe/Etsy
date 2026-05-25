@@ -247,16 +247,22 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
         {!loading && (
           <>
-            <TabBar />
-            <div className="flex justify-end">
-              <StaleDataBadge />
-            </div>
+            {!pathname.startsWith("/listing-coach") ? (
+              <>
+                <TabBar />
+                <div className="flex justify-end">
+                  <StaleDataBadge />
+                </div>
+              </>
+            ) : null}
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
-            <div className="text-xs text-[var(--ui-muted)]">
-              UI quality baseline: clean hierarchy, fast scanning, clear status, and
-              minimal-friction actions.
-            </div>
+            {!pathname.startsWith("/listing-coach") ? (
+              <div className="text-xs text-[var(--ui-muted)]">
+                UI quality baseline: clean hierarchy, fast scanning, clear status, and
+                minimal-friction actions.
+              </div>
+            ) : null}
           </>
         )}
       </main>

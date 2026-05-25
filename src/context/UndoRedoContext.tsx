@@ -73,10 +73,12 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
     redoStackRef.current = redoStack;
   }, [redoStack]);
 
-  useEffect(() => {
+  const [undoPathname, setUndoPathname] = useState(pathname);
+  if (pathname !== undoPathname) {
+    setUndoPathname(pathname);
     setUndoStack([]);
     setRedoStack([]);
-  }, [pathname]);
+  }
 
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));

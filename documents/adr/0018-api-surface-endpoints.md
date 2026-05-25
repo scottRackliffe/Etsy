@@ -16,7 +16,7 @@ Schema: **ADR-017**. Customer sales: **`/api/orders`** + **`order_items`**. Vend
 
 ## Decision
 
-The following endpoints constitute the **full API surface** (sections 1–10 and Extensions §11–§35). All routes are relative to the app base (`/api`). Request/response bodies are JSON unless stated otherwise. Authentication: where “Etsy auth” is required, the server resolves auth via SQLite-backed auth/session records (session id in HTTP-only cookie). Unauthenticated requests to protected routes return 401. Where “none” is stated, the route is public.
+The following endpoints constitute the **full API surface** (sections 1–10 and Extensions §11–§29). All routes are relative to the app base (`/api`). Request/response bodies are JSON unless stated otherwise. Authentication: where “Etsy auth” is required, the server resolves auth via SQLite-backed auth/session records (session id in HTTP-only cookie). Unauthenticated requests to protected routes return 401. Where “none” is stated, the route is public.
 
 ---
 
@@ -482,7 +482,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 
 ---
 
-### Appendix B: Extension endpoint schemas (§12–§28, ADR-027–069)
+### Appendix B: Extension endpoint schemas (§12–§29, ADR-027–072)
 
 Concrete request/response shapes for extension routes. Global contract (§ Global API contract) applies unless noted. Feature ADRs remain authoritative for UI and business rules; this appendix is the implementer’s JSON reference.
 
@@ -819,6 +819,151 @@ List/detail inventory items include when applicable:
 
 **B21) Inventory list (§28)** — `GET /api/inventory?status=Listed&search=&sort_by=margin_pct&sort_dir=desc` — paginated; `status` filter optional; computed profitability fields per B16.
 
+**B29) Listing Coach (§29, ADR-072)**
+
+All three routes: `multipart/form-data`. Auth: App (local mode OK without Etsy token). Requires AI configured.
+
+**B29a) `POST /api/listing-coach/analyze`**
+
+Form fields:
+
+- `item_photos[]` — File[] (required, 1–10)
+- `condition_photos[]` — File[] (optional, 0–5)
+- `google_photos[]` — File[] (optional, 0–3)
+
+200:
+
+```json
+{
+  "ok": true,
+  "photo_review": {
+    "present_shots": ["hero", "detail"],
+    "missing_shots": ["backstamp", "scale"],
+    "advisories": ["Consider a plain background for the hero photo."]
+  },
+  "suggested_identification": "Vintage Fiesta ware pitcher, Homer Laughlin, red glaze",
+  "suggested_condition_code": "Excellent",
+  "price": {
+    "suggested_list_price": 65,
+    "suggested_price_low": 55,
+    "suggested_price_high": 75,
+    "confidence": "medium",
+    "rationale": "Google results show similar red Fiesta pitchers listed $58–72."
+  },
+  "confirm_cards": [
+    {
+      "id": "what_is_it",
+      "question": "What is this item?",
+      "suggested_answer": "Red Fiesta ware pitcher, Homer Laughlin, mid-century.",
+      "optional": false
+    },
+    {
+      "id": "included",
+      "question": "What's included?",
+      "suggested_answer": "One pitcher only.",
+      "optional": false
+    },
+    {
+      "id": "condition",
+      "question": "What condition issues should buyers know?",
+      "suggested_answer": "Excellent vintage condition; light glaze wear on base.",
+      "optional": false
+    },
+    {
+      "id": "buyer",
+      "question": "Who is this for?",
+      "suggested_answer": "Fiesta collectors and vintage kitchen decor buyers.",
+      "optional": false
+    },
+    {
+      "id": "special",
+      "question": "Anything special to highlight?",
+      "suggested_answer": "",
+      "optional": true
+    }
+  ]
+}
+```
+
+- `price.confidence`: `high` | `medium` | `low`
+- `suggested_condition_code`: ADR-002 enum
+- **503** `AI_NOT_CONFIGURED` | **500** `LISTING_ANALYZE_FAILED`
+
+**B29b) `POST /api/listing-coach/compose`**
+
+Form fields:
+
+- Same photo fields as B29a
+- `confirm_answers` — JSON string: `[{ "id": "what_is_it", "answer": "..." }, ...]`
+- `price` — JSON string: `{ "sale_revenue": 65, "accept_offer_note": "Accept offers $55–$60" }` (`sale_revenue` nullable)
+- `identification_override` — optional string
+
+200:
+
+```json
+{
+  "ok": true,
+  "listing_title": "Vintage Red Fiesta Ware Pitcher Homer Laughlin Mid Century Kitchen",
+  "listing_description": "…",
+  "listing_tags": "fiesta pitcher, homer laughlin, red fiesta, vintage pitcher, …",
+  "listing_category_path": "Home & Living > Kitchen & Dining > …",
+  "listing_title_strategy": "…",
+  "listing_product_story": "…",
+  "listing_condition_clarity": "…",
+  "listing_attributes": "…",
+  "listing_pricing_shipping_notes": "…",
+  "listing_quality_checklist": "…",
+  "quality_score": {
+    "score": 82,
+    "hints": ["Add a scale photo for size reference", "You have 11 of 13 tags — add 2 more"]
+  }
+}
+```
+
+- **500** `LISTING_COMPOSE_FAILED`
+
+**B29c) `POST /api/listing-coach/complete`**
+
+Form fields:
+
+- Same photo fields as B29a (v1: re-upload required)
+- `payload` — JSON string:
+
+```json
+{
+  "item_number": "TCT-2026-042",
+  "description": "Red Fiesta pitcher",
+  "status": "In stock",
+  "condition_code": "Excellent",
+  "sale_revenue": 65,
+  "compose": {
+    "listing_title": "…",
+    "listing_description": "…",
+    "listing_tags": "…",
+    "listing_category_path": "…",
+    "listing_title_strategy": "…",
+    "listing_product_story": "…",
+    "listing_condition_clarity": "…",
+    "listing_attributes": "…",
+    "listing_pricing_shipping_notes": "…",
+    "listing_quality_checklist": "…"
+  }
+}
+```
+
+201:
+
+```json
+{
+  "ok": true,
+  "item_id": 123,
+  "item_number": "TCT-2026-042",
+  "picture_count": 4
+}
+```
+
+- **409** duplicate `item_number` | **400** validation
+
 ---
 
 ## Consequences
@@ -831,8 +976,8 @@ List/detail inventory items include when applicable:
 - “App” auth: for single-user app, use the same Etsy cookie when the user is connected; no separate session mechanism is required; protected routes must return 401 when not authenticated.
 - File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
-- Listing generation mode strategy (manual vs integrated AI vs portable handoff) is governed by **ADR-023**. Listing endpoints are in section 4; extensions §24–§28 cover ADR-038–069.
-- **Full extension index:** §12–§28 (ADR-027–069). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
+- Listing generation mode strategy (manual vs integrated AI vs portable handoff vs Listing Coach) is governed by **ADR-023** and **ADR-072**. Listing endpoints are in section 4; extensions §24–§29 cover ADR-038–072.
+- **Full extension index:** §12–§29 (ADR-027–072). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
 - **Print shipping label:** Sales UI command (no separate API required). **No automated connection to any shipping service.** App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md`. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first. See `ui-design.md` and `design-decisions-implementation.md` §1.
 
 ### Extensions (updated 2026-05-24)
@@ -966,3 +1111,15 @@ List/detail `GET /api/customers` responses include `order_count` (ADR-066).
 **§28. Inventory list extensions**
 
 `GET /api/inventory` supports ADR-029 `search`, `sort_by`, `sort_dir`, `limit`, `offset`, plus optional `status` filter (section 4).
+
+**§29. Listing Coach (ADR-072)**
+
+Guided new-listing flow: analyze pasted photos (+ optional Google Visual Search screenshots), compose listing from confirm answers, create inventory row with pictures. Requires integrated AI (Config); Etsy OAuth not required when local mode is active. Full request/response shapes: **ADR-072**.
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/listing-coach/analyze` | App | Photo review, identification, price suggestion, confirm-card seeds |
+| POST | `/api/listing-coach/compose` | App | Final listing + template fields from confirms + images |
+| POST | `/api/listing-coach/complete` | App | Create inventory, store pictures, persist listing draft |
+
+All three accept `multipart/form-data` with `item_photos[]`, optional `condition_photos[]`, optional `google_photos[]`. Image validation per ADR-026. Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).

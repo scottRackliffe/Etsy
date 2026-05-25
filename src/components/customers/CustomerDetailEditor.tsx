@@ -20,11 +20,14 @@ export function CustomerDetailEditor({
   onDirtyChange,
   onPatch,
 }: CustomerDetailEditorProps) {
+  const customerSyncKey = `${customer.id}:${customer.updated_at ?? ""}`;
+  const [draftSyncKey, setDraftSyncKey] = useState(customerSyncKey);
   const [draft, setDraft] = useState<CustomerDetailDraft>(() => customerToDetailDraft(customer));
 
-  useEffect(() => {
+  if (customerSyncKey !== draftSyncKey) {
+    setDraftSyncKey(customerSyncKey);
     setDraft(customerToDetailDraft(customer));
-  }, [customer.id, customer.updated_at]);
+  }
 
   const isDirty = useMemo(
     () => !formStatesEqual(draft, customerToDetailDraft(customer)),

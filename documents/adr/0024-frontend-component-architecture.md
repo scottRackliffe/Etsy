@@ -41,6 +41,8 @@ src/app/
       page.tsx                  # Tutorial and tips tab
     config/
       page.tsx                  # Config/Settings tab
+    listing-coach/
+      page.tsx                  # Listing Coach wizard (ADR-072) — new listing flow
   page.tsx                      # Root redirect → /dashboard
 ```
 

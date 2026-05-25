@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type AppErrorProps = {
   error: Error & { digest?: string };
   reset: () => void;
@@ -25,12 +27,12 @@ export default function GlobalError({ error, reset }: AppErrorProps) {
           >
             Retry
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-4 py-2 text-sm font-medium text-[var(--ui-body)] transition hover:bg-[var(--ui-neutral-hover)]"
           >
             Go to dashboard
-          </a>
+          </Link>
         </div>
       </div>
     </div>

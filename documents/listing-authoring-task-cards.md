@@ -138,7 +138,43 @@ Use this file as the build list for listing-authoring completion.
 
 ---
 
-## 4) Shared UX and Workflow Requirements
+## 4) Listing Coach (ADR-072)
+
+Spec: [0072-listing-coach-guided-new-listing-flow.md](adr/0072-listing-coach-guided-new-listing-flow.md). User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
+
+### 4.1 UI task cards
+
+- Route `src/app/(app)/listing-coach/page.tsx` — full-screen wizard (steps 0–7 per ADR-072).
+- `PhotoPasteZone` — clipboard paste (⌘V), drag-and-drop, file picker; item + condition slots.
+- `GoogleResultsPasteZone` — optional screenshot paste.
+- `ConfirmCard` — suggested answer + Yes / Edit.
+- `ListingPreview` — title, description, tag chips, ADR-068 score hints.
+- Inventory page: **Add new listing with Listing Coach** primary CTA → `/listing-coach`.
+
+### 4.2 API task cards
+
+- `POST /api/listing-coach/analyze` — multipart photos → photo review, identification, price, confirm seeds.
+- `POST /api/listing-coach/compose` — confirms + photos → listing + template fields.
+- `POST /api/listing-coach/complete` — item_number + compose payload + photos → inventory row + ADR-026 storage.
+- 503 `AI_NOT_CONFIGURED` when Config AI missing.
+- Activity log: `listing.coach_complete` (ADR-037).
+
+### 4.3 Backend task cards
+
+- `src/lib/listing-coach.ts` — analyze/compose prompts; load guidance bundle (same as listing-generator).
+- Google screenshot images included in vision prompt as comp source.
+- Price object with confidence + rationale; never block compose on low confidence.
+
+### 4.4 Test task cards
+
+- Paste single and multiple images from clipboard (manual QA on macOS Photos).
+- Analyze with and without Google screenshots.
+- Complete flow creates inventory with pictures and `listing_draft_source=integrated_ai`.
+- Skip price → `sale_revenue` null; item still saved.
+
+---
+
+## 5) Shared UX and Workflow Requirements
 
 - Mode switch is explicit and persisted per item draft.
 - User can edit generated/imported drafts before approval.
@@ -148,7 +184,7 @@ Use this file as the build list for listing-authoring completion.
 
 ---
 
-## 5) Test Task Cards
+## 6) Test Task Cards
 
 ### 5.1 Unit/integration
 
@@ -172,7 +208,7 @@ Use this file as the build list for listing-authoring completion.
 
 ---
 
-## 6) Documentation Task Cards
+## 7) Documentation Task Cards
 
 - Update user docs for three listing modes (non-ADR wording):
   - `Manual`
@@ -185,12 +221,13 @@ Use this file as the build list for listing-authoring completion.
 
 ---
 
-## 7) Completion Gate (for this build slice)
+## 8) Completion Gate (for this build slice)
 
 This slice is complete only when all are true:
 
 - Manual guided form shipped with all required sections.
 - Hybrid export/import endpoints and validation shipped.
 - Integrated AI settings + connection test + generation path shipped.
+- **Listing Coach** (ADR-072) wizard + three API routes shipped.
 - Approval-before-publish enforced in API and UI.
 - Test plan and manual scenarios updated and passing.

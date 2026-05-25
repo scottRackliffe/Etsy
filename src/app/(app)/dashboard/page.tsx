@@ -12,7 +12,6 @@ import { EtsySyncStatus } from "@/components/dashboard/EtsySyncStatus";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useToast } from "@/hooks/useToast";
-import type { ApiErrorShape } from "@/types";
 
 export default function DashboardPage() {
   const {

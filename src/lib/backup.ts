@@ -4,7 +4,6 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { ApiRouteError } from "@/lib/api-error";
 import { logActivity } from "@/lib/activity-log";
-import { logger } from "@/lib/logging";
 import { getSetting, setSetting } from "@/lib/settings-store";
 import { runQuickCheckOnDb } from "@/lib/sqlite-integrity";
 import { getSqliteDatabasePath, getDb, resetSqliteConnection } from "@/lib/sqlite";
