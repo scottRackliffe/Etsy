@@ -51,3 +51,9 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 
 - Full process description and “etc.” (e.g. thumbnails, “copy from another item”) are in [documents/ui-design.md](../ui-design.md) section 5.8. This ADR records the decision for the import mechanisms and commands.
 - **Picture icon (thumbnail):** When an item is entered or when its first picture is added, the app creates the **picture icon** (thumbnail) at that time and stores it (storage approach in ADR-002). Used in pick lists (ADR-015). No picture yet → show placeholder in pick list.
+
+### Implementation notes (updated 2026-05-24)
+
+- **Frontend UI:** The browser-based frontend cannot use a native OS directory picker. ADR-033 specifies the implemented UI: a visual 10-slot grid with drag-and-drop file upload, native browser file picker (`<input type="file">`), thumbnail previews, and drag-to-reorder. Multi-file selection replaces the "select a folder" bulk import for browser contexts.
+- **Backend storage:** ADR-026 specifies the canonical storage layout (`uploads/inventory/<item_id>/pictures/<slot>.<ext>`), file validation, processing with Sharp, and thumbnail generation. These implement the storage and constraint requirements of this ADR.
+- **The import concepts in this ADR remain valid** for any future desktop/Electron context where native OS directory access is available. The browser UI adapts these concepts to the web platform's file access model.

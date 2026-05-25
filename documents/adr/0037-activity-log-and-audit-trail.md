@@ -53,7 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `entity_id` | INTEGER | ID of the affected record (nullable for system-wide actions) |
 | `entity_label` | TEXT | Human-readable label for the record (e.g., item number, order number, customer name) |
 | `detail_json` | TEXT | JSON object with action-specific details (changed fields, old/new values, error messages) |
-| `source` | TEXT | `user` (manual action), `system` (automated — sync, scheduled backup), `etsy` (Etsy API callback) |
+| `source` | TEXT | `user` (manual action), `system` (automated — scheduled backup), `etsy_sync` (Etsy sync operations) |
 | `created_at` | TEXT | ISO 8601 timestamp |
 
 ---
@@ -137,7 +137,7 @@ type LogActivityParams = {
   entityId?: number;
   entityLabel?: string;
   detail?: Record<string, unknown>;
-  source?: "user" | "system" | "etsy";
+  source?: "user" | "system" | "etsy_sync";
 };
 
 function logActivity(params: LogActivityParams): void;

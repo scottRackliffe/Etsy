@@ -44,3 +44,10 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 
 - Full UI flows, command lists, and processes are in [documents/ui-design.md](../ui-design.md). This ADR records the structural and behavioral decisions (tabs, panels, context in place on outstanding click, intuitive design).
 - **Config persistence:** User preferences (e.g. which side is commands vs outstanding, default shipper, business details) are **stored** so they persist across sessions—e.g. in the database (settings table or key-value) or in app-controlled local storage; see ADR-008 (all app data in database). Implementation chooses where; the important point is that layout and defaults persist.
+
+### Implementation status (updated 2026-05-24)
+
+- **Commands panel (deferred to post-v1):** The side commands panel is not implemented in v1. Context-sensitive actions are placed inline on each tab page using the `Button` component (ADR-028). The commands-panel concept remains a design goal for a future iteration when the page layouts stabilize and the action inventory is complete.
+- **Outstanding side panel (deferred to post-v1):** The persistent side panel is not implemented in v1. The full-page **Outstanding tab** fulfills the outstanding-list requirement. Clicking an item in the Outstanding tab navigates to the correct tab and selects the correct record via URL deep linking (ADR-035). This satisfies the "context in place" requirement without the side panel.
+- **Panel layout flip (deferred):** Since neither side panel exists in v1, the panel_layout setting and flip icon are deferred.
+- **All other decisions in this ADR remain in effect:** tab names, tab order, intuitive design principles, and the "context in place" behavior.

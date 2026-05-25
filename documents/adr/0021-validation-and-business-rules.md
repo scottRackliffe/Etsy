@@ -133,3 +133,18 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 - “Non-empty string after trim” means: value is string, and after trimming leading/trailing whitespace, length > 0. Empty string or whitespace-only is invalid when field is required.
 - Client and server must both enforce these rules; server is authoritative (client may validate for UX but server must reject invalid data).
+
+### Schema mapping (updated 2026-05-24)
+
+This ADR uses original data model terms. The implementation maps as follows:
+
+| ADR-021 term | Implementation | Notes |
+|-------------|----------------|-------|
+| `PATCH /api/purchases/[id]` | `PATCH /api/orders/[id]` | Order update endpoint |
+| purchase row(s) | `orders` + `order_items` | |
+| purchase.shipped_without_paid_override | `orders.shipped_without_paid_override` | Audit flag on order header |
+| customer_address_id | Not used in v1 | Ship-to is a snapshot on `orders` (`ship_to_*` fields) |
+| default_address_id | Not used in v1 | Context check: address must belong to customer via `addresses.customer_id` |
+| date_of_purchase | `orders.order_date` | |
+| shipping_cost | `orders.seller_shipping_cost` | |
+| discount_amount | `orders.discount_total` | |

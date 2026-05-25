@@ -77,7 +77,9 @@ Status snapshot:
 
 Status snapshot:
 
-- Remaining: report edge cases not yet finalized. **Action:** Add a section to ADR-013 specifying: (1) empty dataset → generate PDF with "No data found for the selected criteria" message; (2) PDF generation failure → return 500 with `user_message`: "Report generation failed. Please try again."; (3) dates → all date filters use UTC dates (YYYY-MM-DD); the UI converts display dates to/from the user's `date_format` preference.
+- **Done:** Report edge cases finalized in **ADR-013** "Edge cases" section (empty dataset handling, PDF generation failure response, date filter handling). Implemented in `src/lib/reporting.ts` and `src/lib/report-http.ts`.
+- **Done:** Per-order document endpoints (invoice, thank-you note) specified in **ADR-036** and cross-referenced in ADR-013 and ADR-018.
+- **Done:** Date range picker UI specified in **ADR-036**.
 
 ### Data and defaults
 
@@ -192,6 +194,38 @@ A phase is complete only when all are true:
 18. **Deep-link navigation** — Outstanding click-through selects record per ADR-035.
 19. **Reports date picker and per-order docs** — Date range controls and single-order invoice/thank-you per ADR-036.
 20. **Activity log** — Persistent audit trail per ADR-037.
+21. **Per-item profit/loss and margin** — Cost/revenue rollup and margin display per ADR-038.
+22. **Tax tracking and tax report** — Tax fields and report per ADR-039.
+23. **Bulk/batch operations** — Multi-select and batch actions per ADR-040.
+24. **Global search** — Cmd/Ctrl+K cross-entity search per ADR-041.
+25. **Unsaved changes guard and draft recovery** — Navigation guard and local draft recovery per ADR-042.
+26. **Progress indicators for long operations** — Determinate/indeterminate progress per ADR-043.
+27. **First-run setup wizard and onboarding** — Initial setup flow per ADR-044.
+28. **Accessibility and keyboard navigation** — WCAG 2.1 AA baseline per ADR-045.
+29. **Concurrent edit detection** — Optimistic locking via `updated_at` per ADR-046.
+30. **Bulk CSV import for inventory** — CSV import modal and validation per ADR-047.
+31. **Duplicate detection on entry** — Fuzzy-match warnings on create per ADR-048.
+32. **Keyboard shortcuts** — Global and page-specific shortcuts per ADR-049.
+33. **Network loss handling and retry queue** — Offline mutation queue per ADR-050.
+34. **Notification center** — Persistent event log UI per ADR-051.
+35. **Customer purchase history timeline** — Order timeline on customer detail per ADR-052.
+36. **Customer merge and deduplication** — Merge tool for duplicate customers per ADR-053.
+37. **Inventory aging and slow-mover report** — Aging report per ADR-054.
+38. **Print queue for batch printing** — Batch print queue per ADR-055.
+39. **Export to accounting format** — Accounting CSV export per ADR-056.
+40. **Scheduled auto-sync from Etsy** — Configurable sync schedule per ADR-057.
+41. **SQLite hardening** — WAL mode, busy timeout, integrity checks per ADR-058.
+42. **Empty-state calls to action** — Actionable empty states per ADR-059.
+43. **Contextual help tooltips** — Field-level help text per ADR-060.
+44. **Mobile-responsive layout** — Breakpoints and stacked layouts per ADR-061.
+45. **Inline editing on list views** — In-cell edit on DataTable per ADR-062.
+46. **Recently-viewed items** — Recent-items list per ADR-063.
+47. **Inventory value summary widget** — Dashboard inventory value card per ADR-064.
+48. **Customer interaction notes** — Per-customer notes log per ADR-065.
+49. **Repeat customer badge** — Repeat-buyer badge on lists per ADR-066.
+50. **Undo/redo** — Last N operation undo stack per ADR-067.
+51. **Listing quality score and SEO hints** — Listing score widget per ADR-068.
+52. **Sample/demo data for new users** — Optional demo seed per ADR-069.
 
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 
@@ -199,10 +233,10 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 | Gap | Where to specify | Priority |
 |-----|-----------------|----------|
-| Report empty/failure/date behavior | ADR-013 addendum | Medium |
+| ~~Report empty/failure/date behavior~~ | ~~ADR-013 addendum~~ | **Done** (ADR-013 edge cases section, ADR-036) |
 | Currency mapping (country → code) | New doc or ADR-017 Notes | Low (USD-only for v1) |
 | Shipping Info JSON schema per carrier | `shipping-label-carrier-templates.md` | Medium |
 | Mobile/responsive breakpoint behavior | `frontend-architecture.md` §7 (done, but needs testing spec) | Low |
-| Bulk operations (bulk mark-shipped, bulk list) | New ADR or ui-design addendum | Low (post-v1) |
-| Accounting/QuickBooks export | EBC roadmap (future) | Future |
+| ~~Bulk operations (bulk mark-shipped, bulk list)~~ | ~~New ADR or ui-design addendum~~ | **Done** (ADR-040; priorities 23, 38) |
+| ~~Accounting/QuickBooks export~~ | ~~EBC roadmap (future)~~ | **Done** (ADR-056; priority 39) |
 | Catalog generator | EBC roadmap (future) | Future |

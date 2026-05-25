@@ -24,19 +24,15 @@ Each top-level tab becomes a route segment under a shared layout shell. The root
 src/app/
   layout.tsx                    # Root HTML/body, fonts, metadata
   (app)/
-    layout.tsx                  # App shell: header, tab bar, commands panel, outstanding panel
+    layout.tsx                  # App shell: header, tab bar
     dashboard/
       page.tsx                  # Dashboard tab content
     sales/
-      page.tsx                  # Sales/Orders tab content
+      page.tsx                  # Sales/Orders tab — master-detail layout (ADR-031)
     inventory/
-      page.tsx                  # Inventory tab content
-      [id]/
-        page.tsx                # Inventory item detail/edit
+      page.tsx                  # Inventory tab — two-panel: detail + listing workshop (ADR-030)
     customers/
       page.tsx                  # Customers tab content
-      [id]/
-        page.tsx                # Customer detail/edit
     reports/
       page.tsx                  # Reports tab content
     outstanding/
@@ -50,6 +46,8 @@ src/app/
 
 The `(app)` route group wraps all tabbed pages in a shared layout without adding a URL segment.
 
+**Note (updated 2026-05-24):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`) select and scroll to the target record within the list page (ADR-035).
+
 ### 2. App shell layout (`(app)/layout.tsx`)
 
 The shared layout renders:
@@ -58,18 +56,18 @@ The shared layout renders:
 |------|-----------|----------|----------|
 | **Header** | `<AppHeader />` | Top, full width | App name, Etsy connection status indicator, shop selector (when connected) |
 | **Tab bar** | `<TabBar />` | Below header, full width | 8 tabs as `<Link>` elements; active tab highlighted via `usePathname()` |
-| **Commands panel** | `<CommandsPanel />` | Left or right (configurable via `panel_layout` setting) | Context-sensitive commands for the active tab; rendered via tab-specific command config |
-| **Outstanding panel** | `<OutstandingPanel />` | Opposite side from commands | Data-driven to-do list; clicking navigates to correct tab/record (context in place) |
-| **Main content** | `{children}` | Center | Active tab page content |
+| **Main content** | `{children}` | Below tab bar, full width | Active tab page content |
+
+**Note (updated 2026-05-24):** The original ADR-024 included `CommandsPanel` and `OutstandingPanel` as persistent side panels flanking the main content. These are deferred to post-v1 per ADR-009. In v1, context-sensitive actions are placed inline on each page using `Button` components (ADR-028). The Outstanding tab serves as the full-page outstanding list. The `panel_layout` setting and layout swap button are also deferred.
 
 Layout is a CSS grid:
 ```
 header:    full width
 tab-bar:   full width
-body:      [commands] [main-content] [outstanding]
+body:      [main-content]
 ```
 
-Panel sides are swappable via setting (`panel_layout`). An icon button in the header toggles the layout. On mobile (<768px), panels collapse to slide-out drawers.
+On mobile (<768px), the tab bar scrolls horizontally.
 
 ### 3. Component hierarchy
 
@@ -77,27 +75,27 @@ Panel sides are swappable via setting (`panel_layout`). An icon button in the he
 
 | Component | Props | Responsibility |
 |-----------|-------|----------------|
-| `AppHeader` | — | App title, connection status badge, shop selector dropdown, layout swap icon |
+| `AppHeader` | — | App title, connection status badge, shop selector dropdown |
 | `TabBar` | — | Tab links; reads `usePathname()` for active state |
-| `CommandsPanel` | `tab: string` | Renders command buttons for the current tab; receives tab identifier from layout |
-| `OutstandingPanel` | — | Fetches and displays outstanding items; handles click → navigation |
-| `LayoutSwapButton` | — | Toggles `panel_layout` setting |
 
 #### 3.2 Shared UI components (`src/components/ui/`)
 
 | Component | Purpose |
 |-----------|---------|
-| `DataTable` | Sortable, paginated table with column definitions; used by Sales, Inventory, Customers, Reports |
+| `DataTable` | Sortable, paginated table with column definitions; used by Sales, Inventory, Customers, Reports. Supports `search`, `sort_by`, `sort_dir` query params (ADR-029). |
 | `FormField` | Label + input + validation error display; supports text, number, select, textarea |
-| `Modal` | Confirmation dialogs (delete, ship-without-paid override, disconnect) |
+| `Modal` | General-purpose dialog; used by `ConfirmDialog` wrapper (ADR-032) |
+| `Button` | Styled action button with variant (primary, secondary, danger) (ADR-028) |
 | `Toast` | Success/error/info notification banner with auto-dismiss |
 | `EmptyState` | Placeholder when a list has no data |
 | `LoadingSpinner` | Consistent loading indicator |
+| `ErrorPanel` | Error display with retry action |
 | `Badge` | Status badges (Paid, Shipped, Draft, Listed, etc.) |
-| `PictureGrid` | Display/reorder/remove picture slots (used in Inventory detail) |
+| `PictureGrid` | Visual upload grid with drag-and-drop, thumbnail preview, and drag-to-reorder (ADR-033) |
 | `PickList` | Item pick list with thumbnail + name + type-to-filter (ADR-015) |
 | `SearchInput` | Search box with debounce (used in Tutorial tab and item filter) |
 | `PdfPreview` | Report preview with Print / Export PDF / Export CSV / Cancel actions |
+| `ConfirmDialog` | Confirmation wrapper around `Modal` for destructive actions (ADR-032) |
 
 #### 3.3 Tab page components
 
@@ -107,35 +105,39 @@ Each tab page is a server component that may contain client components for inter
 - `DashboardKpiCards` — Revenue MTD, orders this month, items listed, outstanding count
 - `RecentOrdersList` — Last 10 orders with status badges
 - `EtsySyncStatus` — Last sync date, sync button, connection health
+- `ActivityFeed` — Recent activity log entries (ADR-037)
 
 **Sales** (`src/app/(app)/sales/page.tsx`)
-- `OrdersTable` — Filterable order list (date, status, paid/shipped)
-- `OrderDetailCard` — Expanded view of selected order with line items
+- Master-detail layout (ADR-031): order list on left, detail panel on right
+- `OrdersTable` — Filterable order list with search, sort, pagination (ADR-029)
+- `OrderDetailPanel` — Full detail view: header, line items, ship-to, financials, shipping, notes, action buttons
 - `NewOrderForm` — Manual order entry with `PickList` for item selection
 - `MarkPaidButton`, `MarkShippedForm` — Action components with validation
 
 **Inventory** (`src/app/(app)/inventory/page.tsx`)
-- `InventoryTable` — Item list with thumbnail, status, listing state
-- `InventoryDetailForm` — Full edit form (item info, condition, costs)
-- `PictureImportFlow` — Directory picker → preview → confirm → assign slots
+- Two-panel layout (ADR-030): "Inventory detail" panel + "Listing workshop" panel
+- `InventoryTable` — Item list with thumbnail, status, search, sort, pagination (ADR-029)
+- `InventoryDetailPanel` — Core field editing: costs, status, dates, condition, notes (ADR-030)
+- `PictureGrid` — Visual 10-slot upload grid with drag-and-drop (ADR-033)
 - `ConditionSection` — Condition code dropdown, has-issue toggle, notes, condition pictures
 - `ListingAuthoringPanel` — Mode toggle (Manual / Generate / Import), form sections, approve/reject
 - `PublishPreview` — Preview Etsy listing before publish; approve gate
 
 **Customers** (`src/app/(app)/customers/page.tsx`)
-- `CustomersTable` — Customer list with address completeness indicator
+- `CustomersTable` — Customer list with address completeness indicator, search, sort, pagination (ADR-029)
 - `CustomerDetailForm` — Edit form with address management
 - `AddressCard` — Individual address display/edit
 - `CustomerPurchaseHistory` — Orders filtered by customer
 
 **Reports** (`src/app/(app)/reports/page.tsx`)
 - `ReportChooser` — Grid/list of available report types
-- `ReportOptionsForm` — Date range, order/customer selection per report type
+- `ReportDateRange` — From/To date inputs with quick presets (ADR-036)
+- `ReportOptionsForm` — Order/customer selection per report type
 - `ReportViewer` — PDF preview with Print / Export PDF / Export CSV / Cancel (ADR-013)
 
 **Outstanding** (`src/app/(app)/outstanding/page.tsx`)
-- `OutstandingFullList` — Full-page version of the outstanding panel
-- Reuses `OutstandingPanel` component in full-page mode
+- `OutstandingFullList` — Full-page outstanding list with type filtering and auto-refresh
+- Items link to target pages via deep-link query params (ADR-035)
 
 **Tutorial** (`src/app/(app)/tutorial/page.tsx`)
 - `TutorialSearch` — Search over knowledge base content
@@ -144,12 +146,15 @@ Each tab page is a server component that may contain client components for inter
 - `TipsFolderLinks` — Links to files in system/tips/ and custom folder
 
 **Config** (`src/app/(app)/config/page.tsx`)
+- 8 logical sections (ADR-034):
 - `EtsyConnectionCard` — Connect/disconnect, redirect URI, token status
 - `BusinessDetailsForm` — Name, address, logo upload
-- `ShippingInfoForm` — Per-carrier shipping configuration
+- `ShippingDefaultsForm` — Default carrier and shipping preferences
 - `AiSettingsForm` — Provider, model, API key (masked), test connection
-- `PreferencesForm` — Date format, first-day-of-week, panel layout, thumbnail size
-- `BackupSection` — Backup directory, schedule, manual backup trigger
+- `PublishDefaultsForm` — Etsy publish configuration (taxonomy, shipping profile)
+- `DisplayPreferencesForm` — Date format, currency, page size, timezone
+- `IconSection` — User icon/avatar settings
+- `BackupSection` — Backup directory, schedule, manual backup/restore triggers (ADR-027)
 
 ### 4. State management
 
@@ -180,12 +185,14 @@ The `AppProvider` wraps `{children}` in the app shell layout. It fetches connect
 
 Each tab page manages its own list/detail state (selected item, form values, pagination). This state does not need to be global.
 
-#### 4.4 Context-in-place navigation
+#### 4.4 Context-in-place navigation (ADR-035)
 
-When the outstanding panel navigates to a record:
+When the outstanding list navigates to a record:
 1. Router pushes to the correct tab route (e.g. `/sales`)
-2. URL search params encode the target record (e.g. `?order_id=123`)
+2. URL search params encode the target record (e.g. `?orderId=123`)
 3. The target tab page reads search params and auto-selects/scrolls to that record
+4. A brief highlight animation draws attention to the target row
+5. The URL is cleaned (search params removed) after selection
 
 ### 5. File organization
 
@@ -195,13 +202,11 @@ src/
     layout.tsx              # Root layout (HTML, fonts)
     page.tsx                # Redirect to /dashboard
     (app)/
-      layout.tsx            # App shell (header, tabs, panels)
+      layout.tsx            # App shell (header, tabs)
       dashboard/page.tsx
       sales/page.tsx
       inventory/page.tsx
-      inventory/[id]/page.tsx
       customers/page.tsx
-      customers/[id]/page.tsx
       reports/page.tsx
       outstanding/page.tsx
       tutorial/page.tsx
@@ -211,34 +216,35 @@ src/
     shell/
       AppHeader.tsx
       TabBar.tsx
-      CommandsPanel.tsx
-      OutstandingPanel.tsx
-      LayoutSwapButton.tsx
     ui/
       DataTable.tsx
       FormField.tsx
       Modal.tsx
+      Button.tsx
       Toast.tsx
       EmptyState.tsx
       LoadingSpinner.tsx
+      ErrorPanel.tsx
       Badge.tsx
       PictureGrid.tsx
       PickList.tsx
       SearchInput.tsx
       PdfPreview.tsx
+      ConfirmDialog.tsx
     dashboard/
       DashboardKpiCards.tsx
       RecentOrdersList.tsx
       EtsySyncStatus.tsx
+      ActivityFeed.tsx
     sales/
       OrdersTable.tsx
-      OrderDetailCard.tsx
+      OrderDetailPanel.tsx
       NewOrderForm.tsx
       MarkPaidButton.tsx
       MarkShippedForm.tsx
     inventory/
       InventoryTable.tsx
-      InventoryDetailForm.tsx
+      InventoryDetailPanel.tsx
       PictureImportFlow.tsx
       ConditionSection.tsx
       ListingAuthoringPanel.tsx
@@ -250,6 +256,7 @@ src/
       CustomerPurchaseHistory.tsx
     reports/
       ReportChooser.tsx
+      ReportDateRange.tsx
       ReportOptionsForm.tsx
       ReportViewer.tsx
     outstanding/
@@ -262,15 +269,18 @@ src/
     config/
       EtsyConnectionCard.tsx
       BusinessDetailsForm.tsx
-      ShippingInfoForm.tsx
+      ShippingDefaultsForm.tsx
       AiSettingsForm.tsx
-      PreferencesForm.tsx
+      PublishDefaultsForm.tsx
+      DisplayPreferencesForm.tsx
+      IconSection.tsx
       BackupSection.tsx
   hooks/
     useApi.ts               # Generic fetch wrapper with error handling
     useSettings.ts          # Read/write settings
     useOutstanding.ts       # Fetch outstanding items
     usePagination.ts        # Pagination state helper
+    useToast.ts             # Toast notification management
   lib/                      # Existing server-side libraries (unchanged)
   types/
     index.ts                # Shared TypeScript types (Shop, Order, Customer, Inventory, etc.)

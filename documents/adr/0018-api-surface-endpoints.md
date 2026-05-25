@@ -120,7 +120,7 @@ List endpoints return:
 
 | Method | Path           | Auth | Purpose                          | Request                                                         | Response / behavior                                                                                                                                                                                                                                                                                                                                                                   |
 | ------ | -------------- | ---- | -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | /api/sync/etsy | Etsy | Sync Etsy receipts into local DB | Body (optional): { shop_id: number } or none (use default shop) | Fetch receipts from Etsy for the shop; for each receipt not already present (by etsy_receipt_id in purchase), create customer (if new), customer_address (if new), and purchase row(s) per line item; set order_id = etsy_receipt_id, etsy_receipt_id on each purchase. Exact behavior: ADR-019. 200: { synced: number, created_orders: number } or equivalent. 401 if not connected. |
+| POST   | /api/sync/etsy | Etsy | Sync Etsy receipts into local DB | Body (optional): { shop_id: number } or none (use default shop) | Fetch receipts from Etsy for the shop; for each receipt not already present (by etsy_receipt_id in orders), create customer (if new), address (if new), order + order_items rows per line item; set orders.etsy_receipt_id. Exact behavior: ADR-019. 200: { synced: number, created_orders: number } or equivalent. 401 if not connected. |
 
 ---
 
@@ -174,20 +174,21 @@ List endpoints return:
 
 ---
 
-### 7. Purchase / orders (ADR-003, ADR-004)
+### 7. Orders (ADR-003, ADR-004, ADR-019)
 
-| Method        | Path                             | Auth | Purpose                                      | Request                                                                                                                                       | Response / behavior                                                                                                                                                                         |
-| ------------- | -------------------------------- | ---- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET           | /api/purchases                   | App  | List purchases (orders)                      | Query: customer_id?, order_id?, from_date?, to_date?, limit, offset                                                                           | 200: `{ items: [ ... ], pagination }`. Each row per ADR-017 purchase table; optionally include customer name, inventory description.                                                        |
-| GET           | /api/orders/[order_id]           | App  | Get all purchase rows for one order          | Path: order_id                                                                                                                                | 200: { order_id, purchases: [ ... ] } (all rows with that order_id). 404 if none.                                                                                                           |
-| GET           | /api/purchases/[id]              | App  | Get one purchase row                         | Path: id                                                                                                                                      | 200: purchase object. 404 if not found.                                                                                                                                                     |
-| POST          | /api/orders                      | App  | Create new order (one or more purchase rows) | Body: { customer_id, customer_address_id?, items: [ { inventory_id, discount_amount? } ], date_of_purchase? }                                 | Create order_id (e.g. UUID); for each item create purchase row with snapshot from customer/address; set order_id. 201: { order_id, purchases: [ ... ] }. 400 if validation fails (ADR-021). |
-| PATCH         | /api/purchases/[id]              | App  | Update purchase (e.g. mark shipped, notes)   | Body: partial: shipping_date?, shipper?, shipping_cost?, discount_amount?, notes? (validation ADR-021). For mark paid use mark-paid endpoint. | 200: updated. 404. 400 if validation fails.                                                                                                                                                 |
-| POST or PATCH | /api/orders/[order_id]/mark-paid | App  | Mark order as paid                           | Path: order_id                                                                                                                                | Set was_paid=1 for all purchase rows with that order_id. 200: { updated: number }. 404 if order_id not found.                                                                               |
+| Method        | Path                             | Auth | Purpose                                 | Request                                                                                                    | Response / behavior                                                                                                                          |
+| ------------- | -------------------------------- | ---- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET           | /api/orders                      | App  | List orders                             | Query: customer_id?, from_date?, to_date?, search?, sort_by?, sort_dir?, limit, offset                     | 200: `{ items: [ order objects ], pagination }`. Each row per ADR-017 orders table; includes customer name, line item count.                  |
+| GET           | /api/orders/[id]                 | App  | Get one order with line items           | Path: id                                                                                                   | 200: `{ ...order, items: [ order_items ] }`. 404 if not found.                                                                               |
+| POST          | /api/orders                      | App  | Create new order                        | Body: { order_number?, customer_id?, items: [ { inventory_id, quantity?, unit_price? } ], order_date? }     | Create order + order_items rows with ship-to snapshot from customer/address. 201: created order with items. 400 if validation fails (ADR-021). |
+| PATCH         | /api/orders/[id]                 | App  | Update order fields                     | Body: partial order fields (shipping_date?, shipper?, seller_shipping_cost?, notes?, ship_to fields?, etc.) | 200: updated order. 404 if not found. 400 if validation fails.                                                                               |
+| POST or PATCH | /api/orders/[id]/mark-paid       | App  | Mark order as paid                      | Path: id                                                                                                   | Set was_paid=1 on the order. 200: updated order. 404 if not found.                                                                           |
 
-**Mark as paid (order):** The UI “Mark as paid” applies to an order (all purchase rows with the same order_id). The API provides a single endpoint: POST or PATCH /api/orders/[order_id]/mark-paid — sets was_paid=1 for every purchase row with that order_id. 200: { updated: number }. 404 if order_id not found. (Endpoint is in the table above.)
+**Mark as paid (order):** The UI "Mark as paid" applies to an order. The API provides a single endpoint: POST or PATCH /api/orders/[id]/mark-paid — sets was_paid=1. 200: updated order. 404 if order not found.
 
-No DELETE for purchases: we do not support deleting purchase rows (audit trail). Corrections are done via PATCH or support process.
+No DELETE for orders: we do not support deleting order rows (audit trail). Void/cancel by setting `order_status` to ‘void’ or ‘cancelled’. Corrections are done via PATCH.
+
+**Note (updated 2026-05-24):** The original ADR-018 used `/api/purchases` paths from the single-purchase-table design. The implementation uses `/api/orders` and `/api/orders/[id]` for the three-table model (orders + order_items + purchases). The `/api/purchases` paths are deprecated and should not be used for new development. Mark-shipped and link-customer endpoints are defined in section "Additional endpoints and changes" (§13, §14).
 
 ---
 
@@ -293,7 +294,7 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 }
 ```
 
-**5) GET `/api/purchases` success (200, paginated)**
+**5) GET `/api/orders` success (200, paginated)**
 
 ```json
 {
@@ -413,7 +414,62 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 ## Notes
 
 - “App” auth: for single-user app, use the same Etsy cookie when the user is connected; no separate session mechanism is required; protected routes must return 401 when not authenticated.
-- File upload for pictures: multipart/form-data; server stores files per ADR-010 and updates inventory picture columns and thumbnail (ADR-002).
+- File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation mode strategy (manual vs integrated AI vs portable handoff) is governed by **ADR-023**. Any API additions for export/import/approve flow must be added here before implementation is considered complete.
 - **Print shipping label:** Sales UI command (no separate API required). **No automated connection to any shipping service.** App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md`. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first. See `ui-design.md` and `design-decisions-implementation.md` §1.
+
+### Additional endpoints and changes (updated 2026-05-24)
+
+The following endpoints and modifications are specified by ADRs 029-037. They extend the API surface defined in sections 1-10 above.
+
+**11. List endpoint query parameters (ADR-029)**
+
+All list endpoints (`GET /api/inventory`, `GET /api/customers`, `GET /api/orders`) accept these additional optional query parameters:
+
+| Parameter  | Type   | Description                                                                 |
+| ---------- | ------ | --------------------------------------------------------------------------- |
+| `search`   | string | Free-text search across relevant text columns (item_number, description, customer name, etc.) |
+| `sort_by`  | string | Column name to sort by (e.g. `created_at`, `order_date`, `item_number`)     |
+| `sort_dir` | string | `asc` or `desc` (default `desc`)                                            |
+
+The existing `limit`/`offset` pagination contract (section "Pagination contract") applies unchanged.
+
+**12. Outstanding endpoint (ADR-020 implementation)**
+
+| Method | Path              | Auth | Purpose                    | Request                          | Response / behavior                                                          |
+| ------ | ----------------- | ---- | -------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
+| GET    | /api/outstanding  | App  | Aggregated outstanding list | Query: type? (filter by type)   | 200: `{ items: [ { type, type_label, entity_id, summary, date, ... } ] }`. All 6 outstanding types aggregated server-side. |
+
+**13. Mark shipped (ADR-031)**
+
+| Method | Path                              | Auth | Purpose          | Request                                                      | Response / behavior                    |
+| ------ | --------------------------------- | ---- | ---------------- | ------------------------------------------------------------ | -------------------------------------- |
+| POST   | /api/orders/[id]/mark-shipped     | App  | Mark order shipped | Body: `{ shipper, tracking_number?, shipping_date? }`       | 200: updated order. Sets shipping_date, shipper, tracking_number on the order row. |
+
+**14. Link customer to order (ADR-031)**
+
+| Method | Path                              | Auth | Purpose              | Request                           | Response / behavior                    |
+| ------ | --------------------------------- | ---- | -------------------- | --------------------------------- | -------------------------------------- |
+| POST   | /api/orders/[id]/link-customer    | App  | Assign customer to order | Body: `{ customer_id }`         | 200: updated order.                    |
+
+**15. Image serving (ADR-033)**
+
+| Method | Path                    | Auth | Purpose                                   | Request        | Response / behavior                                                         |
+| ------ | ----------------------- | ---- | ----------------------------------------- | -------------- | --------------------------------------------------------------------------- |
+| GET    | /api/uploads/[...path]  | App  | Serve uploaded images and thumbnails      | Path segments  | 200: image binary with correct Content-Type. 404 if file not found. Serves from `uploads/` directory per ADR-026. |
+
+**16. Per-order report documents (ADR-036)**
+
+| Method | Path                                  | Auth | Purpose                          | Request                        | Response / behavior                         |
+| ------ | ------------------------------------- | ---- | -------------------------------- | ------------------------------ | ------------------------------------------- |
+| GET    | /api/reports/invoice/[orderId]        | App  | Invoice PDF/CSV for one order    | Query: format? (pdf/csv)       | 200: PDF or CSV per ADR-013. 404 if not found. |
+| GET    | /api/reports/thank-you-note/[orderId] | App  | Thank-you note for one order     | Query: format? (pdf/csv)       | 200: PDF or CSV per ADR-013. 404 if not found. |
+
+These are convenience aliases for the existing `/api/reports/invoice?order_id=X` and `/api/reports/thank-you-note?order_id=X` endpoints in section 9 above. Both patterns are valid; the path-based routes are preferred for per-order documents.
+
+**17. Activity log (ADR-037)**
+
+| Method | Path           | Auth | Purpose              | Request                                                                 | Response / behavior                                                |
+| ------ | -------------- | ---- | -------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| GET    | /api/activity  | App  | Activity log entries | Query: entity_type?, entity_id?, action?, limit? (default 50), offset? | 200: `{ items: [ { id, action, entity_type, entity_id, entity_label, detail_json, source, created_at } ], pagination }`. |

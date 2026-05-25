@@ -13,10 +13,8 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | `/` | `src/app/page.tsx` | — | Redirects to `/dashboard` |
 | `/dashboard` | `src/app/(app)/dashboard/page.tsx` | Dashboard | KPI cards, recent orders, sync status |
 | `/sales` | `src/app/(app)/sales/page.tsx` | Sales | Order list, detail, new order, mark paid/shipped |
-| `/inventory` | `src/app/(app)/inventory/page.tsx` | Inventory | Item list with status/thumbnail |
-| `/inventory/[id]` | `src/app/(app)/inventory/[id]/page.tsx` | Inventory | Item detail/edit, pictures, listing, condition |
-| `/customers` | `src/app/(app)/customers/page.tsx` | Customers | Customer list |
-| `/customers/[id]` | `src/app/(app)/customers/[id]/page.tsx` | Customers | Customer detail/edit, addresses, purchase history |
+| `/inventory` | `src/app/(app)/inventory/page.tsx` | Inventory | Item list, detail panel, pictures, listing workshop (ADR-030) |
+| `/customers` | `src/app/(app)/customers/page.tsx` | Customers | Customer list, detail panel, addresses, purchase history |
 | `/reports` | `src/app/(app)/reports/page.tsx` | Reports | Report chooser, options, viewer |
 | `/outstanding` | `src/app/(app)/outstanding/page.tsx` | Outstanding | Full-page outstanding list |
 | `/tutorial` | `src/app/(app)/tutorial/page.tsx` | Tutorial | Search, index, articles, tips folder links |
@@ -30,21 +28,17 @@ File: `src/app/(app)/layout.tsx`
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  AppHeader (connection status, shop, swap icon)  │
+│  AppHeader (connection status, shop selector)    │
 ├─────────────────────────────────────────────────┤
 │  TabBar (Dashboard | Sales | Inventory | ... )   │
-├──────────┬─────────────────────┬────────────────┤
-│ Commands │    Main Content     │  Outstanding   │
-│  Panel   │     {children}      │    Panel       │
-│          │                     │                │
-│  (left   │                     │  (right side   │
-│   side   │                     │   by default;  │
-│   by     │                     │   swappable)   │
-│  default)│                     │                │
-└──────────┴─────────────────────┴────────────────┘
+├─────────────────────────────────────────────────┤
+│              Main Content                        │
+│              {children}                          │
+│                                                  │
+└─────────────────────────────────────────────────┘
 ```
 
-The shell reads `panel_layout` from settings to determine which side is commands vs. outstanding.
+**Note (updated 2026-05-24):** The Commands Panel and Outstanding Panel are deferred to post-v1 per ADR-009. In v1, the layout is header + tab bar + full-width main content. Context-sensitive actions are placed inline on each page.
 
 ---
 
@@ -60,7 +54,6 @@ The shell reads `panel_layout` from settings to determine which side is commands
   - Displays app name ("Trudy's Etsy Sales Manager" or from `settings.business_name`)
   - Shows Etsy connection badge: green "Connected" / red "Not Connected"
   - When connected: shop selector dropdown (if multiple shops)
-  - Layout swap icon button (calls `LayoutSwapButton`)
   - Last sync timestamp from `settings.last_etsy_sync_at`
 
 #### `TabBar`
@@ -74,40 +67,14 @@ The shell reads `panel_layout` from settings to determine which side is commands
   - Uses `<Link>` for client-side navigation
   - Tabs use the color palette from `documents/System_Colors.md`
 
-#### `CommandsPanel`
-- **File:** `src/components/shell/CommandsPanel.tsx`
-- **Client component:** Yes
-- **Props:** None (reads pathname for context)
-- **Behavior:**
-  - Reads `usePathname()` to determine active tab
-  - Renders commands specific to the active tab (see ui-design.md §3)
-  - Global commands (Connect/Disconnect Etsy, Refresh) appear on every tab
-  - Commands that require a selection (e.g. Mark Paid) are disabled until a record is selected
-  - Command clicks either trigger an API call directly or open a form/modal
-- **Command configuration:** A `COMMANDS_BY_TAB` constant maps tab paths to command definitions:
-  ```typescript
-  type CommandDef = {
-    label: string;
-    icon?: string;
-    action: string; // identifier for onClick handler
-    requiresSelection?: boolean;
-    requiresConnection?: boolean;
-  };
-  ```
-
-#### `OutstandingPanel`
-- **File:** `src/components/shell/OutstandingPanel.tsx`
-- **Client component:** Yes
-- **Props:** `mode: "panel" | "full-page"` (panel caps at 20 items; full-page shows all)
-- **Behavior:**
-  - Fetches outstanding items from a client-side aggregator that calls multiple endpoints
-  - Each item shows: icon (by type), one-line summary, age/date
-  - Click navigates to correct tab and record via router push with search params
-  - Poll/refresh on 60-second interval when visible
-  - Sort controls (three levels) per ADR-020
-  - When Etsy is unavailable, shows cached data with "may be delayed" note
+**Note (updated 2026-05-24):** `CommandsPanel`, `OutstandingPanel`, and `LayoutSwapButton` are deferred to post-v1 per ADR-009. Context-sensitive actions are placed inline on each page using `Button` components.
 
 ### 3.2 Shared UI components
+
+#### `Button`
+- **File:** `src/components/ui/Button.tsx`
+- **Props:** `{ variant: "primary" | "secondary" | "danger"; children: ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit"; loading?: boolean }`
+- **Behavior:** Styled action button; maps variants to color palette; shows spinner when loading; disabled state grays out.
 
 #### `DataTable`
 - **File:** `src/components/ui/DataTable.tsx`
@@ -189,9 +156,25 @@ The shell reads `panel_layout` from settings to determine which side is commands
 - **Props:** `{ reportUrl: string; reportName: string; onClose: () => void }`
 - **Behavior:** Embeds PDF in an `<iframe>` or `<object>` tag; action bar with Print, Export PDF (download), Export CSV (alternate download URL), Cancel buttons per ADR-013.
 
+#### `ErrorPanel`
+- **File:** `src/components/ui/ErrorPanel.tsx`
+- **Props:** `{ title?: string; message: string; onRetry?: () => void }`
+- **Behavior:** Displays a user-friendly error message with optional retry button; styled with `--ui-red` accent.
+
+#### `ConfirmDialog`
+- **File:** `src/components/ui/ConfirmDialog.tsx`
+- **Props:** `{ open: boolean; title: string; message: string; confirmLabel?: string; onConfirm: () => void; onCancel: () => void; destructive?: boolean }`
+- **Behavior:** Wraps `Modal` for destructive action confirmation (ADR-032); confirm button uses danger variant when `destructive` is true; cancel is always available.
+
 ### 3.3 Tab-specific components
 
 Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
+
+**Dashboard tab:**
+- `DashboardKpiCards` — Revenue MTD, orders this month, items listed, outstanding count
+- `RecentOrdersList` — Last 10 orders with status badges
+- `EtsySyncStatus` — Last sync date, sync button, connection health
+- `ActivityFeed` — Recent activity log entries widget (ADR-037)
 
 **Sales tab:**
 - `NewOrderForm` uses `PickList` for item selection; creates order via `POST /api/orders` then `POST` order items.
@@ -207,6 +190,12 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 **Config tab:**
 - `AiSettingsForm` fields: provider dropdown, model text input, API key (password field, masked in display), base URL (optional), timeout, retry count, token budget. "Test Connection" button calls `POST /api/settings/ai/test-connection`.
 - `BackupSection` per ADR-027.
+
+**Reports tab:**
+- `ReportChooser` — Grid of available report types
+- `ReportDateRange` — From/To date inputs with quick presets (MTD, YTD, last 30 days) per ADR-036
+- `ReportOptionsForm` — Order/customer selection per report type
+- `ReportViewer` (wraps `PdfPreview`) — PDF preview with Print / Export PDF / Export CSV / Cancel
 
 ---
 
@@ -236,11 +225,12 @@ export type CustomerAddress = { id: number; customer_id: number; /* ... */ };
 export type Order = { id: number; order_number: string | null; /* ... */ };
 export type Receipt = { receipt_id: number; order_id: number; /* ... */ };
 export type OutstandingItem = {
-  type: "paid_not_shipped" | "not_paid" | "etsy_not_synced" | "not_listed" | "incomplete_address" | "missing_shipping_cost" | "validation_issue";
-  id: string;
-  summary: string;
-  targetTab: string;
-  targetRecordId: number | string;
+  type: "paid_not_shipped" | "unpaid" | "not_listed" | "missing_address" | "missing_shipping_cost"
+    | "etsy_not_synced" | "validation_issue"; // last two are future types (ADR-020 types 3 & 7)
+  type_label: string;
+  label: string;
+  target_tab: string;
+  target_record_id: number | string;
   date: string;
 };
 export type ReportResult = { report_name: string; generated_at: string; /* ... */ };
@@ -266,7 +256,7 @@ export type ApiError = { ok: false; error: { code?: string; message: string; use
 | 11 | Reports tab | Steps 4–5 + `PdfPreview` | All 8 reports generate and display |
 | 12 | Config tab | Steps 4–5 | All settings editable; Etsy connect/disconnect works |
 | 13 | Tutorial tab | `SearchInput`, `TutorialIndex` | Search and index work; tips folder links open files |
-| 14 | Commands panel | Steps 6–13 | Context-sensitive commands work for all tabs |
+| 14 | Commands panel *(deferred to post-v1)* | Steps 6–13 | Context-sensitive commands work for all tabs |
 | 15 | Delete monolithic page.tsx | All above | Old file removed; all tests pass |
 
 Each step is independently deployable. The monolithic page.tsx can coexist during migration by keeping it at `/legacy` or similar.
@@ -278,7 +268,7 @@ Each step is independently deployable. The monolithic page.tsx can coexist durin
 - Continue using **Tailwind CSS** utility classes (no CSS modules, no styled-components).
 - Color palette from `documents/System_Colors.md` is defined as CSS custom properties in `globals.css`.
 - Responsive breakpoints: mobile (<768px), tablet (768–1024px), desktop (>1024px).
-- On mobile: tab bar scrolls horizontally; command and outstanding panels collapse to slide-out drawers triggered by header icons.
+- On mobile: tab bar scrolls horizontally.
 
 ---
 

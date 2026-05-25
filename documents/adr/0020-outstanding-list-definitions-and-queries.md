@@ -153,7 +153,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 | Field key | Label | Source | Sort value |
 |-----------|-------|--------|------------|
-| `date` | Date | `date_of_purchase` for orders; `created_at` for inventory/customers; `creation_tsz` for Etsy receipts | ISO 8601 string (lexicographic sort) |
+| `date` | Date | `order_date (from orders table)` for orders; `created_at` for inventory/customers; `creation_tsz` for Etsy receipts | ISO 8601 string (lexicographic sort) |
 | `type` | Type | Outstanding type name (e.g. "Paid not shipped", "Not listed") | Alphabetical by type label |
 | `customer_name` | Customer | `ship_to_last_name, ship_to_first_name` for orders; `last_name, first_name` for customers; "Etsy order" for type 3 | Alphabetical (last name first) |
 | `order_id` | Order ID | `order_id` for orders; `item_number` for inventory; `receipt_id` for Etsy | String sort |
@@ -166,4 +166,40 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 - Panel and full-page tab show the same data; only the count or cap may differ (e.g. panel top 20, tab full list).
 - Sort order is user-configurable: three levels, date default first; see "Sort order (user-configurable)" above and ADR-017 settings keys.
 - The outstanding panel auto-refreshes every 60 seconds when visible. The full-page Outstanding tab refreshes on mount and every 60 seconds.
-- Outstanding items are aggregated client-side from API responses; there is no single `/api/outstanding` endpoint. The `useOutstanding` hook (ADR-024) orchestrates the fetch and merge.
+- Outstanding items are aggregated server-side via a `GET /api/outstanding` endpoint (updated from original client-side design). The endpoint runs 6 SQL queries and returns a unified list. The frontend Outstanding tab consumes this endpoint and supports auto-refresh (60 seconds) and type filtering.
+
+### Context-in-place navigation (updated 2026-05-24)
+
+When a user clicks an outstanding item in the Outstanding tab, the app navigates to the relevant page (Sales, Inventory, or Customers) with a deep-link query parameter that selects, scrolls to, and highlights the target record. ADR-035 defines the full deep-link protocol:
+
+- Paid-not-shipped / Unpaid / Missing-shipping-cost / Orders-missing-customer → navigates to `/sales?orderId=<id>`
+- Not-listed → navigates to `/inventory?itemId=<id>`
+- Missing-address → navigates to `/customers?customerId=<id>`
+
+The target page reads the query parameter on mount, fetches the record if not already loaded, scrolls it into view, applies a highlight animation, and cleans the URL. This satisfies the "context in place" requirement from ADR-009 without requiring the side panel.
+
+### Schema mapping (updated 2026-05-24)
+
+This ADR's item descriptions use the original data model terms ("purchase", "purchase row", "customer_address"). The implementation maps as follows:
+
+| ADR-020 term | Implementation | Notes |
+|-------------|----------------|-------|
+| purchase / purchase row | `orders` table (header) + `order_items` (line items) | Outstanding queries run against `orders`, not a separate `purchase` table |
+| order_id (grouping) | `orders.id` | Each `orders` row IS the order |
+| was_paid | `orders.was_paid` | |
+| shipping_date / shipper / shipping_cost | `orders.shipping_date` / `orders.shipper` / `orders.seller_shipping_cost` | |
+| order_status | `orders.order_status` | Values: `active`, `void`, `cancelled` |
+| customer_address | `addresses` table | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
+| etsy_receipt_id | `orders.etsy_receipt_id` | |
+
+### Implemented vs future outstanding types
+
+| API `type` value | ADR-020 type # | Status |
+|-----------------|----------------|--------|
+| `paid_not_shipped` | Type 1 | Implemented |
+| `unpaid` | Type 2 | Implemented |
+| `not_listed` | Type 4 | Implemented |
+| `missing_address` | Type 5 | Implemented |
+| `missing_shipping_cost` | Type 6 | Implemented |
+| `etsy_not_synced` | Type 3 | Future (requires Etsy API call at query time) |
+| `validation_issue` | Type 7 | Future (requires runtime validation checks) |

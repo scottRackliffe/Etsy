@@ -97,6 +97,8 @@ One row per person (not per order). Source: ADR-003. Customer country = billing 
 | created_at         | TEXT    | —                               | ISO 8601 timestamp.                                                            |
 | updated_at         | TEXT    | —                               | ISO 8601 timestamp.                                                            |
 
+**Implementation note (updated 2026-05-24):** The live database schema uses a flat address structure on the `customers` table (`address_1`, `address_2`, `city`, `state`, `postal_code`, `country`) for the customer's primary/billing address, plus `phone` and `notes` fields. The `default_address_id` and `currency_code` columns from the original design remain in the DDL below but may not be populated in v1. The `addresses` table provides additional ship-to addresses per customer. For v1, currency is USD only (per ADR-006 Notes).
+
 ---
 
 ### 4. Table: `addresses`
@@ -125,32 +127,38 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 
 **Note (updated 2026-05-24):** The original ADR-017 used a single `purchase` table. The implementation uses a three-table model (`orders` + `order_items` + `purchases`). This update aligns the canonical schema with the implementation. See `documents/database/SCHEMA_RECONCILIATION.md` for migration details.
 
-| Column                        | Type    | Constraints                        | Source / notes                                                                                                                                         |
-| ----------------------------- | ------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id                            | INTEGER | PRIMARY KEY AUTOINCREMENT          | Surrogate key.                                                                                                                                         |
-| order_id                      | TEXT    | NOT NULL                           | Groups rows into one order. For Etsy: use Etsy receipt ID; for manual: app-generated id (e.g. UUID). One invoice/thank-you per order_id (ADR-003).     |
-| customer_id                   | INTEGER | NOT NULL, REFERENCES customer(id)  | FK to customer.                                                                                                                                        |
-| customer_address_id           | INTEGER | —                                  | Optional FK to customer_address (which address was picked); canonical data is snapshot below.                                                          |
-| inventory_id                  | INTEGER | NOT NULL, REFERENCES inventory(id) | Item purchased.                                                                                                                                        |
-| ship_to_first_name            | TEXT    | —                                  | Snapshot: first name at time of purchase.                                                                                                              |
-| ship_to_last_name             | TEXT    | —                                  | Snapshot: last name at time of purchase.                                                                                                               |
-| ship_to_address_line_1        | TEXT    | —                                  | Snapshot: address line 1.                                                                                                                              |
-| ship_to_address_line_2        | TEXT    | —                                  | Snapshot: address line 2.                                                                                                                              |
-| ship_to_city                  | TEXT    | —                                  | Snapshot: city.                                                                                                                                        |
-| ship_to_state_province        | TEXT    | —                                  | Snapshot: state/province.                                                                                                                              |
-| ship_to_country               | TEXT    | —                                  | Snapshot: country.                                                                                                                                     |
-| ship_to_postal_code           | TEXT    | —                                  | Snapshot: postal code.                                                                                                                                 |
-| date_of_purchase              | TEXT    | —                                  | Date of purchase; format YYYY-MM-DD.                                                                                                                   |
-| shipping_date                 | TEXT    | —                                  | Optional; date shipped.                                                                                                                                |
-| was_paid                      | INTEGER | —                                  | 0 or 1; “Mark as paid” sets to 1 (ADR-020, ADR-021). Default 0.                                                                                        |
-| order_status                  | TEXT    | —                                  | One of: active, void, cancelled. Default active. Void/cancel: exclude from revenue/active reports; no row delete.                                      |
-| discount_amount               | REAL    | —                                  | Discount applied to this sale (ADR-003).                                                                                                               |
-| etsy_receipt_id               | TEXT    | —                                  | Optional; Etsy receipt ID for linking to Etsy (ADR-003).                                                                                               |
-| notes                         | TEXT    | —                                  | Optional.                                                                                                                                              |
-| shipper                       | TEXT    | —                                  | One of: USPS, UPS, FedEx, DHL, Other (ADR-004).                                                                                                        |
-| shipping_cost                 | REAL    | —                                  | Seller’s actual shipping cost (what seller pays carrier) for this shipment (ADR-004).                                                                  |
-| shipped_without_paid_override | INTEGER | —                                  | 0 or 1. Set to 1 when user marks order as shipped via "Ship anyway" despite order not paid (ADR-021). Default 0. Audit only; does not change was_paid. |
-| created_at                    | TEXT    | —                                  | ISO 8601 timestamp.                                                                                                                                    |
+| Column                        | Type    | Constraints                                        | Source / notes                                                                                                                                         |
+| ----------------------------- | ------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id                            | INTEGER | PRIMARY KEY AUTOINCREMENT                          | Surrogate key.                                                                                                                                         |
+| order_number                  | TEXT    | UNIQUE                                             | Human-readable order number. For Etsy: use Etsy receipt ID; for manual: app-generated id (ADR-003, ADR-019).                                           |
+| customer_id                   | INTEGER | REFERENCES customers(id) ON DELETE SET NULL         | FK to customers; nullable (e.g. guest checkout from Etsy).                                                                                             |
+| order_date                    | TEXT    | —                                                  | Date order was placed; format YYYY-MM-DD.                                                                                                              |
+| order_status                  | TEXT    | DEFAULT 'active'                                   | One of: active, void, cancelled. Void/cancel: exclude from revenue/active reports; no row delete.                                                      |
+| payment_status                | TEXT    | —                                                  | Payment status string (e.g. "paid", "unpaid", "refunded").                                                                                             |
+| was_paid                      | INTEGER | DEFAULT 0                                          | 0 or 1; "Mark as paid" sets to 1 (ADR-020, ADR-021).                                                                                                   |
+| shipper                       | TEXT    | —                                                  | One of: USPS, UPS, FedEx, DHL, Other (ADR-004).                                                                                                        |
+| seller_shipping_cost          | REAL    | —                                                  | Seller's actual shipping cost (what seller pays carrier) for this shipment (ADR-004).                                                                  |
+| tracking_number               | TEXT    | —                                                  | Optional carrier tracking number (ADR-031).                                                                                                            |
+| shipped_without_paid_override | INTEGER | DEFAULT 0                                          | 0 or 1. Set to 1 when user marks order as shipped via "Ship anyway" despite order not paid (ADR-021). Audit only; does not change was_paid.            |
+| etsy_receipt_id               | TEXT    | —                                                  | Optional; Etsy receipt ID for linking to Etsy (ADR-003, ADR-019).                                                                                      |
+| shipping_date                 | TEXT    | —                                                  | Optional; date shipped; format YYYY-MM-DD.                                                                                                             |
+| ship_to_first_name            | TEXT    | —                                                  | Snapshot: first name at time of order.                                                                                                                 |
+| ship_to_last_name             | TEXT    | —                                                  | Snapshot: last name at time of order.                                                                                                                  |
+| ship_to_address_line_1        | TEXT    | —                                                  | Snapshot: address line 1.                                                                                                                              |
+| ship_to_address_line_2        | TEXT    | —                                                  | Snapshot: address line 2.                                                                                                                              |
+| ship_to_city                  | TEXT    | —                                                  | Snapshot: city.                                                                                                                                        |
+| ship_to_state_province        | TEXT    | —                                                  | Snapshot: state/province.                                                                                                                              |
+| ship_to_country               | TEXT    | —                                                  | Snapshot: country.                                                                                                                                     |
+| ship_to_postal_code           | TEXT    | —                                                  | Snapshot: postal code.                                                                                                                                 |
+| subtotal                      | REAL    | —                                                  | Sum of line item totals before shipping/tax/discount.                                                                                                  |
+| shipping_total                | REAL    | —                                                  | Shipping amount charged to buyer.                                                                                                                      |
+| tax_total                     | REAL    | —                                                  | Tax collected.                                                                                                                                         |
+| discount_total                | REAL    | —                                                  | Total discount applied to this order.                                                                                                                  |
+| grand_total                   | REAL    | —                                                  | Final total (subtotal + shipping + tax − discount).                                                                                                    |
+| source_channel                | TEXT    | —                                                  | Origin of the order: "etsy" or "manual".                                                                                                               |
+| notes                         | TEXT    | —                                                  | Optional.                                                                                                                                              |
+| created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
+| updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))                 | ISO 8601 timestamp.                                                                                                                                    |
 
 ---
 
@@ -169,7 +177,7 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | ---------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
 | panel_layout                 | Which side is commands vs outstanding                                                            | "commands_left" or "commands_right"                                                 |
 | default_shipper              | Default carrier for new shipments                                                                | "USPS", "UPS", "FedEx", "DHL", "Other"                                              |
-| currency_code                | Single app currency (ADR-008)                                                                    | "USD"                                                                               |
+| currency_code                | Single app currency (ADR-008). Superseded by `ui.currency_code` (ADR-034); kept for backwards compatibility. | "USD"                                                                               |
 | business_name                | Business name for invoices                                                                       | "Trudy's Classic Treasures"                                                         |
 | business_logo_path           | Path to user's logo (stored in system); used in documents (invoices, thank-you, reports, labels) | Path, e.g. "system/logo.png" or "system/assets/logo.png"; empty/null if no logo set |
 | business_address_line_1      | Business address for invoices                                                                    | "123 Main St"                                                                       |
@@ -198,6 +206,11 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | shipping_info_fedex          | Shipping Info for FedEx                                                                          | Same                                                                                |
 | shipping_info_dhl            | Shipping Info for DHL                                                                            | Same                                                                                |
 | shipping_info_other          | Shipping Info for Other carrier                                                                  | Same                                                                                |
+| shipping.default_carrier     | Default carrier for mark-shipped flow (ADR-034)                                                  | "USPS"                                                                              |
+| ui.date_format               | User date display format (ADR-034)                                                               | "MM/DD/YYYY"                                                                        |
+| ui.page_size                 | Records per page in lists (ADR-029, ADR-034)                                                     | "25"                                                                                |
+| ui.currency_code             | Display currency (ADR-034)                                                                       | "USD"                                                                               |
+| activity_log.retention_days  | Days to retain activity log entries (ADR-037)                                                    | "365"                                                                               |
 | etsy_access_token_encrypted  | Current Etsy access token (encrypted)                                                            | Encrypted string/blob                                                               |
 | etsy_refresh_token_encrypted | Current Etsy refresh token (encrypted)                                                           | Encrypted string/blob                                                               |
 | etsy_token_expires_at        | Access token expiry timestamp (ISO 8601)                                                         | "2026-02-16T10:30:00Z"                                                              |
@@ -207,9 +220,9 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 
 ### 7. Indexes (ADR-014)
 
-Indexes are part of the initial schema. Index names are defined in the DDL below (e.g. `idx_purchase_date_of_purchase`); the following columns must be indexed.
+Indexes are part of the initial schema. Index names are defined in the DDL below (e.g. `idx_orders_order_date`); the following columns must be indexed.
 
-- **purchase:** `date_of_purchase` (date-range reports, MTD/YTD); `customer_id` (purchases by customer, thank-you/invoice); `shipper` (postal-by-vendor report); optionally `order_id` (grouping for invoice/thank-you).
+- **orders:** `order_date` (date-range reports, MTD/YTD); `customer_id` (orders by customer, thank-you/invoice); `shipper` (postal-by-vendor report); `etsy_receipt_id` (Etsy sync dedup). **order_items:** `order_id` (join to orders); `inventory_id` (join to inventory).
 - **inventory:** `date_of_sale` (or equivalent date column used in reports); `id` is primary key (joins). Optionally `item_number` (unique already gives lookup).
 - **customer:** `id` is primary key. Optionally `first_name`, `last_name`, or `email` if search by name/email is implemented.
 - **inventory_other_cost:** `inventory_id` (FK; joins to inventory).
@@ -313,6 +326,7 @@ CREATE TABLE orders (
   was_paid INTEGER DEFAULT 0,
   shipper TEXT,
   seller_shipping_cost REAL,
+  tracking_number TEXT,
   shipped_without_paid_override INTEGER DEFAULT 0,
   etsy_receipt_id TEXT,
   shipping_date TEXT,
@@ -388,13 +402,29 @@ CREATE INDEX idx_customers_is_active ON customers(is_active);
 CREATE INDEX idx_inventory_date_of_sale ON inventory(date_of_sale);
 CREATE INDEX idx_inventory_date_listed ON inventory(date_listed);
 CREATE INDEX idx_other_costs_inventory_id ON other_costs(inventory_id);
+
+-- 10. activity_log (ADR-037)
+CREATE TABLE activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_id INTEGER,
+  entity_label TEXT,
+  detail_json TEXT,
+  source TEXT NOT NULL DEFAULT 'user',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_activity_log_created_at ON activity_log(created_at);
+CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
+CREATE INDEX idx_activity_log_action ON activity_log(action);
 ```
 
 ---
 
 ### 9. Etsy interface and SQLite persistence reference
 
-- **Stored in DB for Etsy linkage:** `inventory.etsy_listing_id` (link listing to item); `purchase.etsy_receipt_id` (link purchase row to Etsy receipt); `purchase.order_id` can equal Etsy receipt id when order came from Etsy so that one order = one Etsy receipt.
+- **Stored in DB for Etsy linkage:** `inventory.etsy_listing_id` (link listing to item); `orders.etsy_receipt_id` (link order row to Etsy receipt); `orders.order_number` can equal Etsy receipt id when order came from Etsy so that one order = one Etsy receipt.
 - **Auth/session persistence:** Etsy OAuth token state and session linkage are persisted in SQLite-backed records. HTTP-only cookies carry opaque session ids only.
 - **Etsy data persistence:** Etsy shop/receipt data used by application workflows is persisted in SQLite structures as defined by this ADR and ADR-019.
 
@@ -414,5 +444,5 @@ CREATE INDEX idx_other_costs_inventory_id ON other_costs(inventory_id);
 
 - This ADR is the **authoritative** schema. Implementation migrations (e.g. SQLite CREATE TABLE and CREATE INDEX statements) must match this definition. Any divergence (e.g. extra columns for internal use) should be documented and not conflict with this definition.
 - Date/time format: use consistent ISO 8601 TEXT so sorting and reporting are correct across the app.
-- Currency: app default/reporting currency is `settings.currency_code`. Per-customer currency (`customer.currency_code`) is used for that customer’s invoicing and display; set from billing address country (design-decisions-implementation §3). MTD/YTD and other app-wide monetary aggregates use the app default reporting currency (ADR-006, ADR-008).
+- Currency: app default/reporting currency is `settings.ui.currency_code` (default USD). For v1, all operations use USD only; multi-currency per customer is a future enhancement. MTD/YTD and other app-wide monetary aggregates use the app default reporting currency (ADR-006, ADR-008).
 - **User logo:** When the user sets or uploads a logo in Config, the app stores the logo file in the **system** (e.g. `system/logo.png` or `system/assets/logo.png`) and sets `settings.business_logo_path` to that path. The logo can then be placed on invoices, thank-you notes, reports, and labels. If unset or missing file, documents render without a logo.

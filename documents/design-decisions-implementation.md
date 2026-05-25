@@ -14,17 +14,17 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 2. Customer country and default US; billing address
 
-**Summary:** Customer country = billing address country; no billing → US. Default country for new customer/address = US. Billing = customer.default_address_id (FK to customer_address); no is_billing column.
+**Summary:** Customer country = billing address country; no billing → US. Default country for new customer/address = US. In the live schema, the customer's primary address fields are stored directly on the `customers` table (`country` column); separate ship-to addresses are in the `addresses` table.
 
-**SSOT:** Schema: [ADR-017](adr/0017-database-schema.md) (customer.default_address_id; table and Notes). Behavior (default US, when to use): this document only—no duplication elsewhere; implement from this summary and ADR-017.
+**SSOT:** Schema: [ADR-017](adr/0017-database-schema.md) (customers table and addresses table). Behavior (default US, when to use): this document only—no duplication elsewhere; implement from this summary and ADR-017.
 
 ---
 
 ## 3. Multi-currency (currency per customer)
 
-**Summary:** Currency per customer from billing country (mapping); default USD. Stored on customer.currency_code. Invoicing/thank-you use customer currency; reporting: ADR-006.
+**Summary:** Currency per customer from billing country (mapping); default USD. For v1, all operations use USD only. Multi-currency display on customer records is a future enhancement. Reporting uses the app default currency (`settings.currency_code`).
 
-**SSOT:** Schema: [ADR-017](adr/0017-database-schema.md) (customer.currency_code; Notes). Reporting currency: [ADR-006](adr/0006-reports-scope.md) (Notes).
+**SSOT:** Reporting currency: [ADR-006](adr/0006-reports-scope.md) (Notes). App currency setting: [ADR-017](adr/0017-database-schema.md) (settings table, `ui.currency_code` key).
 
 ---
 
@@ -46,9 +46,9 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 6. Token refresh
 
-**Summary:** Required for production. Refresh on 401 or proactively; single in-flight; retry once after refresh.
+**Summary:** Required for production. Refresh on 401 or proactively (5 min before expiry); single in-flight; retry once after refresh; encrypted at rest (AES-256-GCM); revoked token handling.
 
-**SSOT:** [ADR-007](adr/0007-base-system-etsy-oauth-dashboard-receipts.md) (full section "Token refresh (full behavior)").
+**SSOT:** [ADR-025](adr/0025-token-refresh-middleware.md) (comprehensive spec: proactive/reactive refresh, single-in-flight, retry logic, encryption, revoked tokens, structured logging). Background concepts: [ADR-007](adr/0007-base-system-etsy-oauth-dashboard-receipts.md). Implementation: `src/lib/auth-session.ts`.
 
 ---
 
@@ -56,7 +56,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 **Summary:** Automated backup on schedule; backup directory configurable; full DB (optionally pictures); rolling 25 FIFO; v1 may be DB only—document in Config/help. Settings: backup_directory, backup_schedule.
 
-**SSOT:** This document (no backup ADR yet). Settings keys: [ADR-017](adr/0017-database-schema.md).
+**SSOT:** [ADR-027](adr/0027-backup-and-restore.md) (format, schedule, rolling FIFO retention, API endpoints, restore flow with safety net, error handling, Config UI). Settings keys: [ADR-017](adr/0017-database-schema.md). Frontend UI: ADR-034 (Config page backup/restore section).
 
 ---
 
@@ -86,7 +86,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 11. No ship until paid or override
 
-**Summary:** Do not allow "Mark as shipped" until order is paid unless user explicitly overrides (e.g. "Ship anyway"); message in user terms. When user overrides, store audit flag on each purchase row (purchase.shipped_without_paid_override = 1) per ADR-017.
+**Summary:** Do not allow "Mark as shipped" until order is paid unless user explicitly overrides (e.g. "Ship anyway"); message in user terms. When user overrides, store audit flag on the order row (`orders.shipped_without_paid_override = 1`) per ADR-017.
 
 **SSOT:** [ADR-021](adr/0021-validation-and-business-rules.md) (§5 Purchase/order: "Ship until paid or override").
 

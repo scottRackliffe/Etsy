@@ -85,3 +85,15 @@ The following rules apply. “Restrict” means the delete is rejected with an H
 
 - 409 Conflict is the standard HTTP code for “operation cannot be performed because of state of the resource.” Message body must be human-readable so the UI can display it.
 - “Retire” for inventory: set status = Retired; item remains in DB and in reports but can be filtered out of “active” lists and pick lists (Retired items are excluded from the add-sale pick list per ADR-015).
+
+### Schema mapping (updated 2026-05-24)
+
+This ADR uses the original data model terms. The implementation maps as follows:
+
+| ADR-022 term | Implementation | Notes |
+|-------------|----------------|-------|
+| purchase (row/table) | `orders` + `order_items` | Delete checks reference `order_items.inventory_id` and `orders.customer_id` |
+| customer_address | `addresses` | Column names: `first_line`, `second_line`, `state` |
+| purchase.customer_address_id | Not used in v1 | Ship-to is a snapshot on `orders` (`ship_to_*` fields), not an FK to addresses |
+
+The 409-on-delete behavior remains the same: if inventory has `order_items` referencing it, or customer has `orders` referencing it, deletion is blocked. Address deletion updates any references and returns 204.

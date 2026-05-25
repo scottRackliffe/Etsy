@@ -22,7 +22,50 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 |---|---|
 | Database schema, table/column names, types | `documents/adr/0017-database-schema.md` |
 | API endpoint shape, request/response, status codes | `documents/adr/0018-api-surface-endpoints.md` |
-| UI layout, tabs, commands, outstanding panel | `documents/ui-design.md` |
+| UI layout, tabs, commands, outstanding panel | `documents/ui-design.md` + `documents/adr/0009-ui-layout-tabs-commands-outstanding-detail-card.md` |
+| Frontend component architecture, routing, file org | `documents/adr/0024-frontend-component-architecture.md` |
+| Shared UI component adoption | `documents/adr/0028-shared-component-adoption.md` |
+| Search, filter, sort, pagination for list views | `documents/adr/0029-search-filter-sort-pagination.md` |
+| Inventory detail editing (two-panel layout) | `documents/adr/0030-inventory-detail-editing.md` |
+| Order detail view and editing (master-detail) | `documents/adr/0031-order-detail-view-and-editing.md` |
+| Confirmation dialogs for destructive actions | `documents/adr/0032-confirmation-dialogs.md` |
+| Image upload grid and thumbnail preview | `documents/adr/0033-image-upload-and-thumbnail-preview.md` |
+| Config page completion (8 sections) | `documents/adr/0034-config-completion.md` |
+| Deep-link navigation from Outstanding | `documents/adr/0035-deep-link-navigation.md` |
+| Reports date picker and per-order documents | `documents/adr/0036-reports-date-picker-and-per-order-documents.md` |
+| Activity log and audit trail | `documents/adr/0037-activity-log-and-audit-trail.md` |
+| Per-item profit/loss and margin | `documents/adr/0038-per-item-profit-loss-and-margin.md` |
+| Tax tracking and tax report | `documents/adr/0039-tax-tracking-and-report.md` |
+| Bulk/batch operations | `documents/adr/0040-bulk-batch-operations.md` |
+| Global search (Cmd/Ctrl+K) | `documents/adr/0041-global-search.md` |
+| Unsaved changes guard and draft recovery | `documents/adr/0042-unsaved-changes-guard-and-draft-recovery.md` |
+| Progress indicators for long operations | `documents/adr/0043-progress-indicators-for-long-operations.md` |
+| First-run setup wizard and onboarding | `documents/adr/0044-first-run-setup-wizard-and-onboarding.md` |
+| Accessibility and keyboard navigation | `documents/adr/0045-accessibility-and-keyboard-navigation.md` |
+| Concurrent edit detection | `documents/adr/0046-concurrent-edit-detection.md` |
+| Bulk CSV import for inventory | `documents/adr/0047-bulk-csv-import-for-inventory.md` |
+| Duplicate detection on entry | `documents/adr/0048-duplicate-detection-on-entry.md` |
+| Keyboard shortcuts | `documents/adr/0049-keyboard-shortcuts.md` |
+| Network loss handling and retry queue | `documents/adr/0050-network-loss-handling-and-retry-queue.md` |
+| Notification center | `documents/adr/0051-notification-center.md` |
+| Customer purchase history timeline | `documents/adr/0052-customer-purchase-history-timeline.md` |
+| Customer merge and deduplication | `documents/adr/0053-customer-merge-and-dedup.md` |
+| Inventory aging and slow-mover report | `documents/adr/0054-inventory-aging-and-slow-mover-report.md` |
+| Print queue for batch printing | `documents/adr/0055-print-queue-for-batch-printing.md` |
+| Export to accounting format | `documents/adr/0056-export-to-accounting-format.md` |
+| Scheduled auto-sync from Etsy | `documents/adr/0057-scheduled-auto-sync-from-etsy.md` |
+| SQLite hardening (WAL, integrity) | `documents/adr/0058-sqlite-hardening.md` |
+| Empty-state calls to action | `documents/adr/0059-empty-state-calls-to-action.md` |
+| Contextual help tooltips | `documents/adr/0060-contextual-help-tooltips.md` |
+| Mobile-responsive layout | `documents/adr/0061-mobile-responsive-layout.md` |
+| Inline editing on list views | `documents/adr/0062-inline-editing-on-list-views.md` |
+| Recently-viewed items | `documents/adr/0063-recently-viewed-items.md` |
+| Inventory value summary widget | `documents/adr/0064-inventory-value-summary-widget.md` |
+| Customer interaction notes | `documents/adr/0065-customer-interaction-notes.md` |
+| Repeat customer badge | `documents/adr/0066-repeat-customer-badge.md` |
+| Undo/redo | `documents/adr/0067-undo-redo.md` |
+| Listing quality score and SEO hints | `documents/adr/0068-listing-quality-score.md` |
+| Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
 | Validation and business rules | `documents/adr/0021-validation-and-business-rules.md` |
 | Delete / referential integrity | `documents/adr/0022-referential-integrity-and-delete-behavior.md` |
 | Outstanding list definitions and queries | `documents/adr/0020-outstanding-list-definitions-and-queries.md` |
@@ -31,7 +74,9 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Dashboard content and behavior | `documents/adr/0016-dashboard-content-and-behavior.md` |
 | Inventory data model | `documents/adr/0002-inventory-data-model.md` |
 | Customer and purchase model | `documents/adr/0003-customer-and-purchase-data-model.md` |
-| Picture import / thumbnail | `documents/adr/0010-inventory-picture-import-process.md` |
+| Picture import / thumbnail (backend storage) | `documents/adr/0010-inventory-picture-import-process.md` + `documents/adr/0026-picture-storage-and-thumbnails.md` |
+| Token refresh middleware | `documents/adr/0025-token-refresh-middleware.md` |
+| Backup and restore | `documents/adr/0027-backup-and-restore.md` |
 | Item pick list | `documents/adr/0015-add-sale-to-current-customer-item-pick-list.md` |
 | Listing content generation modes | `documents/adr/0023-listing-content-generation-modes.md` |
 | Listing template and AI inputs | `documents/etsy-listing-template-and-requirements.md` |
@@ -40,8 +85,53 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Shipping label behavior | `documents/shipping-label-carrier-templates.md` |
 | Design decisions (23 cross-cutting decisions) | `documents/design-decisions-implementation.md` |
 | UI color palette and CSS variables | `documents/System_Colors.md` |
-| Implementation phase order | `documents/development-plan.md` |
+| Implementation priority order | `documents/no-developer-questions-build.md` §4 |
 | Knowledge base / tutorial tab | `documents/knowledge-base-design.md` |
+| Full ADR index | `documents/adr/README.md` |
+
+---
+
+## 1b. DOCUMENTATION CONSISTENCY — mandatory when changing any ADR
+
+**Rule: When you modify an ADR, you MUST check and update all ADRs it cross-references.**
+
+The doc set is designed for "no developer questions" mode. A contradiction between ADRs means a
+developer will guess — which means bugs. Before finishing any ADR change:
+
+1. Read the "impacted by" list below for the ADR you changed.
+2. Open each impacted ADR and verify the change doesn't contradict it.
+3. If it does, update the impacted ADR with a dated note or corrected content.
+4. Update this `.cursorrules` file if canonical values change.
+
+### ADR cross-reference map (which ADRs impact which)
+
+| ADR | Impacted by / cross-references |
+|-----|-------------------------------|
+| **ADR-009** (UI layout) | ADR-028 (component adoption), ADR-032 (confirmation dialogs), ADR-035 (deep linking). Commands panel and outstanding side panel are **deferred to post-v1**. |
+| **ADR-010** (Picture import) | ADR-026 (backend storage), ADR-033 (frontend upload grid). Browser uses file picker + drag-and-drop, NOT directory picker. |
+| **ADR-003** (Customer model) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
+| **ADR-004** (Shipper) | ADR-017, ADR-031 (schema mapping: purchase/shipment → orders table with tracking_number). |
+| **ADR-006** (Reports scope) | ADR-017 (schema mapping: purchase → orders + order_items), ADR-036 (per-order endpoints). |
+| **ADR-013** (Reports output) | ADR-036 (per-order endpoints, date range UI). Schema mapping: purchase → orders + order_items. Edge cases section added. |
+| **ADR-016** (Dashboard) | ADR-028 (shared components), ADR-037 (activity feed widget). |
+| **ADR-017** (DB schema) | ADR-031 (adds `tracking_number` to orders), ADR-037 (adds `activity_log` table). Section 5 matches DDL in section 8. |
+| **ADR-018** (API surface) | ADR-029 (search/sort/pagination query params), ADR-031 (mark-shipped, link-customer), ADR-033 (`/api/uploads`), ADR-036 (per-order report routes), ADR-037 (`/api/activity`). New endpoints in section "Additional endpoints and changes." |
+| **ADR-019** (Etsy sync) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
+| **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
+| **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
+| **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
+| **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory two-panel), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). |
+| **ADR-027** (Backup) | ADR-034 (Config page UI for backup/restore section). |
+
+### Canonical enum values (authoritative — never use alternatives)
+
+- **Inventory status:** `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired` (ADR-002, ADR-017)
+- **Condition code:** `Mint/Near Mint`, `Excellent`, `Very Good`, `Good`, `Fair/As-Is` (ADR-002, ADR-017)
+- **Order status:** `active`, `void`, `cancelled` (ADR-017)
+- **Listing draft state:** `draft`, `generated`, `imported`, `approved`, `published`
+- **Listing draft source:** `manual`, `integrated_ai`, `portable_import`
+- **Source channel:** `etsy`, `manual`
+- **Shipper:** `USPS`, `UPS`, `FedEx`, `DHL`, `Other` (ADR-004)
 
 ---
 
@@ -64,15 +154,21 @@ city, state, postal_code, country, is_default,
 created_at, updated_at
 ```
 
-### `orders` table — order header with totals (NOT just order_id grouping on purchases)
+### `orders` table — order header with totals and ship-to snapshot
 ```
 id, order_number, customer_id, order_date, order_status, payment_status,
+was_paid, shipper, seller_shipping_cost, tracking_number,
+shipped_without_paid_override, etsy_receipt_id, shipping_date,
+ship_to_first_name, ship_to_last_name,
+ship_to_address_line_1, ship_to_address_line_2,
+ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code,
 subtotal, shipping_total, tax_total, discount_total, grand_total,
 source_channel, notes, created_at, updated_at
 ```
 - `order_status`: active | void | cancelled
 - `payment_status`: unpaid | paid
 - `source_channel`: etsy | manual
+- `tracking_number`: carrier tracking number (ADR-031)
 
 ### `order_items` table — line items per order
 ```
@@ -115,7 +211,10 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `pictures_matter_url`, `tutorial_system_folder_path`,
 `last_etsy_sync_at`, `default_picture_directory`, `thumbnail_size`,
 `outstanding_sort_*`, `date_format`, `first_day_of_week`,
-`backup_directory`, `backup_schedule`, `shipping_info_usps/ups/fedex/dhl/other`
+`backup_directory`, `backup_schedule`, `shipping_info_usps/ups/fedex/dhl/other`,
+`shipping.default_carrier` (ADR-034), `ui.date_format` (ADR-034),
+`ui.page_size` (ADR-029/034), `ui.currency_code` (ADR-034),
+`activity_log.retention_days` (ADR-037)
 
 ### `etsy_receipts` table — raw Etsy receipt cache
 ```
@@ -133,6 +232,13 @@ listing_publish_previews: id, inventory_id, preview_hash, payload_json, created_
 ```
 id, inventory_id, cost_type, amount, note, created_at, updated_at
 ```
+
+### `activity_log` table — audit trail (ADR-037)
+```
+id, action, entity_type, entity_id, entity_label, detail_json, source, created_at
+```
+- `source`: `user` | `system` | `etsy_sync` (ADR-037 uses `etsy`; canonical is `etsy_sync`)
+- Retention: 365 days (configurable via `activity_log.retention_days` setting)
 
 ### `report_artifacts` table — generated report metadata
 ```
@@ -172,19 +278,30 @@ id, report_name, report_params_json, artifact_path, artifact_json, generated_at
 ```
 NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `bg-[var(--ui-*)]`.
 
-### Layout structure (ui-design.md §1)
+### Layout structure (ADR-024 updated, ui-design.md §1)
 - Tabs: top, full width — Dashboard | Sales | Inventory | Customers | Reports | Tutorial & Tips | Outstanding | Config
-- Commands panel: left OR right (configurable; setting: `panel_layout`)
-- Outstanding/To-do panel: opposite side from commands
-- Content: center/main area
+- **v1 layout:** Header + Tab bar + Main content (full width). No side panels.
+- **Deferred to post-v1:** Commands panel and Outstanding side panel (ADR-009 notes)
 - Header: app name, Etsy connection status, shop selector
+- All pages use shared components: `Button`, `DataTable`, `FormField`, `Modal`, `Toast`, `EmptyState`, `LoadingSpinner`, `Badge`, `ErrorPanel` (ADR-028)
+- Destructive actions use `ConfirmDialog` wrapper (ADR-032)
 
 ### Tabs and their commands: `documents/ui-design.md` §2 and §3 — read before building any tab
 
-### Outstanding panel behavior
+### Page layouts
+- **Sales:** Master-detail — order list + order detail panel (ADR-031)
+- **Inventory:** Two-panel — inventory detail + listing workshop (ADR-030)
+- **No detail sub-routes:** Detail views are inline panels, NOT separate `[id]/page.tsx` routes (ADR-024)
+
+### Outstanding behavior
+- Full-page Outstanding tab (not a side panel in v1)
 - Data-driven only (no user-added tasks)
-- Click an item → navigate to correct tab AND open/select correct record (context in place)
-- No separate overlay/modal — main content area shows the right tab and record
+- Server-side aggregation via `GET /api/outstanding` endpoint
+- Click an item → deep-link navigate to correct tab with query param (ADR-035):
+  - Orders → `/sales?orderId=<id>`
+  - Inventory → `/inventory?itemId=<id>`
+  - Customers → `/customers?customerId=<id>`
+- Target page reads param, selects/scrolls to record, highlights, cleans URL
 - Full definitions and queries: `documents/adr/0020-outstanding-list-definitions-and-queries.md`
 
 ### Forms and validation
@@ -248,14 +365,16 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 9. PICTURES AND FILE HANDLING
 
-- Directory picker → preview thumbnails from folder → user confirms → import to slots
+- **Frontend (ADR-033):** Visual 10-slot grid with drag-and-drop upload, file picker, thumbnail preview, drag-to-reorder
+- **Backend (ADR-026):** File validation, Sharp processing, canonical storage paths, thumbnail generation
 - Main pictures: picture_1..picture_10 (picture_1 = primary/hero)
 - Condition pictures: condition_picture_1..condition_picture_5
 - Always show "Why pictures matter" link near any picture import UI
-- Storage: paths stored in DB; files in `uploads/inventory/<item_id>/`
-- Thumbnail: JPEG, 200×200 default; stored at `thumbnail_path`
-- Allow: JPEG, PNG, WebP; reject others
-- Full spec: `documents/adr/0010-inventory-picture-import-process.md`
+- Storage: paths stored in DB; files in `uploads/inventory/<item_id>/pictures/`
+- Thumbnail: JPEG, max 200px dimension; stored at `thumbnail_path`; auto-regenerated when picture_1 changes
+- Allow: JPEG, PNG, WebP, GIF; reject others; max 15 MB per file
+- Image serving: `GET /api/uploads/[...path]` (ADR-018 §15, ADR-033)
+- Full spec: `documents/adr/0026-picture-storage-and-thumbnails.md` (backend) + `documents/adr/0033-image-upload-and-thumbnail-preview.md` (frontend)
 
 ---
 
@@ -284,7 +403,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 12. WHAT'S BUILT vs WHAT'S PENDING
 
-### Built and working:
+### Built and working (Priorities 1-7 complete):
 - OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
 - Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
 - Dashboard (connected/not-connected states, shop selector, receipts table)
@@ -292,19 +411,61 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Schema reconciliation completed (three-table order model: orders + order_items + purchases)
 - Listing readiness check, content generation, export/import, approve/reject, publish-to-Etsy
 - Full CRUD for inventory, customers, orders, purchases, addresses, other-costs
-- All 9 report endpoints (PDF + CSV)
+- Etsy sync full flow (ADR-019): receipt → customer + address + order + order_items
+- Outstanding list with server-side API, auto-refresh, type filtering (ADR-020)
+- Picture storage and thumbnails (ADR-026): file validation, Sharp processing, canonical paths
+- Report edge cases (ADR-013): empty data handling, PDF failure response, date filtering
+- All 9 report endpoints (PDF + CSV) with date parameters
 - AI settings API with masked values and connection test
 - Global API error model + structured logging
 - Migration system + seed data
 
-### Pending (priority order per `documents/no-developer-questions-build.md`):
-- Priority 4: Etsy sync full flow (receipt → customer + address + order + order_items per ADR-019)
-- Priority 5: Outstanding panel and context-in-place (per ADR-020)
-- Priority 6: Picture storage and thumbnails (per ADR-026)
-- Priority 7: Report edge cases (empty/failure/date behavior per ADR-013)
+### Pending (priority order per `documents/no-developer-questions-build.md` §4):
 - Priority 8: Backup system (per ADR-027)
-- Priority 9: Remaining UI (Config, Tutorial, Shipping labels)
+- Priority 9: Remaining UI — Config, Tutorial, Shipping labels
 - Priority 10: Shipping Info schema and currency mapping
+- Priority 11: Shared component adoption (ADR-028)
+- Priority 12: Search, filter, sort, pagination (ADR-029)
+- Priority 13: Inventory detail editing (ADR-030)
+- Priority 14: Order detail view (ADR-031)
+- Priority 15: Confirmation dialogs (ADR-032)
+- Priority 16: Image upload and thumbnail preview (ADR-033)
+- Priority 17: Config completion (ADR-034)
+- Priority 18: Deep-link navigation (ADR-035)
+- Priority 19: Reports date picker and per-order docs (ADR-036)
+- Priority 20: Activity log (ADR-037)
+- Priority 21: Per-item profit/loss and margin (ADR-038)
+- Priority 22: Tax tracking and tax report (ADR-039)
+- Priority 23: Bulk/batch operations (ADR-040)
+- Priority 24: Global search (ADR-041)
+- Priority 25: Unsaved changes guard and draft recovery (ADR-042)
+- Priority 26: Progress indicators for long operations (ADR-043)
+- Priority 27: First-run setup wizard and onboarding (ADR-044)
+- Priority 28: Accessibility and keyboard navigation (ADR-045)
+- Priority 29: Concurrent edit detection (ADR-046)
+- Priority 30: Bulk CSV import for inventory (ADR-047)
+- Priority 31: Duplicate detection on entry (ADR-048)
+- Priority 32: Keyboard shortcuts (ADR-049)
+- Priority 33: Network loss handling and retry queue (ADR-050)
+- Priority 34: Notification center (ADR-051)
+- Priority 35: Customer purchase history timeline (ADR-052)
+- Priority 36: Customer merge and deduplication (ADR-053)
+- Priority 37: Inventory aging and slow-mover report (ADR-054)
+- Priority 38: Print queue for batch printing (ADR-055)
+- Priority 39: Export to accounting format (ADR-056)
+- Priority 40: Scheduled auto-sync from Etsy (ADR-057)
+- Priority 41: SQLite hardening (ADR-058)
+- Priority 42: Empty-state calls to action (ADR-059)
+- Priority 43: Contextual help tooltips (ADR-060)
+- Priority 44: Mobile-responsive layout (ADR-061)
+- Priority 45: Inline editing on list views (ADR-062)
+- Priority 46: Recently-viewed items (ADR-063)
+- Priority 47: Inventory value summary widget (ADR-064)
+- Priority 48: Customer interaction notes (ADR-065)
+- Priority 49: Repeat customer badge (ADR-066)
+- Priority 50: Undo/redo (ADR-067)
+- Priority 51: Listing quality score and SEO hints (ADR-068)
+- Priority 52: Sample/demo data for new users (ADR-069)
 
 ---
 

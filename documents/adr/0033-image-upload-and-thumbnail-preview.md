@@ -67,8 +67,8 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 1. **File selection:** User drops a file onto an empty slot, or clicks an empty slot and selects a file, or clicks the global "+ Add" button (which uploads to the first empty slot).
 2. **Validation (client-side pre-check):**
    - File type must be JPEG, PNG, WebP, or GIF.
-   - File size must be ≤ 20 MB.
-   - If invalid: toast error with specific reason ("File must be JPEG, PNG, WebP, or GIF" or "File must be under 20 MB").
+   - File size must be ≤ 15 MB.
+   - If invalid: toast error with specific reason ("File must be JPEG, PNG, WebP, or GIF" or "File must be under 15 MB").
    - Do not send invalid files to the server.
 3. **Upload:** Send as `multipart/form-data` to `POST /api/inventory/[id]/pictures` with fields `slot` (number) and `file` (the image blob).
 4. **Progress indicator:** Replace the slot content with a circular progress indicator or indeterminate spinner during upload.

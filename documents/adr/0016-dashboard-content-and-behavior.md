@@ -14,19 +14,19 @@ The dashboard is the home view of the application. We need a single, unambiguous
 
 ## Decision
 
-The **dashboard** is the application’s home view. Its content, structure, and behavior are defined as follows.
+The **dashboard** is the application's home view. Its content, structure, and behavior are defined as follows.
 
-**Scope of this ADR:** This describes the dashboard as it exists in the base system (single full page, no tabbed layout yet). When the full tabbed UI (ADR-009) is implemented, the dashboard becomes the content of the “Dashboard” tab; the structure below still applies to that tab’s content, with the addition of the shared chrome (tabs, commands panel, outstanding panel) described in ADR-009 and ui-design.md.
+**Scope of this ADR:** This describes the dashboard as it exists in the base system (single full page, no tabbed layout yet). When the full tabbed UI (ADR-009) is implemented, the dashboard becomes the content of the "Dashboard" tab; the structure below still applies to that tab's content, with the addition of the shared chrome (tabs, commands panel, outstanding panel) described in ADR-009 and ui-design.md.
 
 ---
 
 ### 1. Layout (single full page)
 
 - **Header (top, full width)**
-  - **Left:** Application title (e.g. “Trudy’s Etsy Sales”).
+  - **Left:** Application title (e.g. "Trudy's Etsy Sales").
   - **Right:** One of:
-    - **“Connect Etsy”** button (when not connected) — primary action; navigates to `/api/auth/etsy`.
-    - **“Disconnect”** button (when connected) — calls logout (POST `/api/auth/logout` or equivalent); clears session and returns the view to “not connected” state.
+    - **"Connect Etsy"** button (when not connected) — primary action; navigates to `/api/auth/etsy`.
+    - **"Disconnect"** button (when connected) — calls logout (POST `/api/auth/logout` or equivalent); clears session and returns the view to "not connected" state.
 
 - **Main content (below header)**
   - Centered, constrained width (e.g. max-width container).
@@ -41,29 +41,29 @@ When the user is **not** authenticated with Etsy (no valid token / not connected
 - **Do not** show the shop selector or the receipts table.
 - **Show:**
   - A short, plain-language message: "Connect your Etsy account to view and manage your sales." (Or equivalent approved wording; no other variant without updating this ADR.)
-  - A single primary action: **“Connect with Etsy”** (or equivalent), which starts the OAuth flow (e.g. redirect to `/api/auth/etsy`).
+  - A single primary action: **"Connect with Etsy"** (or equivalent), which starts the OAuth flow (e.g. redirect to `/api/auth/etsy`).
 - **Optional:** If the OAuth callback returned an error (e.g. user denied, or error query param on the redirect), show that error message clearly (e.g. in an alert or inline message) so the user understands why they are not connected.
-- **Loading:** While checking connection (e.g. calling `/api/shop` or auth check), show a brief loading indication (e.g. “Checking connection…”); then show either “not connected” or “connected” content.
+- **Loading:** While checking connection (e.g. calling `/api/shop` or auth check), show a brief loading indication (e.g. "Checking connection…"); then show either "not connected" or "connected" content.
 
 ---
 
 ### 3. State: Connected
 
-When the user **is** authenticated with Etsy (valid token, “connected”):
+When the user **is** authenticated with Etsy (valid token, "connected"):
 
-- **Header:** Show “Disconnect” (as above).
+- **Header:** Show "Disconnect" (as above).
 
 - **Shop selector**
   - Appears at the top of the main content area.
-  - **Control:** A dropdown (or equivalent) listing the user’s Etsy shop(s) returned from the API (e.g. `GET /api/shop`).
-  - **Behavior:** User selects one shop. The selection determines which shop’s receipts are shown.
+  - **Control:** A dropdown (or equivalent) listing the user's Etsy shop(s) returned from the API (e.g. `GET /api/shop`).
+  - **Behavior:** User selects one shop. The selection determines which shop's receipts are shown.
   - **Default:** If the user has at least one shop, one shop is selected by default (e.g. the first in the list).
   - **Persistence:** Selection is in-memory for the session only (no requirement to persist across sessions).
 
 - **Recent orders (receipts) section**
-  - **Heading:** e.g. “Recent orders” (or equivalent).
-  - **Subheading or caption:** Indicate that the list shows receipts with paid/shipped status (e.g. “N receipt(s) — paid / shipped status below”).
-  - **Data source:** Receipts for the **selected shop only**, fetched from the Etsy API via the app’s API (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Data is **not** persisted in the application database in the base system; it is fetched on load and when the shop selection changes.
+  - **Heading:** e.g. "Recent orders" (or equivalent).
+  - **Subheading or caption:** Indicate that the list shows receipts with paid/shipped status (e.g. "N receipt(s) — paid / shipped status below").
+  - **Data source:** Receipts for the **selected shop only**, fetched from the Etsy API via the app's API (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Data is **not** persisted in the application database in the base system; it is fetched on load and when the shop selection changes.
   - **Limit:** 100 receipts per request. Pagination: offset parameter optional (e.g. offset=0 for first page; limit=100).
 
 - **Receipts table (when connected)**
@@ -71,24 +71,24 @@ When the user **is** authenticated with Etsy (valid token, “connected”):
     | Column | Meaning | Source / notes |
     |----------|---------|----------------|
     | Date | Order/receipt date | Etsy receipt creation timestamp; display in a human-readable date format (e.g. locale-aware). |
-    | Order # | Receipt or order identifier | Etsy `receipt_id` (or equivalent); display as-is or as “Order #” + id. |
+    | Order # | Receipt or order identifier | Etsy `receipt_id` (or equivalent); display as-is or as "Order #" + id. |
     | Ship to | Ship-to address | Buyer name plus a short address (e.g. first line, city, state, zip, country). Two lines acceptable (name; address). |
-    | Total | Money amount | Total price; if total shipping cost &gt; 0, show it (e.g. “$X + $Y ship” or equivalent). Use receipt currency for formatting. |
-    | Paid | Whether the order was marked paid | Boolean; display as “Yes” / “No” (or equivalent). |
-    | Shipped | Whether the order was marked shipped | Boolean; display as “Yes” / “No” (or equivalent). |
-  - **Empty state:** If the API returns zero receipts for the selected shop, show a clear empty state (e.g. “No orders yet.”).
-  - **Loading state:** While fetching receipts for the selected shop, show a loading state (e.g. “Loading orders…”); do not show the table until data is available or the empty state applies.
-  - **Errors:** If the receipts request fails, show an appropriate error message (e.g. “Error loading orders” or the API error); do not leave the user with a blank or misleading view.
+    | Total | Money amount | Total price; if total shipping cost &gt; 0, show it (e.g. "$X + $Y ship" or equivalent). Use receipt currency for formatting. |
+    | Paid | Whether the order was marked paid | Boolean; display as "Yes" / "No" (or equivalent). |
+    | Shipped | Whether the order was marked shipped | Boolean; display as "Yes" / "No" (or equivalent). |
+  - **Empty state:** If the API returns zero receipts for the selected shop, show a clear empty state (e.g. "No orders yet.").
+  - **Loading state:** While fetching receipts for the selected shop, show a loading state (e.g. "Loading orders…"); do not show the table until data is available or the empty state applies.
+  - **Errors:** If the receipts request fails, show an appropriate error message (e.g. "Error loading orders" or the API error); do not leave the user with a blank or misleading view.
 
-- **No other content is required** on the dashboard in the base system. Optional: app version or “Help” link; not specified here.
+- **No other content is required** on the dashboard in the base system. Optional: app version or "Help" link; not specified here.
 
 ---
 
 ### 4. Data and APIs
 
-- **Auth:** Connection state is determined by the app’s auth/session records in SQLite (with opaque session id cookie transport). Logout invalidates SQLite auth/session records and clears the session id cookie.
-- **Shops:** Shops are obtained from the Etsy API via the app (e.g. `GET /api/shop`). Unauthenticated requests return 401; the UI then shows “not connected.”
-- **Receipts:** Receipts are obtained per shop via the app (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Response includes at least: receipt_id, order_id, buyer name, ship-to address fields, total_price, total_shipping_cost, currency_code, was_paid, was_shipped, creation_tsz (or equivalent). Exact field names follow the Etsy API and the app’s mapping.
+- **Auth:** Connection state is determined by the app's auth/session records in SQLite (with opaque session id cookie transport). Logout invalidates SQLite auth/session records and clears the session id cookie.
+- **Shops:** Shops are obtained from the Etsy API via the app (e.g. `GET /api/shop`). Unauthenticated requests return 401; the UI then shows "not connected."
+- **Receipts:** Receipts are obtained per shop via the app (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Response includes at least: receipt_id, order_id, buyer name, ship-to address fields, total_price, total_shipping_cost, currency_code, was_paid, was_shipped, creation_tsz (or equivalent). Exact field names follow the Etsy API and the app's mapping.
 
 ---
 
@@ -96,14 +96,14 @@ When the user **is** authenticated with Etsy (valid token, “connected”):
 
 When the tabbed layout (ADR-009) exists:
 
-- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The “Connect Etsy” / “Disconnect” actions may live in the shared header or in the Config tab; the dashboard tab still shows the same “not connected” vs “connected” content in its main area.
+- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The "Connect Etsy" / "Disconnect" actions may live in the shared header or in the Config tab; the dashboard tab still shows the same "not connected" vs "connected" content in its main area.
 - The dashboard tab may **additionally** show: summary cards (e.g. orders this week, revenue MTD) and links into the outstanding list, as described in ui-design.md §2. Those additions do not change the core behavior above; they extend it.
 
 ## Consequences
 
 - **Positive**
   - One ADR defines exactly what the dashboard is. No ambiguity for implementers or reviewers.
-  - Clear separation of “not connected” vs “connected” and exact table columns and states.
+  - Clear separation of "not connected" vs "connected" and exact table columns and states.
   - Easy to test and accept: behavior and content are specified.
 
 - **Negative**
@@ -112,4 +112,9 @@ When the tabbed layout (ADR-009) exists:
 ## Notes
 
 - ADR-007 defines the base system (OAuth, API routes, token storage); the **dashboard UI** is specified here. ADR-007 may reference this ADR for the dashboard.
-- ui-design.md §2 describes the dashboard tab’s purpose (snapshot, quick stats, link to outstanding); this ADR is the authoritative specification of structure and behavior for the current and near-term dashboard.
+- ui-design.md §2 describes the dashboard tab's purpose (snapshot, quick stats, link to outstanding); this ADR is the authoritative specification of structure and behavior for the current and near-term dashboard.
+
+### Extensions (updated 2026-05-24)
+
+- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries (e.g. last 20). The widget uses the `GET /api/activity?limit=20` endpoint. Each entry shows timestamp, action description, and an optional link to the related entity. This supplements the summary cards mentioned in section 5 above.
+- **Shared components (ADR-028):** All dashboard UI elements (buttons, loading states, error states, empty states, badges) use the shared component library (`Button`, `LoadingSpinner`, `EmptyState`, `ErrorPanel`, `Badge`). The receipts table uses the `DataTable` component.

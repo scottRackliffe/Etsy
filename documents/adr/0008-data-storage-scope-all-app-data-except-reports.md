@@ -24,7 +24,7 @@ We decided to use a database for application data (ADR-001) and defined reports 
   - **Reports:** report-run metadata and generated output artifacts/records for traceability and reproducibility.
   - Any other app data (e.g. **settings** — panel layout, default shipper, business details, optional preferences; audit timestamps) that the application treats as source of truth.
 
-  This is “all app data” for the purpose of storage decisions. **Currency:** Use a single default reporting currency for app-wide aggregates (e.g. `settings.currency_code`). Per-customer display currency (`customer.currency_code`) is supported for customer-facing documents (invoice/thank-you note). Multi-currency aggregation in MTD/YTD and other app-wide totals remains out of scope for v1.
+  This is “all app data” for the purpose of storage decisions. **Currency:** Use a single default reporting currency for app-wide aggregates (e.g. `settings.currency_code`). For v1, all operations use USD only; multi-currency per customer is a future enhancement.
 
 - **Out of scope for this ADR**
   - Physical file-system layout for optional exported files when users download copies (SQLite remains the system of record).

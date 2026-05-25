@@ -134,3 +134,30 @@ The following specifies the **exact content** that each report must include. Dat
 
 - Screen preview (e.g. “Preview before download”) can be offered using the same layout rendered to HTML or a PDF viewer; the canonical output remains PDF.
 - Thank you note and invoice are customer-facing and should be especially polished; sales, costs, income, and postal-by-vendor can be clean tabular/summary layouts.
+
+### Per-order document endpoints (updated 2026-05-24)
+
+ADR-036 adds per-order invoice and thank-you note generation at dedicated endpoints:
+
+- `GET /api/reports/invoice/[orderId]` — generates invoice PDF/CSV for a single order.
+- `GET /api/reports/thank-you-note/[orderId]` — generates thank-you note PDF/CSV for a single order.
+
+The existing aggregate endpoints (`/api/reports/invoice`, `/api/reports/thank-you-note`) in ADR-018 that accept `order_id` as a query parameter remain valid and are equivalent. ADR-036's path-based routes are a convenience alias. Both routes return the same content per this ADR's specification.
+
+### Date range UI (updated 2026-05-24)
+
+ADR-036 adds a date range picker UI to the Reports page: From/To date inputs with quick presets (MTD, YTD, Last Month, Last Quarter, All Time). The date parameters flow to the existing `from_date`/`to_date` query parameters defined in ADR-018's report endpoints and the edge case rules in this ADR (section "Edge cases").
+
+### Schema mapping (updated 2026-05-24)
+
+The report content specifications in this ADR use original data model terms. The implementation maps as follows:
+
+| ADR-013 term | Implementation | Notes |
+|-------------|----------------|-------|
+| purchase row(s) | `orders` + `order_items` | Invoice line items come from `order_items` joined to `inventory` |
+| date_of_purchase | `orders.order_date` | |
+| purchase.shipping_cost | `orders.seller_shipping_cost` | |
+| purchase.discount_amount | `orders.discount_total` | |
+| purchase.was_paid | `orders.was_paid` | |
+| ship_to_* fields | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table |
+| sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper` | Postal costs by vendor report |

@@ -30,6 +30,14 @@ All `<button>` elements across every page must use the `Button` component.
 | `<button className="rounded-lg border border-[var(--ui-border)] ..." ...>` | `<Button variant="secondary" ...>` |
 | Delete/destructive buttons | `<Button variant="danger" ...>` |
 | Primary CTA ("Add item", "Create order", "Create customer") | `<Button variant="accent" size="lg" ...>` |
+| Inline text-only links ("Link customer", "View all") | `<Button variant="ghost" ...>` |
+
+**Button variants (canonical list):**
+
+- `accent` / `primary` — primary actions (these are aliases; both resolve to accent styling)
+- `secondary` — bordered buttons
+- `danger` — destructive actions
+- `ghost` — borderless text-only for inline links
 
 Busy state: use the `busy` prop instead of `disabled={busyAction != null}` + conditional text (`"Creating..." : "Create"`). The `Button` renders a spinner automatically when `busy={true}`. Text should remain the non-busy label (e.g., always "Create order", never "Creating...").
 

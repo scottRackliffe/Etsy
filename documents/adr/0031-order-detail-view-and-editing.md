@@ -134,6 +134,10 @@ Instead of a single button click, "Mark shipped" opens a small modal:
 - Buttons: "Confirm shipment" (accent) + "Cancel" (secondary).
 - On confirm: calls `POST /api/orders/[id]/mark-shipped` with carrier, tracking, and date.
 
+**What mark-shipped does:** Sets `shipping_date`, `shipper`, and optionally `tracking_number` on the order. It does **NOT** change `order_status` (which remains `active`). The `order_status` enum is only `active | void | cancelled` — there is no `shipped` status.
+
+**Ship-without-paid override (ADR-021):** The mark-shipped modal must check `was_paid`. If unpaid, show a warning: "This order is not marked paid. Mark as paid first, or choose Ship anyway." If user confirms Ship anyway, set `shipped_without_paid_override = 1` on the order.
+
 ---
 
 ### Create order flow

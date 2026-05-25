@@ -307,3 +307,22 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 - Prioritize which commands and outstanding items to build first (e.g. Sales + “mark shipped” + unshipped orders in outstanding).
 - Add or remove processes (e.g. “List on Etsy” from the app) once we know integration scope.
 - Use this doc as the reference for implementation (no code in this document).
+
+---
+
+## Implementation notes (updated 2026-05-24)
+
+### v1 layout simplification
+
+The v1 implementation uses a simplified layout without the side panels described above:
+
+- **Commands panel:** Deferred to post-v1. Context-sensitive actions are placed inline on each page using the shared `Button` component (ADR-028). The commands panel concept remains a design goal for a future iteration.
+- **Outstanding panel:** Deferred to post-v1. The full-page **Outstanding tab** fulfills the outstanding-list requirement. Clicking an item navigates to the target page with a deep-link query parameter (ADR-035).
+- **Panel layout flip:** Deferred (depends on side panels).
+- **All tab names, tab order, and intuitive design principles** remain in effect for v1.
+
+See ADR-009 "Implementation status" and ADR-024 for the v1 component architecture.
+
+### Schema terminology
+
+This document uses the original data model terms ("purchase", "customer_address"). The implementation uses a three-table order model: `orders` (header) + `order_items` (line items) + `purchases` (vendor buy-side only). Ship-to addresses are in the `addresses` table. See ADR-003 and ADR-017 schema mapping notes.

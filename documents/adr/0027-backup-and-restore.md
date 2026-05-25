@@ -125,3 +125,7 @@ The Config → Backup section shows:
 - SQLite backup uses the `VACUUM INTO` command (or file copy after checkpoint) to produce a consistent snapshot even while the app is running with WAL mode.
 - The pre-restore safety backup is excluded from the rolling FIFO count (it uses a different naming pattern: `pre_restore_*.sqlite`).
 - Future enhancement: add off-site backup (S3, Google Drive) as an optional destination.
+
+### Frontend UI (updated 2026-05-24)
+
+ADR-034 places the backup/restore UI in the Config page as one of 8 logical sections. The Config page's `BackupSection` component implements the "Backup & Restore" card described in this ADR's "UI / Config" section above (backup directory, schedule, backup now, recent backups table with restore/delete, last backup timestamp). Confirmation dialogs for restore and delete use the `ConfirmDialog` component (ADR-032).

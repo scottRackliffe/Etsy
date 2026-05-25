@@ -43,7 +43,7 @@ Every page with a record list gets a search input above the table.
 
 | Page | Filter controls |
 |------|-----------------|
-| **Inventory** | Status chip group: `All`, `Draft`, `In stock`, `Listed`, `Sold`, `Archived`. Default: `All`. |
+| **Inventory** | Status chip group: `All`, `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired`. Default: `All`. (Values per ADR-002, ADR-017.) |
 | **Sales** | Payment chip group: `All`, `Paid`, `Unpaid`. Shipping chip group: `All`, `Shipped`, `Not shipped`. Source: `All`, `Etsy`, `Manual`. |
 | **Customers** | Active toggle: `All` / `Active only` (default: Active only, based on `is_active`). |
 | **Outstanding** | Already implemented with type chip groups — no changes. |
@@ -100,6 +100,8 @@ Integrate `usePagination` hook with all list views.
 - `/api/orders` (GET): already supports `limit`/`offset`. Add `search`, `payment_status`, `shipping_status`, `source_channel`, `sort_by`, `sort_dir` query params.
 - `/api/customers` (GET): already supports `limit`/`offset`. Add `search`, `is_active`, `sort_by`, `sort_dir` query params.
 - All list endpoints must return `{ items: T[], total: number, limit: number, offset: number }`.
+
+**Note:** The canonical API pagination envelope (ADR-018) nests pagination metadata: `{ items: T[], pagination: { limit, offset, total, has_more } }`. Implementations must use the nested shape.
 
 **Context changes:**
 - `AppContext` currently loads all records on mount with `limit=100`. Change to load first page only (`limit=25, offset=0`).

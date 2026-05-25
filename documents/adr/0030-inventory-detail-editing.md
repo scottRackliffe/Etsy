@@ -47,7 +47,7 @@ All fields use `FormField` + `TextInput` or `SelectInput`. Changes are saved via
 |-------|-------|------------|-------|
 | `item_number` | Item number | `TextInput` | Read-only after creation (unique constraint) |
 | `description` | Description | `TextArea` (multi-line) | Free text |
-| `status` | Status | `SelectInput` | Options: `draft`, `in_stock`, `listed`, `sold`, `archived` |
+| `status` | Status | `SelectInput` | Options: `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired` (ADR-002, ADR-017) |
 | `quantity` | Quantity | `TextInput` type="number" | Default 1 |
 
 **Financials section:**
@@ -72,7 +72,7 @@ All fields use `FormField` + `TextInput` or `SelectInput`. Changes are saved via
 
 | Field | Label | Input type | Notes |
 |-------|-------|------------|-------|
-| `condition_code` | Condition | `SelectInput` | Options: `new`, `like_new`, `good`, `fair`, `poor`, `parts_only` |
+| `condition_code` | Condition | `SelectInput` | Options: `Mint/Near Mint`, `Excellent`, `Very Good`, `Good`, `Fair/As-Is` (ADR-002) |
 | `has_condition_issue` | Has condition issue | Checkbox | Boolean toggle |
 | `condition_notes` | Condition notes | `TextArea` | Free text; required if `has_condition_issue` is true |
 

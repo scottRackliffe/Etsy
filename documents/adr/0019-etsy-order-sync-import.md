@@ -73,3 +73,16 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers â€
 - Etsy API receipt/listing shape: use the actual Etsy Open API v3 receipt and transaction/listing structure; field names in this ADR map to that structure (receipt_id, buyer email, ship-to fields, line items with listing_id and price). Implementer must map Etsy response fields to our schema.
 - Thumbnail for placeholder inventory: leave thumbnail_path null; pick list shows placeholder icon per ADR-015.
 - Placeholder inventory behavior: placeholder rows use `status = 'Listed'` and appear in item pick lists (ADR-015). Users can edit, relink, or merge placeholders with existing inventory records during cleanup.
+
+### Schema mapping (updated 2026-05-24)
+
+This ADR uses the original data model terms. The implementation maps as follows:
+
+| ADR-019 term | Implementation | Notes |
+|-------------|----------------|-------|
+| purchase (row) | `orders` (header) + `order_items` (line items) | Each Etsy receipt â†’ one `orders` row + one `order_items` row per line item |
+| customer_address | `addresses` table | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
+| purchase.etsy_receipt_id | `orders.etsy_receipt_id` | Dedup key for idempotent sync |
+| purchase.order_id | `orders.order_number` | Set to Etsy receipt_id for Etsy-sourced orders |
+| purchase.was_paid | `orders.was_paid` | |
+| purchase.customer_address_id | `orders.ship_to_*` columns | Snapshot fields on orders table; optional FK to `addresses` |
