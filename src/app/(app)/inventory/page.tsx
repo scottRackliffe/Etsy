@@ -19,6 +19,7 @@ import { InventoryDetailPanel, type InventoryItemDetail } from "@/components/inv
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
@@ -124,6 +125,9 @@ function InventoryPageInner() {
     Array<{ id: number; item_number: string | null; description: string | null }>
   >([]);
   const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+
+  useListSearchFromUrl(setInventorySearch, () => setPage(0));
 
   useKeyboardShortcuts([
     {
@@ -152,7 +156,6 @@ function InventoryPageInner() {
       setInventoryDuplicates([]);
     }
   };
-  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
   const batch = useBatchSelection(inventory, listTotal);

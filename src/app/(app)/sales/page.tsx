@@ -17,6 +17,7 @@ import { OrderDetailPanel } from "@/components/sales/OrderDetailPanel";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
 import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
@@ -49,6 +50,7 @@ function SalesPageInner() {
   const [newOrderTotal, setNewOrderTotal] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const debouncedOrderSearch = useDebouncedValue(orderSearch, 300);
+  useListSearchFromUrl(setOrderSearch, () => setPage(0));
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [shippingFilter, setShippingFilter] = useState<string | null>(null);

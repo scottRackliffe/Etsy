@@ -379,4 +379,6 @@ rg "tracking_number|activity_log|customer_notes" src/lib/sqlite.ts migrations/
 
 **Wave 23 (2026-05-24) — implemented:** ADR-040 bulk/batch operations — `DataTable` built-in selection column + row highlight; sticky `BatchActionsBar` with select-all-matching (filter → batch APIs); `POST /api/*/batch` accepts `filter` or `ids`; partial-success feedback via `summarizeBatchResult` + `ProgressModal` for 10+ items; sales batch print-queue stub (`print-queue.ts`); inventory/customer batch delete and status actions.
 
+**Wave 24 (2026-05-24) — implemented:** ADR-041 global search completion — arrow-key result navigation + highlight, `useFocusTrap`, `LoadingSpinner` while searching, recent searches in `global_search_recent` with per-item remove, `useListSearchFromUrl` so See-all links prefill Sales/Inventory/Customers list search.
+
 *Next update: After Wave 10 PR, mark Critical rows **Fixed** in [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) and shrink §3 tables here.*

@@ -16,6 +16,7 @@ import { PaginationBar } from "@/components/ui/PaginationBar";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { apiFetch, MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
@@ -71,6 +72,8 @@ function CustomersPageInner() {
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  useListSearchFromUrl(setCustomerSearch, () => setPage(0));
 
   const checkCustomerDuplicate = async () => {
     const first = newCustomerFirstName.trim();
@@ -101,7 +104,6 @@ function CustomersPageInner() {
       setCustomerDuplicates([]);
     }
   };
-  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
   const [activeFilter, setActiveFilter] = useState<string | null>("1");
   const [sort, setSort] = useState<SortState>({ key: "last_name", dir: "asc" });
   const batch = useBatchSelection(customers, listTotal);

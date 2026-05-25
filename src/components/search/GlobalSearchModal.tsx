@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
+import {
+  loadRecentSearches,
+  removeRecentSearch,
+  saveRecentSearch,
+} from "@/lib/global-search-recent";
 
 type SearchOrder = {
   id: number;
@@ -35,24 +42,13 @@ type SearchResponse = {
   customers?: { items: SearchCustomer[]; total: number };
 };
 
-const RECENT_KEY = "globalSearch.recent";
-
-function loadRecent(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    return raw ? (JSON.parse(raw) as string[]).slice(0, 5) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecent(term: string) {
-  const trimmed = term.trim();
-  if (trimmed.length < 2) return;
-  const next = [trimmed, ...loadRecent().filter((t) => t !== trimmed)].slice(0, 5);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-}
+type NavResult = {
+  key: string;
+  href: string;
+  primary: string;
+  secondary: string;
+  badge?: string;
+};
 
 function formatMoney(value: number | null | undefined): string {
   if (value == null || Number.isNaN(Number(value))) return "";
@@ -62,6 +58,15 @@ function formatMoney(value: number | null | undefined): string {
 function truncate(text: string | null | undefined, max: number): string {
   if (!text) return "";
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+}
+
+function badgeVariantForStatus(status: string | undefined): "success" | "warning" | "error" | "info" | "neutral" {
+  const s = (status ?? "").toLowerCase();
+  if (s === "active" || s === "sold" || s === "listed" || s === "paid") return "success";
+  if (s === "void" || s === "cancelled" || s === "retired") return "error";
+  if (s === "unpaid" || s === "draft" || s === "reserved") return "warning";
+  if (s === "etsy" || s === "in stock") return "info";
+  return "neutral";
 }
 
 function ResultSection({
@@ -82,7 +87,7 @@ function ResultSection({
     <div className="mb-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">{title}</p>
       <div className="space-y-1">{children}</div>
-      {seeAllHref && total > 0 && onSeeAll && (
+      {seeAllHref && total > 0 && onSeeAll ? (
         <button
           type="button"
           onClick={() => onSeeAll(seeAllHref)}
@@ -90,36 +95,36 @@ function ResultSection({
         >
           See all {total} results →
         </button>
-      )}
+      ) : null}
     </div>
   );
-}
-
-function badgeVariantForStatus(status: string | undefined): "success" | "warning" | "error" | "info" | "neutral" {
-  const s = (status ?? "").toLowerCase();
-  if (s === "active" || s === "sold" || s === "listed" || s === "paid") return "success";
-  if (s === "void" || s === "cancelled" || s === "retired") return "error";
-  if (s === "unpaid" || s === "draft" || s === "reserved") return "warning";
-  if (s === "etsy" || s === "in stock") return "info";
-  return "neutral";
 }
 
 function ResultRow({
   primary,
   secondary,
   badge,
+  highlighted,
   onClick,
+  onMouseEnter,
 }: {
   primary: string;
   secondary: string;
   badge?: string;
+  highlighted?: boolean;
   onClick: () => void;
+  onMouseEnter?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-left transition hover:border-[var(--ui-accent)]/50"
+      onMouseEnter={onMouseEnter}
+      className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition ${
+        highlighted
+          ? "border-[var(--ui-accent)]/50 bg-[var(--ui-accent)]/15"
+          : "border-[var(--ui-border)] bg-[var(--ui-card-bg)] hover:border-[var(--ui-accent)]/50"
+      }`}
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[var(--ui-title)]">{primary}</p>
@@ -130,36 +135,73 @@ function ResultRow({
   );
 }
 
+function buildNavResults(data: SearchResponse | null, q: string): NavResult[] {
+  if (!data || q.length < 2) return [];
+  const items: NavResult[] = [];
+  for (const order of data.orders?.items ?? []) {
+    const name = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ");
+    const secondary = [name, formatMoney(order.grand_total)].filter(Boolean).join(" • ");
+    items.push({
+      key: `order-${order.id}`,
+      href: `/sales?orderId=${order.id}`,
+      primary: order.order_number,
+      secondary,
+      badge: order.order_status,
+    });
+  }
+  for (const item of data.inventory?.items ?? []) {
+    items.push({
+      key: `inv-${item.id}`,
+      href: `/inventory?itemId=${item.id}`,
+      primary: item.item_number,
+      secondary: truncate(item.description, 50),
+      badge: item.status,
+    });
+  }
+  for (const customer of data.customers?.items ?? []) {
+    const name = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Customer";
+    items.push({
+      key: `cust-${customer.id}`,
+      href: `/customers?customerId=${customer.id}`,
+      primary: name,
+      secondary: customer.email ?? customer.phone ?? "",
+    });
+  }
+  return items;
+}
+
 export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const backdropRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SearchResponse | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+
+  useFocusTrap(dialogRef, open, onClose);
 
   useEffect(() => {
     if (open) {
-      setRecent(loadRecent());
+      setRecent(loadRecentSearches());
       setQuery("");
       setData(null);
+      setHighlightIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
 
+  const q = query.trim();
+  const navResults = useMemo(() => buildNavResults(data, q), [data, q]);
+
   useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+    setHighlightIndex(navResults.length > 0 ? 0 : -1);
+  }, [navResults]);
 
   useEffect(() => {
     if (!open) return;
-    const q = query.trim();
     if (q.length < 2) {
       setData(null);
       setLoading(false);
@@ -178,25 +220,41 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [query, open]);
+  }, [q, open]);
 
   const navigate = useCallback(
     (href: string, term: string) => {
-      saveRecent(term);
+      saveRecentSearch(term);
       onClose();
       router.push(href);
     },
     [onClose, router]
   );
 
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (navResults.length === 0) return;
+      setHighlightIndex((i) => (i + 1) % navResults.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (navResults.length === 0) return;
+      setHighlightIndex((i) => (i <= 0 ? navResults.length - 1 : i - 1));
+    } else if (e.key === "Enter" && highlightIndex >= 0 && navResults[highlightIndex]) {
+      e.preventDefault();
+      navigate(navResults[highlightIndex].href, q);
+    }
+  };
+
   if (!open) return null;
 
-  const q = query.trim();
   const orders = data?.orders;
   const inventory = data?.inventory;
   const customers = data?.customers;
   const hasResults =
     (orders?.items.length ?? 0) + (inventory?.items.length ?? 0) + (customers?.items.length ?? 0) > 0;
+
+  const highlightKey = highlightIndex >= 0 ? navResults[highlightIndex]?.key : null;
 
   return (
     <div
@@ -207,18 +265,27 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
       }}
     >
       <div
+        ref={dialogRef}
         className="max-h-[70vh] w-full max-w-xl overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-label="Global search"
       >
         <div className="flex items-center gap-2 border-b border-[var(--ui-border)] px-4 py-3">
-          <span className="text-[var(--ui-muted)]">{loading ? "…" : "⌕"}</span>
+          {loading ? (
+            <LoadingSpinner size="sm" />
+          ) : (
+            <span className="text-[var(--ui-muted)]" aria-hidden>
+              ⌕
+            </span>
+          )}
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
             placeholder="Search orders, inventory, customers..."
+            aria-label="Search orders, inventory, and customers"
             className="min-w-0 flex-1 bg-transparent text-sm text-[var(--ui-title)] outline-none placeholder:text-[var(--ui-muted)]"
           />
           {query ? (
@@ -257,6 +324,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
               onSeeAll={(href) => navigate(href, q)}
             >
               {orders.items.map((order) => {
+                const key = `order-${order.id}`;
                 const name = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ");
                 const secondary = [name, formatMoney(order.grand_total)].filter(Boolean).join(" • ");
                 return (
@@ -265,6 +333,8 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     primary={order.order_number}
                     secondary={secondary}
                     badge={order.order_status}
+                    highlighted={highlightKey === key}
+                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
                     onClick={() => navigate(`/sales?orderId=${order.id}`, q)}
                   />
                 );
@@ -279,15 +349,20 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
               seeAllHref={`/inventory?search=${encodeURIComponent(q)}`}
               onSeeAll={(href) => navigate(href, q)}
             >
-              {inventory.items.map((item) => (
-                <ResultRow
-                  key={item.id}
-                  primary={item.item_number}
-                  secondary={truncate(item.description, 50)}
-                  badge={item.status}
-                  onClick={() => navigate(`/inventory?itemId=${item.id}`, q)}
-                />
-              ))}
+              {inventory.items.map((item) => {
+                const key = `inv-${item.id}`;
+                return (
+                  <ResultRow
+                    key={item.id}
+                    primary={item.item_number}
+                    secondary={truncate(item.description, 50)}
+                    badge={item.status}
+                    highlighted={highlightKey === key}
+                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
+                    onClick={() => navigate(`/inventory?itemId=${item.id}`, q)}
+                  />
+                );
+              })}
             </ResultSection>
           ) : null}
 
@@ -299,6 +374,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
               onSeeAll={(href) => navigate(href, q)}
             >
               {customers.items.map((customer) => {
+                const key = `cust-${customer.id}`;
                 const name = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Customer";
                 const secondary = customer.email ?? customer.phone ?? "";
                 return (
@@ -306,6 +382,8 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     key={customer.id}
                     primary={name}
                     secondary={secondary}
+                    highlighted={highlightKey === key}
+                    onMouseEnter={() => setHighlightIndex(navResults.findIndex((n) => n.key === key))}
                     onClick={() => navigate(`/customers?customerId=${customer.id}`, q)}
                   />
                 );
@@ -316,18 +394,27 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
           {q.length < 2 && recent.length > 0 ? (
             <div className="border-t border-[var(--ui-border)] pt-3">
               <p className="mb-2 text-xs text-[var(--ui-muted)]">Recent</p>
-              <div className="flex flex-wrap gap-2">
+              <ul className="space-y-1">
                 {recent.map((term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    onClick={() => setQuery(term)}
-                    className="rounded-full border border-[var(--ui-border)] px-3 py-1 text-xs text-[var(--ui-body)] hover:border-[var(--ui-accent)]"
-                  >
-                    {term}
-                  </button>
+                  <li key={term} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuery(term)}
+                      className="min-w-0 flex-1 rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-left text-xs text-[var(--ui-body)] hover:border-[var(--ui-accent)]"
+                    >
+                      {term}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRecent(removeRecentSearch(term))}
+                      className="shrink-0 text-xs text-[var(--ui-muted)] hover:text-[var(--ui-red)]"
+                      aria-label={`Remove ${term} from recent searches`}
+                    >
+                      ×
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ) : null}
         </div>
