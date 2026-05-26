@@ -9,6 +9,18 @@ import sharp from "sharp";
 
 const ETSY_OAUTH_BASE = "https://www.etsy.com/oauth";
 const ETSY_API_BASE = "https://api.etsy.com/v3/application";
+const FORM_URLENCODED_UTF8 = "application/x-www-form-urlencoded; charset=utf-8";
+
+/**
+ * Build the x-api-key header value per Etsy's spec: "clientId:sharedSecret".
+ * Falls back to ETSY_API_KEY_HEADER env var if explicitly set (for testing overrides).
+ */
+function getApiKeyHeader(): string {
+  const override = process.env.ETSY_API_KEY_HEADER;
+  if (override) return override;
+  const { clientId, clientSecret } = getEtsyConfig();
+  return `${clientId}:${clientSecret}`;
+}
 
 function toArrayBuffer(buffer: Buffer): ArrayBuffer {
   return buffer.buffer.slice(
@@ -73,7 +85,10 @@ export async function exchangeCodeForToken(
   const { clientId, redirectUri } = getEtsyConfig();
   const res = await fetch("https://api.etsy.com/v3/public/oauth/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": FORM_URLENCODED_UTF8,
+      "x-api-key": getApiKeyHeader(),
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       client_id: clientId,
@@ -137,7 +152,10 @@ export async function refreshAccessToken(
   try {
     const res = await fetch("https://api.etsy.com/v3/public/oauth/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": FORM_URLENCODED_UTF8,
+        "x-api-key": getApiKeyHeader(),
+      },
       body: new URLSearchParams({
         grant_type: "refresh_token",
         client_id: clientId,
@@ -165,14 +183,29 @@ export class EtsyApiError extends Error {
   }
 }
 
+const BEARER_TOKEN_RE = /^\d+\..+/;
+
+/**
+ * Validate that an access token matches Etsy's required "userId.token" format.
+ * Etsy's OAuth endpoint returns tokens in this shape; this guard catches
+ * corruption or storage bugs before they produce cryptic 401s.
+ */
+function assertBearerFormat(accessToken: string): void {
+  if (!BEARER_TOKEN_RE.test(accessToken)) {
+    throw new Error(
+      "Etsy access token does not match the required userId.token format. " +
+        "Re-authenticate with Etsy to obtain a valid token."
+    );
+  }
+}
+
 /** Etsy API request with API key + Bearer token */
 export async function etsyApi<T>(
   path: string,
   accessToken: string,
   options?: RequestInit
 ): Promise<T> {
-  const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
-  if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
+  assertBearerFormat(accessToken);
   const timeout = Number(process.env.ETSY_API_TIMEOUT_MS) || 30_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -182,9 +215,9 @@ export async function etsyApi<T>(
       ...options,
       signal: controller.signal,
       headers: {
-        "x-api-key": key,
+        "x-api-key": getApiKeyHeader(),
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json; charset=utf-8",
         ...options?.headers,
       },
     });
@@ -215,9 +248,7 @@ export async function createDraftListing(
     tags: string[];
   }
 ): Promise<{ listing_id: number; state?: string }> {
-  const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
-  if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
-
+  assertBearerFormat(accessToken);
   const form = new URLSearchParams();
   form.set("quantity", String(params.quantity));
   form.set("title", params.title);
@@ -238,9 +269,9 @@ export async function createDraftListing(
   const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings`, {
     method: "POST",
     headers: {
-      "x-api-key": key,
+      "x-api-key": getApiKeyHeader(),
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": FORM_URLENCODED_UTF8,
     },
     body: form,
   });
@@ -356,8 +387,7 @@ export async function uploadListingImageFromReference(
     };
   }
 ): Promise<void> {
-  const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
-  if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
+  assertBearerFormat(accessToken);
   const original = await toUploadBlob(params.reference);
   const originalArrayBuffer = await original.blob.arrayBuffer();
   const optimized = await optimizeImageForUpload(
@@ -376,7 +406,7 @@ export async function uploadListingImageFromReference(
     {
       method: "POST",
       headers: {
-        "x-api-key": key,
+        "x-api-key": getApiKeyHeader(),
         Authorization: `Bearer ${accessToken}`,
       },
       body: formData,
@@ -403,8 +433,7 @@ export async function updateListingDetails(
     tags: string[];
   }
 ): Promise<void> {
-  const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
-  if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
+  assertBearerFormat(accessToken);
   const form = new URLSearchParams();
   form.set("title", params.title);
   form.set("description", params.description);
@@ -419,9 +448,9 @@ export async function updateListingDetails(
   const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}`, {
     method: "PATCH",
     headers: {
-      "x-api-key": key,
+      "x-api-key": getApiKeyHeader(),
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": FORM_URLENCODED_UTF8,
     },
     body: form,
   });
@@ -435,16 +464,15 @@ export async function updateListingState(
   accessToken: string,
   params: { shopId: number; listingId: number; state: "active" | "draft" | "inactive" }
 ): Promise<void> {
-  const key = process.env.ETSY_API_KEY_HEADER ?? process.env.ETSY_CLIENT_ID;
-  if (!key) throw new Error("Missing ETSY_API_KEY_HEADER or ETSY_CLIENT_ID");
+  assertBearerFormat(accessToken);
   const form = new URLSearchParams();
   form.set("state", params.state);
   const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}`, {
     method: "PATCH",
     headers: {
-      "x-api-key": key,
+      "x-api-key": getApiKeyHeader(),
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": FORM_URLENCODED_UTF8,
     },
     body: form,
   });
