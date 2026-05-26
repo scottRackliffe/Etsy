@@ -213,9 +213,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const next = typeof value === "function" ? value(prev) : value;
         if (next) {
           const isSuccess = /complete|saved|created|loaded|removed|success/i.test(next.title);
-          addNotificationEntry({
-            type: isSuccess ? "success" : "info",
-            message: next.message ? `${next.title}: ${next.message}` : next.title,
+          const message = next.message ? `${next.title}: ${next.message}` : next.title;
+          queueMicrotask(() => {
+            addNotificationEntry({
+              type: isSuccess ? "success" : "info",
+              message,
+            });
           });
         }
         return next;

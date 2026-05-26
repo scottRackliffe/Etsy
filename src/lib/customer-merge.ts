@@ -2,22 +2,9 @@ import { getDb } from "@/lib/sqlite";
 import { logActivity } from "@/lib/activity-log";
 import { getCustomer } from "@/lib/records";
 import { ApiRouteError } from "@/lib/api-error";
+import { MERGE_CUSTOMER_FIELDS, type MergeCustomerField } from "@/lib/customer-merge-fields";
 
-export const MERGE_CUSTOMER_FIELDS = [
-  "first_name",
-  "last_name",
-  "email",
-  "phone",
-  "notes",
-  "address_1",
-  "address_2",
-  "city",
-  "state",
-  "postal_code",
-  "country",
-] as const;
-
-export type MergeCustomerField = (typeof MERGE_CUSTOMER_FIELDS)[number];
+export { MERGE_CUSTOMER_FIELDS, type MergeCustomerField };
 
 export function mergeCustomers(input: {
   primaryId: number;

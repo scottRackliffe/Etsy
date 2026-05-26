@@ -32,11 +32,20 @@ function loadRaw(): AppNotification[] {
   }
 }
 
-function saveRaw(items: AppNotification[]): void {
+function notifyNotificationListeners(): void {
+  queueMicrotask(() => {
+    window.dispatchEvent(new CustomEvent("esm-notifications-changed"));
+  });
+}
+
+function saveRaw(items: AppNotification[], options?: { notify?: boolean }): void {
   if (typeof window === "undefined") return;
+  const notify = options?.notify ?? true;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new CustomEvent("esm-notifications-changed"));
+    if (notify) {
+      notifyNotificationListeners();
+    }
   } catch {
     /* ignore quota */
   }
@@ -44,16 +53,19 @@ function saveRaw(items: AppNotification[]): void {
 
 export function purgeOldNotifications(): AppNotification[] {
   const cutoff = Date.now() - MAX_AGE_MS;
-  const kept = loadRaw().filter((n) => {
+  const raw = loadRaw();
+  const kept = raw.filter((n) => {
     const t = new Date(n.timestamp).getTime();
     return Number.isFinite(t) && t >= cutoff;
   });
-  saveRaw(kept);
+  if (kept.length !== raw.length) {
+    saveRaw(kept);
+  }
   return kept;
 }
 
 export function listNotifications(): AppNotification[] {
-  return purgeOldNotifications().sort(
+  return [...purgeOldNotifications()].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 }

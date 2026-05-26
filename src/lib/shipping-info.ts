@@ -1,5 +1,3 @@
-import { getSetting } from "@/lib/settings-store";
-
 export type ShippingInfoData = {
   return_name: string;
   return_address_line_1: string;
@@ -44,10 +42,6 @@ export function parseShippingInfo(raw: string | null | undefined): ShippingInfoD
   } catch {
     return { ...EMPTY_SHIPPING_INFO };
   }
-}
-
-export function getShippingInfoForCarrier(shipper: string): ShippingInfoData {
-  return parseShippingInfo(getSetting(shippingInfoSettingKey(shipper)));
 }
 
 export function isShippingInfoComplete(shipper: string, info: ShippingInfoData): boolean {

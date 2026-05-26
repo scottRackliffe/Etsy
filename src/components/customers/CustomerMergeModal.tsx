@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Modal } from "@/components/ui/Modal";
-import { MERGE_CUSTOMER_FIELDS, type MergeCustomerField } from "@/lib/customer-merge";
+import { MERGE_CUSTOMER_FIELDS, type MergeCustomerField } from "@/lib/customer-merge-fields";
 import type { ApiErrorShape, Customer, CustomerAddress, Order } from "@/types";
 
 const FIELD_LABELS: Record<MergeCustomerField, string> = {

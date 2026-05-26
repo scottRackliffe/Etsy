@@ -7,8 +7,8 @@ import {
   type ReportResult,
 } from "@/lib/reporting";
 import type { PrintQueueDocType } from "@/lib/print-queue";
+import { getShippingInfoForCarrier } from "@/lib/shipping-info-server";
 import {
-  getShippingInfoForCarrier,
   isOrderShipToComplete,
   isShippingInfoComplete,
   type ShippingInfoData,

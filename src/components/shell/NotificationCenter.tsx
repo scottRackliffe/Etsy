@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   formatNotificationTime,
@@ -18,17 +18,49 @@ const DOT_CLASS: Record<string, string> = {
   info: "bg-[var(--ui-accent)]",
 };
 
+const NOTIFICATIONS_SERVER_SNAPSHOT: AppNotification[] = [];
+
+function subscribeNotifications(onStoreChange: () => void): () => void {
+  const handler = () => {
+    notificationSnapshotCache = null;
+    onStoreChange();
+  };
+  window.addEventListener("esm-notifications-changed", handler);
+  return () => window.removeEventListener("esm-notifications-changed", handler);
+}
+
+let notificationSnapshotCache: AppNotification[] | null = null;
+let notificationSnapshotToken = "";
+
+function getNotificationsSnapshot(): AppNotification[] {
+  const next = listNotifications();
+  if (next.length === 0) {
+    notificationSnapshotCache = NOTIFICATIONS_SERVER_SNAPSHOT;
+    notificationSnapshotToken = "";
+    return NOTIFICATIONS_SERVER_SNAPSHOT;
+  }
+  const token = next.map((n) => `${n.id}:${n.read}:${n.timestamp}`).join("|");
+  if (notificationSnapshotCache && token === notificationSnapshotToken) {
+    return notificationSnapshotCache;
+  }
+  notificationSnapshotToken = token;
+  notificationSnapshotCache = next;
+  return next;
+}
+
+function getNotificationsServerSnapshot(): AppNotification[] {
+  return NOTIFICATIONS_SERVER_SNAPSHOT;
+}
+
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => listNotifications());
+  const notifications = useSyncExternalStore(
+    subscribeNotifications,
+    getNotificationsSnapshot,
+    getNotificationsServerSnapshot
+  );
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const unreadCount = unreadNotificationCount(notifications);
-
-  useEffect(() => {
-    const handler = () => setNotifications(listNotifications());
-    window.addEventListener("esm-notifications-changed", handler);
-    return () => window.removeEventListener("esm-notifications-changed", handler);
-  }, []);
 
   useEffect(() => {
     if (!open) return;

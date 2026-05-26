@@ -4,8 +4,8 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getOrder } from "@/lib/records";
+import { getShippingInfoForCarrier } from "@/lib/shipping-info-server";
 import {
-  getShippingInfoForCarrier,
   isOrderShipToComplete,
   isShippingInfoComplete,
   missingShipToFields,
