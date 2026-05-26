@@ -13,6 +13,7 @@ import {
 } from "@/lib/inventory";
 import { loadListingGuidance } from "@/lib/listing-guidance";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
+import { logger } from "@/lib/logging";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 
 function parseInventoryId(idParam: string): number | null {
@@ -102,7 +103,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       { status: 200 }
     );
   } catch (error) {
-    console.error("Generate listing content error:", error);
+    logger.error("Generate listing content error", { error });
     return errorResponse(
       fromUnknownError(error, {
         code: "LISTING_GENERATION_FAILED",

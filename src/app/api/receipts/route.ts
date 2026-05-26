@@ -3,6 +3,7 @@
  * Returns paginated shop receipts (orders) for the given shop_id (requires valid token cookie).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logging";
 import { cookies } from "next/headers";
 import { getShopReceipts } from "@/lib/etsy";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, ...data });
   } catch (e) {
-    console.error("Receipts error:", e);
+    logger.error("Receipts error", { error: e });
     return errorResponse(
       fromUnknownError(e, {
         code: "ETSY_API_FAILED",

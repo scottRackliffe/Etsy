@@ -1,6 +1,6 @@
 # Schema reconciliation — ADR-017 canonical model
 
-**Last updated:** 2026-05-24  
+**Last updated:** 2026-05-25  
 **Status:** Reconciliation **complete in documentation**. [ADR-017](../adr/0017-database-schema.md) §8 DDL is the **sole schema SSOT**. Code (`src/lib/sqlite.ts`, `migrations/`) must converge to ADR-017; do not change ADR-017 to match incomplete bootstrap.
 
 ---
@@ -65,9 +65,9 @@ Track gaps in [no-developer-questions-build.md](../no-developer-questions-build.
 | Order ship-to snapshot, `was_paid`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, override flag | `orders` columns                            | **Implemented** (002 migration + bootstrap)      |
 | `customers.default_address_id`, `currency_code`, `is_active`                                            | `customers` columns                         | **Implemented**                                  |
 | `other_costs` table                                                                                     | `other_costs`                               | **Implemented**                                  |
-| `orders.tracking_number`                                                                                | Column on `orders`                          | **Spec in ADR-017; bootstrap/migration pending** |
-| `activity_log` table                                                                                    | Full table + indexes                        | **Spec in ADR-017; bootstrap/migration pending** |
-| `customer_notes` table                                                                                  | Full table + indexes                        | **Spec in ADR-017; bootstrap/migration pending** |
+| `orders.tracking_number`                                                                                | Column on `orders`                          | **Implemented** (003 migration + bootstrap)      |
+| `activity_log` table                                                                                    | Full table + indexes                        | **Implemented** (004 migration + bootstrap)      |
+| `customer_notes` table                                                                                  | Full table + indexes                        | **Implemented** (004 migration + bootstrap)      |
 | `orders.source_channel`                                                                                 | `etsy` \| `manual`                          | **Implemented** in bootstrap                     |
 | Listing `listing_*` columns on `inventory`                                                              | All ADR-023 fields                          | **Implemented** in `sqlite.ts`                   |
 | `etsy_receipts`, `report_artifacts`, listing workflow tables                                            | Per ADR-017 §8                              | **Implemented** in bootstrap                     |

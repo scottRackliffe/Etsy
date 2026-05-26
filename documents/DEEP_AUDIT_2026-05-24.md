@@ -43,7 +43,7 @@
 | Doc                                                           | Status                                                                                              |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | [ADR-018](adr/0018-api-surface-endpoints.md) + Appendix B     | Extension surface documented; **~35 route groups not in code**                                      |
-| [ADR-017](adr/0017-database-schema.md) §8 DDL                 | Canonical; **3 objects missing in bootstrap** (`tracking_number`, `activity_log`, `customer_notes`) |
+| [ADR-017](adr/0017-database-schema.md) §8 DDL                 | Canonical; all objects implemented (migrations 003–004, bootstrap updated 2026-05-25)               |
 | [SCHEMA_RECONCILIATION.md](database/SCHEMA_RECONCILIATION.md) | Correctly lists code gaps (not treating live DB as SSOT)                                            |
 | [development-plan.md](development-plan.md)                    | Phase exit criteria **assume** behaviors code does not yet enforce (mark-shipped, deep-link)        |
 | [ui-design.md](ui-design.md) + ADR-071                        | **Ahead of** `src/app/(app)/**` for header, dashboard, badges, label preview                        |
@@ -65,9 +65,9 @@
 
 | Item                                               | Docs      | Code                                       | Risk                                                                                                                 |
 | -------------------------------------------------- | --------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `orders.tracking_number`                           | Required  | Missing in `sqlite.ts`, migrations 001/002 | Cannot store carrier tracking; sample-data UPDATE commented out                                                      |
-| `activity_log` table + 3 indexes                   | ADR-037   | Not created                                | No audit trail persistence                                                                                           |
-| `customer_notes` table + index                     | ADR-065   | Not created                                | Customer notes API blocked                                                                                           |
+| ~~`orders.tracking_number`~~                       | Required  | **Migration 003 + bootstrap**              | ~~Cannot store carrier tracking~~ Resolved 2026-05-25                                                                |
+| ~~`activity_log` table + 3 indexes~~               | ADR-037   | **Migration 004 + bootstrap**              | ~~No audit trail persistence~~ Resolved 2026-05-25                                                                   |
+| ~~`customer_notes` table + index~~                 | ADR-065   | **Migration 004 + bootstrap**              | ~~Customer notes API blocked~~ Resolved 2026-05-25                                                                   |
 | `markOrderShipped` sets `order_status = 'shipped'` | Forbidden | `src/lib/records.ts` L240                  | **Report integrity:** shipped orders excluded from `order_status = 'active'` filters in `reporting.ts` / outstanding |
 
 ### 2.2 High (schema hygiene)
@@ -84,7 +84,7 @@
 
 `orders` + `order_items` + vendor `purchases`, customer flat address + `addresses`, full `inventory` listing columns, `other_costs`, `etsy_receipts`, listing workflow tables, `report_artifacts`, WAL in `sqlite.ts`.
 
-**Recommended migration 003:** `tracking_number`; `CREATE TABLE activity_log`; `CREATE TABLE customer_notes`; `idx_orders_shipper`; mirror in `sqlite.ts`; enable `foreign_keys` in `getDb()`.
+~~**Recommended migration 003:** `tracking_number`; `CREATE TABLE activity_log`; `CREATE TABLE customer_notes`; `idx_orders_shipper`; mirror in `sqlite.ts`; enable `foreign_keys` in `getDb()`.~~ **Done** — migrations 003 + 004 implemented; bootstrap updated.
 
 ---
 

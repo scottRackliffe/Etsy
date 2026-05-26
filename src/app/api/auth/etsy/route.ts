@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { getEtsyAuthUrl } from "@/lib/etsy";
+import { logger } from "@/lib/logging";
 import { fromUnknownError } from "@/lib/api-error";
 import { beginOauth, randomState } from "@/lib/auth-session";
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     beginOauth(state, codeVerifier);
     return NextResponse.redirect(url);
   } catch (e) {
-    console.error("Etsy auth error:", e);
+    logger.error("Etsy auth error", { error: e });
     const normalized = fromUnknownError(e, {
       code: "ETSY_AUTH_FAILED",
       message: "Etsy auth failed",

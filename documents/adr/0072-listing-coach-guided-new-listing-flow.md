@@ -35,7 +35,7 @@ Marketing quality must follow canonical guidance: [etsy-listing-template-and-req
 
 | Entry point                                                                            | Behavior                                                                              |
 | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Inventory** tab → **Add new listing with Listing Coach** (primary CTA for new items) | Navigates to full-screen coach flow                                                   |
+| **Inventory** tab → **Add with Listing Coach** (primary CTA for new items)             | Navigates to full-screen coach flow                                                   |
 | **Inventory** tab → quick **Add item** (item number only)                              | Unchanged; coach optional later from listing workshop                                 |
 | Route                                                                                  | `/listing-coach` (App Router under `(app)` layout; may hide tab chrome — see ADR-024) |
 
@@ -125,7 +125,7 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
   - Creates inventory row (`status`: `Draft` or `In stock` per operator choice; default `In stock`).
   - Uploads all session images to `picture_1…` / `condition_picture_1…` via ADR-026 storage.
   - Writes listing fields, template sections, `sale_revenue`, `listing_draft_state`: `generated`, `listing_draft_source`: `integrated_ai`.
-- Success: toast + navigate to **Inventory** with `?itemId=<id>` and listing workshop open.
+- Success: toast + navigate to **Inventory** with `?itemId=<id>&openWorkshop=1` (listing workshop expanded).
 - Operator may **Approve draft** and publish later (ADR-023 lifecycle unchanged).
 
 ### Hidden template mapping (server-side)
@@ -288,7 +288,7 @@ Errors: standard envelope; 400 validation; 503 `AI_NOT_CONFIGURED`; 429 AI rate 
   - `GoogleResultsPasteZone`
   - `ConfirmCard`
   - `ListingPreview`
-- Inventory page: primary button **Add new listing with Listing Coach** → `/listing-coach`
+- Inventory page: primary button **Add with Listing Coach** → `/listing-coach`
 - Clipboard paste: document-level or zone-focused; support multiple sequential pastes until slot limits.
 
 ### Relationship to ADR-023 modes

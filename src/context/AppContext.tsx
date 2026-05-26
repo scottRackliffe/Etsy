@@ -13,7 +13,6 @@ import type {
   UiError,
   ApiErrorShape,
   AiConfig,
-  ListingReadiness,
   PublishPreview,
 } from "@/types";
 
@@ -76,7 +75,6 @@ type AppState = {
   selectedOrderId: number | null;
   selectedCustomerId: number | null;
   customerAddresses: CustomerAddress[];
-  listingReadiness: ListingReadiness | null;
   publishPreview: PublishPreview | null;
   publishHistory: PublishHistory | null;
   aiConfig: AiConfig | null;
@@ -102,7 +100,6 @@ type AppActions = {
   setSelectedOrderId: React.Dispatch<React.SetStateAction<number | null>>;
   setSelectedCustomerId: React.Dispatch<React.SetStateAction<number | null>>;
   setCustomerAddresses: React.Dispatch<React.SetStateAction<CustomerAddress[]>>;
-  setListingReadiness: React.Dispatch<React.SetStateAction<ListingReadiness | null>>;
   setPublishPreview: React.Dispatch<React.SetStateAction<PublishPreview | null>>;
   setPublishHistory: React.Dispatch<React.SetStateAction<PublishHistory | null>>;
   setAiConfig: React.Dispatch<React.SetStateAction<AiConfig | null>>;
@@ -178,7 +175,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [customerAddresses, setCustomerAddresses] = useState<CustomerAddress[]>([]);
-  const [listingReadiness, setListingReadiness] = useState<ListingReadiness | null>(null);
   const [publishPreview, setPublishPreview] = useState<PublishPreview | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistory | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
@@ -239,7 +235,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
     setError(stampUiError({ title, message, actions }));
-    addNotificationEntry({ type: "error", message: `${title}: ${message}` });
+    queueMicrotask(() => {
+      addNotificationEntry({ type: "error", message: `${title}: ${message}` });
+    });
   }, []);
 
   const connect = useCallback(() => {
@@ -259,7 +257,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedOrderId(null);
     setSelectedCustomerId(null);
     setSelectedItem(null);
-    setListingReadiness(null);
     setPublishHistory(null);
     setAiConfig(null);
     setCount(0);
@@ -416,40 +413,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setApiError("Could not load selected item", "We could not load this inventory item.", err)
       );
 
-    fetch(`/api/inventory/${selectedItemId}/listing-readiness`, {
-      headers: { Accept: "application/json" },
-    })
-      .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & ListingReadiness;
-        if (!r.ok) throw data;
-        return data;
-      })
-      .then((readiness) => setListingReadiness(readiness))
-      .catch((err) =>
-        setApiError(
-          "Could not load listing readiness",
-          "We could not evaluate listing readiness.",
-          err
-        )
-      );
-
-    fetch(`/api/inventory/${selectedItemId}/publish-history?limit=5`, {
-      headers: { Accept: "application/json" },
-    })
-      .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as ApiErrorShape & PublishHistory;
-        if (!r.ok) throw data;
-        return data;
-      })
-      .then((history) => {
-        setPublishHistory({
-          item: history.item,
-          previews: Array.isArray(history.previews) ? history.previews : [],
-          imports: Array.isArray(history.imports) ? history.imports : [],
-          exports: Array.isArray(history.exports) ? history.exports : [],
-        });
-      })
-      .catch(() => {});
   }, [selectedItemId, setApiError]);
 
   // Load customer addresses
@@ -564,7 +527,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     selectedOrderId,
     selectedCustomerId,
     customerAddresses,
-    listingReadiness,
     publishPreview,
     publishHistory,
     aiConfig,
@@ -587,7 +549,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedOrderId,
     setSelectedCustomerId,
     setCustomerAddresses,
-    setListingReadiness,
     setPublishPreview,
     setPublishHistory,
     setAiConfig,

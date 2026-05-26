@@ -34,9 +34,9 @@
 | Order ship-to snapshot, `was_paid`, `shipper`, `seller_shipping_cost`, `etsy_receipt_id`, `shipped_without_paid_override`, totals | `orders` + migration 002                    | **Match**             | —                                                                                                                        |
 | `customers.default_address_id`, `currency_code`, `is_active`                                                                      | `customers`                                 | **Match**             | —                                                                                                                        |
 | `other_costs`                                                                                                                     | `other_costs`                               | **Match**             | —                                                                                                                        |
-| `orders.tracking_number`                                                                                                          | Not in bootstrap or 002                     | **Missing**           | Add migration `003_*` + `sqlite.ts` column; wire mark-shipped + PATCH order                                              |
-| `activity_log` table + indexes                                                                                                    | Not in bootstrap                            | **Missing**           | Add migration + bootstrap; implement ADR-037 writes on mutations                                                         |
-| `customer_notes` table + indexes                                                                                                  | Not in bootstrap                            | **Missing**           | Add migration + bootstrap; implement ADR-065 API                                                                         |
+| `orders.tracking_number`                                                                                                          | Migration 003 + bootstrap                   | **Match**             | Implemented 2026-05-25                                                                                                   |
+| `activity_log` table + indexes                                                                                                    | Migration 004 + bootstrap                   | **Match**             | Implemented 2026-05-25                                                                                                   |
+| `customer_notes` table + indexes                                                                                                  | Migration 004 + bootstrap                   | **Match**             | Implemented 2026-05-25                                                                                                   |
 | `order_status` ∈ `active` \| `void` \| `cancelled` only                                                                           | `records.markOrderShipped` sets `'shipped'` | **Critical mismatch** | Remove `order_status = 'shipped'`; set `shipping_date`/`shipper` only; keep `order_status = 'active'` (ADR-031, ADR-017) |
 | Listing `listing_*` columns on `inventory`                                                                                        | `sqlite.ts`                                 | **Match**             | —                                                                                                                        |
 | `etsy_receipts`, `report_artifacts`, listing workflow tables                                                                      | `sqlite.ts`                                 | **Match**             | —                                                                                                                        |
@@ -146,7 +146,7 @@ Present under `src/app/api/`: auth, shop, receipts, sync/etsy, inventory CRUD + 
 | --------------------------------------------------------- | ---------------------------- | --------- | -------------------------------------------------------- |
 | [`fixtures/sample-data.sql`](../fixtures/sample-data.sql) | File committed               | **Match** | —                                                        |
 | `POST/DELETE /api/seed/sample-data`                       | **No routes**                | High      | Execute SQL in transaction; idempotent guard per ADR-069 |
-| `tracking_number` on SAMPLE-ORD-001                       | Commented SQL pending column | Medium    | Uncomment after migration                                |
+| `tracking_number` on SAMPLE-ORD-001                       | Column now exists (003)      | Low       | Uncomment tracking_number in sample SQL                  |
 
 ---
 
@@ -162,7 +162,7 @@ Present under `src/app/api/`: auth, shop, receipts, sync/etsy, inventory CRUD + 
 ## 8. Suggested implementation order (code catches up to docs)
 
 1. **Critical batch:** Fix `markOrderShipped` (no `shipped` status; enforce paid/override); fix order create validation + Sales UI enums.
-2. **Schema migration 003:** `tracking_number`, `activity_log`, `customer_notes`.
+2. ~~**Schema migration 003:** `tracking_number`, `activity_log`, `customer_notes`.~~ **Done** — migrations 003 + 004 implemented.
 3. **High API batch:** `/api/uploads`, link-customer, mark-shipped body alignment, per-order reports, seed routes.
 4. **ADR-029:** search/sort on list endpoints.
 5. **New reports + ADR-038 computed fields.**

@@ -4,6 +4,7 @@
  * stores token/session state in SQLite and sets an opaque session cookie.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logging";
 import { exchangeCodeForToken } from "@/lib/etsy";
 import { cookies } from "next/headers";
 import {
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL("/", baseUrl));
   } catch (e) {
-    console.error("Etsy callback error:", e);
+    logger.error("Etsy callback error", { error: e });
     clearSession();
     return NextResponse.redirect(new URL("/?error=token_exchange_failed", request.url));
   }

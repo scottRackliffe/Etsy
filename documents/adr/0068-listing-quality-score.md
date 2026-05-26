@@ -101,9 +101,10 @@ Response:
 
 #### Inventory detail / listing workshop
 
-- A circular score badge shows the numeric score with the grade color as background.
-- Below the badge, the tips are displayed as a bulleted list.
-- The badge is positioned in the listing workshop panel header (ADR-030).
+- A circular score badge shows the numeric score with grade color as border and ~25% tint (`color-mix`); the number is centered inside.
+- Below the circle, a **Quality** caption (uppercase, muted) labels the score.
+- Tips appear beside or below the badge under the heading **Tips to improve your listing**, as a bulleted list (up to 3 tips).
+- The score block is the first element inside the expanded listing workshop panel (ADR-030).
 
 #### Inventory DataTable (optional column)
 

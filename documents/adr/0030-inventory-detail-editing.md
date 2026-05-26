@@ -164,10 +164,13 @@ Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 
 
 ### Listing workshop changes
 
-- The existing listing workshop UI (manual form, AI generation, portable import, approve/reject/publish) moves into a collapsible section below the detail panel.
-- Default state: collapsed, showing draft state badge and "Open listing workshop" button.
-- When expanded, the existing workshop UI is displayed as-is (with shared component adoption per ADR-028).
+- The listing workshop UI (manual form, AI generation, portable import, approve/reject/publish) lives in a collapsible section below the inventory detail panel and above pictures.
+- Default state: collapsed. Toggle via **Listing workshop** / **Hide workshop** button in the page toolbar (alongside Add item and Delete selected).
+- When collapsed, draft state is shown on the selected-item summary line; a separate draft badge is not required in v1.
+- Auto-expand when `listing_draft_state` is `generated` or `imported`, or when arriving from Listing Coach with `?itemId=<id>&openWorkshop=1`.
+- When expanded, workshop UI uses shared components (ADR-028) and per-mode requirement info cards (ADR-023). Required listing fields are marked with a red asterisk.
 - AI settings and Etsy publish defaults sections are **removed from Inventory** — they belong in Config only (eliminates duplication).
+- v1 uses a **vertical stack** layout on all breakpoints; side-by-side detail | workshop is aspirational/post-v1.
 
 ## Consequences
 

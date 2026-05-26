@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getShops } from "@/lib/etsy";
+import { logger } from "@/lib/logging";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getValidAccessToken, refreshAndRetry } from "@/lib/auth-session";
 import { EtsyApiError } from "@/lib/etsy";
@@ -31,7 +32,7 @@ export async function GET() {
     if (e instanceof ApiRouteError && e.code === "UNAUTHORIZED") {
       return errorResponse(e);
     }
-    console.error("Shops error:", e);
+    logger.error("Shops error", { error: e });
     return errorResponse(
       fromUnknownError(e, {
         code: "ETSY_API_FAILED",

@@ -47,20 +47,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const [setupChecked, setSetupChecked] = useState(false);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (searchOpen) return;
-        const target = e.target as HTMLElement | null;
-        if (target?.closest("[role='dialog']")) return;
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [searchOpen]);
-
-  useEffect(() => {
     if (shops.length === 0) return;
     const runScheduled = () => {
       void fetch("/api/backup/scheduled", {
@@ -265,8 +251,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
             {!pathname.startsWith("/listing-coach") ? (
               <div className="text-xs text-[var(--ui-muted)]">
-                UI quality baseline: clean hierarchy, fast scanning, clear status, and
-                minimal-friction actions.
+                The term &ldquo;Etsy&rdquo; is a trademark of Etsy, Inc. This application uses the
+                Etsy API but is not endorsed or certified by Etsy, Inc.
               </div>
             ) : null}
           </>

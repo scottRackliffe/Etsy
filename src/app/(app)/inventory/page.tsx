@@ -75,13 +75,11 @@ type PublishHistory = {
 
 function InventoryPageInner() {
   const {
-    inventory,
-    setInventory,
+    setInventory: setGlobalInventory,
     selectedItemId,
     setSelectedItemId,
     selectedItem,
     setSelectedItem,
-    listingReadiness,
     publishPreview,
     setPublishPreview,
     publishHistory,
@@ -92,6 +90,15 @@ function InventoryPageInner() {
     setApiError,
     setError,
   } = useApp();
+
+  const [pageInventory, setPageInventory] = useState<InventoryItem[]>([]);
+  const inventory = pageInventory;
+  const setInventory = useCallback(
+    (updater: InventoryItem[] | ((prev: InventoryItem[]) => InventoryItem[])) => {
+      setPageInventory(updater);
+    },
+    []
+  );
 
   const inventoryRecentRow =
     selectedItem ?? inventory.find((row) => row.id === selectedItemId) ?? null;
@@ -140,9 +147,10 @@ function InventoryPageInner() {
           router.replace(pathname);
           return;
         }
-        setInventory((current) =>
-          current.some((row) => row.id === id) ? current : [data.item!, ...current]
-        );
+        const addIfMissing = (current: InventoryItem[]) =>
+          current.some((row) => row.id === id) ? current : [data.item!, ...current];
+        setInventory(addIfMissing);
+        setGlobalInventory(addIfMissing);
         setSelectedItemId(id);
         setSelectedItem(data.item!);
         setScrollToItemId(id);
@@ -154,7 +162,7 @@ function InventoryPageInner() {
     };
 
     void applyDeepLink();
-  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, router, pathname, setError, setApiError]);
+  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, setGlobalInventory, router, pathname, setError, setApiError]);
 
   useEffect(() => {
     if (!selectedItem) return;
@@ -279,15 +287,21 @@ function InventoryPageInner() {
 
   const handlePictureItemUpdated = (item: InventoryItem) => {
     setSelectedItem(item);
-    setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+    const updateRow = (current: InventoryItem[]) =>
+      current.map((row) => (row.id === item.id ? item : row));
+    setInventory(updateRow);
+    setGlobalInventory(updateRow);
   };
 
   const handleDetailItemUpdated = useCallback(
     (item: InventoryItemDetail) => {
       setSelectedItem(item);
-      setInventory((current) => current.map((row) => (row.id === item.id ? item : row)));
+      const updateRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === item.id ? item : row));
+      setInventory(updateRow);
+      setGlobalInventory(updateRow);
     },
-    [setSelectedItem, setInventory]
+    [setSelectedItem, setInventory, setGlobalInventory]
   );
 
   const reloadSelectedInventoryItem = useCallback(async () => {
@@ -436,14 +450,15 @@ function InventoryPageInner() {
 
   const handleInventoryRowPatched = useCallback(
     (rowId: number, patch: Partial<InventoryItem>) => {
-      setInventory((current) =>
-        current.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
-      );
+      const patchRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === rowId ? { ...row, ...patch } : row));
+      setInventory(patchRow);
+      setGlobalInventory(patchRow);
       if (selectedItemId === rowId) {
         setSelectedItem((current) => (current ? { ...current, ...patch } : current));
       }
     },
-    [selectedItemId, setInventory, setSelectedItem]
+    [selectedItemId, setInventory, setGlobalInventory, setSelectedItem]
   );
 
   const handleInventoryInlineEdit = useCallback(
@@ -514,7 +529,10 @@ function InventoryPageInner() {
       );
       if (batch.selectAllMatching) await reloadInventory();
       else {
-        setInventory((current) => current.filter((row) => !removed.has(row.id)));
+        const filterRemoved = (current: InventoryItem[]) =>
+          current.filter((row) => !removed.has(row.id));
+        setInventory(filterRemoved);
+        setGlobalInventory(filterRemoved);
         if (selectedItemId && removed.has(selectedItemId)) {
           const remaining = inventory.filter((row) => !removed.has(row.id));
           setSelectedItemId(remaining[0]?.id ?? null);
@@ -554,9 +572,10 @@ function InventoryPageInner() {
     if (!response.ok) throw data;
     if (data.item) {
       setSelectedItem(data.item);
-      setInventory((current) =>
-        current.map((row) => (row.id === data.item!.id ? data.item! : row))
-      );
+      const updateRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === data.item!.id ? data.item! : row));
+      setInventory(updateRow);
+      setGlobalInventory(updateRow);
     }
   };
 
@@ -803,10 +822,12 @@ function InventoryPageInner() {
       };
       if (!response.ok) throw data;
       if (data.item) {
-        setInventory((current) => [
+        const addItem = (current: InventoryItem[]) => [
           data.item!,
           ...current.filter((row) => row.id !== data.item!.id),
-        ]);
+        ];
+        setInventory(addItem);
+        setGlobalInventory(addItem);
         setSelectedItemId(data.item.id);
       }
       setNewInventoryItemNumber("");
@@ -830,12 +851,15 @@ function InventoryPageInner() {
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
+      const removeItem = (current: InventoryItem[]) =>
+        current.filter((row) => row.id !== selectedItemId);
       setInventory((current) => {
-        const remaining = current.filter((row) => row.id !== selectedItemId);
+        const remaining = removeItem(current);
         setSelectedItemId(remaining[0]?.id ?? null);
         setSelectedItem(remaining[0] ?? null);
         return remaining;
       });
+      setGlobalInventory(removeItem);
       setError(null);
     } catch (err) {
       setApiError("Could not delete inventory", "We could not delete the selected item.", err);

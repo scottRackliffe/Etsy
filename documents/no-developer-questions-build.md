@@ -93,7 +93,7 @@ Status snapshot:
 
 - **Done:** ADR-017 §8 canonical DDL (three-table model: `orders` + `order_items`; vendor buys = `purchases`; `other_costs`).
 - **Done (2026-05-24):** `documents/database/SCHEMA_RECONCILIATION.md` rewritten — docs are canonical; lists **code gaps** (bootstrap/migrations) rather than treating live SQLite as SSOT.
-- Remaining (code, not doc): migrations/bootstrap for `orders.tracking_number`, `activity_log`, `customer_notes`, and any other ADR-017 §8 columns missing from `src/lib/sqlite.ts` (tracked in §6 and Phase 2 compliance audit).
+- **Done (2026-05-25):** migrations 003 + 004 implement `orders.tracking_number`, `activity_log`, `customer_notes`; bootstrap in `sqlite.ts` also updated.
 - Remaining: Define currency mapping (country → currency) as a static lookup table or JSON file. For v1, support USD only; multi-currency is display-only on customer records.
 - Remaining: Define Shipping Info schema per carrier in `documents/shipping-label-carrier-templates.md` (add JSON schema for each carrier's required/optional fields).
 
@@ -318,7 +318,7 @@ When all priorities are complete, the build is ready for autonomous implementati
 | ~~Accounting export~~                                                            | ADR-056                                                | **Done**                                                                   |
 | ~~Full JSON schemas for extension API endpoints~~                                | ADR-018 Appendix B                                     | **Done** (2026-05-24); §1 core §1–11 + feature ADR field rules remain SSOT |
 | Implement code to match Appendix B                                               | `src/app/api/` + ADR-018                               | High (Phase 2 audit)                                                       |
-| Schema migrations for `activity_log`, `customer_notes`, `tracking_number`        | migrations + ADR-017                                   | Medium (DDL canonical; bootstrap may lag)                                  |
+| ~~Schema migrations for `activity_log`, `customer_notes`, `tracking_number`~~    | migrations 003 + 004 + ADR-017                         | **Done** (2026-05-25)                                                      |
 | ~~`fixtures/sample-data.sql` for ADR-069~~                                       | [`fixtures/sample-data.sql`](fixtures/sample-data.sql) | **Done** (2026-05-24)                                                      |
 | Catalog generator                                                                | EBC roadmap (future)                                   | Future                                                                     |
 
@@ -326,7 +326,7 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 **Status:** Complete (2026-05-24). See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) and [`DEEP_AUDIT_2026-05-24.md`](DEEP_AUDIT_2026-05-24.md).
 
-**Summary:** No critical **documentation** contradictions. **5 Critical** and **28 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, unpaid ship allowed without 400, missing `tracking_number`/`activity_log`/`customer_notes`, ~37% ADR-018 routes absent, ADR-070 v1 UI largely unbuilt).
+**Summary:** No critical **documentation** contradictions. **5 Critical** and **28 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, unpaid ship allowed without 400, ~37% ADR-018 routes absent, ADR-070 v1 UI largely unbuilt). Schema gaps for `tracking_number`, `activity_log`, `customer_notes` resolved in migrations 003–004 (2026-05-25).
 
 **Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures.
 
