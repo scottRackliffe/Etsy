@@ -378,7 +378,7 @@ export function InventoryDetailPanel({
               className={inputClass}
             />
           </FormField>
-          <FormField label="Description">
+          <FormField label="Description" required>
             <textarea
               value={draft.description}
               onChange={(e) => setDraft((c) => ({ ...c!, description: e.target.value }))}
@@ -440,6 +440,7 @@ export function InventoryDetailPanel({
             <FormField
               label="Sale price"
               helpText="The price the buyer paid (or will pay) for this item."
+              required
             >
               <TextInput
                 type="number"
@@ -518,6 +519,7 @@ export function InventoryDetailPanel({
           <FormField
             label="Condition"
             helpText="Rate the item's physical condition using standard vintage/antique grading terms."
+            required
           >
             <SelectInput
               value={draft.condition_code}

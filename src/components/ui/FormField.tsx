@@ -5,12 +5,14 @@ export function FormField({
   htmlFor,
   error,
   helpText,
+  required,
   children,
 }: {
   label: string;
   htmlFor?: string;
   error?: string;
   helpText?: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -20,6 +22,7 @@ export function FormField({
         className="flex items-center text-xs font-medium text-[var(--ui-muted)]"
       >
         {label}
+        {required ? <span className="ml-0.5 text-[var(--ui-red)]">*</span> : null}
         {helpText ? <HelpTooltip text={helpText} /> : null}
       </label>
       {children}

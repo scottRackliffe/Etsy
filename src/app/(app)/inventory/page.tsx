@@ -28,6 +28,8 @@ import {
 } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
+import { FormField } from "@/components/ui/FormField";
+import { stampUiError } from "@/lib/ui-error";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import {
@@ -594,7 +596,26 @@ function InventoryPageInner() {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        const fieldErrors =
+          data?.fields ??
+          (data as { error?: { fields?: Record<string, string[]> } })?.error?.fields;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const missing = Object.values(fieldErrors).flat().join(" ");
+          setError(
+            stampUiError({
+              title: "Missing info for AI generation",
+              message: missing,
+              actions: data?.error?.actions ?? [
+                "Fill in the missing fields in the detail panel, then try again.",
+              ],
+            })
+          );
+        } else {
+          throw data;
+        }
+        return;
+      }
       await patchSelectedItem({});
       setError(null);
     } catch (err) {
@@ -1095,122 +1116,198 @@ function InventoryPageInner() {
               </div>
 
               {listingMode === "manual" && selectedItem && (
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <textarea
-                    placeholder="Title strategy"
-                    value={selectedItem.listing_title_strategy ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_title_strategy: e.target.value })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <textarea
-                    placeholder="Product story/details"
-                    value={selectedItem.listing_product_story ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_product_story: e.target.value })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <textarea
-                    placeholder="Condition clarity + defect disclosure"
-                    value={selectedItem.listing_condition_clarity ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({
-                        ...selectedItem,
-                        listing_condition_clarity: e.target.value,
-                      })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <textarea
-                    placeholder="Attributes and category fit"
-                    value={selectedItem.listing_attributes ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_attributes: e.target.value })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <textarea
-                    placeholder="Pricing and shipping notes"
-                    value={selectedItem.listing_pricing_shipping_notes ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({
-                        ...selectedItem,
-                        listing_pricing_shipping_notes: e.target.value,
-                      })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <textarea
-                    placeholder="Final quality checklist"
-                    value={selectedItem.listing_quality_checklist ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({
-                        ...selectedItem,
-                        listing_quality_checklist: e.target.value,
-                      })
-                    }
-                    className="min-h-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <input
-                    placeholder="Listing title"
-                    value={selectedItem.listing_title ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_title: e.target.value })
-                    }
-                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <input
-                    placeholder="Listing tags (comma separated)"
-                    value={selectedItem.listing_tags ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_tags: e.target.value })
-                    }
-                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
-                  />
-                  <input
-                    placeholder="Listing category path"
-                    value={selectedItem.listing_category_path ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_category_path: e.target.value })
-                    }
-                    className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
-                  />
-                  <textarea
-                    placeholder="Listing description"
-                    value={selectedItem.listing_description ?? ""}
-                    onChange={(e) =>
-                      setSelectedItem({ ...selectedItem, listing_description: e.target.value })
-                    }
-                    className="min-h-28 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
-                  />
-                  <div className="lg:col-span-2">
-                    <button
-                      type="button"
-                      onClick={saveManualListing}
-                      disabled={busyAction != null}
-                      className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {busyAction === "save-manual" ? "Saving..." : "Save manual draft"}
-                    </button>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 text-xs text-[var(--ui-body)]">
+                    <p className="mb-1 font-semibold text-[var(--ui-title)]">
+                      Manual mode requirements
+                    </p>
+                    <p>
+                      Fill in the listing fields below by hand.{" "}
+                      <span className="text-[var(--ui-red)]">*</span> fields are required before
+                      you can save and approve a draft.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <FormField label="Title strategy">
+                      <textarea
+                        placeholder="How will you position this item?"
+                        value={selectedItem.listing_title_strategy ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_title_strategy: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Product story / details">
+                      <textarea
+                        placeholder="History, provenance, key features…"
+                        value={selectedItem.listing_product_story ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_product_story: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Condition clarity">
+                      <textarea
+                        placeholder="Condition details and any defect disclosure"
+                        value={selectedItem.listing_condition_clarity ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_condition_clarity: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Attributes and category fit">
+                      <textarea
+                        placeholder="Material, era, dimensions, style…"
+                        value={selectedItem.listing_attributes ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_attributes: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Pricing and shipping notes">
+                      <textarea
+                        placeholder="Pricing rationale, shipping instructions…"
+                        value={selectedItem.listing_pricing_shipping_notes ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_pricing_shipping_notes: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Final quality checklist">
+                      <textarea
+                        placeholder="Pre-publish review notes…"
+                        value={selectedItem.listing_quality_checklist ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_quality_checklist: e.target.value,
+                          })
+                        }
+                        className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Listing title" required>
+                      <input
+                        placeholder="e.g. Vintage 1950s Pink Depression Glass…"
+                        value={selectedItem.listing_title ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({ ...selectedItem, listing_title: e.target.value })
+                        }
+                        className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Listing tags" required>
+                      <input
+                        placeholder="Comma separated, up to 13"
+                        value={selectedItem.listing_tags ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({ ...selectedItem, listing_tags: e.target.value })
+                        }
+                        className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
+                      />
+                    </FormField>
+                    <FormField label="Category path">
+                      <input
+                        placeholder="e.g. Home & Living > Kitchen > Glassware"
+                        value={selectedItem.listing_category_path ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_category_path: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
+                      />
+                    </FormField>
+                    <FormField label="Listing description" required>
+                      <textarea
+                        placeholder="Full listing description for Etsy…"
+                        value={selectedItem.listing_description ?? ""}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            listing_description: e.target.value,
+                          })
+                        }
+                        className="min-h-28 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
+                      />
+                    </FormField>
+                    <div className="lg:col-span-2">
+                      <button
+                        type="button"
+                        onClick={saveManualListing}
+                        disabled={busyAction != null}
+                        className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      >
+                        {busyAction === "save-manual" ? "Saving..." : "Save manual draft"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
 
               {listingMode === "integrated_ai" && (
                 <div className="space-y-3">
+                  <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 text-xs text-[var(--ui-body)]">
+                    <p className="mb-1 font-semibold text-[var(--ui-title)]">
+                      Generate in app — requirements
+                    </p>
+                    <ul className="list-disc space-y-0.5 pl-4">
+                      <li>
+                        OpenAI API key —{" "}
+                        <strong
+                          className={
+                            aiConfig?.apiKeyConfigured
+                              ? "text-[var(--ui-green)]"
+                              : "text-[var(--ui-red)]"
+                          }
+                        >
+                          {aiConfig?.apiKeyConfigured ? "configured" : "missing"}
+                        </strong>
+                      </li>
+                      <li>Item number, description, condition code, and sale price must be set</li>
+                      <li>At least one photo uploaded</li>
+                    </ul>
+                    {!aiConfig?.apiKeyConfigured ? (
+                      <p className="mt-2 text-[var(--ui-yellow)]">
+                        Set your API key in{" "}
+                        <Link href="/config" className="text-[var(--ui-accent)] hover:underline">
+                          Config → AI Settings
+                        </Link>{" "}
+                        or in <code className="text-[var(--ui-body)]">.env.local</code>.
+                      </p>
+                    ) : null}
+                  </div>
                   <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm">
                     <p>
                       Provider: <strong>{aiConfig?.provider ?? "openai"}</strong> | Model:{" "}
-                      <strong>{aiConfig?.model ?? "gpt-4.1-mini"}</strong> | API key:{" "}
-                      <strong>{aiConfig?.apiKeyConfigured ? "configured" : "missing"}</strong>
+                      <strong>{aiConfig?.model ?? "gpt-4.1-mini"}</strong>
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={generateIntegrated}
-                    disabled={busyAction != null}
+                    disabled={busyAction != null || !aiConfig?.apiKeyConfigured}
                     className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {busyAction === "generate-ai" ? "Generating..." : "Generate listing in app"}
@@ -1220,6 +1317,17 @@ function InventoryPageInner() {
 
               {listingMode === "portable_import" && (
                 <div className="space-y-3">
+                  <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 text-xs text-[var(--ui-body)]">
+                    <p className="mb-1 font-semibold text-[var(--ui-title)]">
+                      Import AI draft — how it works
+                    </p>
+                    <ol className="list-decimal space-y-0.5 pl-4">
+                      <li>Click <strong>Export package</strong> to get the item context as JSON</li>
+                      <li>Paste it into your preferred AI (ChatGPT, Claude, etc.)</li>
+                      <li>Copy the AI&apos;s JSON response and paste it into the import box</li>
+                      <li>Click <strong>Import AI draft</strong> to save</li>
+                    </ol>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
