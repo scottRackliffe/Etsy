@@ -22,20 +22,15 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/hooks/useToast";
-import type { AiConfig, ApiErrorShape } from "@/types";
-
-type UiError = {
-  title: string;
-  message: string;
-  actions: string[];
-};
+import { createUiError } from "@/lib/ui-error";
+import type { AiConfig, ApiErrorShape, UiError } from "@/types";
 
 function parseApiError(data: ApiErrorShape, fallback: string): UiError {
-  return {
+  return createUiError({
     title: fallback,
     message: data.error?.user_message ?? data.error?.message ?? fallback,
     actions: data.error?.actions ?? [],
-  };
+  });
 }
 
 function suggestedPriceValue(price: AnalyzeResponse["price"]): number | null {
@@ -138,11 +133,13 @@ export default function ListingCoachPage() {
       setConfirmAnswers(seeds);
       setStep("analyze");
     } catch {
-      setError({
-        title: "Photo analysis failed",
-        message: "We could not reach the server.",
-        actions: ["Check your connection and retry."],
-      });
+      setError(
+        createUiError({
+          title: "Photo analysis failed",
+          message: "We could not reach the server.",
+          actions: ["Check your connection and retry."],
+        })
+      );
       setStep("photos");
     } finally {
       setBusy(false);
@@ -191,11 +188,13 @@ export default function ListingCoachPage() {
       }
       setStep("compose");
     } catch {
-      setError({
-        title: "Listing compose failed",
-        message: "We could not reach the server.",
-        actions: ["Check your connection and retry."],
-      });
+      setError(
+        createUiError({
+          title: "Listing compose failed",
+          message: "We could not reach the server.",
+          actions: ["Check your connection and retry."],
+        })
+      );
       setStep("confirm");
     } finally {
       setBusy(false);
@@ -236,11 +235,13 @@ export default function ListingCoachPage() {
       toast.showToast("Listing saved to inventory.", "success");
       router.push(`/inventory?itemId=${data.item_id}&openWorkshop=1`);
     } catch {
-      setError({
-        title: "Save failed",
-        message: "We could not reach the server.",
-        actions: ["Check your connection and retry."],
-      });
+      setError(
+        createUiError({
+          title: "Save failed",
+          message: "We could not reach the server.",
+          actions: ["Check your connection and retry."],
+        })
+      );
     } finally {
       setBusy(false);
     }
@@ -291,10 +292,7 @@ export default function ListingCoachPage() {
 
       {error ? (
         <div className="mb-4">
-          <ErrorPanel
-            error={{ title: error.title, message: error.message, actions: error.actions }}
-            onDismiss={() => setError(null)}
-          />
+          <ErrorPanel error={error} onDismiss={() => setError(null)} />
         </div>
       ) : null}
 

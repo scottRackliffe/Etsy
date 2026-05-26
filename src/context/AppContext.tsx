@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { addNotificationEntry } from "@/lib/notifications";
+import { createUiError, stampUiError } from "@/lib/ui-error";
 import type {
   Shop,
   InventoryItem,
@@ -132,37 +133,37 @@ function parseUrlError(): UiError | null {
   const detail = params.get("detail");
   if (!code) return null;
   if (code === "oauth_denied") {
-    return {
+    return createUiError({
       title: "Etsy sign-in was canceled",
       message: detail ? decodeURIComponent(detail) : "Authorization was denied before completion.",
       actions: [
         "Click Connect Etsy and complete authorization.",
         "Verify you approved all requested scopes.",
       ],
-    };
+    });
   }
   if (code === "invalid_callback") {
-    return {
+    return createUiError({
       title: "Sign-in verification failed",
       message: "The OAuth callback could not be validated.",
       actions: [
         "Retry Connect Etsy from the dashboard.",
         "If it repeats, verify ETSY_REDIRECT_URI configuration.",
       ],
-    };
+    });
   }
   if (code === "token_exchange_failed") {
-    return {
+    return createUiError({
       title: "Sign-in could not be completed",
       message: "Token exchange with Etsy failed.",
       actions: ["Retry Connect Etsy.", "Check Etsy app credentials and redirect URI settings."],
-    };
+    });
   }
-  return {
+  return createUiError({
     title: "Connection error",
     message: decodeURIComponent(code),
     actions: ["Try Connect Etsy again.", "Refresh the page if needed."],
-  };
+  });
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -211,9 +212,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (value) => {
       setError((prev) => {
         const next = typeof value === "function" ? value(prev) : value;
-        if (next) {
-          const isSuccess = /complete|saved|created|loaded|removed|success/i.test(next.title);
-          const message = next.message ? `${next.title}: ${next.message}` : next.title;
+        const stamped = stampUiError(next);
+        if (stamped) {
+          const isSuccess = /complete|saved|created|loaded|removed|success/i.test(stamped.title);
+          const message = stamped.message
+            ? `${stamped.title}: ${stamped.message}`
+            : stamped.title;
           queueMicrotask(() => {
             addNotificationEntry({
               type: isSuccess ? "success" : "info",
@@ -221,7 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
           });
         }
-        return next;
+        return stamped;
       });
     },
     []
@@ -234,7 +238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
-    setError({ title, message, actions });
+    setError(stampUiError({ title, message, actions }));
     addNotificationEntry({ type: "error", message: `${title}: ${message}` });
   }, []);
 

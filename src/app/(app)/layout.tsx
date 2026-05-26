@@ -24,6 +24,7 @@ import { useAutoEtsySync } from "@/hooks/useAutoEtsySync";
 import { clearErrorNotifications } from "@/lib/notifications";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useToast } from "@/hooks/useToast";
+import { formatUiErrorTimestamp } from "@/lib/ui-error";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { shops, loading, error, urlError, connect, setError, selectedShopId, setApiError } =
@@ -208,6 +209,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {urlError && (
           <div className="rounded-xl border border-[var(--ui-yellow)]/50 bg-[var(--ui-yellow)]/10 px-4 py-3">
             <p className="font-semibold text-[var(--ui-yellow)]">{urlError.title}</p>
+            {urlError.occurredAt ? (
+              <p className="mt-0.5 text-[10px] text-[var(--ui-muted)]">
+                {formatUiErrorTimestamp(urlError.occurredAt)}
+              </p>
+            ) : null}
             <p className="mt-1 text-[var(--ui-yellow)]">{urlError.message}</p>
             {urlError.actions.length > 0 && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--ui-yellow)]">

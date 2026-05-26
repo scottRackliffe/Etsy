@@ -157,6 +157,8 @@ export type UiError = {
   title: string;
   message: string;
   actions: string[];
+  /** ISO 8601 — when the error was recorded (shown on error cards). */
+  occurredAt?: string;
 };
 
 export type ApiErrorShape = {
