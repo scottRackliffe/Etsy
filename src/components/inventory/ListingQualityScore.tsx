@@ -23,22 +23,32 @@ export function ListingQualityScore({
 
   return (
     <div className={compact ? "flex items-center gap-2" : "flex flex-wrap items-start gap-4"}>
-      <div
-        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
-        style={{
-          backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`,
-          border: `2px solid ${color}`,
-        }}
-        aria-label={`Listing quality score ${score.score} out of 100`}
-      >
-        {score.score}
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`,
+            border: `2px solid ${color}`,
+          }}
+          aria-label={`Listing quality score ${score.score} out of 100`}
+        >
+          {score.score}
+        </div>
+        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--ui-muted)]">
+          Quality
+        </span>
       </div>
       {!compact && score.tips.length > 0 ? (
-        <ul className="min-w-[12rem] flex-1 list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
-          {score.tips.map((tip) => (
-            <li key={tip}>{tip}</li>
-          ))}
-        </ul>
+        <div className="min-w-[12rem] flex-1">
+          <p className="mb-1 text-xs font-semibold text-[var(--ui-title)]">
+            Tips to improve your listing
+          </p>
+          <ul className="list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
+            {score.tips.map((tip) => (
+              <li key={tip}>{tip}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );

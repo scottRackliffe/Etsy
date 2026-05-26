@@ -114,7 +114,9 @@ function InventoryPageInner() {
 
     const applyDeepLink = async () => {
       if (inventory.some((row) => row.id === id)) {
+        const row = inventory.find((r) => r.id === id) ?? null;
         setSelectedItemId(id);
+        setSelectedItem(row);
         setScrollToItemId(id);
         if (openWorkshop) setWorkshopOpen(true);
         router.replace(pathname);
@@ -150,17 +152,17 @@ function InventoryPageInner() {
     };
 
     void applyDeepLink();
-  }, [
-    searchParams,
-    inventory,
-    setSelectedItemId,
-    setSelectedItem,
-    setInventory,
-    router,
-    pathname,
-    setError,
-    setApiError,
-  ]);
+  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, router, pathname, setError, setApiError]);
+
+  useEffect(() => {
+    if (!selectedItem) return;
+    if (
+      selectedItem.listing_draft_state === "generated" ||
+      selectedItem.listing_draft_state === "imported"
+    ) {
+      setWorkshopOpen(true);
+    }
+  }, [selectedItem]);
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
@@ -304,7 +306,9 @@ function InventoryPageInner() {
       setDiscardDirtyOpen(true);
       return;
     }
+    const row = inventory.find((r) => r.id === id) ?? null;
     setSelectedItemId(id);
+    setSelectedItem(row);
   };
 
   useEffect(() => {
@@ -869,8 +873,32 @@ function InventoryPageInner() {
             >
               Delete selected
             </button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={!selectedItemId}
+              onClick={() => {
+                const next = !workshopOpen;
+                setWorkshopOpen(next);
+                if (next) {
+                  requestAnimationFrame(() => {
+                    document
+                      .getElementById("listing-workshop-panel")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  });
+                }
+              }}
+            >
+              {workshopOpen ? "Hide workshop" : "Listing workshop"}
+            </Button>
           </div>
         </div>
+        {selectedItemId ? (
+          <p className="mt-2 text-xs text-[var(--ui-muted)]">
+            Selected: <strong className="text-[var(--ui-body)]">{selectedItem?.item_number ?? `#${selectedItemId}`}</strong>
+            {selectedItem?.listing_title ? ` — ${selectedItem.listing_title}` : ""}
+          </p>
+        ) : null}
         {inventoryDuplicates.length > 0 ? (
           <DuplicateWarning
             message="Similar items found. Continue creating?"
@@ -1016,6 +1044,7 @@ function InventoryPageInner() {
           </>
         )}
       </div>
+
       <InventoryDetailPanel
         item={selectedItem as InventoryItemDetail | null}
         busy={busyAction != null}
@@ -1026,39 +1055,11 @@ function InventoryPageInner() {
         onDirtyChange={setDetailDirty}
       />
 
-      <div className="mb-4">
-        <PictureGrid
-          inventoryId={selectedItemId}
-          item={selectedItem}
-          disabled={busyAction != null}
-          onItemUpdated={handlePictureItemUpdated}
-          onError={(title, message, err) => setApiError(title, message, err)}
-        />
-      </div>
-      {canWorkListing ? (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-            <div className="flex flex-wrap items-start gap-4">
-              {selectedItem ? <ListingQualityScore item={selectedItem} /> : null}
-              <div className="text-sm">
-                <p className="font-semibold text-[var(--ui-title)]">Listing workshop</p>
-                <p className="text-xs text-[var(--ui-muted)]">
-                  Draft: <strong>{selectedItem?.listing_draft_state ?? "draft"}</strong> · Ready:{" "}
-                  <strong>{listingReadiness?.ready ? "yes" : "no"}</strong>
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setWorkshopOpen((open) => !open)}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-            >
-              {workshopOpen ? "Collapse workshop" : "Open listing workshop"}
-            </button>
-          </div>
-
-          {workshopOpen ? (
+      {workshopOpen && selectedItemId ? (
+        <div id="listing-workshop-panel" className="mb-4 space-y-4">
+          {canWorkListing ? (
             <div className="space-y-4">
+              {selectedItem ? <ListingQualityScore item={selectedItem} /> : null}
               {listingRecovery && listingRecoveryLabel ? (
                 <DraftRecoveryBanner
                   savedAtLabel={listingRecoveryLabel}
@@ -1392,13 +1393,21 @@ function InventoryPageInner() {
                 )}
               </div>
             </div>
-          ) : null}
+          ) : (
+            <p className="text-sm text-[var(--ui-muted)]">Loading listing workshop…</p>
+          )}
         </div>
-      ) : (
-        <p className="text-sm text-[var(--ui-muted)]">
-          Create inventory items first to use listing authoring features.
-        </p>
-      )}
+      ) : null}
+
+      <div className="mb-4">
+        <PictureGrid
+          inventoryId={selectedItemId}
+          item={selectedItem}
+          disabled={busyAction != null}
+          onItemUpdated={handlePictureItemUpdated}
+          onError={(title, message, err) => setApiError(title, message, err)}
+        />
+      </div>
 
       <InventoryImportModal
         open={importOpen}
