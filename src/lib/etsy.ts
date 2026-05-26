@@ -63,7 +63,7 @@ export async function getEtsyAuthUrl(
   const { clientId, redirectUri } = getEtsyConfig();
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await getCodeChallenge(codeVerifier);
-  const scope = "transactions_r receipts_r shops_r listings_r listings_w";
+  const scope = "transactions_r shops_r listings_r listings_w";
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
