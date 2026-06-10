@@ -27,7 +27,8 @@ export async function GET() {
     }
     const activeShopIdRaw = getSetting("etsy.active_shop_id");
     const activeShopId = activeShopIdRaw ? Number(activeShopIdRaw) : null;
-    return NextResponse.json({ ok: true, shops, active_shop_id: activeShopId });
+    const shop = shops.find((s) => s.shop_id === activeShopId) ?? shops[0] ?? null;
+    return NextResponse.json({ ok: true, shop, shops, active_shop_id: activeShopId });
   } catch (e) {
     if (e instanceof ApiRouteError && e.code === "UNAUTHORIZED") {
       return errorResponse(e);

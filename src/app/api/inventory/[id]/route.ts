@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { enrichInventoryItem } from "@/lib/inventory-profit";
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { deleteInventory, getInventory, patchInventory } from "@/lib/records";
+import { getDb } from "@/lib/sqlite";
 import { logActivity } from "@/lib/activity-log";
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
@@ -99,6 +100,21 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     requireEtsyAccessToken(await cookies());
     const id = await getInventoryId(context);
     const existing = getInventory(id);
+
+    const orderItemCount = getDb()
+      .prepare("SELECT COUNT(*) as count FROM order_items WHERE inventory_id = ?")
+      .get(id) as { count: number };
+    if (orderItemCount.count > 0) {
+      throw new ApiRouteError({
+        status: 409,
+        code: "REFERENTIAL_INTEGRITY",
+        message: "Cannot delete inventory item with order references",
+        userMessage: "This item is referenced by orders and cannot be deleted. You can retire it instead.",
+        actions: ["Change the status to Retired instead of deleting.", "Remove the item from orders first."],
+        canRetry: false,
+      });
+    }
+
     const deleted = deleteInventory(id);
     if (!deleted) {
       throw new ApiRouteError({

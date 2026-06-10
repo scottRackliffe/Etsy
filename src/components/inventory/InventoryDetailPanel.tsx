@@ -797,14 +797,14 @@ export function InventoryDetailPanel({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setAddBuyOpen(true)}
             disabled={busy || saving || buyBusy}
-            className="rounded-lg border border-[var(--ui-border)] px-2 py-1 text-xs disabled:opacity-60"
           >
             + Add buy
-          </button>
+          </Button>
         </div>
         {purchasesLoading ? (
           <p className="text-xs text-[var(--ui-muted)]">Loading vendor purchases…</p>
@@ -837,14 +837,14 @@ export function InventoryDetailPanel({
                     <td className="py-1 pr-2">{row.reference_number ?? "—"}</td>
                     <td className="py-1 pr-2">{row.notes ?? "—"}</td>
                     <td className="py-1">
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => setDeleteBuyTarget(row)}
-                        className="text-[var(--ui-red)]"
                         disabled={buyBusy}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -939,9 +939,10 @@ export function InventoryDetailPanel({
               <Button
                 variant="accent"
                 onClick={() => void addVendorBuy()}
-                disabled={buyBusy || !buyForm.vendor_name.trim()}
+                disabled={!buyForm.vendor_name.trim()}
+                busy={buyBusy}
               >
-                {buyBusy ? "Saving…" : "Add buy"}
+                Add buy
               </Button>
             </div>
           </div>

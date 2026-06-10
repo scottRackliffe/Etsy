@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePagination, parseOptionalString } from "@/lib/api-utils";
+import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 
 export async function GET(request: NextRequest) {
@@ -10,24 +10,23 @@ export async function GET(request: NextRequest) {
     requireEtsyAccessToken(await cookies());
     const params = request.nextUrl.searchParams;
     const { limit, offset } = parsePagination(params);
-    const q = parseOptionalString(params, "q");
+    const customerIdRaw = parseOptionalString(params, "customer_id");
+    const customerId = customerIdRaw ? parseInt(customerIdRaw, 10) : undefined;
 
     const db = getDb();
     const binds: Record<string, unknown> = { limit, offset };
-    let where = "WHERE status IN ('In stock', 'Listed', 'Reserved')";
-    if (q) {
-      where += " AND (item_number LIKE @q OR description LIKE @q)";
-      binds.q = `%${q}%`;
+    let where = "WHERE 1=1";
+    if (customerId && Number.isFinite(customerId)) {
+      where += " AND customer_id = @customer_id";
+      binds.customer_id = customerId;
     }
 
     const total = (
-      db.prepare(`SELECT COUNT(*) AS c FROM inventory ${where}`).get(binds) as { c: number }
+      db.prepare(`SELECT COUNT(*) AS c FROM addresses ${where}`).get(binds) as { c: number }
     ).c;
     const items = db
       .prepare(
-        `SELECT id, item_number, description, quantity, status
-         FROM inventory ${where}
-         ORDER BY id DESC LIMIT @limit OFFSET @offset`
+        `SELECT * FROM addresses ${where} ORDER BY is_default DESC, id DESC LIMIT @limit OFFSET @offset`
       )
       .all(binds);
 
@@ -40,8 +39,8 @@ export async function GET(request: NextRequest) {
     return errorResponse(
       fromUnknownError(error, {
         code: "INTERNAL_ERROR",
-        message: "Failed to load pick list",
-        userMessage: "We could not load the pick list.",
+        message: "Failed to load addresses",
+        userMessage: "We could not load addresses.",
         actions: ["Retry in a moment."],
       })
     );

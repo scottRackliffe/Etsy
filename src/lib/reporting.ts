@@ -127,39 +127,56 @@ function buildSalesReport(params?: { from_date?: string; to_date?: string }): Re
   };
 }
 
-function buildCostsReport(): ReportResult {
+function buildCostsReport(params?: ReportParams): ReportResult {
   const db = getDb();
+  let purchaseWhere = "";
+  let otherCostsWhere = "";
+  const purchaseBinds: Record<string, string> = {};
+  const otherCostsBinds: Record<string, string> = {};
+
+  if (params?.from_date) {
+    purchaseWhere += " WHERE purchase_date >= @from_date";
+    otherCostsWhere += " WHERE created_at >= @from_date";
+    purchaseBinds.from_date = params.from_date;
+    otherCostsBinds.from_date = params.from_date;
+  }
+  if (params?.to_date) {
+    const prefix = purchaseWhere ? " AND" : " WHERE";
+    purchaseWhere += `${prefix} purchase_date <= @to_date`;
+    otherCostsWhere += `${prefix} created_at <= @to_date`;
+    purchaseBinds.to_date = params.to_date;
+    otherCostsBinds.to_date = params.to_date;
+  }
+
   const totals = db
     .prepare(
-      `
-      SELECT
+      `SELECT
         ROUND(SUM(COALESCE(p.purchase_price, 0)), 2) AS purchase_total,
         ROUND(SUM(COALESCE(p.shipping_price, 0)), 2) AS purchase_shipping_total
-      FROM purchases p
-    `
+      FROM purchases p${purchaseWhere}`
     )
-    .get() as { purchase_total: number; purchase_shipping_total: number };
+    .get(purchaseBinds) as { purchase_total: number; purchase_shipping_total: number };
   const otherCostsTotal = asNumber(
     (
-      db.prepare("SELECT ROUND(SUM(COALESCE(amount, 0)), 2) AS v FROM other_costs").get() as {
-        v: number;
-      }
+      db
+        .prepare(
+          `SELECT ROUND(SUM(COALESCE(amount, 0)), 2) AS v FROM other_costs${otherCostsWhere}`
+        )
+        .get(otherCostsBinds) as { v: number }
     ).v
   );
 
   const byType = db
     .prepare(
-      `
-      SELECT
+      `SELECT
         COALESCE(cost_type, '(unspecified)') AS cost_type,
         ROUND(SUM(COALESCE(amount, 0)), 2) AS total
-      FROM other_costs
+      FROM other_costs${otherCostsWhere}
       GROUP BY COALESCE(cost_type, '(unspecified)')
       ORDER BY total DESC
-      LIMIT 20
-    `
+      LIMIT 20`
     )
-    .all() as Array<{ cost_type: string; total: number }>;
+    .all(otherCostsBinds) as Array<{ cost_type: string; total: number }>;
 
   return {
     report_name: "costs",
@@ -1129,7 +1146,7 @@ export type ReportParams = {
 
 export function buildReport(reportName: string, params?: ReportParams): ReportResult {
   if (reportName === "sales") return buildSalesReport(params);
-  if (reportName === "costs") return buildCostsReport();
+  if (reportName === "costs") return buildCostsReport(params);
   if (reportName === "income-mtd" || reportName === "income-ytd")
     return buildIncomeReport(reportName);
   if (reportName === "postal-by-vendor") return buildPostalByVendorReport(params);

@@ -252,14 +252,14 @@ export function PictureGrid({
     <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-[var(--ui-title)]">Pictures</p>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={addToFirstEmpty}
           disabled={disabled || !inventoryId || !slots.some((s) => !s.path)}
-          className="rounded-lg border border-[var(--ui-border)] px-2 py-1 text-xs disabled:opacity-50"
         >
           + Add
-        </button>
+        </Button>
       </div>
 
       <input
@@ -354,69 +354,66 @@ export function PictureGrid({
                         slot === 1 ? "bottom-1 right-6" : "bottom-1 left-1"
                       }`}
                     >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setClassDropdownSlot(classDropdownSlot === slot ? null : slot);
-                        }}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setClassDropdownSlot(classDropdownSlot === slot ? null : slot)}
                         disabled={disabled}
-                        className="rounded bg-[var(--ui-accent)]/80 px-1 text-[10px] text-white hover:bg-[var(--ui-accent)]"
+                        className="rounded bg-[var(--ui-accent)]/80 !px-1 !py-0 !text-[10px] text-white hover:!bg-[var(--ui-accent)]"
                       >
                         {shotType} ▾
-                      </button>
+                      </Button>
                       {classDropdownSlot === slot && (
                         <div className="absolute bottom-full left-0 z-30 mb-1 max-h-48 overflow-y-auto rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] py-1 shadow-lg">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setClassDropdownSlot(null);
-                            }}
-                            className="w-full whitespace-nowrap px-3 py-1 text-left text-[10px] text-[var(--ui-body)] hover:bg-[var(--ui-card-bg)]"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setClassDropdownSlot(null)}
+                            className="w-full !justify-start whitespace-nowrap !rounded-none !px-3 !text-[10px]"
                           >
                             OK as classified
-                          </button>
+                          </Button>
                           {SHOT_TYPES.map((t) => (
-                            <button
+                            <Button
                               key={t}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
                                 onClassificationChange?.(slot, t);
                                 setClassDropdownSlot(null);
                               }}
-                              className={`w-full whitespace-nowrap px-3 py-1 text-left text-[10px] hover:bg-[var(--ui-card-bg)] ${
-                                t === shotType ? "text-[var(--ui-accent)] font-medium" : "text-[var(--ui-body)]"
+                              className={`w-full !justify-start whitespace-nowrap !rounded-none !px-3 !text-[10px] ${
+                                t === shotType ? "!text-[var(--ui-accent)] !font-medium" : ""
                               }`}
                             >
                               {t}
-                            </button>
+                            </Button>
                           ))}
                         </div>
                       )}
                     </div>
                   ) : null}
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setRemoveSlot(slot)}
                     disabled={disabled}
-                    className="absolute right-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white hover:bg-[var(--ui-red)]"
-                    aria-label={`Remove picture from slot ${slot}`}
+                    title={`Remove picture from slot ${slot}`}
+                    className="absolute right-1 top-1 !rounded bg-black/60 !px-1.5 !py-0 text-white hover:!bg-[var(--ui-red)]"
                   >
                     ×
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => openPicker(slot)}
                   disabled={disabled || !inventoryId}
-                  className="flex h-full w-full flex-col items-center justify-center gap-1 border border-dashed border-[var(--ui-border)] text-xs text-[var(--ui-muted)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-body)] disabled:opacity-50"
+                  className="!flex h-full w-full !flex-col !gap-1 !rounded-none border border-dashed border-[var(--ui-border)] !text-[var(--ui-muted)] hover:!border-[var(--ui-accent)] hover:!text-[var(--ui-body)]"
                 >
                   <span className="text-lg">+</span>
-                  <span>Drop image</span>
-                </button>
+                  <span className="text-xs">Drop image</span>
+                </Button>
               )}
             </div>
           );
@@ -482,14 +479,14 @@ export function PictureGrid({
         {videoFilename ? (
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-xs text-[var(--ui-body)]">{videoFilename}</span>
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => void removeVideo()}
               disabled={disabled || videoBusy}
-              className="rounded border border-[var(--ui-border)] px-2 py-0.5 text-xs text-[var(--ui-red)] hover:bg-[var(--ui-red)]/10 disabled:opacity-50"
             >
               Remove
-            </button>
+            </Button>
           </div>
         ) : (
           <div
@@ -534,7 +531,7 @@ export function PictureGrid({
         onClose={() => setPreviewSlot(null)}
         title={
           previewSlot != null
-            ? `Photo ${previewSlot}${itemNumber ? ` — ${itemNumber}` : ""}`
+            ? `Slot ${previewSlot}${itemNumber ? ` — ${itemNumber}` : ""}`
             : undefined
         }
         maxWidth="max-w-4xl"
@@ -544,7 +541,7 @@ export function PictureGrid({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
-              alt={previewSlot != null ? `Photo ${previewSlot} full size` : ""}
+              alt={previewSlot != null ? `Slot ${previewSlot} full size` : ""}
               className="mx-auto max-h-[70vh] max-w-full rounded object-contain"
             />
             <div className="mt-3 flex items-center justify-center gap-3">

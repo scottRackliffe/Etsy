@@ -1312,7 +1312,7 @@ function InventoryPageInner() {
                         className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
-                    <FormField label="Listing tags" required helpText="Comma-separated keywords buyers search for. Use all 13 slots for best visibility.">
+                    <FormField label="Listing tags" required helpText="Search tags for Etsy. Up to 13 tags, each up to 20 characters. Choose words buyers would search for.">
                       <input
                         placeholder="Comma separated, up to 13"
                         value={selectedItem.listing_tags ?? ""}

@@ -118,6 +118,8 @@ export default function ReportsPage() {
       const ly = d.getFullYear() - 1;
       setFromDate(`${ly}-01-01`);
       setToDate(`${ly}-12-31`);
+    } else if (preset === "custom") {
+      // Keep current user-specified dates as-is
     } else {
       setFromDate("");
       setToDate("");
@@ -259,6 +261,7 @@ export default function ReportsPage() {
               { id: "lastQuarter", label: "Last Quarter" },
               { id: "lastYear", label: "Last Year" },
               { id: "all", label: "All time" },
+              { id: "custom", label: "Custom range" },
             ].map((preset) => {
               const isActive =
                 activePreset === preset.id ||

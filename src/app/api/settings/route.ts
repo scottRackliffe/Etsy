@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { parsePagination } from "@/lib/api-utils";
 import { getDb } from "@/lib/sqlite";
 
 export async function GET(request: NextRequest) {
@@ -11,22 +10,15 @@ export async function GET(request: NextRequest) {
     if (!skipAuth) {
       requireEtsyAccessToken(await cookies());
     }
-    const { limit, offset } = parsePagination(request.nextUrl.searchParams);
     const db = getDb();
-    const total = (db.prepare("SELECT COUNT(*) AS c FROM settings").get() as { c: number }).c;
-    const items = db
-      .prepare("SELECT key, value, updated_at FROM settings ORDER BY key LIMIT ? OFFSET ?")
-      .all(limit, offset);
-    return NextResponse.json({
-      ok: true,
-      items,
-      pagination: {
-        limit,
-        offset,
-        total,
-        has_more: offset + items.length < total,
-      },
-    });
+    const rows = db
+      .prepare("SELECT key, value FROM settings ORDER BY key")
+      .all() as Array<{ key: string; value: string | null }>;
+    const settings: Record<string, string | null> = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return NextResponse.json({ ok: true, settings });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

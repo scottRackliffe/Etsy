@@ -279,6 +279,8 @@ export type OrderListOptions = {
   shipping_status?: "shipped" | "not_shipped";
   source_channel?: string;
   customer_id?: number;
+  from_date?: string;
+  to_date?: string;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 };
@@ -313,6 +315,14 @@ export function listOrders(options: OrderListOptions) {
     where += " AND shipping_date IS NOT NULL AND shipping_date != ''";
   } else if (options.shipping_status === "not_shipped") {
     where += " AND (shipping_date IS NULL OR shipping_date = '') AND order_status = 'active'";
+  }
+  if (options.from_date?.trim()) {
+    where += " AND order_date >= @from_date";
+    params.from_date = options.from_date.trim();
+  }
+  if (options.to_date?.trim()) {
+    where += " AND order_date <= @to_date";
+    params.to_date = options.to_date.trim();
   }
   where += buildSearchClause(
     [

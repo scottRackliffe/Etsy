@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
       shipping_status,
       source_channel: parseOptionalString(params, "source_channel"),
       customer_id: customer_id && Number.isFinite(customer_id) ? customer_id : undefined,
+      from_date: parseOptionalString(params, "from_date"),
+      to_date: parseOptionalString(params, "to_date"),
       sortBy: parseOptionalString(params, "sort_by"),
       sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
     });

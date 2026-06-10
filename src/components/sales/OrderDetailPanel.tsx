@@ -793,7 +793,7 @@ export function OrderDetailPanel({
       {order.shipped_without_paid_override ? (
         <p className="mb-3 inline-flex items-center gap-1 text-xs text-[var(--ui-yellow)]">
           <Badge label="Shipped without payment" variant="warning" />
-          <HelpTooltip text="This order was shipped before payment was confirmed. An audit trail has been recorded." />
+          <HelpTooltip text="This order was shipped before payment was confirmed. An audit record has been created." />
         </p>
       ) : null}
 
