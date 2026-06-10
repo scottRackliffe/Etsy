@@ -92,9 +92,11 @@ Actions:
 
 ### Section 2b: Tax settings (NEW — ADR-039)
 
-| Setting key        | Label                  | Input type                              | Notes                                                                                                                               |
-| ------------------ | ---------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `tax.default_rate` | Default sales tax rate | `TextInput` type="number" step="0.0001" | Decimal fraction (e.g. `0.0825` = 8.25%). Used when creating manual orders; Etsy-synced orders use `orders.tax_total` from receipt. |
+| Setting key        | Label                  | Input type                            | Notes                                                                                                                                                      |
+| ------------------ | ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tax.default_rate` | Default sales tax rate | `TextInput` type="number" step="0.01" | Percentage value (e.g. `8.25` = 8.25%). Enter as percentage, e.g. 8.25 for 8.25%. Used when creating manual orders; Etsy-synced orders use `orders.tax_total` from receipt. |
+
+> **Reconciliation note (2026-06-09):** Tax rate stored as percentage number (e.g., `8.25`), not decimal fraction (`0.0825`). Step changed from `0.0001` to `0.01`. Auto-calculation: `tax_total = subtotal × (rate / 100)`. Matches ADR-039 §2.
 
 Save: "Save tax settings" button. See ADR-039 for report `sales-tax-summary`.
 

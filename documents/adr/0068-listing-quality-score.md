@@ -21,7 +21,7 @@ A score from 0 to 100, computed from a weighted checklist of listing best practi
 ### Scoring rubric
 
 | Criterion                        | Condition                                                       | Points |
-| -------------------------------- | --------------------------------------------------------------- | ------ | ------ | ----- | ----- | ------ | -------- | ---- | --------- | ------- | ------ | ------ | ---- | ------- | ------- | -------- | ------ | ---- | ----- | --- | -------- | ----- | ------------ | --- |
+| -------------------------------- | --------------------------------------------------------------- | ------ |
 | Title length                     | 60–140 characters                                               | +15    |
 | Title length (partial)           | < 60 or > 140 characters but non-empty                          | +5     |
 | Title contains category keywords | `listing_title` contains at least one word from `category_tags` | +10    |
@@ -39,8 +39,8 @@ A score from 0 to 100, computed from a weighted checklist of listing best practi
 | Sale revenue set                 | `sale_revenue` is non-null and > 0                              | +5     |
 | Item number set                  | `item_number` is non-null and non-empty                         | +5     |
 | Category tags set                | `category_tags` is non-null and non-empty                       | +5     |
-| Description mentions dimensions  | `listing_description` matches pattern `/\b\d+(\.\d+)?\s\*("     | inch   | inches | cm    | mm    | feet   | ft)\b/i` | +5   |
-| Description mentions materials   | `listing_description` matches pattern `/\b(ceramic              | glass  | wood   | metal | brass | copper | silver   | gold | porcelain | crystal | fabric | cotton | silk | leather | plastic | bakelite | lucite | iron | steel | tin | aluminum | stone | marble)\b/i` | +5  |
+| Description mentions dimensions  | `listing_description` matches dimensions pattern (see Appendix A) | +5   |
+| Description mentions materials   | `listing_description` matches materials pattern (see Appendix A)  | +5   |
 
 **Maximum possible score: 100.**
 
@@ -122,3 +122,25 @@ Response:
 - Cross-ref: ADR-023 (listing content generation modes), ADR-002 (inventory data model fields), ADR-029 (sortable columns in DataTable), ADR-030 (inventory detail two-panel layout).
 - The scoring logic should be extracted into a shared utility (`src/lib/listing-score.ts`) so it can be used both server-side (API) and potentially client-side for instant feedback during editing.
 - The rubric point values are intentionally designed so that a listing with a good title, description, 5+ photos, and all tags filled scores ≥ 80 (green) without needing every optional criterion.
+
+---
+
+## Appendix A: Regex patterns for rubric criteria
+
+> **Reconciliation (2026-06-09):** Regex patterns moved out of the scoring rubric table to fix corrupted markdown formatting caused by pipe characters in regex alternations.
+
+### Dimensions pattern
+
+Matches when `listing_description` contains a number followed by a unit of measurement (case-insensitive):
+
+```regex
+/\b\d+(\.\d+)?\s*("| inch|inches|cm|mm|feet|ft)\b/i
+```
+
+### Materials pattern
+
+Matches when `listing_description` contains a recognized material keyword (case-insensitive):
+
+```regex
+/\b(ceramic|glass|wood|metal|brass|copper|silver|gold|porcelain|crystal|fabric|cotton|silk|leather|plastic|bakelite|lucite|iron|steel|tin|aluminum|stone|marble)\b/i
+```

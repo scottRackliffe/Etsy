@@ -51,6 +51,10 @@ Etsy order sync is currently manual-only. The user must remember to click "Sync"
 - Before calling `POST /api/sync/etsy`, check if a sync is already in progress (existing mutex per ADR-019)
 - If already syncing, skip this interval silently — do not queue or retry
 - The `POST /api/sync/etsy` endpoint already handles idempotent sync by `receipt_id` (ADR-019)
+- If a sync is already in progress (tracked via in-memory flag or `last_etsy_sync_at` timestamp within the last 60 seconds), the auto-sync timer skips the cycle and tries again at the next interval. Manual sync from the UI also checks this guard.
+- Auto-sync is paused while the app is offline (ADR-050). It resumes on reconnection.
+
+> **Reconciliation note (2026-06-09):** Added concurrent sync guard details (60-second window, manual sync check) and offline pause behavior.
 
 ### Failure handling
 

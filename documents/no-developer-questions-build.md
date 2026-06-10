@@ -4,7 +4,7 @@ This checklist defines what must exist so a developer can implement and ship wit
 
 Use this as a release gate for development readiness.
 
-**Last updated:** 2026-05-24
+**Last updated:** 2026-06-09 (full ADR documentation audit — 55 fixes across 40+ files, all ambiguities and gaps resolved)
 
 ---
 

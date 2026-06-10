@@ -1,4 +1,4 @@
-# ADR-004: Shipper field and shipping cost on purchases
+# ADR-004: Shipper field and seller shipping cost on orders
 
 ## Status
 
@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-We need to report "postal costs by vendor" (USPS, UPS, FedEx, DHL). That requires knowing which carrier was used for each shipment and how much was spent on shipping. Shipping can vary per sale (e.g. different package, different carrier), so it should be recorded at the sale/shipment level, not only on the inventory item.
+We need to report "postal costs by vendor" (USPS, UPS, FedEx, DHL). That requires knowing which carrier was used for each order and how much was spent on shipping. Shipping can vary per sale (e.g. different package, different carrier), so it should be recorded at the order level, not only on the inventory item.
 
 ## Decision
 
@@ -39,3 +39,5 @@ All values are stored in the database; reports group and sum per ADR-013/006.
 ### Schema mapping (updated 2026-05-24)
 
 The "purchase/shipment record" referenced in this ADR maps to the `orders` table in the implementation (see ADR-017). Specifically: `orders.shipper` stores the carrier, `orders.seller_shipping_cost` stores the seller's shipping cost, and `orders.tracking_number` stores the carrier tracking number (added by ADR-031).
+
+> **Reconciled 2026-06-09:** Terminology updated from legacy "purchase" to "orders" per ADR-017 schema. Title, heading, and Context section now use order-centric language.

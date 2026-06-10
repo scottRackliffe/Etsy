@@ -28,6 +28,7 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers �
 
 2. **For each receipt:**
    - **Skip if already imported:** If any `orders` row has `etsy_receipt_id` = this receipt’s id, skip entirely (idempotent).
+   - **Persist raw receipt** *(added 2026-06-09)*: Upsert the raw receipt JSON into `etsy_receipts` table by `receipt_id` for audit/reference. Set `shop_id` from the current sync scope and `synced_at` to now. This occurs even for skipped receipts (updates `synced_at` on re-sync).
    - **Resolve or create customer:**
      - **Match by email:** If buyer email present, lookup `customers` by email (case-insensitive). Use `customers.id` if found.
      - **Else create:** Insert `customers` with `first_name` / `last_name` from buyer name (first token = first_name, remainder = last_name; if no space, all in first_name), `email` from receipt when present.
@@ -47,7 +48,12 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers �
      - Ship-to snapshot fields from receipt
      - Totals from receipt when available: `subtotal`, `shipping_total`, `tax_total`, `discount_total`, `grand_total` (map from Etsy fields)
      - `shipper`, `seller_shipping_cost`, `shipping_date`, `tracking_number` = null initially (user fills on mark shipped)
-     - `notes` = null or `"Synced from Etsy"`
+     - `notes` = build from available receipt data *(updated 2026-06-09)*:
+       - Start with `"Synced from Etsy"`.
+       - If `receipt.message_from_buyer` is non-empty, append: `"\nBuyer message: {message_from_buyer}"`.
+       - If `receipt.is_gift` is true and `receipt.gift_message` is non-empty, append: `"\nGift message: {gift_message}"`.
+       - If `receipt.is_gift` is true and `gift_message` is empty, append: `"\nGift order (no message)"`.
+       - Result: concatenated string stored in `orders.notes`.
    - **Create `order_items` (one per Etsy line item):**
      - `order_id` = new order id
      - `inventory_id` = resolve by Etsy `listing_id`: exact match on `inventory.etsy_listing_id`. If multiple matches, first by `id ASC`. If none: **create placeholder inventory** (required — `inventory_id` NOT NULL):
@@ -71,6 +77,7 @@ The app can fetch Etsy receipts via the API (ADR-007). When the user triggers �
 - **Partial failure:** Process sequentially; on failure log `receipt_id`, append to `skipped`, continue. Success if ≥1 receipt imported; total failure only if zero processed (500).
 - **Pagination:** If Etsy `has_more`, fetch up to 5 pages or 1000 receipts per run; stop early if remaining pages are all already synced.
 - **Duplicate buyer:** Email match case-insensitive; if no email, name match `LOWER(first_name)+LOWER(last_name)`; else new customer.
+     > **Dedup caveat (2026-06-09):** Name-only matching (no email) may merge unrelated customers with common names. Prefer Etsy buyer user ID (`buyer_user_id`) when available for matching; otherwise create a new customer and let users merge manually via ADR-053. Email is not always present in Etsy receipt data (requires `buyer_email` scope).
 - **Concurrent sync:** `sync_in_progress` in `settings`; second request → 409 “A sync is already in progress.”
 
 ## Consequences

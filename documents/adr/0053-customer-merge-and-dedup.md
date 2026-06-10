@@ -50,6 +50,7 @@ Below the field comparison:
 
 - **Orders to be moved**: list of secondary customer's orders (order number, date, total) — these will all be reassigned to primary.
 - **Addresses to be moved**: list of secondary customer's addresses — these will all be reassigned to primary.
+- **Interaction notes to be moved**: count of `customer_notes` records that will be moved from the secondary customer (added 2026-06-09, per ADR-065).
 
 #### Step 3: Confirm
 
@@ -59,6 +60,7 @@ ConfirmDialog (per ADR-032):
 >
 > - 3 orders will be moved to John Smith
 > - 1 address will be moved to John Smith
+> - 2 interaction notes will be moved to John Smith
 > - John D. Smith will be permanently deleted
 >
 > **This cannot be undone.**
@@ -111,9 +113,12 @@ All operations execute within a single database transaction:
 
 1. `UPDATE orders SET customer_id = :primary_id WHERE customer_id = :secondary_id`
 2. `UPDATE addresses SET customer_id = :primary_id WHERE customer_id = :secondary_id`
-3. `UPDATE customers SET [field_overrides], updated_at = NOW() WHERE id = :primary_id` (only if overrides provided)
-4. `DELETE FROM customers WHERE id = :secondary_id`
-5. Insert activity log entry: action `customer.merged`, entity_type `customer`, entity_id = primary_id, detail_json = `{ "secondary_id": 2, "secondary_name": "John D. Smith", "orders_moved": 3, "addresses_moved": 1 }`
+3. `UPDATE customer_notes SET customer_id = :primary_id WHERE customer_id = :secondary_id`
+4. `UPDATE customers SET [field_overrides], updated_at = NOW() WHERE id = :primary_id` (only if overrides provided)
+5. `DELETE FROM customers WHERE id = :secondary_id`
+6. Insert activity log entry: action `customer.merged`, entity_type `customer`, entity_id = primary_id, detail_json = `{ "secondary_id": 2, "secondary_name": "John D. Smith", "orders_moved": 3, "addresses_moved": 1, "notes_moved": N }`
+
+> Updated 2026-06-09: Step 3 added to move `customer_notes` from secondary to primary (ADR-065).
 
 If any step fails, the entire transaction rolls back and returns 500.
 

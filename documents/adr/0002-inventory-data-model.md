@@ -35,6 +35,8 @@ Store the following in the database:
   - **condition_notes** — Optional text: accurate description of flaws. Use specific terminology where appropriate (e.g. “patina”, “crazing” for ceramics, “foxing” for paper). Sellers must accurately describe flaws; this field supports that.
   - **Condition pictures:** condition_picture_1 through condition_picture_5 — Up to 5 pictures that **substantiate the condition grade**: all sides, marks, and defects. Photos are crucial for the chosen condition. Paths or URLs in the database; files on disk or object storage. Empty slots are null.
 - **Status:** e.g. Draft, In stock, Listed, Sold, Reserved, Retired. We support **Draft** for items being prepared. When **date listed** is entered, the item is treated as **In stock** and **Listed** (the app may set status to Listed automatically or the user may set it via “Mark as listed”); status is stored in the database so filters and outstanding lists can use it.
+
+> **Clarification (2026-06-09):** When `date_listed` is set, the canonical `status` value is `Listed`. The `is_listed` flag is also set to `1`. These are not two simultaneous statuses — `Listed` is the single status.
 - **Optional:** Etsy listing ID (for linking to Etsy), quantity (default 1), category/tags, notes
 - **Audit:** created_at, updated_at
 

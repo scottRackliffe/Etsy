@@ -26,9 +26,11 @@ The outstanding list is the **union** of the following item types. Each type has
 
 ### 1. Orders paid but not yet shipped
 
-**Definition:** Orders marked paid but not yet shipped (missing shipping date, shipper, or seller shipping cost).
+**Definition:** Orders marked paid but not yet shipped (no shipping date recorded).
 
-**Query rule:** From `orders` where `order_status = 'active'` AND `was_paid = 1` AND (`shipping_date` IS NULL OR `shipper` IS NULL OR `seller_shipping_cost` IS NULL).
+**Query rule:** From `orders` where `order_status = 'active'` AND `was_paid = 1` AND `shipping_date` IS NULL.
+
+> **Reconciled 2026-06-09:** Removed `seller_shipping_cost IS NULL` and `shipper IS NULL` from the predicate. Type 1 checks only whether the order has shipped (via `shipping_date`), not whether shipping cost or carrier have been entered. Missing shipping cost on already-shipped orders is covered separately by Type 6.
 
 **Grouping:** One outstanding item per `orders.id`. Display: e.g. “Order #&lt;order_number&gt; – &lt;ship_to_first_name&gt; &lt;ship_to_last_name&gt; – not shipped”.
 
@@ -58,14 +60,13 @@ The outstanding list is the **union** of the following item types. Each type has
 
 ---
 
-### 4. Inventory items in “In stock” but not yet “Listed”
+### 4. Inventory items in stock but not yet listed
 
-**Definition:** Inventory rows with status that indicates in stock but not yet listed (e.g. status = ‘In stock’ and date_listed IS NULL, or status = ‘Draft’ and ready to list).
+**Definition:** Inventory rows with status `In stock` that have not been listed (no `date_listed`).
 
-**Query rule:** Select from `inventory` where:
+**Query rule:** Select from `inventory` where `status` = 'In stock' AND (`date_listed` IS NULL OR `date_listed` = '').
 
-- `status` = ‘In stock’ AND (`date_listed` IS NULL OR `date_listed` = ‘’)
-- OR `status` = ‘Draft’ (items being prepared; user may list them next).
+> **Reconciled 2026-06-09:** Removed `Draft` from this type. Draft items are intentionally incomplete (still being entered/prepared) and should not appear as outstanding “not listed” items. Only `In stock` items — which are ready for sale but not yet listed — are flagged.
 
 One outstanding item per inventory row. Display: e.g. “Item &lt;item_number&gt; – &lt;description or name&gt; – not listed”.
 
@@ -109,10 +110,10 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 | Type                            | Data source          | Query / logic                                                      | One item per       | Click target        |
 | ------------------------------- | -------------------- | ------------------------------------------------------------------ | ------------------ | ------------------- |
-| Paid but not shipped            | orders               | active, was_paid=1, missing ship date/shipper/seller_shipping_cost | orders.id          | Sales, order        |
+| Paid but not shipped            | orders               | active, was_paid=1, missing ship date | orders.id          | Sales, order        |
 | Not yet marked paid             | orders               | active, was_paid=0                                                 | orders.id          | Sales, order        |
 | New Etsy not synced             | Etsy API + orders    | receipt_id with no orders.etsy_receipt_id                          | receipt_id         | Sales, sync         |
-| In stock not listed             | inventory            | status In stock/Draft and date_listed empty                        | inventory.id       | Inventory, item     |
+| In stock not listed             | inventory            | status In stock and date_listed empty                        | inventory.id       | Inventory, item     |
 | Customer no/incomplete address  | customers, addresses | no complete flat or ship-to address                                | customers.id       | Customers, customer |
 | Missing shipping cost           | orders               | shipped but seller_shipping_cost null/0                            | orders.id          | Sales, order        |
 | Validation/context-check issues | DB or computed       | records with unresolved validation/context failures                | record or order_id | Tab and record      |
@@ -193,14 +194,23 @@ This ADR's item descriptions use the original data model terms ("purchase", "pur
 | customer_address                        | `addresses` table                                                         | Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`) |
 | etsy_receipt_id                         | `orders.etsy_receipt_id`                                                  |                                                                                             |
 
-### Implemented vs future outstanding types
+### Implemented outstanding types (v1)
 
-| API `type` value        | ADR-020 type # | Status                                        |
-| ----------------------- | -------------- | --------------------------------------------- |
-| `paid_not_shipped`      | Type 1         | Implemented                                   |
-| `unpaid`                | Type 2         | Implemented                                   |
-| `not_listed`            | Type 4         | Implemented                                   |
-| `missing_address`       | Type 5         | Implemented                                   |
-| `missing_shipping_cost` | Type 6         | Implemented                                   |
-| `etsy_not_synced`       | Type 3         | Future (requires Etsy API call at query time) |
-| `validation_issue`      | Type 7         | Future (requires runtime validation checks)   |
+| API `type` value        | ADR-020 type # | Status      |
+| ----------------------- | -------------- | ----------- |
+| `paid_not_shipped`      | Type 1         | Implemented |
+| `unpaid`                | Type 2         | Implemented |
+| `not_listed`            | Type 4         | Implemented |
+| `missing_address`       | Type 5         | Implemented |
+| `missing_shipping_cost` | Type 6         | Implemented |
+
+### Future / Post-v1 Types
+
+The following outstanding types require additional infrastructure and are deferred to post-v1:
+
+| API `type` value     | ADR-020 type # | Reason deferred                                                                 |
+| -------------------- | -------------- | ------------------------------------------------------------------------------- |
+| `etsy_not_synced`    | Type 3         | Requires live Etsy API call at query time; depends on sync infrastructure       |
+| `validation_issue`   | Type 7         | Requires runtime validation checks across all entity types at outstanding build |
+
+See Types 3 and 7 definitions above for full query rules and caching behavior.

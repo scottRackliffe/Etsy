@@ -66,7 +66,7 @@ The wizard is a full-screen modal with 4 sequential steps, displayed as a center
 - Form fields (all optional — user can leave blank and fill in later):
   - Business Name: text input, placeholder "e.g., Trudy's Classic Treasures"
   - Business Address: text inputs for address line 1, city, state, postal code, country
-- **Pre-fill behavior:** If any of these settings already exist in the `settings` table (e.g., `business_name`, `business_address_line1`, etc. from ADR-034 §1), pre-fill the form fields
+- **Pre-fill behavior:** If any of these settings already exist in the `settings` table (e.g., `business_name`, `business_address_line_1`, etc. from ADR-034 §1), pre-fill the form fields
 - On "Next": save any non-empty fields via `PUT /api/settings/[key]` for each key
 - Validation: None required (all fields optional)
 

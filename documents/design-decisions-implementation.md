@@ -1,5 +1,7 @@
 # Design decisions — implementation index (SSOT)
 
+> **Updated 2026-06-09:** Terminology aligned with ADR-017 schema (purchase → orders, customer_address → addresses, settings.currency_code → ui.currency_code).
+
 This document is the **decision index**. Each section summarizes the decision and points to the **single source of truth (SSOT)** for full wording. Do not duplicate SSOT content here; reference the canonical document.
 
 ---
@@ -22,7 +24,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 3. Multi-currency (currency per customer)
 
-**Summary:** Currency per customer from billing country (mapping); default USD. For v1, all operations use USD only. Multi-currency display on customer records is a future enhancement. Reporting uses the app default currency (`settings.currency_code`).
+**Summary:** Currency per customer from billing country (mapping); default USD. For v1, all operations use USD only. Multi-currency display on customer records is a future enhancement. Reporting uses the app default currency (`ui.currency_code`).
 
 **SSOT:** Reporting currency: [ADR-006](adr/0006-reports-scope.md) (Notes). App currency setting: [ADR-017](adr/0017-database-schema.md) (settings table, `ui.currency_code` key).
 

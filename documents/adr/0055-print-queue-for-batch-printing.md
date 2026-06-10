@@ -103,3 +103,9 @@ Content-Type: application/json
 - The print queue icon in the header uses a standard printer icon from the existing icon set
 - Badge count uses `--ui-accent` (#2f80ed) background with white text
 - If the user navigates away and returns, the queue persists (localStorage). If the user clears browser data, the queue is lost — this is acceptable.
+
+### Partial failure handling
+
+> Added 2026-06-09 — specifies behavior when some queued items fail validation during batch print.
+
+If any queued item fails validation (e.g., void order, missing ship-to address for a label), it is skipped and listed in an error summary. Successfully generated documents are combined into the PDF as normal. The queue is cleared only for items that were successfully printed — failed items remain in the queue with an error indicator (red text or icon on the queue entry). The error summary is shown as a warning toast: "N of M documents printed. K items failed — check the print queue for details."

@@ -56,13 +56,21 @@ The following rules apply. “Restrict” means the delete is rejected with HTTP
 
 ---
 
-### 5. Delete order; void and cancel
+### 5. Delete vendor purchase (`purchases`)
+
+**Rule:** **Allow** delete. Vendor purchase records can be deleted without restriction.
+
+**Behavior:** `DELETE /api/purchases/[id]`: delete the row; return 204. Deleting a purchase does not affect the linked inventory item — only the cost tracking record is removed. The inventory item's `purchase_cost` field is independent of the `purchases` table and remains unchanged.
+
+---
+
+### 6. Delete order; void and cancel
 
 **Rule:** **No DELETE** for `orders` or `order_items`. Void/cancel via `orders.order_status` only (`void` | `cancelled`). Corrections via `PATCH /api/orders/[id]`. Excluded from reports (ADR-013) and outstanding (ADR-020).
 
 ---
 
-### 6. Summary table
+### 7. Summary table
 
 | Entity      | Delete allowed? | Condition                                         | If restricted |
 | ----------- | --------------- | ------------------------------------------------- | ------------- |
@@ -70,6 +78,7 @@ The following rules apply. “Restrict” means the delete is rejected with HTTP
 | inventory   | Yes             | Only if no `order_items` reference `inventory_id` | 409           |
 | addresses   | Yes             | Always (snapshot on orders unchanged)             | 204           |
 | other_costs | Yes             | Always                                            | 204           |
+| purchases   | Yes             | Always (vendor buy records, no FK dependents)     | 204           |
 | orders      | No              | —                                                 | No endpoint   |
 | order_items | No              | —                                                 | No endpoint   |
 

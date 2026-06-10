@@ -55,13 +55,18 @@ Add a date range section above the report action buttons:
 - Horizontal row of small buttons below the date inputs.
 - Each preset sets both `from_date` and `to_date`:
 
-| Preset     | `from_date`            | `to_date`    |
-| ---------- | ---------------------- | ------------ |
-| Today      | Today's date           | Today's date |
-| This week  | Monday of current week | Today        |
-| This month | 1st of current month   | Today        |
-| YTD        | Jan 1 of current year  | Today        |
-| All time   | (empty)                | (empty)      |
+| Preset       | `from_date`                | `to_date`                |
+| ------------ | -------------------------- | ------------------------ |
+| Today        | Today's date               | Today's date             |
+| This Week    | Monday of current week     | Today                    |
+| This Month   | 1st of current month       | Today                    |
+| This Quarter | 1st of current quarter     | Today                    |
+| This Year    | Jan 1 of current year      | Today                    |
+| Last Month   | 1st of previous month      | Last day of prev month   |
+| Last Quarter | 1st of previous quarter    | Last day of prev quarter |
+| Last Year    | Jan 1 of previous year     | Dec 31 of previous year  |
+| Custom Range | User-specified             | User-specified           |
+| All time     | (empty)                    | (empty)                  |
 
 - Clicking a preset fills the date inputs and visually highlights the active preset.
 - Manually editing a date input clears the preset highlight.
@@ -95,8 +100,8 @@ For reports that don't support dates, the date inputs are visually disabled with
 
 | Method | Path                                    | Purpose                                        |
 | ------ | --------------------------------------- | ---------------------------------------------- |
-| GET    | `/api/reports/invoice/[orderId]`        | Generate invoice PDF/CSV for a single order    |
-| GET    | `/api/reports/thank-you-note/[orderId]` | Generate thank-you note PDF for a single order |
+| GET    | `/api/reports/invoice/[orderId]`        | Generate invoice for a single order. Query param: `?format=pdf` (default) or `?format=csv`. |
+| GET    | `/api/reports/thank-you-note/[orderId]` | Generate thank-you note PDF for a single order. Always PDF (no CSV option). |
 
 **Invoice — single order (per ADR-013 spec):**
 
@@ -178,3 +183,7 @@ Replace kebab-case report names with user-friendly labels in the dropdown:
 - **Negative**
   - Two new API route files for per-order reports.
   - Per-order PDFs need a more polished layout than the aggregate reports (logo, address block, table formatting).
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: Per-order report URLs confirmed as path-based (`/api/reports/invoice/[orderId]`, `/api/reports/thank-you-note/[orderId]`). Added `?format=pdf|csv` parameter for invoices. Expanded date presets from 5 to 10 options: added This Quarter, This Year, Last Month, Last Quarter, Last Year, and Custom Range.

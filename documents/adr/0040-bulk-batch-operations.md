@@ -56,7 +56,7 @@ When ≥ 1 row is selected, a batch actions bar appears between the search/filte
 | Action             | Button label         | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Mark paid          | "Mark Paid"          | Sets `payment_status = 'paid'` and `was_paid = 1` on all selected orders. Skips orders already paid (no error).                                                                                                                                                                                                                                                                                                                                                                     |
-| Mark shipped       | "Mark Shipped"       | Opens a modal: carrier dropdown (USPS/UPS/FedEx/DHL/Other), shipping date (default: today), optional tracking number prefix. Sets `shipping_date` and `shipper` on all selected orders. Skips orders already shipped. **Paid check:** If any selected order has `payment_status = 'unpaid'`, the modal shows a warning: "N orders are unpaid. Ship anyway?" with a checkbox "Ship unpaid orders (override)" — if checked, sets `shipped_without_paid_override = 1` on those orders. |
+| Mark shipped       | "Mark Shipped"       | Opens a modal: carrier dropdown (USPS/UPS/FedEx/DHL/Other), shipping date (default: today), optional tracking number (shared across all selected orders — leave blank to mark shipped without tracking). Sets `shipping_date`, `shipper`, and optionally `tracking_number` on all selected orders. An order is considered already shipped when `shipping_date IS NOT NULL`; already-shipped orders are skipped. **Paid check:** If any selected order has `payment_status = 'unpaid'`, the modal shows a warning: "N orders are unpaid. Ship anyway?" with a checkbox "Ship unpaid orders (override)" — if checked, sets `shipped_without_paid_override = 1` on those orders. |
 | Void               | "Void"               | Confirmation dialog (ADR-032): "Void N orders? This cannot be undone." On confirm, sets `order_status = 'void'` on all selected. Skips already-void orders.                                                                                                                                                                                                                                                                                                                         |
 | Add to print queue | "Add to Print Queue" | Opens sub-choice: document type (Invoice, Thank-you, Label). Adds each selected order to the client print queue (ADR-055). No server batch endpoint — queue is `localStorage`. Toast per ADR-055.                                                                                                                                                                                                                                                                                   |
 
@@ -99,7 +99,7 @@ Batch operations use a single POST endpoint per entity type. The request body sp
 ```
 
 - `action`: string — one of the valid actions for that entity (see §3)
-- `ids`: `number[]` — list of entity IDs to act on; max 100 per request
+- `ids`: `number[]` — list of entity IDs to act on; max 100 per request (see §4a for "select all matching" behavior)
 - `params`: optional object — additional parameters for the action (e.g., shipper, status value)
 
 **Valid `action` values:**
@@ -140,7 +140,13 @@ Batch operations use a single POST endpoint per entity type. The request body sp
 
 **Processing order:** Items are processed sequentially within a single database transaction. If any individual operation fails (e.g., referential integrity), that item is recorded in `failed` and processing continues. The transaction commits all successful operations.
 
-**Rate limit:** Max 100 IDs per request. If more are needed, the client must split into multiple requests. If `ids.length > 100`, return `400` with `{ error: { code: "BATCH_TOO_LARGE", message: "Maximum 100 items per batch operation" } }`.
+**Rate limit:** Max 100 IDs per explicit `ids` request. If `ids.length > 100`, return `400` with `{ error: { code: "BATCH_TOO_LARGE", message: "Maximum 100 items per batch operation" } }`.
+
+#### 4a. "Select all matching" and the 100-ID cap
+
+> Added 2026-06-09 — clarifies server-side chunking for large filtered selections.
+
+When "select all matching" is used with a filter, the server processes all matching records. If the match count exceeds 100, the operation is chunked into batches of 100 server-side. The client shows a confirmation dialog with the total count before proceeding (e.g., "Mark 247 orders as paid?"). The server accepts either explicit `ids` or `filter` parameters — when `filter` is used, the 100-ID client limit does not apply because the server handles chunking internally.
 
 ### 5. Confirmation dialogs
 
@@ -175,7 +181,7 @@ Each batch operation creates a single activity log entry (not one per item):
 
 | Field          | Value                                                                                                                                                       |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `action`       | `order.batch_mark_paid`, `order.batch_mark_shipped`, `order.batch_void`, `inventory.batch_change_status`, `inventory.batch_delete`, `customer.batch_delete` |
+| `action`       | `order.batch_marked_paid`, `order.batch_marked_shipped`, `order.batch_void`, `inventory.batch_status_changed`, `inventory.batch_delete`, `customer.batch_deleted` |
 | `entity_type`  | `order`, `inventory`, or `customer`                                                                                                                         |
 | `entity_id`    | `NULL` (batch, not single entity)                                                                                                                           |
 | `entity_label` | `"Batch: 5 orders"`                                                                                                                                         |
@@ -202,4 +208,6 @@ For batches ≤ 10 items, a simple loading spinner on the action button is suffi
 
 - Cross-references: ADR-028 (DataTable — checkbox column integration), ADR-029 (search/filter — "select all matching" operates on the current filter), ADR-032 (ConfirmDialog — destructive batch confirmations), ADR-037 (activity log — batch entry format), ADR-022 (referential integrity — delete blocked if child records exist), ADR-043 (progress indicators — large batch progress pattern)
 - The "select all matching" feature: when active, the client sends the current filter/search params to the batch endpoint instead of explicit IDs. The server resolves matching IDs internally. Request body uses `filter` instead of `ids`: `{ "action": "mark_paid", "filter": { "q": "vintage", "status": "active" } }`
+- Create-item default status via batch `change_status` must use `Draft` (capitalized, matching ADR-002/017 enum). All canonical inventory status values are: `Draft`, `In stock`, `Listed`, `Sold`, `Reserved`, `Retired`.
 - Future consideration: undo for batch operations (e.g., un-void) is not in scope for v1
+- Reconciliation note (2026-06-09): Activity log action names updated to match ADR-037 catalog (`order.batch_marked_paid`, `order.batch_marked_shipped`, `inventory.batch_status_changed`, `customer.batch_deleted`). "Shipped" definition, select-all-matching server-side chunking, and tracking number behavior clarified.

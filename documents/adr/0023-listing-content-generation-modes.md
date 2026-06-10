@@ -76,9 +76,13 @@ The build must include these three operator-facing capabilities:
 
 The listing workflow state model is:
 
-- `draft` -> `ready_for_generation` -> (`generated` or `imported`) -> `approved` -> `published`
+- `draft` -> (`generated` or `imported`) -> `approved` -> `published`
+
+Readiness is checked before generation but is not a separate draft state. The system validates that all required fields (item_number, description, condition_code, sale_revenue > 0, at least one picture) are present before allowing generation or import — this is a validation gate, not a lifecycle state.
 
 `published` is irreversible from this workflow perspective; later edits are handled by separate Etsy update behavior.
+
+> **Reconciliation note (2026-06-09):** Removed `ready_for_generation` from lifecycle. Canonical `listing_draft_state` enum is: `draft`, `generated`, `imported`, `approved`, `published` (matches ADR-017 DDL).
 
 ### Data contract for portable handoff
 
@@ -111,7 +115,7 @@ Import package must include:
 
 ### Negative
 
-- More implementation surface area (three modes).
+- More implementation surface area (four modes including Listing Coach — ADR-072).
 - Requires strict schema versioning and validation for import/export.
 - Support documentation must clearly explain each mode.
 

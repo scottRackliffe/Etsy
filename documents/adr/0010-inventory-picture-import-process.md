@@ -18,16 +18,16 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 
 **Ways to get pictures in**
 
-- **Directory picker (non-browser / future):** For any picture need (main or condition), open a file directory (folder) window; user selects the directory that contains the images.
-- **Import from folder:** User selects a single folder; app discovers image files (by name or order), maps them to picture 1–10 (first 10 if more), copies or moves files into app-controlled storage, saves paths to the database. **Bulk picture import (in scope):** (1) User selects an inventory item first (Inventory tab). (2) User runs Add / Import pictures. (3) App uses remembered directory (settings: default_picture_directory) or asks for directory and remembers it. (4) App opens a selection window showing all pictures in that directory with a selection control (e.g. checkboxes); user selects which pictures to import. (5) Selected pictures are filed with the selected item (picture_1 … picture_10 in order; thumbnail created per ADR-002/015). Optional: bulk flow where a parent folder contains one subfolder per item and we import each subfolder’s images into that item’s slots.
+- **File picker + drag-and-drop (v1 — browser):** For any picture need (main or condition), user uploads files via the native browser file picker (`<input type="file" multiple>`) or by dragging and dropping files onto the picture grid slots. Multi-file selection is supported. See ADR-033 for the full UI specification.
+- **Batch directory import (post-v1 / desktop):** In a future desktop/Electron context, a native directory picker may allow selecting a folder for batch import. This flow is **deferred to post-v1**. The concepts remain: app discovers image files by name or order, maps them to picture 1–10 (first 10 if more), copies files into app-controlled storage, saves paths to the database.
 - **URL (optional):** User can paste a URL for a picture; app stores the URL in the corresponding slot (no file copy).
-- **Preview (required after directory selection):** Display a preview of some pictures in the selected directory so the user can confirm correct folder before importing. Same for Replace per slot.
+- **Preview (required after upload):** Display a thumbnail preview of uploaded pictures so the user can confirm before saving. Same for Replace per slot.
 - **"Why pictures matter" link:** Show a link to a doc on why pictures matter for sales. Default: documents/pictures-and-sales.md. Optional in Config: user path or URL (e.g. a PDF that was a beginning of this project).
 
 **Commands and behavior**
 
-- **Add / Import pictures** — Open directory picker → user selects folder → show preview of some pictures from that folder → user confirms → assign to slots; show link to "Why pictures matter" doc (default: documents/pictures-and-sales.md; optional in Config: user's own path or URL, e.g. a PDF that was a beginning of this project).
-- **Replace** — Per-slot: same directory picker → preview → confirm.
+- **Add / Import pictures** — User selects files via browser file picker or drags files onto the picture grid → thumbnail previews are shown → user confirms → files are assigned to slots; show link to "Why pictures matter" doc (default: documents/pictures-and-sales.md; optional in Config: user's own path or URL, e.g. a PDF that was a beginning of this project).
+- **Replace** — Per-slot: same file picker or drag-and-drop → preview → confirm.
 - **Reorder** — Change order of slots (e.g. drag-and-drop); picture 1 is primary.
 - **Remove** — Clear one or more slots (path/URL set to null).
 
@@ -39,12 +39,12 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 
 **Where it appears**
 
-- Available when adding or editing an inventory item (Inventory tab). “Upload pictures” and “Import from folder” are explicit commands; replace/reorder/remove are available in the picture area for the selected item.
+- Available when adding or editing an inventory item (Inventory tab). “Upload pictures” is the primary command (file picker + drag-and-drop per ADR-033); replace/reorder/remove are available in the picture area for the selected item.
 
 ## Consequences
 
 - **Positive**
-  - Clear, consistent way to add and manage the 10 pictures; supports both one-off upload and folder-based import (and optional bulk by item).
+  - Clear, consistent way to add and manage the 10 pictures; supports file-by-file upload with drag-and-drop (v1) and folder-based batch import (post-v1).
   - Aligns with ADR-002 (picture 1–10, paths in DB); no schema change.
 - **Negative**
   - Implementation must handle file I/O, safe paths, and optional size/dimension limits.
@@ -59,3 +59,7 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 - **Frontend UI:** The browser-based frontend cannot use a native OS directory picker. ADR-033 specifies the implemented UI: a visual 10-slot grid with drag-and-drop file upload, native browser file picker (`<input type="file">`), thumbnail previews, and drag-to-reorder. Multi-file selection replaces the "select a folder" bulk import for browser contexts.
 - **Backend storage:** ADR-026 specifies the canonical storage layout (`uploads/inventory/<item_id>/pictures/<slot>.<ext>`), file validation, processing with Sharp, and thumbnail generation. These implement the storage and constraint requirements of this ADR.
 - **The import concepts in this ADR remain valid** for any future desktop/Electron context where native OS directory access is available. The browser UI adapts these concepts to the web platform's file access model.
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: v1 uses file-by-file upload with drag-and-drop (ADR-033), not directory/batch folder import. Batch directory import is deferred to post-v1. All references to "directory picker" and "select a directory/folder" in the Decision section above have been replaced with file picker + drag-and-drop per ADR-033.

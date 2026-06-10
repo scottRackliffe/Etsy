@@ -62,6 +62,16 @@ Response:
 - Percentage shown in parentheses next to the margin dollar amount.
 - Card subtitle: "{item_count} unsold items".
 
+### Calculation specification
+
+- **Total retail value:** SUM of `sale_revenue` for all items WHERE `status IN ('In stock', 'Listed', 'Reserved')`.
+- **Total cost basis:** SUM of `purchase_cost + shipping_cost` for the same items.
+- **Unrealized profit:** Total retail value − Total cost basis.
+- **Item count:** COUNT of items in the same status filter.
+- Void/cancelled orders and Sold/Retired items are excluded from the widget.
+
+> **Reconciliation note (2026-06-09):** Added explicit calculation specification with field names, status filter, and exclusion rules.
+
 ### Refresh
 
 - Auto-refreshes with the dashboard polling interval (60 seconds per ADR-016).

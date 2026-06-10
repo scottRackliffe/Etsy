@@ -86,6 +86,13 @@ Request body:
 
 Returns 204 on success. Confirmation dialog required on the frontend (ADR-032).
 
+### Note constraints and display
+
+- Maximum note text length: 2000 characters. The API returns a 400 error if exceeded.
+- Notes are displayed in reverse chronological order (newest first). Each note shows the `created_at` timestamp formatted per the user's `ui.date_format` setting.
+
+> **Reconciliation note (2026-06-09):** Documented note length limit (2000 chars, 400 on exceed) and display order/timestamp formatting.
+
 ### UI integration
 
 - **Customer detail panel:** Below the existing customer fields, a "Notes" section displays the chronological list.

@@ -105,13 +105,14 @@ Orders include realistic `order_date`, `subtotal`, `shipping_total`, `tax_total`
 `DELETE /api/seed/sample-data`
 
 - Removes all inventory items where `item_number LIKE 'SAMPLE-%'`.
-- Cascade removal:
-  1. Delete `order_items` referencing those inventory items.
-  2. Delete `orders` that have no remaining `order_items` after step 1.
-  3. Delete `other_costs` referencing those inventory items.
-  4. Delete `customers` that have no remaining `orders` after step 2 AND whose `email LIKE '%@example.com'` (safety check — don't delete real customers).
-  5. Delete `addresses` for those deleted customers (cascade).
-  6. Delete the inventory items themselves.
+- Cascade removal (updated 2026-06-09 — uses order_number-based identification instead of email pattern matching):
+  1. Identify sample orders: `SELECT id FROM orders WHERE order_number LIKE 'SAMPLE-%'`.
+  2. Delete `order_items` belonging to those sample orders.
+  3. Delete the sample orders themselves.
+  4. Delete `other_costs` referencing inventory items where `item_number LIKE 'SAMPLE-%'`.
+  5. Delete `customers` whose **only** orders are sample orders (i.e., customers who have no non-sample orders). This prevents accidental deletion of real customers who happen to use `@example.com` email addresses.
+  6. Delete `addresses` and `customer_notes` for those deleted customers (cascade).
+  7. Delete the inventory items where `item_number LIKE 'SAMPLE-%'`.
 - On success returns `204`.
 - If no sample data found, returns `404 { ok: false, error: { code: "NO_SAMPLE_DATA", message: "No sample data found to remove." } }`.
 
@@ -139,4 +140,4 @@ Orders include realistic `order_date`, `subtotal`, `shipping_total`, `tax_total`
 - Cross-ref: ADR-044 (first-run wizard), ADR-032 (ConfirmDialog for destructive actions), ADR-037 (activity log entries).
 - [`fixtures/sample-data.sql`](../../fixtures/sample-data.sql) must be updated whenever ADR-017 schema changes (new required columns, renamed tables). Requires `orders.tracking_number` and related columns per ADR-017 §8 (migration/bootstrap).
 - All sample customer emails use the `@example.com` domain (RFC 2606 reserved) to ensure they are clearly fake.
-- The delete logic uses both the `SAMPLE-` prefix AND `@example.com` email as guards to prevent accidental deletion of real data.
+- Reconciliation note (2026-06-09): The delete logic now identifies sample data by `order_number LIKE 'SAMPLE-%'` and `item_number LIKE 'SAMPLE-%'` rather than relying on email pattern matching. Customer deletion is restricted to customers whose only orders are sample orders, preventing accidental deletion of real customers who happen to use `@example.com` email addresses.

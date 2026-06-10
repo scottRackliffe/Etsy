@@ -26,10 +26,18 @@ There is no way to see how long inventory items have been sitting unsold. Vintag
 | Bucket   | Range       |
 | -------- | ----------- |
 | Fresh    | 0–30 days   |
-| Moderate | 31–60 days  |
-| Aging    | 61–90 days  |
-| Slow     | 91–180 days |
+| Moderate | 30–60 days  |
+| Aging    | 60–90 days  |
+| Slow     | 90–180 days |
 | Stale    | 180+ days   |
+
+Buckets are exclusive of the lower bound and inclusive of the upper bound. 0–30 means 0 < days ≤ 30. 30–60 means 30 < days ≤ 60. 60–90 means 60 < days ≤ 90. 90–180 means 90 < days ≤ 180. 180+ means days > 180.
+
+Age is calculated from `date_listed` for Listed items, and from `created_at` for In stock items without a `date_listed`.
+
+`Slow mover` threshold is 90 days (displayed as a badge on inventory list per ADR-030).
+
+> **Reconciliation note (2026-06-09):** Clarified bucket boundary ownership (exclusive lower, inclusive upper), age calculation source fields, and slow-mover threshold.
 
 ### Report: "Inventory Aging"
 

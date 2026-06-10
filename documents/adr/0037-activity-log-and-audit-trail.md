@@ -70,6 +70,8 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `inventory.picture_added`      | `inventory` | Picture uploaded to a slot. `detail_json`: `{ slot: 3 }`                                           |
 | `inventory.picture_removed`    | `inventory` | Picture removed. `detail_json`: `{ slot: 3 }`                                                      |
 | `inventory.pictures_reordered` | `inventory` | Pictures reordered                                                                                 |
+| `inventory.batch_status_changed` | `inventory` | Batch status change (ADR-040). `detail_json`: `{ count, ids, new_status }`                       |
+| `inventory.bulk_imported`      | `inventory` | CSV bulk import completed (ADR-047). `detail_json`: `{ count, errors }`                            |
 
 **Listing actions:**
 
@@ -95,8 +97,10 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `order.marked_shipped`     | `order`     | Order marked as shipped. `detail_json`: `{ shipper, tracking_number }` |
 | `order.voided`             | `order`     | Order voided                                                           |
 | `order.batch_mark_paid`    | `order`     | Batch mark paid (ADR-040). `detail_json`: `{ count, ids }`             |
-| `order.batch_mark_shipped` | `order`     | Batch mark shipped (ADR-040)                                           |
-| `order.batch_void`         | `order`     | Batch void (ADR-040)                                                   |
+| `order.batch_mark_shipped` | `order`     | Batch mark shipped (ADR-040). `detail_json`: `{ count, ids }`          |
+| `order.batch_void`         | `order`     | Batch void (ADR-040). `detail_json`: `{ count, ids }`                  |
+
+> **Reconciliation note (2026-06-09):** Canonical action names for batch order operations use present-tense `batch_mark_*` (not `batch_marked_*`) to distinguish "batch command" from single-record past-tense actions. Both forms are accepted by `logActivity()` but new code should use the forms above.
 
 **Customer actions:**
 
@@ -105,6 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `customer.created`      | `customer`  | Customer created                                                         |
 | `customer.updated`      | `customer`  | Customer fields changed                                                  |
 | `customer.deleted`      | `customer`  | Customer deleted                                                         |
+| `customer.batch_deleted` | `customer` | Batch customer delete (ADR-040). `detail_json`: `{ count, ids }`         |
 | `customer.merged`       | `customer`  | Merge completed (ADR-053). `detail_json`: `{ primary_id, secondary_id }` |
 | `customer.note_added`   | `customer`  | Note created (ADR-065)                                                   |
 | `customer.note_deleted` | `customer`  | Note deleted (ADR-065)                                                   |
@@ -135,8 +140,8 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `system.sample_data_loaded`      | `system`    | Sample data loaded (ADR-069)                                                           |
 | `system.sample_data_removed`     | `system`    | Sample data removed (ADR-069)                                                          |
 | `system.integrity_check_failed`  | `system`    | SQLite integrity check failed (ADR-058)                                                |
-| `inventory.batch_status_changed` | `inventory` | Batch status change (ADR-040)                                                          |
-| `inventory.batch_deleted`        | `inventory` | Batch delete (ADR-040)                                                                 |
+
+> **Reconciliation note (2026-06-09):** `inventory.batch_status_changed` and `inventory.batch_deleted` moved to the Inventory actions table above (they were previously duplicated here). `inventory.bulk_imported` (ADR-047) and `customer.batch_deleted` (ADR-040) added to their respective tables. `sync.started`/`sync.completed` confirmed present in Sync actions. `listing.coach_complete` confirmed present in Listing actions. Source field values: `user`, `system`, `etsy_sync`.
 
 ---
 

@@ -33,14 +33,18 @@ Business owners need to feed sales and expense data to their accountant or impor
 
 ### Transaction type mapping
 
-| Source data                              | Transaction Type | Debit/Credit | Account          |
-| ---------------------------------------- | ---------------- | ------------ | ---------------- |
-| `order_items.line_total` (per item sold) | Sale             | Credit       | Sales Revenue    |
-| `orders.seller_shipping_cost`            | Shipping         | Debit        | Shipping Expense |
-| `orders.tax_total`                       | Tax              | Credit       | Tax Collected    |
-| `purchases.purchase_price`               | Purchase         | Debit        | Cost of Goods    |
-| `purchases.shipping_price`               | Purchase         | Debit        | Cost of Goods    |
-| `other_costs.amount`                     | Other Cost       | Debit        | Other Expense    |
+| Source data                              | Transaction Type  | Debit/Credit | Account          |
+| ---------------------------------------- | ----------------- | ------------ | ---------------- |
+| `order_items.line_total` (per item sold) | Sale              | Credit       | Sales Revenue    |
+| `orders.shipping_total`                  | Shipping Revenue  | Credit       | Shipping Revenue |
+| `orders.seller_shipping_cost`            | Shipping          | Debit        | Shipping Expense |
+| `orders.discount_total`                  | Discount          | Debit        | Discounts        |
+| `orders.tax_total`                       | Tax               | Credit       | Tax Collected    |
+| `purchases.purchase_price`              | Purchase          | Debit        | Cost of Goods    |
+| `purchases.shipping_price`              | Purchase          | Debit        | Cost of Goods    |
+| `other_costs.amount`                     | Other Cost        | Debit        | Other Expense    |
+
+**Refund handling:** When `orders.payment_status = 'refunded'`, generate reversal rows for the original transaction amounts (Sale becomes Debit to Sales Revenue, Shipping Revenue becomes Debit to Shipping Revenue, Tax becomes Debit to Tax Collected). Reversal rows use "Refund:" prefix in the Description field.
 
 ### Data rules
 
@@ -58,10 +62,13 @@ Business owners need to feed sales and expense data to their accountant or impor
 | Transaction Type | Description format                                                |
 | ---------------- | ----------------------------------------------------------------- |
 | Sale             | `"Sale: {inventory.description} ({inventory.item_number})"`       |
-| Shipping         | `"Shipping: Order {orders.order_number}"`                         |
+| Shipping Revenue | `"Shipping revenue: Order {orders.order_number}"`                 |
+| Shipping         | `"Shipping cost: Order {orders.order_number}"`                    |
+| Discount         | `"Discount: Order {orders.order_number}"`                         |
 | Tax              | `"Tax collected: Order {orders.order_number}"`                    |
 | Purchase         | `"Purchase: {inventory.description} ({inventory.item_number})"`   |
 | Other Cost       | `"Other cost: {other_costs.cost_type} - {inventory.item_number}"` |
+| Refund (any)     | `"Refund: {original description}"`                                |
 
 ### API
 
@@ -84,3 +91,10 @@ GET /api/reports/accounting-export?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&forma
 - Cross-references: ADR-006 (reports scope — this is a new report type), ADR-013 (report format — CSV column conventions), ADR-017 (database schema — orders, order_items, purchases, other_costs tables), ADR-036 (date range filter), ADR-038 (profit/loss — uses similar data but different aggregation)
 - The `format=csv` parameter is included for forward-compatibility in case other formats (e.g., QBO, OFX) are added later
 - No PDF variant is intentional — accounting exports are machine-readable by design
+- Post-generation actions: **Export CSV | Cancel** (no Print or Export PDF actions since this report is CSV-only)
+
+### Known omissions
+
+Etsy marketplace fees (listing fees, transaction fees, payment processing fees) are not tracked in the local database and are excluded from the accounting export. Sellers should reconcile with Etsy's payment account CSV for a complete picture of marketplace-related expenses.
+
+> Updated 2026-06-09: Added shipping revenue, discount, and refund transaction types; added known omissions section.

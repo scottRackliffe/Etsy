@@ -44,6 +44,12 @@ If a carrier workflow needs additional fields (for example phone, service class,
 - **From the order (ship-to snapshot on `orders`):** `ship_to_first_name`, `ship_to_last_name`, `ship_to_address_line_1`, `ship_to_address_line_2` (optional), `ship_to_city`, `ship_to_state_province`, `ship_to_country`, `ship_to_postal_code` for the selected `orders.id`.
 - **From Shipping Info (stored):** Whatever is required for the chosen shipper to complete the label (e.g. return address, account number). Stored per carrier; user enters it in Config → Shipping Info.
 
+### Ship-from address (added 2026-06-09)
+
+Ship-from address is populated from business settings: `business_name`, `business_address_line_1`, `business_address_line_2`, `business_address_city`, `business_address_state`, `business_address_postal_code`, `business_address_country`.
+
+If any required ship-from field is missing, the label generation is blocked with message: "Complete your business address in Config → Business Info before printing labels."
+
 ---
 
 ## Summary

@@ -19,8 +19,18 @@ Build and ship a **base system** with the following:
 - **Etsy OAuth 2.0 (PKCE)**  
   User connects via “Connect Etsy”; the app redirects to Etsy, user authorizes, and the app exchanges the code for access (and refresh) tokens. PKCE (code_verifier / code_challenge) and state are used for security. Required scopes: `transactions_r`, `receipts_r`, `shops_r`.
 
+  **OAuth scope matrix:**
+  | Scope | Purpose |
+  |---|---|
+  | `transactions_r` | Read receipts / transactions (orders sync) |
+  | `shops_r` | Read shop details (shop selector, dashboard) |
+  | `listings_w` | Write listings (publish to Etsy — ADR-023) |
+  | `listings_r` | Read listings (listing status checks — ADR-023) |
+
+  Base scopes (`transactions_r`, `shops_r`) are requested at initial connect. Additional scopes (`listings_w`, `listings_r`) are requested when the user first attempts to publish a listing. See ADR-011 for compliance rules.
+
 - **Token and session storage**  
-  Access/refresh tokens and OAuth/session state are stored in SQLite-backed auth/session records. HTTP-only cookies (SameSite=Lax) carry only opaque session identifiers. No token in client-side JavaScript.
+  OAuth tokens are stored as encrypted key-value pairs in the `settings` table (keys: `etsy_access_token_encrypted`, `etsy_refresh_token_encrypted`, `etsy_token_expires_at`). See ADR-025 for encryption details (AES-256-GCM). OAuth flow state (`etsy.oauth.state`, `etsy.oauth.verifier`) and session identifier (`app.session.current_id`) are also stored in `settings`. HTTP-only cookies (SameSite=Lax) carry only opaque session identifiers. No token in client-side JavaScript.
 
 - **Token refresh (required for production)**  
   When the access token expires, the app uses the stored refresh token to obtain a new access token from Etsy so the user does not need to reconnect. See **Token refresh (full behavior)** below.

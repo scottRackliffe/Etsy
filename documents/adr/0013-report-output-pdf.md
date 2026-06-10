@@ -56,14 +56,16 @@ The following specifies the **exact content** that each report must include. Dat
 **Invoice** (per order)
 
 - **Data filter:** Per global rule above (active orders only).
-- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business*name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to*\*`snapshot fields. (5) Date:`orders.order_date`. (6) Table of line items: for each `order_items`row — inventory description (or item_number),`quantity`, unit price (`order_items.unit_price`or`inventory.sale_revenue`per implementation),`line_total`. (7) Subtotal (`orders.subtotal`or sum of line totals). (8) Discount: if`orders.discount_total`> 0, show and subtract. (9) Shipping:`orders.seller_shipping_cost`; show `orders.shipper` if set. (10) Total (`orders.grand_total`or subtotal − discount + shipping). (11) Payment/shipping status from`orders.was_paid`, `orders.shipping_date`, `orders.shipper`.
+- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business*name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to*\*`snapshot fields. (5) Date:`orders.order_date`. (6) Table of line items: for each `order_items`row — inventory description (or item_number),`quantity`, unit price (`order_items.unit_price`), line total (`order_items.line_total`). **`order_items.unit_price` and `order_items.line_total` are authoritative; `inventory.sale_revenue` is fallback only when order_items values are NULL.** (7) Subtotal (`orders.subtotal`or sum of line totals). (8) Discount: if`orders.discount_total`> 0, show and subtract. (9) Shipping: `orders.shipping_total` (buyer-facing shipping charge); show `orders.shipper` if set. (10) Tax: if `orders.tax_total` > 0, show as a separate line. (11) Total: `orders.grand_total` (= subtotal + shipping_total + tax_total − discount_total; per ADR-017). (12) Payment/shipping status from `orders.was_paid`, `orders.shipping_date`, `orders.shipper`.
 - **Data:** `orders` + `order_items` joined to `inventory`; ship-to from order snapshot only.
+
+> **Reconciliation note (2026-06-09):** Invoice shipping line corrected from `seller_shipping_cost` (seller's cost) to `shipping_total` (buyer-facing charge). Tax line added. Total formula aligned with ADR-017 `grand_total` definition. Line item pricing authority clarified: `order_items.unit_price`/`line_total` are canonical.
 
 ---
 
 **Sales** (date range optional)
 
-- **Required content:** (1) Title: “Sales Report”. (2) Date range (if provided: from_date – to_date; else “All time”). (3) Table: columns = Date (`orders.order_date`), Order ID, Customer (ship-to name or customer name), Item (inventory description or item_number), Revenue (`inventory.sale_revenue` or line revenue), optionally Paid/Shipped. One row per `order_items` line (or one row per order with line count and total — pick one layout; document in implementation). (4) Total revenue (sum of displayed line revenue; treat NULL as 0).
+- **Required content:** (1) Title: “Sales Report”. (2) Date range (if provided: from_date – to_date; else “All time”). (3) Table: columns = Date (`orders.order_date`), Order ID, Customer (ship-to name or customer name), Item (inventory description or item_number), Revenue (`order_items.line_total`), optionally Paid/Shipped. **Canonical layout: one row per `order_items` line item** (not one row per order). (4) Total revenue (sum of displayed line revenue; treat NULL as 0).
 - **Data:** `orders` joined to `order_items` and `inventory`; per global filter. Filter by `orders.order_date` when from_date/to_date given.
 
 ---
@@ -120,6 +122,8 @@ The following specifies the **exact content** that each report must include. Dat
 
 3. **Date handling:** All date filter parameters (`from_date`, `to_date`) use UTC dates in `YYYY-MM-DD` format. The UI converts display dates to/from the user's `date_format` preference (stored in settings). If no date range is provided, the report defaults to "All time" (subject to the global active-order filter). If only `from_date` is provided, it filters from that date through today. If only `to_date` is provided, it filters through that date.
 
+4. **Accounting Export exception (2026-06-09):** Accounting Export is **CSV-only** (no PDF). Post-generation actions for this report: **Export CSV | Cancel**. The standard four-action flow (Print | Export PDF | Export CSV | Cancel) does not apply to this report type.
+
 ---
 
 ## Consequences
@@ -150,16 +154,19 @@ The existing aggregate endpoints (`/api/reports/invoice`, `/api/reports/thank-yo
 
 ADR-036 adds a date range picker UI to the Reports page: From/To date inputs with quick presets (MTD, YTD, Last Month, Last Quarter, All Time). The date parameters flow to the existing `from_date`/`to_date` query parameters defined in ADR-018's report endpoints and the edge case rules in this ADR (section "Edge cases").
 
-### Schema mapping (updated 2026-05-24)
+### Schema mapping (updated 2026-06-09)
 
 The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 
-| ADR-013 term                             | Implementation                                                | Notes                                                            |
-| ---------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| purchase row(s)                          | `orders` + `order_items`                                      | Invoice line items come from `order_items` joined to `inventory` |
-| date_of_purchase                         | `orders.order_date`                                           |                                                                  |
-| purchase.shipping_cost                   | `orders.seller_shipping_cost`                                 |                                                                  |
-| purchase.discount_amount                 | `orders.discount_total`                                       |                                                                  |
-| purchase.was_paid                        | `orders.was_paid`                                             |                                                                  |
+| ADR-013 term                             | Implementation                                                | Notes                                                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| purchase row(s)                          | `orders` + `order_items`                                      | Invoice line items come from `order_items` joined to `inventory`                                                             |
+| date_of_purchase                         | `orders.order_date`                                           |                                                                                                                              |
+| purchase.shipping_cost (seller)          | `orders.seller_shipping_cost`                                 | Seller's cost; used in Costs and Postal-by-Vendor reports                                                                    |
+| invoice shipping line (buyer-facing)     | `orders.shipping_total`                                       | Buyer-facing charge shown on Invoice (2026-06-09 correction)                                                                 |
+| purchase.discount_amount                 | `orders.discount_total`                                       |                                                                                                                              |
+| purchase.was_paid                        | `orders.was_paid`                                             |                                                                                                                              |
+| ship-to fields                           | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                                                                              |
+| sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                                                                                |
 | ship*to*\* fields                        | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                  |
 | sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                    |

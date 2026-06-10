@@ -31,7 +31,7 @@ GET /api/customers/[id]/orders
 Query parameters:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `limit` | number | 25 | Max orders to return |
+| `limit` | number | 10 | Max orders to return |
 | `offset` | number | 0 | Pagination offset |
 
 Response:
@@ -102,6 +102,17 @@ Vertical list of order cards, each showing:
 | Status badges     | Payment status badge (green "Paid" / yellow "Unpaid") + Source badge (grey "Etsy" / blue "Manual") |
 | Shipped indicator | Green checkmark if shipped; grey clock if not                                                      |
 
+### Order card fields (summary)
+
+Each order card shows the following fields at a glance:
+
+1. **order_number** — clickable link that navigates to Sales tab with deep-link param (`/sales?orderId=<id>`)
+2. **order_date** — formatted per app's `ui.date_format` setting
+3. **grand_total** — formatted per currency setting (`ui.currency_code`)
+4. **payment_status badge** — green "Paid", yellow "Unpaid", or grey "Refunded"
+5. **Item count** — total number of line items in the order (e.g., "3 items")
+6. **"View order" link** — navigates to Sales tab with deep-link param (same as order_number click)
+
 ### Visual treatment for void/cancelled orders
 
 - Void/cancelled orders show with reduced opacity (50%) and a strikethrough on the order number.
@@ -122,9 +133,9 @@ When the customer has no orders:
 
 ### Pagination
 
-- Default page size: 25 orders.
-- "Load more" button at the bottom (not infinite scroll) if `has_more` is true.
-- Each "Load more" click fetches the next 25 orders and appends to the list.
+- The timeline initially loads the 10 most recent orders. A "Load more" button at the bottom loads the next 10. Orders are sorted by `order_date DESC`.
+- "Load more" button is shown only when `has_more` is true (not infinite scroll).
+- Each "Load more" click fetches the next 10 orders and appends to the list.
 
 ### Performance
 
@@ -142,3 +153,7 @@ When the customer has no orders:
 - Cross-references: ADR-003 (customer data model — customer ↔ orders relationship), ADR-031 (order detail view — the target when clicking an order), ADR-035 (deep links — navigation from timeline to sales page), ADR-024 (frontend architecture — inline detail panel, no sub-routes)
 - The endpoint does NOT duplicate `GET /api/orders?customer_id=<id>` — it adds the `summary` object and includes inline `items` descriptions for display without requiring a second request per order.
 - Future consideration: add a "Reorder" button that pre-fills a new order with the same items. Not in scope for v1.
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: Changed default page size from 25 to 10 orders for initial load (and subsequent "Load more" batches). Added explicit order card field specification listing all six visible fields per card. Added "View order" deep-link navigation to Sales tab.

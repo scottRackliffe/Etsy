@@ -97,6 +97,9 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 | discount_total       | Optional. Number >= 0.                          | “Discount must be zero or greater.”      |
 | was_paid             | Optional. 0 or 1.                               | —                                        |
 | tracking_number      | Optional. String.                               | —                                        |
+| payment_status       | Optional. Must be one of: `unpaid`, `paid`, `refunded`. When `payment_status` changes to `paid`, set `was_paid = 1`. When `payment_status` changes to `refunded`, `was_paid` remains `1` (payment was received then refunded). | "Invalid payment status." |
+
+**Ship-to validation for manual orders:** Manual order create (`source_channel = 'manual'`) requires at least `ship_to_first_name` and `ship_to_last_name`. If ship-to address fields are empty, the system should auto-copy from the linked customer's billing address (flat fields on `customers`) or their default address (`addresses` where `is_default = 1`). If no customer address is available, ship-to fields remain empty and the order appears in Outstanding type 5 (missing address).
 
 **Ship until paid or override:** The system **does not allow** "Mark as shipped" until the **order** is paid (`orders.was_paid = 1`), **unless** the user explicitly chooses "Ship anyway" with confirmation (ADR-031, ADR-040). No silent ship-when-unpaid. On override, set `orders.shipped_without_paid_override = 1` on the order header (ADR-017) — not on `order_items`. Applies to `POST /api/orders/[id]/mark-shipped` and batch `mark_shipped`.
 

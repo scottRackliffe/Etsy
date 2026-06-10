@@ -53,6 +53,14 @@ There is no way to quickly return to records the user was just working on. Users
 - A "Clear history" text button at the bottom of the dropdown clears all entries from `localStorage` and closes the dropdown.
 - If the list is empty, the dropdown shows "No recently viewed items."
 
+### Storage constraints
+
+The recently-viewed list stores the 20 most recent items in localStorage. Items are deduplicated by entity type + ID. Viewing the same entity again moves it to the top of the list.
+
+Each entry stores: `{ type: 'inventory'|'order'|'customer', id: number, label: string, timestamp: number }`.
+
+> **Reconciliation note (2026-06-09):** Formalized max items (20), deduplication rule, and entry shape for implementation clarity.
+
 ### No server-side storage
 
 - This is purely a client-side convenience feature. No API endpoints, no database tables.

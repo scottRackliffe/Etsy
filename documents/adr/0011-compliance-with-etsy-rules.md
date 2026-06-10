@@ -37,6 +37,15 @@ We **follow all applicable Etsy rules** that apply to our use of the API and to 
 - **Negative**
   - We must monitor Etsy policy/API changes and update docs and behavior when needed.
 
+### OAuth Scopes Required (added 2026-06-09)
+
+- `transactions_r` — Read receipts and transactions (sync)
+- `shops_r` — Read shop information
+- `listings_w` — Create and update listings (publish)
+- `listings_r` — Read listing data
+
+Additional scopes may be added as features expand. Never request scopes beyond what the app needs.
+
 ## Notes
 
 - etsy-compliance.md contains the detailed mapping of Etsy rules to our behavior and links to official Etsy policy URLs. This ADR records the decision to comply and maintain that document.

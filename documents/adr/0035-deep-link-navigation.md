@@ -24,6 +24,7 @@ The Outstanding page navigates to target pages using URL query params (`?orderId
 | ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Sales (`/sales`)         | `orderId={id}`    | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
 | Inventory (`/inventory`) | `itemId={id}`     | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior.                                               |
+| Inventory (`/inventory`) | `openWorkshop=1`  | After selecting the item (requires `itemId`), automatically open the listing workshop panel (ADR-030, ADR-072).             |
 | Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses.                                                           |
 
 ---
@@ -37,7 +38,9 @@ Each page adds a `useEffect` that runs on mount (and when `searchParams` change)
    a. Check if the record exists in the currently loaded list.
    b. If yes: set `selectedId` to that record. Scroll the `DataTable` row into view.
    c. If no (record not on current page): fetch the record by ID from `GET /api/orders/[id]` (or equivalent). Prepend it to the list (or navigate to the page containing it if using server-side pagination). Set it as selected.
-3. **Clear the param:** After selecting, use `router.replace(pathname)` (without the query param) to clean up the URL. This prevents re-triggering on subsequent renders and allows the user to navigate naturally.
+3. **Clear the param:** After selecting, use `router.replace(pathname)` (without the deep-link query param) to clean up the URL. This prevents re-triggering on subsequent renders and allows the user to navigate naturally.
+
+> **Reconciliation note (2026-06-09):** Deep-link selection params (e.g., `orderId`, `itemId`, `customerId`) are stripped via `router.replace` after the target record is selected and scrolled into view. Filter/search/sort/page params from ADR-029 (e.g., `sort_by`, `status`, `q`, `page`) are **preserved** in the URL for bookmarkability. Only the selection param is removed.
 4. **If the record does not exist (404):** Show a toast: "Record not found. It may have been deleted."
 
 ---

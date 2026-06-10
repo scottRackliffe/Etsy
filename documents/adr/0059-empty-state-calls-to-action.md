@@ -58,6 +58,19 @@ interface EmptyStateProps {
 }
 ```
 
+### Entity-specific CTA content (canonical reference)
+
+| Entity       | Message                                  | Primary CTA              | Secondary CTA     |
+| ------------ | ---------------------------------------- | ------------------------ | ----------------- |
+| Inventory    | "No inventory items yet."                | "Add your first item"    | —                 |
+| Orders/Sales | "No orders yet."                         | "Create a manual order"  | "Sync from Etsy"  |
+| Customers    | "No customers yet."                      | "Add a customer"         | "Sync from Etsy"  |
+| Reports      | "No reports generated yet."              | "Generate your first report" | —             |
+| Outstanding  | "Nothing needs attention right now."     | — (success state)        | —                 |
+| Activity Log | "No activity recorded yet."              | — (no CTA)              | —                 |
+
+> **Reconciliation note (2026-06-09):** Added canonical entity-specific CTA content table for quick reference alongside the detailed per-page table above.
+
 ### Cleanup
 
 - Remove any stale reference to "panel on the right" in the Customers empty state message (this was a holdover from the side-panel layout that was deferred to post-v1 per ADR-009)

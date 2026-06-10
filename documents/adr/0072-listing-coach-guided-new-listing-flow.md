@@ -106,7 +106,9 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
 - Each card: suggested text + **Yes, use this** | **Edit** (short textarea only if edit).
 - Operator never sees internal field names (`listing_title_strategy`, etc.).
 
-**Step 6 — Compose listing**
+**Step 6 — Compose listing (AI generation)**
+
+Step 6 sends ALL non-empty pictures (picture_1..10 + condition_picture_1..5) plus the structured data from steps 1–5 to the AI provider. The AI response populates listing_title, listing_description, listing_tags, and the listing_* strategy fields. If the AI call fails, the user can retry or switch to manual entry. The listing_draft_state transitions from `draft` to `generated` on success.
 
 - Client calls `POST /api/listing-coach/compose` with confirm answers + analyze session payload reference (client-held) + images (re-sent or session id — see API).
 - AI returns final Etsy-facing content **and** hidden template fields (see Response contract).
@@ -127,6 +129,7 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
   - Writes listing fields, template sections, `sale_revenue`, `listing_draft_state`: `generated`, `listing_draft_source`: `integrated_ai`.
 - Success: toast + navigate to **Inventory** with `?itemId=<id>&openWorkshop=1` (listing workshop expanded).
 - Operator may **Approve draft** and publish later (ADR-023 lifecycle unchanged).
+- **Publishing gate:** Publishing is only enabled when listing_draft_state = `approved`. The user must review and approve the generated content (via the listing workshop approve action) before publishing to Etsy becomes available.
 
 ### Hidden template mapping (server-side)
 

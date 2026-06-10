@@ -26,13 +26,15 @@ The `orders` table already has a `tax_total` column, but there is no tax report,
 
 A new setting key is added to the `settings` table:
 
-| Key                | Example value | Description                                                                       |
-| ------------------ | ------------- | --------------------------------------------------------------------------------- |
-| `tax.default_rate` | `0.07`        | Default tax rate as a decimal (7% = 0.07); `NULL` or absent = no auto-calculation |
+| Key                | Example value | Description                                                                                   |
+| ------------------ | ------------- | --------------------------------------------------------------------------------------------- |
+| `tax.default_rate` | `8.25`        | Default tax rate as a percentage (8.25 = 8.25%); `NULL` or absent = no auto-calculation       |
+
+> **Reconciliation note (2026-06-09):** The tax rate is stored as a percentage number (e.g., `8.25` for 8.25%), NOT as a decimal fraction (`0.0825`). Auto-calculation formula: `tax_total = subtotal × (rate / 100)`. This matches the Config UI in ADR-034 §2b which presents a percentage input.
 
 **Behavior on manual order creation:**
 
-- When `tax.default_rate` is set and the user creates a manual order (`source_channel = 'manual'`), the system auto-populates `tax_total = subtotal * tax.default_rate` rounded to 2 decimal places
+- When `tax.default_rate` is set and the user creates a manual order (`source_channel = 'manual'`), the system auto-populates `tax_total = subtotal * (tax.default_rate / 100)` rounded to 2 decimal places
 - The auto-populated value is shown in the order form and the user can override it before saving
 - If `tax.default_rate` is not set, `tax_total` defaults to `0` and the user must enter it manually if applicable
 - Auto-population happens client-side when `subtotal` changes; the server does NOT enforce the rate
@@ -46,8 +48,9 @@ A new setting key is added to the `settings` table:
 **Config UI (ADR-034):**
 
 - Add a "Tax Settings" field in the Config page under a "Tax" subsection (or within the existing "Business" section)
-- Input: percentage field with label "Default Sales Tax Rate" — user enters `7` for 7%, stored as `0.07`
-- Helper text: "Applied automatically to new manual orders. Etsy orders use the tax amount from Etsy."
+- Input: percentage field with label "Default Sales Tax Rate" — user enters `8.25` for 8.25%, stored as `8.25` (percentage number)
+- Input step: `0.01`
+- Helper text: "Enter as percentage, e.g. 8.25 for 8.25%. Applied automatically to new manual orders. Etsy orders use the tax amount from Etsy."
 
 ### 3. Sales Tax Summary report
 

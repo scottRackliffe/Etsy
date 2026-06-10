@@ -62,10 +62,11 @@ A `Badge` (variant `info`, text "Repeat") appears next to the customer name in t
 ## Consequences
 
 - **Positive:** Instant visibility into customer loyalty; encourages personalized service; no schema changes needed; lightweight computation.
-- **Negative:** Badge adds visual noise if many customers are repeats (mitigated by using the subtle `info` variant); threshold is not configurable in v1 (hardcoded to 2).
+- **Negative:** Badge adds visual noise if many customers are repeats (mitigated by using the subtle `info` variant).
 
 ## Notes
 
 - Cross-ref: ADR-028 (Badge shared component), ADR-016 (dashboard KPI cards), ADR-052 (purchase history context).
 - The `order_count` field is read-only and computed — it is never stored or updated directly.
+- Default threshold is 2 (configurable via Config → Settings or the `repeat_customer_threshold` setting). The threshold is read from the `settings` table at runtime; if absent, the default of 2 is used. (Reconciliation note 2026-06-09: removed prior note that threshold was hardcoded — the Decision section's `repeat_customer_threshold` setting is canonical.)
 - When displaying in the DataTable, the badge should not interfere with sorting by customer name. The sort key remains the name string; the badge is decorative.

@@ -63,10 +63,14 @@ Accidental saves are permanent. There is no undo mechanism anywhere in the appli
 
 ### Scope and limitations
 
-- **In scope:** Field updates via PATCH (status changes, price edits, note edits, etc.).
+Undo/redo applies to form field edits within the Inventory Detail Panel and Order Detail Panel only. It does NOT apply to: list-level inline edits (ADR-062), batch operations (ADR-040), picture uploads/deletes, or entity creation/deletion. The undo stack is cleared when the user navigates to a different entity.
+
+- **In scope:** Field updates via PATCH (status changes, price edits, note edits, etc.) in the Inventory Detail Panel and Order Detail Panel.
 - **Out of scope:** `POST` (creates) and `DELETE` (deletes) are NOT undoable — they involve too many side effects (order items, activity log entries, file operations) to reverse safely.
-- The undo/redo stacks are **cleared on Next.js route or tab change** (e.g. leaving Sales for Inventory) to prevent stale undo across contexts.
-- Inline edits (ADR-062) participate in the undo stack — each inline cell save pushes an entry.
+- **Out of scope:** List-level inline edits (ADR-062), batch operations (ADR-040), picture uploads/deletes.
+- The undo/redo stacks are **cleared when the user navigates to a different entity** to prevent stale undo across contexts.
+
+> **Reconciliation note (2026-06-09):** Clarified undo/redo scope — limited to Inventory Detail and Order Detail panels only; excluded inline edits, batch ops, picture changes, and entity CRUD. Corrected prior statement that inline edits participate in undo stack.
 
 ## Consequences
 

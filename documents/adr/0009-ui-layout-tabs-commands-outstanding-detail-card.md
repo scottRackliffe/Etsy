@@ -19,8 +19,8 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 **Layout**
 
 - **Tabs (top):** Primary navigation. Full tab set: **Dashboard**, **Sales**, **Inventory**, **Customers**, **Reports**, **Tutorial and tips**, **Outstanding**, **Config** (see [ui-design.md](../ui-design.md) §2 for purpose and content of each). One tab active at a time; main content area shows that section’s list/form/report.
-- **Commands (left) / Outstanding (right) or the reverse:** Which side is which is configurable (Config). An **icon in the UI flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. **Commands (one side):** A **panel** on the left or right (same side app-wide). Context-sensitive: only commands that apply to the current tab (and selection) are shown. One action per command; labels use verbs (e.g. “Add item”, “Mark shipped”). Global actions (e.g. Connect Etsy, Refresh) available where appropriate.
-- **Outstanding (opposite side):** We support **both** (1) a **panel** on the other side from commands, visible on every tab, and (2) a dedicated **Outstanding tab** (full-page) showing the same list. Same data-driven items only (no user-added manual tasks). **What counts as outstanding** is defined in [ui-design.md](../ui-design.md) §4 (e.g. orders paid but not shipped, orders not yet marked paid, new Etsy orders not synced, inventory In stock but not Listed, customers with no or incomplete address). Implement the list from those definitions so the panel and tab stay in sync.
+- **Commands (left) / Outstanding (right) or the reverse:** ⚠️ **Deferred to post-v1.** Which side is which is configurable (Config). An **icon in the UI flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. **Commands (one side):** A **panel** on the left or right (same side app-wide). Context-sensitive: only commands that apply to the current tab (and selection) are shown. One action per command; labels use verbs (e.g. “Add item”, “Mark shipped”). Global actions (e.g. Connect Etsy, Refresh) available where appropriate.
+- **Outstanding side panel (opposite side):** ⚠️ **Deferred to post-v1.** We support **both** (1) a **panel** on the other side from commands, visible on every tab, and (2) a dedicated **Outstanding tab** (full-page) showing the same list. Same data-driven items only (no user-added manual tasks). **What counts as outstanding** is defined in [ui-design.md](../ui-design.md) §4 (e.g. orders paid but not shipped, orders not yet marked paid, new Etsy orders not synced, inventory In stock but not Listed, customers with no or incomplete address). Implement the list from those definitions so the panel and tab stay in sync.
 - **Context in place on click:** Clicking an item in the Outstanding panel (or in the full-page Outstanding tab) **puts context in place**: the app navigates to the correct tab and opens/selects the correct record so the user can act immediately (e.g. Mark shipped, View order). We do not use a separate detail card overlay for this; the main content area shows the right tab and record.
 
 **Intuitive design (guiding principle)**
@@ -46,6 +46,10 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 
 - Full UI flows, command lists, and processes are in [documents/ui-design.md](../ui-design.md). This ADR records the structural and behavioral decisions (tabs, panels, context in place on outstanding click, intuitive design).
 - **Config persistence:** User preferences (e.g. which side is commands vs outstanding, default shipper, business details) are **stored** so they persist across sessions—e.g. in the database (settings table or key-value) or in app-controlled local storage; see ADR-008 (all app data in database). Implementation chooses where; the important point is that layout and defaults persist.
+
+### v1 layout summary (updated 2026-06-09)
+
+v1 layout uses: Header + Tab bar + Main content (full width). Commands panel and Outstanding side panel are planned for post-v1.
 
 ### Implementation status (updated 2026-05-24)
 

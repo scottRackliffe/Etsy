@@ -103,11 +103,11 @@ Integrate `usePagination` hook with all list views.
 **API changes required:**
 
 - `/api/inventory` (GET): already supports `limit`/`offset`. Add `search`, `status`, `sort_by`, `sort_dir` query params.
-- `/api/orders` (GET): already supports `limit`/`offset`. Add `search`, `payment_status`, `shipping_status`, `source_channel`, `sort_by`, `sort_dir` query params.
+- `/api/orders` (GET): already supports `limit`/`offset`. Add `search`, `payment_status`, `shipping_status`, `source_channel`, `customer_id`, `sort_by`, `sort_dir` query params.
 - `/api/customers` (GET): already supports `limit`/`offset`. Add `search`, `is_active`, `sort_by`, `sort_dir` query params.
-- All list endpoints must return `{ items: T[], total: number, limit: number, offset: number }`.
+- All list endpoints return the canonical API pagination envelope (ADR-018): `{ items: T[], pagination: { limit, offset, total, has_more } }`.
 
-**Note:** The canonical API pagination envelope (ADR-018) nests pagination metadata: `{ items: T[], pagination: { limit, offset, total, has_more } }`. Implementations must use the nested shape.
+> **Reconciliation note (2026-06-09):** A prior version of this ADR described a flat `{ items, total, limit, offset }` shape. That was incorrect — the canonical nested format from ADR-018 is the only valid response shape. Implementations must use `{ items, pagination: { limit, offset, total, has_more } }`.
 
 **Context changes:**
 
@@ -125,7 +125,15 @@ Search, filter, and sort state should be reflected in the URL query string so th
 - Outstanding deep links can include filter context.
 - Bookmarkable filtered views.
 
-Example: `/inventory?search=vase&status=in_stock&sort=item_number&dir=asc&page=2`
+Example: `/inventory?q=vase&status=in_stock&sort_by=item_number&sort_dir=asc&page=2`
+
+> **Reconciliation note (2026-06-09):** URL params use `sort_by` and `sort_dir` (not `sort` / `dir`) to match ADR-018 query param conventions. Search text uses `q` for the URL param (mapped to the `search` API param server-side).
+
+**Status filter slug encoding:** URL query params use slug format (e.g., `status=in_stock`, `status=listed`) which the server maps to display format values (`In stock`, `Listed`) before querying the database. The mapping is case-insensitive and replaces underscores with spaces, with initial capital.
+
+**`shipping_status` filter for Sales:** Values: `shipped` (orders where `shipping_date IS NOT NULL`), `not_shipped` (orders where `shipping_date IS NULL`). Used in the Shipping chip group on the Sales page.
+
+**`customer_id` filter for Sales:** When present (e.g., `/sales?customer_id=7`), filters orders to those belonging to the specified customer. Supports deep-link from Customer purchase history → Sales list (ADR-052).
 
 Use `useSearchParams()` from Next.js to read/write query params. Update params on filter/search/sort/page change with `router.replace()` (no history push for every keystroke — only on debounced search commit, filter click, sort click, or page change).
 

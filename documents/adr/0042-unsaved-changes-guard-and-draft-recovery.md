@@ -187,6 +187,12 @@ function useDraftRecovery<T>(entityType: string, entityId: string | number, serv
 
 This hook combines dirty tracking, `beforeunload`, auto-save, and draft recovery into a single integration point per form.
 
+### 9. Interaction with Offline Queue (ADR-050)
+
+> Added 2026-06-09 — specifies behavior when the offline mutation queue conflicts with draft recovery.
+
+When the mutation queue replays after reconnection and encounters a 409 (stale record), the queued mutation is marked as failed. If a local draft exists for the same entity, the draft is preserved and the user is notified via the notification center (ADR-051) to review and resubmit. The draft recovery banner will appear on next visit to that entity, allowing the user to restore the draft, review the current server state, and manually resubmit their changes.
+
 ## Consequences
 
 - **Positive:** Users never silently lose form data on navigation; crash recovery via auto-save protects against browser/system failures; the reusable hook makes it easy to add protection to any form; stale draft detection prevents overwriting newer server data.

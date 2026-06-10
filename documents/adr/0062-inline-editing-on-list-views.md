@@ -66,4 +66,5 @@ Every edit currently requires opening a detail panel, changing a field, and savi
 
 - Cross-ref: ADR-028 (DataTable shared component), ADR-046 (concurrent edit detection).
 - The `was_paid` toggle on Sales sets `payment_status = 'paid'` or `'unpaid'` and updates `was_paid` accordingly in a single PATCH.
+- The `was_paid` toggle on the Sales list is disabled for orders with `payment_status = 'refunded'` to prevent corrupting refund state. The cell renders as a read-only checked/unchecked indicator with a tooltip: "Payment was refunded — status cannot be toggled." (Added 2026-06-09.)
 - Inline editing does NOT replace the detail panel — it supplements it for single-field changes.

@@ -50,7 +50,7 @@ When a mutation request (POST, PATCH, DELETE) fails due to network error or serv
    }
    ```
 2. Queue key: `esm_mutation_queue` in localStorage.
-3. Maximum queue size: 100 entries. If full, reject new mutations with a toast: "Too many pending changes. Please wait for connection to restore."
+3. Maximum queue size: 50 entries. If full, reject new mutations with a user-facing message: "Too many pending changes. Please reconnect to sync before making more changes."
 
 ### Replay on reconnect
 
@@ -66,6 +66,12 @@ When the app transitions from `offline`/`server-unreachable` to `online`:
 4. After replay completes:
    - If all succeeded: success toast "All changes synced."
    - If some failed: warning toast "N changes could not be synced." + notification in notification center (ADR-051) with details.
+
+### Queue replay order and conflict handling
+
+**Replay order:** FIFO (first-in, first-out). Each mutation is replayed sequentially — the next mutation is not sent until the previous one succeeds or permanently fails. This preserves the user's intended order of operations and avoids race conditions between dependent mutations.
+
+**Interaction with ADR-046 (concurrent edit detection):** If a queued mutation receives a 409 (concurrent edit conflict), it is marked as failed and the user is notified via the notification center (ADR-051). The mutation is **not retried automatically** — the user must review the conflict and resubmit manually. This is because the server-side data has changed since the mutation was queued, and automatic replay would overwrite someone else's changes.
 
 ### Read request handling (GET)
 
@@ -127,3 +133,7 @@ interface UseApiOptions {
 - Cross-references: ADR-025 (Etsy token refresh — has its own retry logic for Etsy API calls; this ADR covers internal app API calls), ADR-046 (concurrent edit detection — 409 on replay is expected and handled gracefully), ADR-051 (notification center — failed sync items are logged as notifications)
 - The health check interval (30s) is chosen to balance responsiveness with avoiding unnecessary requests. It only runs when the browser tab is visible (`document.visibilityState === 'visible'`).
 - Future consideration: Service Worker for true offline support with cached reads. Not in scope for v1.
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: Reduced mutation queue limit from 100 to 50 entries. Added explicit FIFO replay order specification. Added dedicated section on ADR-046 concurrent edit conflict interaction (409 responses are not auto-retried).

@@ -24,7 +24,9 @@ Tokens are stored in the SQLite `settings` table (ADR-017):
 | `etsy_refresh_token_encrypted` | Current refresh token (encrypted at rest) |
 | `etsy_token_expires_at`        | Access token expiry (ISO 8601 UTC)        |
 
-Encryption: use Node.js `crypto.createCipheriv` with AES-256-GCM. The encryption key is derived from a server-side secret (environment variable `TOKEN_ENCRYPTION_KEY` or fallback to a deterministic key derived from `ETSY_CLIENT_SECRET`). The IV is stored alongside the ciphertext (prepended). This is defense-in-depth for the SQLite file at rest; it is not a substitute for filesystem-level encryption in production.
+Encryption: AES-256-GCM (authenticated encryption) via Node.js `crypto.createCipheriv`. The encryption key is derived from the `ENCRYPTION_KEY` environment variable (fallback: `TOKEN_ENCRYPTION_KEY` or a deterministic key derived from `ETSY_CLIENT_SECRET`). Each encrypted value stores the IV (initialization vector) and the GCM auth tag alongside the ciphertext, all prepended to the stored value. This is defense-in-depth for the SQLite file at rest; it is not a substitute for filesystem-level encryption in production.
+
+**Key rotation:** Changing the `ENCRYPTION_KEY` invalidates all stored tokens. The user must re-authenticate with Etsy after key rotation. There is no automatic re-encryption migration.
 
 ### 2. Middleware location
 
@@ -141,3 +143,7 @@ On application startup (first API request after server start or page load):
 
 - This ADR supersedes the token refresh section in ADR-007 Notes. ADR-007 remains the SSOT for the overall OAuth flow; this ADR is the SSOT for refresh behavior specifically.
 - The `getValidAccessToken()` function is the single entry point; no other code should read tokens from SQLite directly.
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: Clarified encryption specification to explicitly state AES-256-GCM mode with auth tag storage. Unified environment variable name to `ENCRYPTION_KEY` (with `TOKEN_ENCRYPTION_KEY` as fallback). Added key rotation consequences.

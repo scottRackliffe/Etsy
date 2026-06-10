@@ -47,7 +47,7 @@ PRAGMA synchronous = NORMAL;
 
 - Before starting any backup operation (ADR-027), run `PRAGMA quick_check;`
 - `quick_check` is faster than full `integrity_check` (skips index verification)
-- If `quick_check` fails: abort backup, return error: "Database failed integrity check. Cannot create a reliable backup. Please contact support."
+- If `quick_check` fails: abort backup, return error: "Database failed integrity check. Cannot create a reliable backup. Your database may be corrupted. Recommended actions: (1) Restore from a recent backup via Config → Backup, (2) Run an integrity check from Config → Database, (3) If the issue persists, export your data and rebuild the database."
 - If `quick_check` passes: proceed with backup
 
 ### Connection management

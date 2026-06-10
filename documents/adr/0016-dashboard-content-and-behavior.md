@@ -64,6 +64,7 @@ When the user **is** authenticated with Etsy (valid token, "connected"):
   - **Heading:** e.g. "Recent orders" (or equivalent).
   - **Subheading or caption:** Indicate that the list shows receipts with paid/shipped status (e.g. "N receipt(s) — paid / shipped status below").
   - **Data source:** Receipts for the **selected shop only**, fetched from the Etsy API via the app's API (e.g. `GET /api/receipts?shop_id=&limit=&offset=`). Data is **not** persisted in the application database in the base system; it is fetched on load and when the shop selection changes.
+  - **Note (2026-06-09):** The receipts preview table shows live Etsy API data. KPI widgets and charts use persisted `orders` data (synced via ADR-019). The `etsy_receipts` table caches raw receipt JSON for reference but is not the source for dashboard metrics.
   - **Limit:** 100 receipts per request. Pagination: offset parameter optional (e.g. offset=0 for first page; limit=100).
 
 - **Receipts table (when connected)**

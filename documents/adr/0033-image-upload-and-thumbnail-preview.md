@@ -75,7 +75,9 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 3. **Upload:** Send as `multipart/form-data` to `POST /api/inventory/[id]/pictures` with fields `slot` (number) and `file` (the image blob).
 4. **Progress indicator:** Replace the slot content with a circular progress indicator or indeterminate spinner during upload.
 5. **Success:** The API returns the updated item. Refresh the slot with the new image. Toast: "Picture uploaded to slot {n}."
-6. **Failure:** Restore the empty slot. Toast error with the server's error message (e.g., "Image dimensions exceed 10000×10000 limit").
+6. **Failure:** Restore the empty slot. Toast error with the server's error message (e.g., "Image exceeds maximum dimensions and could not be processed").
+
+> **Reconciliation note (2026-06-09):** Per ADR-026, images exceeding 4000×4000 pixels are automatically resized (not rejected). The server only rejects files that fail type or size validation (not image type, or >15 MB). The previous "10000×10000 limit" error example was incorrect.
 
 ---
 
@@ -84,7 +86,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 - Filled slots can be dragged and dropped onto other slots (filled or empty).
 - Use the HTML Drag and Drop API (no external library required for 10 items).
 - Visual feedback during drag: dragged card becomes semi-transparent; drop target shows a blue highlight border.
-- On drop: call `PATCH /api/inventory/[id]/pictures/reorder` with the new ordered array of picture paths.
+- On drop: call `PATCH /api/inventory/[id]/pictures/reorder` with body `{ order: [3, 1, 2, 4, ...] }` where the array represents the new slot permutation — the value at index 0 becomes `picture_1`, the value at index 1 becomes `picture_2`, etc. Array values are the original slot numbers being moved into each position.
 - During reorder API call: show a brief loading overlay on the grid.
 - On success: refresh all slot images. Thumbnail regenerates if slot 1 changed.
 

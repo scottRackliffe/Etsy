@@ -1,5 +1,5 @@
 # Etsy Sales Manager — Cursor Rules
-# Last updated: 2026-05-24 (ADR-017/018 reconciliation)
+# Last updated: 2026-06-09 (full ADR documentation audit — 55 fixes across 40+ files)
 # These rules tell Cursor exactly where to look and what to follow for every domain.
 # When in doubt: read the ADR first, then implement.
 
@@ -122,7 +122,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-016** (Dashboard) | ADR-028, ADR-037 (activity feed), ADR-038/064/066 (KPI APIs per ADR-018 §10), ADR-044 (wizard overlay). |
 | **ADR-017** (DB schema) | ADR-031 (`tracking_number`), ADR-037 (`activity_log`), ADR-065 (`customer_notes`), ADR-038 (`other_costs`). §1–§7 narrative matches §8 DDL (reconciled 2026-05-24). |
 | **ADR-018** (API surface) | ADR-029–037 in Extensions §12–18; ADR-038–069 in §19–28. Full route catalog — not only sections 1–10. |
-| **ADR-019** (Etsy sync) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
+| **ADR-019** (Etsy sync) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). Buyer message → `orders.notes`. Raw receipt → `etsy_receipts`. Customer dedup caveat (ADR-053). |
 | **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
@@ -134,7 +134,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-028** (Shared components) | ADR-024, 032, 045, 059, 060, 061 |
 | **ADR-029** (Search/pagination) | ADR-018 §12, 041 global search, 034 `ui.page_size` |
 | **ADR-030** (Inventory detail) | ADR-024 two-panel, 033 pictures, 038 profit row, 042 drafts, 046 `If-Match` |
-| **ADR-031** (Order detail) | ADR-003/004 ship fields, 021 mark-shipped, 035 deep links, 018 §14–15 |
+| **ADR-031** (Order detail) | ADR-003/004 ship fields, 021 mark-shipped, 035 deep links, 018 §14–15. Line item API: POST/PATCH/DELETE `/api/orders/[id]/items`. |
 | **ADR-032** (ConfirmDialog) | ADR-028 Modal, 040 batch, 069 remove sample data |
 | **ADR-033** (Image upload grid) | ADR-010, 026 storage, 030 inventory panel |
 | **ADR-034** (Config) | ADR-027 backup, 039 `tax.default_rate`, 044 `setup.completed`, 057 sync, 069 sample data |
@@ -145,18 +145,18 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-039** (Tax) | ADR-006 tax report, 013 output, 034/017 `tax.default_rate`, orders `tax_total` |
 | **ADR-040** (Bulk batch) | ADR-021 ship override on **orders**, 032 confirm, 055 print queue, 018 §21 |
 | **ADR-041** (Global search) | ADR-018 §20, 029 list filters |
-| **ADR-042** (Unsaved guard) | ADR-030, 031, 024 navigation |
+| **ADR-042** (Unsaved guard) | ADR-030, 031, 024 navigation, 050 offline queue interaction |
 | **ADR-043** (Progress/jobs) | ADR-018 §22 SSE, 019 sync, 047 import, 027 restore |
 | **ADR-044** (Setup wizard) | ADR-034 `setup.completed`, 007 OAuth, 069 optional sample load |
 | **ADR-045** (Accessibility) | ADR-028 primitives, 049 shortcuts, 009 focus order |
-| **ADR-046** (Concurrent edit) | ADR-017 `updated_at`, 018 `If-Match`/409, 030/031 PATCH |
+| **ADR-046** (Concurrent edit) | ADR-017 `updated_at`, 018 `If-Match`/409 `CONCURRENT_EDIT`, 030/031 PATCH, 050 queue replay |
 | **ADR-047** (CSV import) | ADR-018 §24, 043 job progress, 048 duplicates |
 | **ADR-048** (Duplicate detect) | ADR-018 §24, inventory/customer create |
 | **ADR-049** (Shortcuts) | ADR-045 a11y, 041 search, ui-design |
 | **ADR-050** (Network retry) | ADR-018 §23 health, 019 Etsy calls, 051 notifications |
 | **ADR-051** (Notification center) | ADR-037 events, 050 offline queue |
 | **ADR-052** (Customer timeline) | ADR-031 orders, customers tab, 066 repeat badge |
-| **ADR-053** (Customer merge) | ADR-018 §25, 022 delete rules, 003 model |
+| **ADR-053** (Customer merge) | ADR-018 §25, 022 delete rules, 003 model, 065 `customer_notes` migration |
 | **ADR-054** (Inventory aging) | ADR-006, 013 `format=pdf|csv`, 038 slow movers |
 | **ADR-055** (Print queue) | ADR-040 batch add, 036 reports; client `localStorage` only |
 | **ADR-056** (Accounting export) | ADR-006, 013 CSV, 018 report route |
@@ -323,6 +323,10 @@ id, report_name, report_params_json, artifact_path, artifact_json, generated_at
 - Status codes: 200 read/update, 201 created, 204 delete, 400 validation, 401 unauth, 404 not found, 409 conflict, 429 rate limit, 500 server error
 - Protected routes: resolve session from HTTP-only cookie → SQLite settings `app.session.current_id`
 - Date fields: `YYYY-MM-DD`; timestamps: ISO 8601 UTC
+- Concurrent edit: 409 uses error code `CONCURRENT_EDIT` with `can_retry: true` (ADR-046, ADR-018)
+- URL query params for lists: `sort_by`, `sort_dir`, `q`, `page`, `limit` (ADR-029)
+- Per-order report URLs: path-based `/api/reports/invoice/[orderId]`, `/api/reports/thank-you/[orderId]`
+- Tax rate stored as percentage number (e.g., `8.25` for 8.25%), not decimal fraction
 - Full endpoint spec: `documents/adr/0018-api-surface-endpoints.md`
 
 ---
@@ -397,10 +401,11 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 
 ## 6. LISTING AUTHORING MODES (ADR-023)
 
-Three modes — always respect all three:
+Four modes — always respect all four:
 1. **Manual** — guided form with sections: title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
 2. **Integrated AI** — app sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
 3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft
+4. **Listing Coach** (ADR-072) — 8-step guided wizard for new listings; uses Integrated AI for composition
 
 State machine: `draft → generated|imported → approved → published`
 Only `approved` drafts can be published to Etsy.
@@ -422,8 +427,8 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 8. REPORTS
 
-- All reports: PDF primary + CSV export from same data
-- User gets exactly 4 actions after generation: **Print | Export PDF | Export CSV | Cancel**
+- All reports: PDF primary + CSV export from same data (exception: Accounting Export is CSV-only)
+- User gets exactly 4 actions after generation: **Print | Export PDF | Export CSV | Cancel** (Accounting Export: **Export CSV | Cancel** only)
 - Global data filter: only `order_status = 'active'` orders in all purchase/revenue reports
 - Layout: 12pt Courier body, 14/16pt title, 1in margins, light grid, page numbers centered
 - Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging | Profit by Item | Sales Tax Summary | Inventory Aging | Accounting Export
@@ -471,7 +476,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 12. WHAT'S BUILT vs WHAT'S PENDING
 
-### Built and working (Priorities 1-27 complete):
+### Built and working (Priorities 1-53 complete, docs reconciled 2026-06-09):
 - OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
 - Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
 - Dashboard (connected/not-connected states, shop selector, receipts table)
@@ -549,7 +554,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Never allow publish-to-Etsy unless listing_draft_state = 'approved'
 - Never allow Mark as shipped without paid check (or explicit override + audit flag)
 - Never connect to carrier APIs (USPS, UPS, FedEx, DHL) — label generation is local only
-- Never cache Etsy API responses (per Etsy API Terms)
+- Never cache Etsy HTTP API responses for reuse (per Etsy API Terms). The `etsy_receipts` table is operational data persistence, not caching.
 - Never scrape Etsy or bypass the official API
 - Never use string interpolation in SQL queries
 - Never expose stack traces or DB errors in user-facing messages

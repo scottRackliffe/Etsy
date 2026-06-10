@@ -49,7 +49,9 @@ Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-
 - For report period filters, use the order date as the canonical sale date for sales, income MTD, and income YTD.
 - **Income MTD/YTD:** Sum **inventory.sale_revenue** for all items linked from orders in the selected period (filtered by order date). Sale revenue is stored on inventory (ADR-002); the order_items record links to the item. Do not store a duplicate "amount" on the order record for revenue; use the linked inventory's `sale_revenue`.
 - Thank you note and invoice are document-style reports (per order); sales, costs, income MTD/YTD, and postal by vendor are summary/list reports.
-- **Reporting currency:** Income MTD/YTD and other monetary reports use the app default currency (settings.currency_code). Per-currency or multi-currency report aggregation is out of scope unless added in a future ADR.
+- **Reporting currency:** Income MTD/YTD and other monetary reports use the app default currency (`ui.currency_code` setting; see ADR-034). Per-currency or multi-currency report aggregation is out of scope unless added in a future ADR.
+
+> **Note (2026-06-09):** The canonical currency setting is `ui.currency_code` (see ADR-034). The legacy `settings.currency_code` key is retained for backwards compatibility but `ui.currency_code` is authoritative.
 - **Per-order documents (ADR-036):** Invoice and thank-you note can be generated for a single order via path-based endpoints: `/api/reports/invoice/[orderId]` and `/api/reports/thank-you-note/[orderId]`.
 
 ### Schema mapping (updated 2026-05-24)

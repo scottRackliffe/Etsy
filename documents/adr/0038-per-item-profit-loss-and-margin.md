@@ -93,7 +93,7 @@ The `other_costs_total` field is the `SUM(other_costs.amount)` for convenience. 
 
 - Optional columns (hidden by default, user can enable via column picker): `Total Cost`, `Net Profit`, `Margin %`
 - Columns are sortable (ADR-029)
-- The sort uses the computed value; the API accepts `sort=margin_pct` (etc.) and computes in the ORDER BY clause
+- The sort uses the computed value; the API accepts `sort_by=margin_pct` with `sort_dir=asc|desc` (per ADR-018/029 conventions) and computes in the ORDER BY clause
 
 **Dashboard (ADR-016):**
 

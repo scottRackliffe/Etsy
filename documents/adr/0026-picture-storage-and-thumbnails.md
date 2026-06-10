@@ -24,20 +24,20 @@ uploads/
     <item_id>/
       pictures/
         1.jpg          # picture_1
-        2.png          # picture_2
+        2.jpg          # picture_2
         ...
-        10.webp        # picture_10
+        10.jpg         # picture_10
       condition/
         1.jpg          # condition_picture_1
         ...
-        5.png          # condition_picture_5
+        5.jpg          # condition_picture_5
       thumbnail.jpg    # Generated thumbnail
 ```
 
 - `<item_id>` is the numeric inventory row ID.
 - Main pictures are stored in `pictures/` with filenames `1` through `10` (matching slot number).
 - Condition pictures are stored in `condition/` with filenames `1` through `5`.
-- File extension matches the stored format (after optional conversion).
+- All stored files use `.jpg` extension (all formats are re-encoded to JPEG during processing).
 - The `uploads/` directory is at the project root; configurable via environment variable `UPLOADS_PATH` (default: `./uploads`).
 - The `uploads/` directory is added to `.gitignore`.
 
@@ -45,7 +45,7 @@ uploads/
 
 | Rule              | Behavior                                                                                                                     |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Naming            | Files are renamed to their slot number (e.g. `1.jpg`, `2.png`) upon import                                                   |
+| Naming            | Files are renamed to their slot number with `.jpg` extension (e.g. `1.jpg`, `2.jpg`) upon import                             |
 | Collision         | Importing to an occupied slot **replaces** the existing file (old file is deleted)                                           |
 | Original filename | Not preserved in the filesystem; the database stores only the canonical path                                                 |
 | Path stored in DB | Relative path from project root, e.g. `uploads/inventory/42/pictures/1.jpg`                                                  |
@@ -60,9 +60,15 @@ uploads/
 | Max dimension | 4000 × 4000 px                                    | Resize (proportional, `fit: inside`, `withoutEnlargement: true`) using Sharp before storing |
 | Min dimension | 50 × 50 px                                        | Reject with error: "Image is too small (minimum 50×50 pixels)."                             |
 | Target DPI    | 300 (metadata only; set via Sharp `withMetadata`) | Applied on save                                                                             |
-| JPEG quality  | 85 (when converting or resizing JPEG)             | Balances quality and file size                                                              |
+| JPEG quality  | 85                                                | Applied to all stored images (all formats re-encoded to JPEG)                               |
 
 Type detection uses the file's magic bytes (not just extension) via Sharp's metadata reader.
+
+**Processing pipeline detail (updated 2026-06-09):**
+
+- Images exceeding 4000×4000 pixels are resized to fit within 4000×4000 (maintaining aspect ratio) using Sharp. Images at or below this size are not resized.
+- All images are re-encoded to JPEG at 85% quality regardless of input format.
+- Original uploaded files are NOT preserved — only the processed version is stored.
 
 ### 4. Import flow (atomic per item)
 

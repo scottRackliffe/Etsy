@@ -75,7 +75,7 @@ The concepts in this ADR map to the implementation schema as follows (see ADR-01
 
 | ADR-003 concept         | Implementation table          | Notes                                                                                                                                        |
 | ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Customer table          | `customers`                   | Flat address (billing fields inline), plus `phone`, `notes`. No `default_address_id` or `currency_code` in v1.                               |
+| Customer table          | `customers`                   | Flat address (billing fields inline), plus `phone`, `notes`. Both `default_address_id` and `currency_code` are present in the v1 schema (see ADR-017 §3 DDL). `currency_code` defaults to `'USD'`. |
 | Customer_address table  | `addresses`                   | Ship-to addresses. Column names: `first_line`, `second_line`, `state` (not `address_line_1`, `state_province`).                              |
 | Purchase/shipment table | `orders` + `order_items`      | `orders` holds header, ship-to snapshot, shipping, payment. `order_items` holds line items (inventory_id, quantity, unit_price, line_total). |
 | order_id grouping       | `orders.order_number`         | Each `orders` row IS the order. Line items are in `order_items`.                                                                             |

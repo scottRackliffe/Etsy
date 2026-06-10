@@ -59,7 +59,7 @@ Provide a two-step CSV import flow: preview then import.
   | Column | Required | Type | Notes |
   |--------|----------|------|-------|
   | `item_number` | Yes | string | Must be unique across all existing inventory + within the file |
-  | `description` | No | string | |
+  | `description` | Yes | string | Minimum required field alongside `item_number` |
   | `purchase_cost` | No | decimal | e.g., `12.50` |
   | `shipping_cost` | No | decimal | |
   | `sale_revenue` | No | decimal | |
@@ -82,6 +82,34 @@ Provide a two-step CSV import flow: preview then import.
   - Numeric fields must be non-negative decimals
 - Duplicate `item_number` within the file: first occurrence wins; subsequent duplicates are skipped with error "Duplicate item number within file"
 - Duplicate `item_number` vs existing DB records: skipped with error "Item number already exists"
+
+### Required columns and defaults
+
+Minimum required CSV columns: `item_number`, `description`. All other columns are optional and will use defaults if omitted.
+
+Default values for omitted columns:
+
+| Column | Default when omitted |
+|--------|---------------------|
+| `status` | `Draft` |
+| `quantity` | `1` |
+| `condition_code` | NULL (unset) |
+| `purchase_cost` | NULL |
+| `shipping_cost` | NULL |
+| `sale_revenue` | NULL |
+| `category_tags` | empty string |
+| `notes` | empty string |
+
+### Error row handling
+
+Rows that fail validation are skipped (not rejected entirely). The import response includes a full accounting:
+
+- **Total rows**: number of data rows in the CSV (excluding header and empty rows)
+- **Imported count**: number of rows successfully inserted
+- **Skipped count**: number of rows that failed validation
+- **Skipped rows detail**: a downloadable CSV of skipped rows with error reasons, available at the URL returned in the import response (`skipped_csv_url`). The CSV contains the original row data plus an `_error` column with the validation failure message.
+
+This ensures the user can correct and re-import only the failed rows.
 
 ### Constraints
 
@@ -115,3 +143,7 @@ Provide a two-step CSV import flow: preview then import.
 - Cross-references: ADR-002 (inventory data model — field definitions), ADR-021 (validation rules — reused per-row), ADR-037 (activity log — bulk import event)
 - Future consideration: an "Export to CSV" feature could reuse the same column mapping in reverse.
 - The import endpoint is NOT idempotent — re-uploading the same file will skip all rows as duplicates (by `item_number`), which is safe but results in 0 imports.
+
+### Reconciliation note (updated 2026-06-09)
+
+Updated 2026-06-09: Changed `description` from optional to required (minimum required columns: `item_number` + `description`). Added explicit default values table for omitted columns. Added error row handling specification with downloadable skipped-rows CSV.

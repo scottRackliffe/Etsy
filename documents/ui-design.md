@@ -26,8 +26,8 @@ When in doubt: **fewer steps, clearer labels, predictable behavior.**
 | Area                    | Position                    | Purpose                                                                                                                                                                                                                                                                                                   |
 | ----------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Tabs**                | Top, full width             | Main application sections. One tab active; content below.                                                                                                                                                                                                                                                 |
-| **Commands**            | One side (left or right)    | Context-sensitive actions for the current tab (and global actions where it makes sense). **Which side is which** (commands vs outstanding) is **configurable in Config**; the UI also provides an **icon that flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. |
-| **Outstanding / To-do** | Opposite side from commands | **Panel** listing outstanding work to be done. **Click an item** → the app **puts context in place**: it **navigates to the correct tab** and **opens/selects the correct record** so the user is on the right screen with the right order, item, or customer **ready for action**.                       |
+| **Commands**            | *(Deferred to post-v1; see ADR-009 and § Implementation notes)* | Context-sensitive actions for the current tab. In v1, these actions are placed inline on each page.                                                                                                                                                                                                       |
+| **Outstanding / To-do** | *(Deferred to post-v1; see ADR-009 and § Implementation notes)* | In v1, Outstanding is a full-page tab only. Click an item → deep-link navigate to the correct tab and record (ADR-035).                                                                                                                                                                                  |
 | **Content**             | Center / main area          | List, form, or report for the active tab.                                                                                                                                                                                                                                                                 |
 
 **Header:** App name (e.g. “Trudy’s Etsy Sales”), maybe global status (Etsy connected / not connected), user or shop indicator. No tabs in the header strip if we want a clean “tabs only” bar below it.
@@ -44,7 +44,7 @@ Proposed top-level tabs. Order can change; names are placeholders.
 | **Sales / Orders**    | Everything about orders and completing a sale.                                                                                   | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List + detail + listing workshop. **Primary add:** **Listing Coach** (ADR-072) at `/listing-coach` — paste Photos, optional Google Visual Search screenshot, AI-composed listing. Quick **Add item** for item number only. Picture upload (paste, drag, file picker). Status (Draft, In stock, Listed, Sold, etc.).                                                                                                                                                                                                                                                                           |
 | **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View order history per customer (ADR-052). Notes log (ADR-065).                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Reports**           | Run and view reports.                                                                                                            | Chooser per ADR-006: Thank you note, Invoice, Sales, Costs, Income MTD/YTD, Postal by vendor, Outstanding items, AR aging, Profit by item (038), Sales tax summary (039), Inventory aging (054), Accounting export (056). Date range + `format=pdf\|csv` (ADR-036). Actions: Print \| Export PDF \| Export CSV \| Cancel (ADR-013).                                                                                                                                                                                                                                                           |
+| **Reports**           | Run and view reports.                                                                                                            | Chooser per ADR-006: Thank you note, Invoice, Sales, Costs, Income MTD/YTD, Postal by vendor, Outstanding items, AR aging, Profit by item (038), Sales tax summary (039), Inventory aging (054), Accounting export (056). Date range + `format=pdf\|csv` (ADR-036). Actions: Print \| Export PDF \| Export CSV \| Cancel (ADR-013; exception: Accounting Export → Export CSV \| Cancel only).                                                                                                                                                                                                                                                           |
 | **Tutorial and tips** | Tutorial + tips in one place: how Etsy works, how the app helps, sales tips, pricing; search, index, links to tips-folder files. | **Search** (over in-app content and tips-folder file names). **Index** (browsable topics from [tutorial.md](tutorial.md) plus Pictures, Etsy rules, tips-folder files). **Links to files in the tips folder** open in the OS default app. See [knowledge-base-design.md](knowledge-base-design.md).                                                                                                                                                                                                                                                                                           |
 | **Outstanding**       | Dedicated view of the to-do list We support **both** panel (on every tab) and this full-page tab.                                | Same items as the “outstanding” panel, but full-page so user can work through the list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Config / Settings** | Etsy connection, preferences, defaults.                                                                                          | Connect / disconnect Etsy. Redirect URI reminder. Default shipper. **Business details:** name, address, **user logo** (upload or select; stored in system for use in invoices, thank-you notes, reports, labels). **Shipping Info:** per-carrier data needed for labels (account numbers, return address, etc.); user adds/edits here; required when Printing shipping label if label cannot be complete without it. **Panel layout:** which side is commands vs outstanding (or use the **swap icon** in the UI). Optional: “Why pictures matter” link, tutorial/guide links, backup/export. |
@@ -55,7 +55,9 @@ Proposed top-level tabs. Order can change; names are placeholders.
 
 ## 3. Commands (left or right panel)
 
-Commands are **context-sensitive** to the active tab, plus a few **global** actions. Which side is commands vs outstanding is **configurable** (Config), and an **icon in the UI** flips the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse.
+> **v1 note (2026-06-09):** The side-panel commands concept is **deferred to post-v1** (see ADR-009 and § Implementation notes). In v1, the actions listed below are placed **inline** on each page using `Button` (ADR-028). The per-tab command lists remain the canonical reference for which actions each tab supports.
+
+Commands are **context-sensitive** to the active tab, plus a few **global** actions.
 
 ### Global (any tab)
 
@@ -83,9 +85,9 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Add new listing with Listing Coach** (ADR-072) — recommended for new items; navigates to `/listing-coach`.
 - **Add item** (quick: item number + description only).
 - **Edit** (selected item).
-- **Add / Import pictures** (selected item: **directory picker** → **preview pictures** from folder → confirm → assign to slots 1–10). Show **link to "Why pictures matter"** doc.
-- **Replace / Reorder / Remove** (Replace uses same directory picker + preview; drag to reorder).
-- **Condition** — Set condition code (Etsy-aligned), “has blemish/issue”, condition notes; condition pictures (up to 5) use same **directory picker → preview** flow; show **"Why pictures matter"** link.
+- **Add / Import pictures** (selected item: **file picker + drag-and-drop upload** → **preview thumbnails** → confirm → assign to slots 1–10; per ADR-033). Show **link to "Why pictures matter"** doc.
+- **Replace / Reorder / Remove** (Replace uses same file picker or drag-and-drop; drag to reorder slots).
+- **Condition** — Set condition code (Etsy-aligned), “has blemish/issue”, condition notes; condition pictures (up to 5) use same **file picker + drag-and-drop** flow (ADR-033); show **"Why pictures matter"** link.
 - **Mark as listed** (set date listed, optional Etsy link).
 - **Mark as sold** (link to sale/customer, set date of sale).
 - **Delete** or **Retire** (optional, with confirmation).
@@ -111,7 +113,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Sales tax summary** (ADR-039; date range).
 - **Inventory aging** (ADR-054; slow movers).
 - **Accounting export** (ADR-056; CSV).
-- Per ADR-013: after generation — **Print | Export PDF | Export CSV | Cancel** (not a generic Export only).
+- Per ADR-013: after generation — **Print | Export PDF | Export CSV | Cancel** (not a generic Export only). **Exception:** Accounting Export (ADR-056) offers **Export CSV | Cancel** only (no PDF or Print — CSV is the native output format).
 
 ### Tutorial and tips (knowledge base)
 
@@ -131,7 +133,9 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ## 4. Outstanding / To-do list (panel and full-page tab)
 
-**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It stays visible on every tab. We also support a full-page **Outstanding** tab with the same list (ADR-009). Items are **data-driven only**; we do not support user-added manual tasks. Which side the panel is on (vs commands) is **configurable in Config**; an **icon in the UI** lets the user **swap** the two panels.
+> **v1 note (2026-06-09):** The always-visible side panel is **deferred to post-v1** (see ADR-009 and § Implementation notes). V1 implements Outstanding as a **full-page tab only**, with deep-link navigation to target records (ADR-035).
+
+**Purpose:** A **panel** (right or left, opposite commands) that lists “what needs my attention.” It stays visible on every tab *(post-v1 — see note above)*. We also support a full-page **Outstanding** tab with the same list (ADR-009). Items are **data-driven only**; we do not support user-added manual tasks.
 
 **Data-driven next steps (exact definitions and query rules: ADR-020):**
 
@@ -220,11 +224,13 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 Each inventory item can have up to **10 pictures** (picture 1 = primary; order matters for listing/reports); **condition pictures** use the same flow (up to 5). The app stores **paths or URLs** in the database; the actual files live on disk or in object storage.
 
-**Standard flow for all pictures (main and condition): directory picker → preview → confirm**
+**Standard flow for all pictures (main and condition): file picker + drag-and-drop → preview → confirm (ADR-033)**
 
-- For **any** picture need (main or condition), **open a file directory (folder) window** and let the user **select the directory** that contains the images.
-- After the user selects the directory, **display a preview of some of the pictures** in that directory (e.g. first 5–10 image files as thumbnails or a small gallery) so the user can **confirm they chose the correct directory** before importing.
-- User confirms ("Use this folder" / "Import") or cancels and picks a different directory. App then maps image files to the appropriate slots (main: 1–10; condition: 1–5), copies or references into app storage, saves paths. **Replace** (per slot) uses the same directory picker + preview.
+> **Reconciliation (2026-06-09):** The original design described a "directory picker" flow. ADR-033 replaced this with **file picker + drag-and-drop upload** for v1. The directory/folder import concept is deferred to post-v1 (see below).
+
+- For **any** picture need (main or condition), the user selects files via a **file picker dialog** or **drags and drops** files onto the upload grid (ADR-033).
+- The app displays **thumbnail previews** of selected files in a visual grid (10 slots main, 5 slots condition) so the user can confirm before saving.
+- User confirms or removes files. App processes images (Sharp: validation, resizing, thumbnail generation per ADR-026), assigns to slots (main: 1–10; condition: 1–5), copies into app storage, saves paths. **Replace** (per slot) uses the same file picker or drag-and-drop.
 
 **"Why pictures matter" — link in the UI**
 
@@ -232,22 +238,29 @@ Each inventory item can have up to **10 pictures** (picture 1 = primary; order m
 - **Default:** Link to **[documents/pictures-and-sales.md](pictures-and-sales.md)** (or its in-app route). That guide summarizes Etsy's requirements and why photos build trust.
 - **Optional in Config:** Let the user set a path or URL to **their own** file (e.g. a PDF like "Tips for Getting Featured on Etsy" or another guide that was "a beginning of this"). If set, "Why pictures matter" can point to that file instead of or in addition to the default.
 
-**Ways to get pictures in**
+**Ways to get pictures in (v1)**
 
-| Method               | Description                                                                                                                                                                                                                      |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Upload**           | User picks one or more files (e.g. from a file dialog). App assigns them to slots 1–10 in order; user can reorder or replace.                                                                                                    |
-| **Select directory** | User selects a folder via directory picker; app shows **preview of some pictures** from that folder so user can confirm correct directory; then app maps files to slots (main 1–10 or condition 1–5). Same for Replace per slot. |
-| **URL** (optional)   | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot.                                                                                                                     |
+| Method                    | Description                                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **File picker**           | User picks one or more files from a file dialog. App assigns them to slots 1–10 in order; user can reorder or replace.                                                               |
+| **Drag-and-drop**         | User drags image files onto the upload grid (ADR-033). App previews thumbnails and assigns to slots.                                                                                  |
+| **Paste (Listing Coach)** | In Listing Coach (ADR-072), user can paste images from macOS Photos (⌘C/⌘V).                                                                                                        |
+| **URL** (optional)        | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot.                                                                          |
 
 **Process: add or replace pictures for an item**
 
 1. **Inventory** tab → select item → **Upload / Import pictures** (or do it inside Add/Edit item).
-2. Choose method: **Upload files** or **Import from folder** (and optionally **Paste URL** per slot).
-3. **Directory picker** opens; user selects folder. **Preview:** app displays some pictures from that directory so user can confirm it's the right folder.
-4. User confirms → app maps image files to slots (main 1–10 or condition 1–5), saves paths. If more images than slots, use first N by order or let user choose. Allow drag-to-reorder, Replace (same directory picker + preview per slot), Remove.
-5. **Optional bulk:** “Import multiple items” flow: user selects a parent folder containing one subfolder per item (subfolder name = item number or new item); for each subfolder, create or find the item and import that folder’s images into picture 1–10. Requires matching by item number or creating new items.
-6. Save. Item record now has picture_1 … picture_10 (paths or URLs); empty slots are null.
+2. Choose method: **File picker**, **drag-and-drop**, or optionally **Paste URL** per slot.
+3. Selected files appear as **thumbnail previews** in the slot grid (ADR-033). User can reorder by drag, replace per slot, or remove.
+4. User confirms → app processes images (validation, resize, thumbnail per ADR-026), assigns to slots (main 1–10 or condition 1–5), saves paths. If more images than slots, use first N by order or let user choose. Allow drag-to-reorder, Replace (same file picker or drag-and-drop per slot), Remove.
+5. Save. Item record now has picture_1 … picture_10 (paths or URLs); empty slots are null.
+
+**Post-v1: Bulk folder import**
+
+> The following bulk/directory import flow is **deferred to post-v1**. V1 uses per-file upload only (ADR-033).
+
+- "Import multiple items" flow: user selects a parent folder containing one subfolder per item (subfolder name = item number or new item); for each subfolder, create or find the item and import that folder's images into picture 1–10. Requires matching by item number or creating new items.
+- Single-item directory import (select a folder, preview contents, confirm) is also deferred; v1 uses file picker + drag-and-drop per ADR-033.
 
 **Constraints / rules**
 
@@ -258,8 +271,8 @@ Each inventory item can have up to **10 pictures** (picture 1 = primary; order m
 
 **Commands (recap)**
 
-- **Add / Import pictures** — Open **directory picker** → user selects folder → show **preview of some pictures** from that folder → user confirms → assign to slots. Show **link to "Why pictures matter"** doc ([documents/pictures-and-sales.md](pictures-and-sales.md) or configurable in Config).
-- **Replace** (per slot) — Same: directory picker → preview → confirm for that slot.
+- **Add / Import pictures** — Open **file picker** or **drag-and-drop** files onto the upload grid → preview thumbnails → confirm → assign to slots. Show **link to "Why pictures matter"** doc ([documents/pictures-and-sales.md](pictures-and-sales.md) or configurable in Config).
+- **Replace** (per slot) — Same: file picker or drag-and-drop → preview → confirm for that slot.
 - **Reorder** — Drag-and-drop slots to change order (picture 1 = primary).
 - **Remove** — Clear one or more slots (path/URL set to null).
 
@@ -295,7 +308,7 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 **UI**
 
 - In **Add/Edit item**, show a **Condition** block: condition dropdown (five terms), “Has blemish/issue” control, condition notes (textarea), then “Condition pictures” with up to 5 slots. Optional short help: “Describe flaws accurately; use terms like patina, crazing, foxing where applicable. Photos should show all sides and any defects.”
-- **Add condition pictures** use the **same flow as main pictures**: directory picker → **preview of some pictures** from that directory → user confirms → assign to condition_picture_1–5. **Replace** (per slot) and **Remove** same as main. Show the same **"Why pictures matter"** link (see section 5.8).
+- **Add condition pictures** use the **same flow as main pictures**: file picker + drag-and-drop → **thumbnail preview** → user confirms → assign to condition_picture_1–5 (ADR-033). **Replace** (per slot) and **Remove** same as main. Show the same **"Why pictures matter"** link (see section 5.8).
 
 **Intuitive**
 

@@ -27,6 +27,8 @@ Users need to record multiple sales for the same customer (e.g. in-person or non
 
 - **Scope:** Manual sales (`source_channel = 'manual'`, ADR-017). Same pick list wherever the app needs “choose an inventory item” (new order, add line to order, mark sold).
 
+- **Exclusion rules:** The pick list includes only items with status `In stock` or `Listed`. Items with status `Sold`, `Retired`, `Draft`, or `Reserved` are excluded. This ensures users can only select items that are actually available for sale. See ADR-022 for referential integrity rules on sold items.
+
 ## Consequences
 
 - **Positive**

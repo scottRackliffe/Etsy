@@ -27,14 +27,15 @@ Implement optimistic locking via the `updated_at` timestamp column already prese
      {
        "ok": false,
        "error": {
-         "code": "CONFLICT_STALE_RECORD",
+         "code": "CONCURRENT_EDIT",
          "message": "Record has been modified since it was loaded",
          "user_message": "This record was modified since you loaded it. Please reload and try again.",
          "actions": ["Reload"],
-         "can_retry": false
+         "can_retry": true
        }
      }
      ```
+     > Reconciled 2026-06-09: error code unified with ADR-018 §7 as `CONCURRENT_EDIT`.
 
 3. **Missing `If-Match` header**: If the header is absent, accept the write without conflict checking. This provides backwards compatibility for clients that have not yet adopted the protocol (e.g., older API consumers, scripts, or Etsy sync operations).
 
@@ -57,7 +58,7 @@ Does NOT apply to:
 ### Frontend implementation
 
 - The `useApi` hook's PATCH wrapper automatically includes `If-Match` from the `updated_at` field of the last-loaded record state.
-- On 409 response with code `CONFLICT_STALE_RECORD`:
+- On 409 response with code `CONCURRENT_EDIT`:
   1. Show an error toast: "This record was modified since you loaded it."
   2. Toast includes a "Reload" action button.
   3. Clicking "Reload" re-fetches the record from the server and replaces the local state, discarding unsaved edits.

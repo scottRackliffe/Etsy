@@ -82,12 +82,13 @@ Restore is a **manual, deliberate** operation with confirmation:
 3. User selects a backup and clicks "Restore."
 4. App shows a confirmation dialog: "Restoring will replace all current data with the backup from [date]. This cannot be undone. Continue?"
 5. On confirm:
-   a. Create a "pre-restore" backup of the current database (safety net).
+   a. Create a "pre-restore" safety backup of the current database as `pre_restore_YYYY-MM-DD_HHmmss.sqlite` (safety net).
    b. Close the current database connection.
-   c. Copy the selected backup file over `data/app.sqlite`.
-   d. Reopen the database connection.
-   e. If the backup includes pictures (`*.tar.gz`), extract `uploads/` over the current `uploads/` directory.
+   c. **If the backup file is `.sqlite`:** copy it directly over `data/app.sqlite`.
+   d. **If the backup file is `.tar.gz`:** extract to a temporary directory, validate the extracted `.sqlite` file with `PRAGMA integrity_check`. If validation passes, atomically replace `data/app.sqlite` and the `uploads/` directory with the extracted contents. If extraction or validation fails, abort the restore and keep current data intact.
+   e. Reopen the database connection.
    f. Return success with a message: "Restored from backup [filename]. A pre-restore backup was saved."
+   > If restore fails at any step, the pre-restore safety backup (`pre_restore_YYYY-MM-DD_HHmmss.sqlite`) can be used to recover.
 6. The UI reloads to reflect restored data.
 
 | Endpoint                   | Method | Purpose                                                                          |
@@ -124,7 +125,7 @@ The Config → Backup section shows:
 ## Notes
 
 - SQLite backup uses the `VACUUM INTO` command (or file copy after checkpoint) to produce a consistent snapshot even while the app is running with WAL mode.
-- The pre-restore safety backup is excluded from the rolling FIFO count (it uses a different naming pattern: `pre_restore_*.sqlite`).
+- The pre-restore safety backup is excluded from the rolling FIFO count (canonical naming pattern: `pre_restore_YYYY-MM-DD_HHmmss.sqlite`).
 - Future enhancement: add off-site backup (S3, Google Drive) as an optional destination.
 
 ### Frontend UI (updated 2026-05-24)

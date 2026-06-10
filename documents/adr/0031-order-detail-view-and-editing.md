@@ -126,8 +126,8 @@ All use `Button` component. Destructive actions require confirmation per ADR-032
 | Mark paid       | `<Button variant="accent">Mark paid</Button>`         | `POST /api/orders/[id]/mark-paid`                                               |
 | Mark shipped    | `<Button variant="accent">Mark shipped</Button>`      | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
 | Void order      | `<Button variant="danger">Void order</Button>`        | Confirmation dialog. Sets `order_status = 'void'`                               |
-| Print invoice   | `<Button variant="secondary">Print invoice</Button>`  | Opens `/api/reports/invoice?order_id={id}&format=pdf` (per ADR-036)             |
-| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you-note?order_id={id}&format=pdf` (per ADR-036)      |
+| Print invoice   | `<Button variant="secondary">Print invoice</Button>`  | Opens `/api/reports/invoice/{id}?format=pdf` (path-based, per ADR-036)          |
+| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you/{id}?format=pdf` (path-based, per ADR-036)        |
 | Link customer   | `<Button variant="ghost">Link customer</Button>`      | Modal with customer search/select. Sets `customer_id` via PATCH                 |
 
 ---
@@ -157,6 +157,28 @@ Replace the current inline form with a Modal:
 - **Canonical enums:** `order_status`: `active` | `void` | `cancelled`; `payment_status`: `unpaid` | `paid` | `refunded` (ADR-017, ADR-071). Never `open` or `pending`.
 - Buttons: "Create" (accent) + "Cancel" (secondary).
 - On success: select new order, open detail panel.
+
+---
+
+### Line Item Mutation API
+
+> Added 2026-06-09 — specifies the endpoints for managing order line items.
+
+Line items are managed via nested endpoints under the order:
+
+| Method   | Endpoint                              | Description                                    | Body / Notes                                                                                                                                           |
+| -------- | ------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST`   | `/api/orders/[id]/items`              | Add a line item to the order                   | `{ "inventory_id": number, "quantity": number, "unit_price": number }`. Server computes `line_total` and recalculates `orders.subtotal` and `grand_total`. |
+| `PATCH`  | `/api/orders/[id]/items/[itemId]`     | Update quantity or unit price on a line item    | `{ "quantity?": number, "unit_price?": number }`. Server recalculates `line_total`, `subtotal`, and `grand_total`.                                      |
+| `DELETE` | `/api/orders/[id]/items/[itemId]`     | Remove a line item from the order              | Blocked with `400` if it is the last remaining line item (orders must have at least one item). Server recalculates `subtotal` and `grand_total`.         |
+
+**Response format:** All three endpoints return the updated order object (same shape as `GET /api/orders/[id]`), including the recalculated totals and the current line items array. This allows the client to refresh the detail panel with a single response.
+
+**Validation:**
+- `inventory_id` must reference an existing inventory item.
+- `quantity` must be ≥ 1.
+- `unit_price` must be ≥ 0.
+- Adding a duplicate `inventory_id` to the same order is allowed (separate line items).
 
 ---
 
