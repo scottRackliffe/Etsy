@@ -86,6 +86,7 @@ type AppState = {
   error: UiError | null;
   urlError: UiError | null;
   busyAction: string | null;
+  currencyCode: string;
 };
 
 type AppActions = {
@@ -203,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<UiError | null>(null);
   const [urlError] = useState<UiError | null>(parseUrlError);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [currencyCode, setCurrencyCode] = useState("USD");
 
   const setErrorWithNotify: React.Dispatch<React.SetStateAction<UiError | null>> = useCallback(
     (value) => {
@@ -475,6 +477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         reportHeaderPath,
         screenHeaderSizePx,
         reportHeaderWidthPx,
+        savedCurrencyCode,
       ] = await Promise.all([
         getSettingValue("etsy.publish.taxonomy_id"),
         getSettingValue("etsy.publish.shipping_profile_id"),
@@ -491,6 +494,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettingValue("ui.icons.report_header_path"),
         getSettingValue("ui.icons.screen_header_size_px"),
         getSettingValue("ui.icons.report_header_width_px"),
+        getSettingValue("ui.currency_code"),
       ]);
       setPublishConfig({
         taxonomyId,
@@ -511,6 +515,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         screenHeaderSizePx: screenHeaderSizePx || "32",
         reportHeaderWidthPx: reportHeaderWidthPx || "220",
       });
+      if (savedCurrencyCode) setCurrencyCode(savedCurrencyCode);
     };
     load().catch(() => {});
   }, [loading]);
@@ -538,6 +543,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     error,
     urlError,
     busyAction,
+    currencyCode,
     setShops,
     setSelectedShopId,
     setReceipts,

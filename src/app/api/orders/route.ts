@@ -5,6 +5,7 @@ import { parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { createOrder, listOrders } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,6 +81,12 @@ export async function POST(request: Request) {
       throw err;
     }
     const order = createOrder(payload);
+    logActivity({
+      action: "order.created",
+      entityType: "order",
+      entityId: (order as { id: number }).id,
+      entityLabel: (order as { order_number?: string }).order_number ?? orderNumber,
+    });
     return NextResponse.json({ ok: true, order }, { status: 201 });
   } catch (error) {
     return errorResponse(

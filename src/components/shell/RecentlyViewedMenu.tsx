@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useRecentlyViewed } from "@/context/RecentlyViewedContext";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import {
   formatRecentlyViewedTime,
   recentlyViewedHref,
@@ -28,6 +29,8 @@ function groupEntries(
 
 export function RecentlyViewedMenu() {
   const { entries, clearRecentlyViewed } = useRecentlyViewed();
+  const { confirmLeave } = useUnsavedChanges();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -83,11 +86,16 @@ export function RecentlyViewedMenu() {
                     <ul className="space-y-1">
                       {group.map((entry) => (
                         <li key={`${entry.entityType}-${entry.id}`}>
-                          <Link
-                            href={recentlyViewedHref(entry)}
+                          <button
+                            type="button"
                             role="menuitem"
-                            onClick={() => setOpen(false)}
-                            className="block rounded-lg px-2 py-1.5 text-sm transition hover:bg-[var(--ui-card-bg)]"
+                            onClick={async () => {
+                              const allowed = await confirmLeave();
+                              if (!allowed) return;
+                              setOpen(false);
+                              router.push(recentlyViewedHref(entry));
+                            }}
+                            className="block w-full rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-[var(--ui-card-bg)]"
                           >
                             <span className="block truncate text-[var(--ui-body)]">
                               {entry.label}
@@ -95,7 +103,7 @@ export function RecentlyViewedMenu() {
                             <span className="text-xs text-[var(--ui-muted)]">
                               {formatRecentlyViewedTime(entry.timestamp)}
                             </span>
-                          </Link>
+                          </button>
                         </li>
                       ))}
                     </ul>

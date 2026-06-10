@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
+import { Button } from "@/components/ui/Button";
+import { FormField, SelectInput } from "@/components/ui/FormField";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
@@ -47,6 +49,8 @@ function mondayThisWeek(): string {
   return d.toISOString().slice(0, 10);
 }
 
+const PER_ORDER_REPORTS = new Set(["invoice", "thank-you-note"]);
+
 export default function ReportsPage() {
   const { iconConfig, busyAction, setBusyAction, setError } = useApp();
 
@@ -55,6 +59,8 @@ export default function ReportsPage() {
   const [toDate, setToDate] = useState("");
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [reportCsvPreview, setReportCsvPreview] = useState("");
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+  const [perOrderId, setPerOrderId] = useState("");
   const { modal: progressModal, run: runWithProgress } = useProgressOperation();
 
   const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
@@ -116,7 +122,12 @@ export default function ReportsPage() {
     }
   };
 
+  const isPerOrder = PER_ORDER_REPORTS.has(reportType) && perOrderId.trim().length > 0;
+
   const downloadUrl = (format: "csv" | "pdf") => {
+    if (isPerOrder) {
+      return `/api/reports/${reportType}/${encodeURIComponent(perOrderId.trim())}?format=${format}`;
+    }
     const base = `/api/reports/${reportType}${reportQuery}`;
     const join = base.includes("?") ? "&" : "?";
     return `${base}${join}format=${format}`;
@@ -150,23 +161,14 @@ export default function ReportsPage() {
         </div>
 
         <div className="mb-3 flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-[var(--ui-muted)]">Report type</span>
-            <select
+          <FormField label="Report type">
+            <SelectInput
               value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-              aria-label="Report type"
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-            >
-              {REPORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
-            <span className="mb-1 block text-[var(--ui-muted)]">From</span>
+              onChange={(v) => { setReportType(v); setGeneratedUrl(null); }}
+              options={REPORT_OPTIONS}
+            />
+          </FormField>
+          <FormField label="From">
             <input
               type="date"
               value={fromDate}
@@ -174,12 +176,12 @@ export default function ReportsPage() {
               onChange={(e) => {
                 setFromDate(e.target.value);
                 setActivePreset(null);
+                setGeneratedUrl(null);
               }}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
-          </label>
-          <label className={`text-sm ${supportsDates ? "" : "opacity-50"}`}>
-            <span className="mb-1 block text-[var(--ui-muted)]">To</span>
+          </FormField>
+          <FormField label="To">
             <input
               type="date"
               value={toDate}
@@ -187,10 +189,11 @@ export default function ReportsPage() {
               onChange={(e) => {
                 setToDate(e.target.value);
                 setActivePreset(null);
+                setGeneratedUrl(null);
               }}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm disabled:cursor-not-allowed"
+              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
-          </label>
+          </FormField>
         </div>
 
         {supportsDates ? (
@@ -201,21 +204,25 @@ export default function ReportsPage() {
               { id: "month", label: "This month" },
               { id: "ytd", label: "YTD" },
               { id: "all", label: "All time" },
-            ].map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => applyPreset(preset.id === "all" ? "all" : preset.id)}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  activePreset === preset.id ||
-                  (preset.id === "all" && !fromDate && !toDate && activePreset === "all")
-                    ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
-                    : "border-[var(--ui-border)] text-[var(--ui-body)]"
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
+            ].map((preset) => {
+              const isActive =
+                activePreset === preset.id ||
+                (preset.id === "all" && !fromDate && !toDate && activePreset === "all");
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id)}
+                  className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                    isActive
+                      ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
+                      : "border-[var(--ui-border)] text-[var(--ui-body)] hover:bg-[var(--ui-neutral)]"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p className="mb-3 text-xs text-[var(--ui-muted)]">
@@ -223,31 +230,89 @@ export default function ReportsPage() {
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={previewReportCsv}
-            disabled={busyAction != null}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-          >
-            {busyAction === "preview-report" ? "Loading..." : "Preview CSV"}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.open(downloadUrl("csv"), "_blank")}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-          >
-            Download CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => window.open(downloadUrl("pdf"), "_blank")}
-            disabled={reportType === "accounting-export"}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-50"
-          >
-            Download PDF
-          </button>
-        </div>
+        {PER_ORDER_REPORTS.has(reportType) && (
+          <div className="mb-3">
+            <FormField label="Order ID (leave blank for all orders)">
+              <input
+                type="text"
+                value={perOrderId}
+                onChange={(e) => {
+                  setPerOrderId(e.target.value);
+                  setGeneratedUrl(null);
+                }}
+                placeholder="e.g. 42"
+                className="w-32 rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none"
+              />
+            </FormField>
+          </div>
+        )}
+
+        {generatedUrl ? (
+          <div className="mb-3 rounded-lg border border-[var(--ui-green)]/30 bg-[var(--ui-green)]/5 p-3">
+            <p className="mb-2 text-sm font-medium text-[var(--ui-title)]">Report generated</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="accent"
+                size="lg"
+                onClick={() => {
+                  const w = window.open(generatedUrl, "_blank");
+                  if (w) setTimeout(() => w.print(), 800);
+                }}
+              >
+                Print
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => window.open(generatedUrl, "_blank")}
+                disabled={reportType === "accounting-export"}
+              >
+                Export PDF
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => window.open(downloadUrl("csv"), "_blank")}
+              >
+                Export CSV
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => setGeneratedUrl(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => setGeneratedUrl(downloadUrl("pdf"))}
+              disabled={reportType === "accounting-export"}
+            >
+              Generate Report
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={previewReportCsv}
+              busy={busyAction === "preview-report"}
+              disabled={busyAction != null}
+            >
+              Preview CSV
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => window.open(downloadUrl("csv"), "_blank")}
+            >
+              Export CSV
+            </Button>
+          </div>
+        )}
         {reportCsvPreview.trim().length === 0 ? (
           <EmptyState
             message="No data for the selected date range or filters."

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -33,12 +35,6 @@ type Summary = {
   last_order_date: string | null;
 };
 
-function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
-    value ?? 0
-  );
-}
-
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   try {
@@ -64,6 +60,8 @@ type Props = {
 };
 
 export function CustomerOrderHistory({ customerId, onError }: Props) {
+  const { currencyCode } = useApp();
+  const formatMoney = (v: number | null | undefined) => formatCurrency(v ?? 0, currencyCode);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [orders, setOrders] = useState<HistoryOrder[]>([]);
   const [loading, setLoading] = useState(false);

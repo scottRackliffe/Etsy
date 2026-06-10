@@ -5,6 +5,7 @@ import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { getDb } from "@/lib/sqlite";
+import { logActivity } from "@/lib/activity-log";
 
 async function getAddressId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -66,7 +67,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         `UPDATE addresses SET ${updates.join(", ")}, updated_at = @updated_at WHERE id = @id`
       )
       .run(params);
-    const item = getDb().prepare("SELECT * FROM addresses WHERE id = ?").get(id);
+    const item = getDb().prepare("SELECT * FROM addresses WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     if (!item) {
       throw new ApiRouteError({
         status: 404,
@@ -77,6 +78,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    logActivity({
+      action: "address.updated",
+      entityType: "address",
+      entityId: id,
+      entityLabel: (item.label as string) ?? undefined,
+    });
     return NextResponse.json({ ok: true, item });
   } catch (error) {
     return errorResponse(
@@ -105,6 +112,11 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
         canRetry: false,
       });
     }
+    logActivity({
+      action: "address.deleted",
+      entityType: "address",
+      entityId: id,
+    });
     return NextResponse.json({ ok: true, deleted: true });
   } catch (error) {
     return errorResponse(

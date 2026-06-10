@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { parseOptionalIntFlag, parseOptionalString, parsePagination } from "@/lib/api-utils";
 import { createCustomer, listCustomers } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,6 +58,12 @@ export async function POST(request: Request) {
       });
     }
     const customer = createCustomer(body);
+    logActivity({
+      action: "customer.created",
+      entityType: "customer",
+      entityId: (customer as { id: number }).id,
+      entityLabel: `${(customer as { first_name?: string }).first_name ?? ""} ${(customer as { last_name?: string }).last_name ?? ""}`.trim(),
+    });
     return NextResponse.json({ ok: true, customer }, { status: 201 });
   } catch (error) {
     return errorResponse(

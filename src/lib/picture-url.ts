@@ -11,3 +11,9 @@ export function getPictureSlotPath(item: Record<string, unknown>, slot: number):
   const value = item[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+
+export function getConditionPictureSlotPath(item: Record<string, unknown>, slot: number): string | null {
+  const key = `condition_picture_${slot}`;
+  const value = item[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -27,6 +28,7 @@ const AUTO_REFRESH_MS = 60_000;
 
 export default function OutstandingPage() {
   const router = useRouter();
+  const { confirmLeave } = useUnsavedChanges();
   const [items, setItems] = useState<OutstandingItem[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,9 @@ export default function OutstandingPage() {
     };
   }, [fetchItems]);
 
-  const handleClick = (item: OutstandingItem) => {
+  const handleClick = async (item: OutstandingItem) => {
+    const allowed = await confirmLeave();
+    if (!allowed) return;
     const paramKey =
       item.target_tab === "sales"
         ? "orderId"

@@ -27,6 +27,7 @@ import {
   ListingQualityScoreBadge,
 } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
+import { ConditionPictureGrid } from "@/components/inventory/ConditionPictureGrid";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { FormField } from "@/components/ui/FormField";
 import { stampUiError } from "@/lib/ui-error";
@@ -183,6 +184,7 @@ function InventoryPageInner() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [batchRetireOpen, setBatchRetireOpen] = useState(false);
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
   const [inventorySearch, setInventorySearch] = useState("");
   const createItemRef = useRef<HTMLInputElement>(null);
@@ -427,6 +429,17 @@ function InventoryPageInner() {
         getEditValue: (item: InventoryItem) => item.sale_revenue ?? 0,
         getDisplayValue: (item: InventoryItem) =>
           item.sale_revenue != null ? `$${item.sale_revenue.toFixed(2)}` : "—",
+      },
+      {
+        key: "margin_pct",
+        header: "Margin",
+        sortable: true,
+        render: (item: InventoryItem) => {
+          const extended = item as InventoryItem & { margin_pct?: number | null; net_profit?: number };
+          if (extended.margin_pct == null) return <span className="text-[var(--ui-muted)]">—</span>;
+          const color = (extended.net_profit ?? 0) >= 0 ? "text-[var(--ui-green)]" : "text-[var(--ui-red)]";
+          return <span className={color}>{extended.margin_pct.toFixed(1)}%</span>;
+        },
       },
       {
         key: "listing_score",
@@ -986,7 +999,7 @@ function InventoryPageInner() {
             variant="secondary"
             size="sm"
             busy={busyAction === "batch-status" || batchBusy}
-            onClick={() => void batchChangeStatus("Retired")}
+            onClick={() => setBatchRetireOpen(true)}
           >
             Retire
           </Button>
@@ -1531,8 +1544,15 @@ function InventoryPageInner() {
         </div>
       ) : null}
 
-      <div className="mb-4">
+      <div className="mb-4 space-y-4">
         <PictureGrid
+          inventoryId={selectedItemId}
+          item={selectedItem}
+          disabled={busyAction != null}
+          onItemUpdated={handlePictureItemUpdated}
+          onError={(title, message, err) => setApiError(title, message, err)}
+        />
+        <ConditionPictureGrid
           inventoryId={selectedItemId}
           item={selectedItem}
           disabled={busyAction != null}
@@ -1595,6 +1615,18 @@ function InventoryPageInner() {
         statusText={progressTitle}
         mode="indeterminate"
         total={progressTotal}
+      />
+      <ConfirmDialog
+        open={batchRetireOpen}
+        onClose={() => setBatchRetireOpen(false)}
+        onConfirm={() => {
+          setBatchRetireOpen(false);
+          void batchChangeStatus("Retired");
+        }}
+        title={`Retire ${batch.selectionCount} items?`}
+        description="These items will be marked as Retired. They will remain in your records but will not appear in active inventory."
+        confirmLabel="Retire items"
+        confirmVariant="danger"
       />
       <ConfirmDialog
         open={batchDeleteOpen}

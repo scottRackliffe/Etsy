@@ -471,7 +471,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 12. WHAT'S BUILT vs WHAT'S PENDING
 
-### Built and working (Priorities 1-7 complete):
+### Built and working (Priorities 1-27 complete):
 - OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
 - Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
 - Dashboard (connected/not-connected states, shop selector, receipts table)
@@ -483,32 +483,33 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Outstanding list with server-side API, auto-refresh, type filtering (ADR-020)
 - Picture storage and thumbnails (ADR-026): file validation, Sharp processing, canonical paths
 - Report edge cases (ADR-013): empty data handling, PDF failure response, date filtering
-- All 9 report endpoints (PDF + CSV) with date parameters
+- All 9 report endpoints (PDF + CSV) with date parameters + per-order invoice/thank-you
 - AI settings API with masked values and connection test
 - Global API error model + structured logging
 - Migration system + seed data
+- Backup system (ADR-027): tar.gz archive, lock retry, pre-restore naming, scheduled backup time/day
+- Config page: 8 sections, ConfirmDialog for destructive actions, AI key masking, publish defaults UI
+- Shipping Info section with per-carrier fields
+- Currency wiring: `ui.currency_code` setting flows to all formatters via AppContext
+- Shared component adoption (ADR-028): Button, FormField, SelectInput on Reports, Tutorial, Config
+- Search, filter, sort, pagination (ADR-029) on all list views
+- Inventory detail editing (ADR-030): two-panel layout with condition picture grid (5 slots)
+- Order detail view (ADR-031): master-detail with financials, ship-to, line items
+- Confirmation dialogs (ADR-032): all destructive actions use ConfirmDialog
+- Image upload and thumbnail preview (ADR-033): 10-slot main + 5-slot condition grids
+- Config completion (ADR-034): all 8 sections implemented
+- Deep-link navigation (ADR-035): Outstanding → Sales/Inventory/Customers with query params
+- Reports date picker (ADR-036): date range controls, presets, per-order docs, four-action flow
+- Activity log (ADR-037): `logActivity()` wired into all CRUD mutations, dashboard feed, entity timeline
+- Per-item profit/loss (ADR-038): OtherCostsManager component, inventory list Margin column, color-coded
+- Tax tracking (ADR-039): auto-calc from `tax.default_rate`, dynamic grand_total in order detail
+- Bulk/batch operations (ADR-040): multi-select, BatchActionsBar, ConfirmDialog for retire/delete
+- Global search (ADR-041): Cmd+K modal, search icon in header, entity icons, error state, recent searches
+- Unsaved changes guard (ADR-042): guards on global search, recently viewed, outstanding deep links
+- Progress indicators (ADR-043): ProgressModal, job polling for long operations
+- First-run setup wizard (ADR-044): step persistence across OAuth, connecting/error states
 
 ### Pending (priority order per `documents/no-developer-questions-build.md` §5; after §4 doc gate + §7 audit):
-- Priority 8: Backup system (per ADR-027)
-- Priority 9: Remaining UI — Config, Tutorial, Shipping labels
-- Priority 10: Shipping Info schema and currency mapping
-- Priority 11: Shared component adoption (ADR-028)
-- Priority 12: Search, filter, sort, pagination (ADR-029)
-- Priority 13: Inventory detail editing (ADR-030)
-- Priority 14: Order detail view (ADR-031)
-- Priority 15: Confirmation dialogs (ADR-032)
-- Priority 16: Image upload and thumbnail preview (ADR-033)
-- Priority 17: Config completion (ADR-034)
-- Priority 18: Deep-link navigation (ADR-035)
-- Priority 19: Reports date picker and per-order docs (ADR-036)
-- Priority 20: Activity log (ADR-037)
-- Priority 21: Per-item profit/loss and margin (ADR-038)
-- Priority 22: Tax tracking and tax report (ADR-039)
-- Priority 23: Bulk/batch operations (ADR-040)
-- Priority 24: Global search (ADR-041)
-- Priority 25: Unsaved changes guard and draft recovery (ADR-042)
-- Priority 26: Progress indicators for long operations (ADR-043)
-- Priority 27: First-run setup wizard and onboarding (ADR-044)
 - Priority 28: Accessibility and keyboard navigation (ADR-045)
 - Priority 29: Concurrent edit detection (ADR-046)
 - Priority 30: Bulk CSV import for inventory (ADR-047)

@@ -19,19 +19,27 @@ import {
   generateThumbnail,
   validateImageBuffer,
 } from "@/lib/picture-storage";
+import { logActivity } from "@/lib/activity-log";
 
-function validateSlot(slot: number): void {
-  if (!Number.isInteger(slot) || slot < 1 || slot > 10) {
+type PictureType = "main" | "condition";
+
+function validateSlot(slot: number, type: PictureType): void {
+  const max = type === "condition" ? 5 : 10;
+  if (!Number.isInteger(slot) || slot < 1 || slot > max) {
     throw new ApiRouteError({
       status: 400,
       code: "VALIDATION_ERROR",
-      message: "Invalid picture slot",
-      userMessage: "Picture slot must be between 1 and 10.",
-      actions: ["Choose a slot from 1 to 10 and retry."],
-      fields: { slot: ["Must be between 1 and 10"] },
+      message: `Invalid ${type} picture slot`,
+      userMessage: `Picture slot must be between 1 and ${max}.`,
+      actions: [`Choose a slot from 1 to ${max} and retry.`],
+      fields: { slot: [`Must be between 1 and ${max}`] },
       canRetry: false,
     });
   }
+}
+
+function columnForSlot(slot: number, type: PictureType): string {
+  return type === "condition" ? `condition_picture_${slot}` : `picture_${slot}`;
 }
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
@@ -58,13 +66,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const contentType = request.headers.get("content-type") ?? "";
 
     if (contentType.includes("multipart/form-data")) {
-      // File upload via FormData
       const formData = await request.formData();
       const slotRaw = formData.get("slot");
       const file = formData.get("file");
+      const typeRaw = formData.get("type");
+      const picType: PictureType =
+        typeof typeRaw === "string" && typeRaw === "condition" ? "condition" : "main";
 
       const slot = Number(slotRaw);
-      validateSlot(slot);
+      validateSlot(slot, picType);
 
       if (!file || !(file instanceof File)) {
         throw new ApiRouteError({
@@ -80,7 +90,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
       const buffer = Buffer.from(await file.arrayBuffer());
 
-      // Validate before processing
       const validation = await validateImageBuffer(buffer, file.name);
       if (Array.isArray(validation)) {
         throw new ApiRouteError({
@@ -93,10 +102,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         });
       }
 
-      const result = await processAndStorePicture(inventoryId, slot, buffer, "main");
+      const result = await processAndStorePicture(inventoryId, slot, buffer, picType);
 
-      // Update DB
-      const column = `picture_${slot}`;
+      const column = columnForSlot(slot, picType);
       const db = getDb();
       db.prepare(
         `UPDATE inventory SET ${column} = @path, updated_at = @updated_at WHERE id = @id`
@@ -106,19 +114,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         id: inventoryId,
       });
 
-      // Regenerate thumbnail if slot 1 changed or no thumbnail exists
-      await generateThumbnail(inventoryId);
+      if (picType === "main") await generateThumbnail(inventoryId);
 
       const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
+      logActivity({
+        action: "inventory.picture_uploaded",
+        entityType: "inventory",
+        entityId: inventoryId,
+        detail: { slot, type: picType },
+      });
       return NextResponse.json({ ok: true, item });
     }
 
-    // JSON path reference (URL or local path)
-    const body = (await request.json().catch(() => ({}))) as { slot?: unknown; path?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { slot?: unknown; path?: unknown; type?: unknown };
     const slot = Number(body.slot);
     const picturePath = typeof body.path === "string" ? body.path.trim() : "";
+    const picType: PictureType =
+      typeof body.type === "string" && body.type === "condition" ? "condition" : "main";
 
-    validateSlot(slot);
+    validateSlot(slot, picType);
 
     if (!picturePath) {
       throw new ApiRouteError({
@@ -154,8 +168,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           });
         }
 
-        const result = await processAndStorePicture(inventoryId, slot, buffer, "main");
-        const column = `picture_${slot}`;
+        const result = await processAndStorePicture(inventoryId, slot, buffer, picType);
+        const column = columnForSlot(slot, picType);
         const db = getDb();
         db.prepare(
           `UPDATE inventory SET ${column} = @path, updated_at = @updated_at WHERE id = @id`
@@ -164,8 +178,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           updated_at: new Date().toISOString(),
           id: inventoryId,
         });
-        await generateThumbnail(inventoryId);
+        if (picType === "main") await generateThumbnail(inventoryId);
         const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
+        logActivity({
+          action: "inventory.picture_uploaded",
+          entityType: "inventory",
+          entityId: inventoryId,
+          detail: { slot, type: picType },
+        });
         return NextResponse.json({ ok: true, item });
       } catch (err) {
         if (err instanceof ApiRouteError) throw err;
@@ -180,8 +200,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }
     }
 
-    // URL reference — store directly in DB without local processing
-    const column = `picture_${slot}`;
+    const column = columnForSlot(slot, picType);
     const db = getDb();
     db.prepare(
       `UPDATE inventory SET ${column} = @path, updated_at = @updated_at WHERE id = @id`
@@ -190,8 +209,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       updated_at: new Date().toISOString(),
       id: inventoryId,
     });
-    await generateThumbnail(inventoryId);
+    if (picType === "main") await generateThumbnail(inventoryId);
     const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
+    logActivity({
+      action: "inventory.picture_uploaded",
+      entityType: "inventory",
+      entityId: inventoryId,
+      detail: { slot, type: picType },
+    });
     return NextResponse.json({ ok: true, item });
   } catch (error) {
     return errorResponse(

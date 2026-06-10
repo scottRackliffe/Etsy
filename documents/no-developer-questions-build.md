@@ -246,34 +246,33 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 
 **Blocked until:** §7 [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md) acknowledged and critical compliance fixes started. Phase 1b sign-off complete 2026-05-24.
 
-1. **Schema reconciliation** — Execute migration to align DB with ADR-017; update ADR-017 canonical DDL. (`documents/database/SCHEMA_RECONCILIATION.md`)
-2. **Frontend decomposition** — Break `page.tsx` into components per ADR-024 and `documents/frontend-architecture.md`.
-3. **Token refresh middleware** — Implement per ADR-025.
-4. **Etsy sync full flow** — Implement per finalized ADR-019 (receipt → customer + address + order + order_items).
-5. **Outstanding panel and context-in-place** — Implement per finalized ADR-020.
-6. **Picture storage and thumbnails** — Implement per ADR-026.
-7. **Report edge cases** — Finalize ADR-013 empty/failure/date behavior and implement.
-8. **Backup system** — Implement per ADR-027.
-9. **Remaining UI: Config, Tutorial, Shipping labels** — Complete per ui-design.md.
-10. **Shipping Info schema and currency mapping** — Define and implement.
-
-11. **Shared component adoption** — Wire DataTable, Button, FormField, Modal, Toast, EmptyState into all pages per ADR-028.
-12. **Search, filter, sort, pagination** — Add to all list views per ADR-029.
-13. **Inventory detail editing** — Core field management UI per ADR-030.
-14. **Order detail view** — Full order detail panel per ADR-031.
-15. **Confirmation dialogs** — All destructive actions per ADR-032.
-16. **Image upload and thumbnail preview** — Visual upload grid per ADR-033.
-17. **Config completion** — Business profile, shipping, display prefs per ADR-034.
-18. **Deep-link navigation** — Outstanding click-through selects record per ADR-035.
-19. **Reports date picker and per-order docs** — Date range controls and single-order invoice/thank-you per ADR-036.
-20. **Activity log** — Persistent audit trail per ADR-037.
-21. **Per-item profit/loss and margin** — Cost/revenue rollup and margin display per ADR-038.
-22. **Tax tracking and tax report** — Tax fields and report per ADR-039.
-23. **Bulk/batch operations** — Multi-select and batch actions per ADR-040.
-24. **Global search** — Cmd/Ctrl+K cross-entity search per ADR-041.
-25. **Unsaved changes guard and draft recovery** — Navigation guard and local draft recovery per ADR-042.
-26. **Progress indicators for long operations** — Determinate/indeterminate progress per ADR-043.
-27. **First-run setup wizard and onboarding** — Initial setup flow per ADR-044.
+1. ~~**Schema reconciliation**~~ ✅ Complete.
+2. ~~**Frontend decomposition**~~ ✅ Complete.
+3. ~~**Token refresh middleware**~~ ✅ Complete.
+4. ~~**Etsy sync full flow**~~ ✅ Complete.
+5. ~~**Outstanding panel and context-in-place**~~ ✅ Complete.
+6. ~~**Picture storage and thumbnails**~~ ✅ Complete.
+7. ~~**Report edge cases**~~ ✅ Complete.
+8. ~~**Backup system**~~ ✅ Complete (tar.gz archives, lock retry, pre-restore naming, schedule time/day, full integrity check).
+9. ~~**Remaining UI: Config, Tutorial, Shipping labels**~~ ✅ Complete (Config 8 sections, ConfirmDialog for backup/restore/delete, AI key masking, publish defaults UI).
+10. ~~**Shipping Info schema and currency mapping**~~ ✅ Complete (currency wired via AppContext `currencyCode`).
+11. ~~**Shared component adoption**~~ ✅ Complete (Button, FormField, SelectInput on Reports, Tutorial, Config).
+12. ~~**Search, filter, sort, pagination**~~ ✅ Complete.
+13. ~~**Inventory detail editing**~~ ✅ Complete (two-panel + 5-slot condition picture grid).
+14. ~~**Order detail view**~~ ✅ Complete.
+15. ~~**Confirmation dialogs**~~ ✅ Complete (all destructive actions).
+16. ~~**Image upload and thumbnail preview**~~ ✅ Complete (10 main + 5 condition slots).
+17. ~~**Config completion**~~ ✅ Complete.
+18. ~~**Deep-link navigation**~~ ✅ Complete.
+19. ~~**Reports date picker and per-order docs**~~ ✅ Complete (date range, presets, per-order invoice/thank-you, four-action post-generation).
+20. ~~**Activity log**~~ ✅ Complete (logActivity wired into all CRUD mutations, dashboard feed, entity timeline per ADR-037).
+21. ~~**Per-item profit/loss and margin**~~ ✅ Complete (OtherCostsManager, inventory list Margin column, color-coded per ADR-038).
+22. ~~**Tax tracking and tax report**~~ ✅ Complete (auto-calc from default_rate, dynamic grand_total, tax report per ADR-039).
+23. ~~**Bulk/batch operations**~~ ✅ Complete (multi-select, BatchActionsBar, ConfirmDialog for retire/delete per ADR-040).
+24. ~~**Global search**~~ ✅ Complete (Cmd+K modal, search icon, entity icons, error state, recent searches per ADR-041).
+25. ~~**Unsaved changes guard and draft recovery**~~ ✅ Complete (guards on global search, recently viewed, outstanding links per ADR-042).
+26. ~~**Progress indicators for long operations**~~ ✅ Complete (ProgressModal, job polling per ADR-043).
+27. ~~**First-run setup wizard and onboarding**~~ ✅ Complete (step persistence across OAuth, connecting/error states per ADR-044).
 28. **Accessibility and keyboard navigation** — WCAG 2.1 AA baseline per ADR-045.
 29. **Concurrent edit detection** — Optimistic locking via `updated_at` per ADR-046.
 30. **Bulk CSV import for inventory** — CSV import modal and validation per ADR-047.

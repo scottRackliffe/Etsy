@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { enrichInventoryItem } from "@/lib/inventory-profit";
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { deleteInventory, getInventory, patchInventory } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -71,6 +72,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    logActivity({
+      action: "inventory.updated",
+      entityType: "inventory",
+      entityId: id,
+      entityLabel: (item as { item_number?: string }).item_number ?? undefined,
+    });
     return NextResponse.json({
       ok: true,
       item: enrichInventoryItem(item as Record<string, unknown>),
@@ -91,6 +98,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getInventoryId(context);
+    const existing = getInventory(id);
     const deleted = deleteInventory(id);
     if (!deleted) {
       throw new ApiRouteError({
@@ -102,6 +110,12 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
         canRetry: false,
       });
     }
+    logActivity({
+      action: "inventory.deleted",
+      entityType: "inventory",
+      entityId: id,
+      entityLabel: (existing as { item_number?: string } | undefined)?.item_number ?? undefined,
+    });
     return NextResponse.json({ ok: true, deleted: true });
   } catch (error) {
     return errorResponse(

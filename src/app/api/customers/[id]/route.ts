@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { deleteCustomer, getCustomer, patchCustomer } from "@/lib/records";
 import { getCustomerActiveOrderCount } from "@/lib/customer-orders";
+import { logActivity } from "@/lib/activity-log";
 
 async function getCustomerId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -74,6 +75,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    logActivity({
+      action: "customer.updated",
+      entityType: "customer",
+      entityId: id,
+      entityLabel: `${(customer as { first_name?: string }).first_name ?? ""} ${(customer as { last_name?: string }).last_name ?? ""}`.trim(),
+    });
     return NextResponse.json({ ok: true, customer });
   } catch (error) {
     return errorResponse(
@@ -91,6 +98,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getCustomerId(context);
+    const existing = getCustomer(id);
     const deleted = deleteCustomer(id);
     if (!deleted) {
       throw new ApiRouteError({
@@ -102,6 +110,14 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
         canRetry: false,
       });
     }
+    logActivity({
+      action: "customer.deleted",
+      entityType: "customer",
+      entityId: id,
+      entityLabel: existing
+        ? `${(existing as { first_name?: string }).first_name ?? ""} ${(existing as { last_name?: string }).last_name ?? ""}`.trim()
+        : undefined,
+    });
     return NextResponse.json({ ok: true, deleted: true });
   } catch (error) {
     return errorResponse(

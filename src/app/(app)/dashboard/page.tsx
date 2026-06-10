@@ -24,6 +24,7 @@ export default function DashboardPage() {
     setBusyAction,
     setApiError,
     setError,
+    currencyCode,
   } = useApp();
 
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function DashboardPage() {
   const paidCount = receipts.filter((r) => r.was_paid).length;
   const shippedCount = receipts.filter((r) => r.was_shipped).length;
   const grossTotal = receipts.reduce((sum, r) => sum + parseFloat(r.total_price || "0"), 0);
-  const grossCurrency = receipts[0]?.currency_code ?? "USD";
+  const grossCurrency = receipts[0]?.currency_code ?? currencyCode;
 
   const formatDate = (ts: number) =>
     new Date(ts * 1000).toLocaleDateString(undefined, {
@@ -56,7 +57,7 @@ export default function DashboardPage() {
   const formatMoney = (value: string, code: string) =>
     new Intl.NumberFormat(undefined, {
       style: "currency",
-      currency: code || "USD",
+      currency: code || currencyCode,
     }).format(parseFloat(value || "0"));
 
   const syncFromEtsy = () => {

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
+import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -50,11 +53,15 @@ type NavResult = {
   badge?: string;
 };
 
-function formatMoney(value: number | null | undefined): string {
+const SECTION_ICONS: Record<string, string> = {
+  Orders: "📋",
+  Inventory: "📦",
+  Customers: "👤",
+};
+
+function formatMoney(value: number | null | undefined, currCode = "USD"): string {
   if (value == null || Number.isNaN(Number(value))) return "";
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
-    Number(value)
-  );
+  return formatCurrency(Number(value), currCode);
 }
 
 function truncate(text: string | null | undefined, max: number): string {
@@ -90,6 +97,7 @@ function ResultSection({
   return (
     <div className="mb-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+        {SECTION_ICONS[title] ? <span className="mr-1">{SECTION_ICONS[title]}</span> : null}
         {title}
       </p>
       <div className="space-y-1">{children}</div>
@@ -141,12 +149,12 @@ function ResultRow({
   );
 }
 
-function buildNavResults(data: SearchResponse | null, q: string): NavResult[] {
+function buildNavResults(data: SearchResponse | null, q: string, currCode = "USD"): NavResult[] {
   if (!data || q.length < 2) return [];
   const items: NavResult[] = [];
   for (const order of data.orders?.items ?? []) {
     const name = [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ");
-    const secondary = [name, formatMoney(order.grand_total)].filter(Boolean).join(" • ");
+    const secondary = [name, formatMoney(order.grand_total, currCode)].filter(Boolean).join(" • ");
     items.push({
       key: `order-${order.id}`,
       href: `/sales?orderId=${order.id}`,
@@ -177,6 +185,8 @@ function buildNavResults(data: SearchResponse | null, q: string): NavResult[] {
 }
 
 export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { currencyCode } = useApp();
+  const { confirmLeave } = useUnsavedChanges();
   const router = useRouter();
   const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -184,6 +194,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SearchResponse | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
   const [highlightIndex, setHighlightIndex] = useState(-1);
 
@@ -200,7 +211,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
   }, [open]);
 
   const q = query.trim();
-  const navResults = useMemo(() => buildNavResults(data, q), [data, q]);
+  const navResults = useMemo(() => buildNavResults(data, q, currencyCode), [data, q, currencyCode]);
 
   useEffect(() => {
     setHighlightIndex(navResults.length > 0 ? 0 : -1);
@@ -210,17 +221,26 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
     if (!open) return;
     if (q.length < 2) {
       setData(null);
+      setSearchError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setSearchError(null);
     const timer = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=5`, {
           headers: { Accept: "application/json" },
         });
         const json = (await res.json()) as SearchResponse;
-        if (res.ok) setData(json);
+        if (res.ok) {
+          setData(json);
+          setSearchError(null);
+        } else {
+          setSearchError("Search failed. Try again.");
+        }
+      } catch {
+        setSearchError("Could not reach the server.");
       } finally {
         setLoading(false);
       }
@@ -229,12 +249,14 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
   }, [q, open]);
 
   const navigate = useCallback(
-    (href: string, term: string) => {
+    async (href: string, term: string) => {
+      const allowed = await confirmLeave();
+      if (!allowed) return;
       saveRecentSearch(term);
       onClose();
       router.push(href);
     },
-    [onClose, router]
+    [confirmLeave, onClose, router]
   );
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
@@ -319,7 +341,9 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
         </div>
 
         <div className="max-h-[calc(70vh-3.5rem)] overflow-y-auto px-4 py-3">
-          {q.length >= 2 && !loading && !hasResults ? (
+          {searchError ? (
+            <p className="py-6 text-center text-sm text-[var(--ui-red)]">{searchError}</p>
+          ) : q.length >= 2 && !loading && !hasResults ? (
             <p className="py-6 text-center text-sm text-[var(--ui-muted)]">
               No results for &apos;{q}&apos;
             </p>
@@ -337,7 +361,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                 const name = [order.ship_to_first_name, order.ship_to_last_name]
                   .filter(Boolean)
                   .join(" ");
-                const secondary = [name, formatMoney(order.grand_total)]
+                const secondary = [name, formatMoney(order.grand_total, currencyCode)]
                   .filter(Boolean)
                   .join(" • ");
                 return (

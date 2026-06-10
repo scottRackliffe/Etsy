@@ -42,7 +42,19 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement>(null);
   const { shops, connect, setError, setApiError } = useApp();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("setup_wizard_step");
+      if (saved) {
+        sessionStorage.removeItem("setup_wizard_step");
+        const n = parseInt(saved, 10);
+        if (n >= 0 && n <= 3) return n;
+      }
+    }
+    return 0;
+  });
+  const [etsyConnecting, setEtsyConnecting] = useState(false);
+  const [etsyConnectError, setEtsyConnectError] = useState<string | null>(null);
   const [business, setBusiness] = useState<BusinessDraft>({
     business_name: "",
     business_address_line_1: "",
@@ -290,10 +302,33 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                 <p className="text-sm font-medium text-[var(--ui-green)]">
                   ✓ Connected to {connectedShop.shop_name}
                 </p>
+              ) : etsyConnecting ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--ui-accent)] border-t-transparent" />
+                  <p className="text-sm text-[var(--ui-muted)]">Connecting to Etsy…</p>
+                </div>
               ) : (
-                <Button variant="accent" onClick={() => connect()}>
-                  Connect to Etsy
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="accent"
+                    onClick={() => {
+                      setEtsyConnectError(null);
+                      setEtsyConnecting(true);
+                      sessionStorage.setItem("setup_wizard_step", "2");
+                      try {
+                        connect();
+                      } catch {
+                        setEtsyConnecting(false);
+                        setEtsyConnectError("Could not start Etsy connection. Please try again.");
+                      }
+                    }}
+                  >
+                    Connect to Etsy
+                  </Button>
+                  {etsyConnectError ? (
+                    <p className="text-xs text-[var(--ui-red)]">{etsyConnectError}</p>
+                  ) : null}
+                </div>
               )}
             </div>
             <div className="mt-6 flex justify-between">
@@ -301,7 +336,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                 Back
               </Button>
               <Button variant="accent" onClick={() => setStep(3)}>
-                Next
+                {connectedShop ? "Next" : "Skip this step →"}
               </Button>
             </div>
           </>

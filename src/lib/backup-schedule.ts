@@ -7,14 +7,31 @@ function latestBackupDate(): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseBackupTime(): { hours: number; minutes: number } {
+  const raw = getSetting("backup_time")?.trim() || "02:00";
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return { hours: 2, minutes: 0 };
+  const hours = Math.min(23, Math.max(0, parseInt(match[1], 10)));
+  const minutes = Math.min(59, Math.max(0, parseInt(match[2], 10)));
+  return { hours, minutes };
+}
+
+function parseBackupDay(): number {
+  const raw = getSetting("backup_day")?.trim();
+  if (!raw) return 0;
+  const day = parseInt(raw, 10);
+  return Number.isFinite(day) && day >= 0 && day <= 6 ? day : 0;
+}
+
 function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function startOfLocalWeek(d: Date): Date {
+function startOfLocalWeek(d: Date, weekStartDay: number): Date {
   const day = startOfLocalDay(d);
   const dow = day.getDay();
-  day.setDate(day.getDate() - dow);
+  const diff = (dow - weekStartDay + 7) % 7;
+  day.setDate(day.getDate() - diff);
   return day;
 }
 
@@ -24,14 +41,20 @@ export function isScheduledBackupDue(): boolean {
 
   const latest = latestBackupDate();
   const now = new Date();
+  const { hours, minutes } = parseBackupTime();
 
   if (schedule === "daily") {
     const windowStart = startOfLocalDay(now);
+    windowStart.setHours(hours, minutes, 0, 0);
+    if (now < windowStart) return false;
     return !latest || latest < windowStart;
   }
 
   if (schedule === "weekly") {
-    const windowStart = startOfLocalWeek(now);
+    const backupDay = parseBackupDay();
+    const windowStart = startOfLocalWeek(now, backupDay);
+    windowStart.setHours(hours, minutes, 0, 0);
+    if (now < windowStart) return false;
     return !latest || latest < windowStart;
   }
 

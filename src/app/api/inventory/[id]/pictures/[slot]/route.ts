@@ -11,13 +11,17 @@ import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 import { removePicture } from "@/lib/picture-storage";
+import { logActivity } from "@/lib/activity-log";
+
+type PictureType = "main" | "condition";
 
 async function parseParams(context: {
   params: Promise<{ id: string; slot: string }>;
-}): Promise<{ inventoryId: number; slot: number }> {
+}, type: PictureType): Promise<{ inventoryId: number; slot: number }> {
   const params = await context.params;
   const inventoryId = parsePositiveInt(params.id);
   const slot = parsePositiveInt(params.slot);
+  const maxSlot = type === "condition" ? 5 : 10;
   if (!inventoryId) {
     throw new ApiRouteError({
       status: 400,
@@ -29,14 +33,14 @@ async function parseParams(context: {
       canRetry: false,
     });
   }
-  if (!slot || slot < 1 || slot > 10) {
+  if (!slot || slot < 1 || slot > maxSlot) {
     throw new ApiRouteError({
       status: 400,
       code: "VALIDATION_ERROR",
-      message: "Invalid picture slot",
-      userMessage: "Picture slot must be between 1 and 10.",
+      message: `Invalid ${type} picture slot`,
+      userMessage: `Picture slot must be between 1 and ${maxSlot}.`,
       actions: ["Check the URL and retry."],
-      fields: { slot: ["Must be between 1 and 10"] },
+      fields: { slot: [`Must be between 1 and ${maxSlot}`] },
       canRetry: false,
     });
   }
@@ -44,14 +48,17 @@ async function parseParams(context: {
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string; slot: string }> }
 ) {
   try {
     requireEtsyAccessToken(await cookies());
-    const { inventoryId, slot } = await parseParams(context);
+    const url = new URL(request.url);
+    const picType: PictureType =
+      url.searchParams.get("type") === "condition" ? "condition" : "main";
+    const { inventoryId, slot } = await parseParams(context, picType);
 
-    await removePicture(inventoryId, slot, "main");
+    await removePicture(inventoryId, slot, picType);
 
     const item = getDb().prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     if (!item) {
@@ -64,6 +71,12 @@ export async function DELETE(
         canRetry: false,
       });
     }
+    logActivity({
+      action: "inventory.picture_deleted",
+      entityType: "inventory",
+      entityId: inventoryId,
+      detail: { slot, type: picType },
+    });
     return NextResponse.json({ ok: true, item });
   } catch (error) {
     return errorResponse(

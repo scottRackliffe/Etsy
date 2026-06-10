@@ -4,6 +4,8 @@ import Link from "next/link";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
@@ -82,10 +84,8 @@ function inventoryLabel(inventoryId: number, items: InventoryItem[]): string {
     : item.description?.slice(0, 40) || `Item #${inventoryId}`;
 }
 
-function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
-    value ?? 0
-  );
+function formatMoney(value: number | null | undefined, currCode = "USD"): string {
+  return formatCurrency(value ?? 0, currCode);
 }
 
 export function OrderDetailPanel({
@@ -101,6 +101,8 @@ export function OrderDetailPanel({
   onVoid,
   onDirtyChange,
 }: OrderDetailPanelProps) {
+  const { currencyCode } = useApp();
+  const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const [order, setOrder] = useState<Order | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,6 +122,7 @@ export function OrderDetailPanel({
     isShippingInfo?: boolean;
   } | null>(null);
   const [recoveryApplied, setRecoveryApplied] = useState(false);
+  const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
   const router = useRouter();
 
   const isDirty = useMemo(() => {
@@ -153,6 +156,24 @@ export function OrderDetailPanel({
   useEffect(() => {
     setRecoveryApplied(false);
   }, [orderId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/tax.default_rate", {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { value?: string };
+        if (!cancelled && data.value) {
+          const rate = parseFloat(data.value);
+          if (Number.isFinite(rate) && rate > 0) setDefaultTaxRate(rate);
+        }
+      } catch { /* optional */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const loadOrder = useCallback(
     async (id: number) => {
@@ -566,8 +587,8 @@ export function OrderDetailPanel({
                 <tr key={line.id} className="border-t border-[var(--ui-border)]/60">
                   <td className="py-1 pr-2">{inventoryLabel(line.inventory_id, inventory)}</td>
                   <td className="py-1 pr-2">{line.quantity}</td>
-                  <td className="py-1 pr-2">{formatMoney(line.unit_price)}</td>
-                  <td className="py-1">{formatMoney(line.line_total)}</td>
+                  <td className="py-1 pr-2">{fmtMoney(line.unit_price)}</td>
+                  <td className="py-1">{fmtMoney(line.line_total)}</td>
                   <td className="py-1">
                     {!isVoid ? (
                       <button
@@ -589,7 +610,7 @@ export function OrderDetailPanel({
                   Subtotal
                 </td>
                 <td colSpan={2} className="py-1">
-                  {formatMoney(order.subtotal)}
+                  {fmtMoney(order.subtotal)}
                 </td>
               </tr>
             </tfoot>
@@ -617,13 +638,18 @@ export function OrderDetailPanel({
           <p className="text-xs text-[var(--ui-muted)]">
             Subtotal{" "}
             <span className="block text-sm text-[var(--ui-body)]">
-              {formatMoney(order.subtotal)}
+              {fmtMoney(order.subtotal)}
             </span>
           </p>
           <p className="text-xs text-[var(--ui-muted)]">
             Grand total{" "}
             <span className="block text-sm font-semibold text-[var(--ui-title)]">
-              {formatMoney(order.grand_total)}
+              {fmtMoney(
+                (Number(order.subtotal) || 0) +
+                  (Number(draft?.shipping_total) || 0) +
+                  (Number(draft?.tax_total) || 0) -
+                  (Number(draft?.discount_total) || 0)
+              )}
             </span>
           </p>
           {field("shipping_total", "Shipping (buyer pays")}
@@ -633,7 +659,23 @@ export function OrderDetailPanel({
             "text",
             "What you paid the carrier to ship this order to the buyer."
           )}
-          {field("tax_total", "Tax", "text", "Total sales tax collected on this order.")}
+          <div>
+            {field("tax_total", "Tax", "text", "Total sales tax collected on this order.")}
+            {defaultTaxRate != null && !isVoid && (
+              <button
+                type="button"
+                onClick={() => {
+                  const subtotal = Number(order.subtotal) || 0;
+                  const calc = Math.round(subtotal * defaultTaxRate) / 100;
+                  setDraft((c) => (c ? { ...c, tax_total: calc.toFixed(2) } : c));
+                }}
+                className="mt-0.5 text-xs text-[var(--ui-accent)] hover:underline"
+                disabled={busy || saving}
+              >
+                Auto-calc ({defaultTaxRate}%)
+              </button>
+            )}
+          </div>
           {field("discount_total", "Discount")}
         </div>
       </section>

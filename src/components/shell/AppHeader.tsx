@@ -46,11 +46,11 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
             <button
               type="button"
               onClick={onOpenSearch}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm font-medium text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
-              aria-label="Search"
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] p-2 text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
+              aria-label="Search (Cmd+K)"
               title="Search (Cmd+K)"
             >
-              Search
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             </button>
           ) : null}
           <RecentlyViewedMenu />

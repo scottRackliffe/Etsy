@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -13,6 +15,7 @@ import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueueFullError } from "@/lib/api-fetch";
+import { OtherCostsManager } from "@/components/inventory/OtherCostsManager";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -75,10 +78,8 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
   };
 }
 
-function formatMoney(value: number | null | undefined): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(
-    value ?? 0
-  );
+function formatMoney(value: number | null | undefined, currCode = "USD"): string {
+  return formatCurrency(value ?? 0, currCode);
 }
 
 function formatPct(value: number | null | undefined): string {
@@ -105,6 +106,8 @@ export function InventoryDetailPanel({
   onReloadItem,
   onDirtyChange,
 }: InventoryDetailPanelProps) {
+  const { currencyCode } = useApp();
+  const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const [draft, setDraft] = useState<DraftFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [vendorPurchases, setVendorPurchases] = useState<VendorPurchase[]>([]);
@@ -465,7 +468,7 @@ export function InventoryDetailPanel({
           {(showProfitability || (item.total_cost != null && item.total_cost > 0)) && (
             <div className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-xs text-[var(--ui-body)]">
               <span className="font-medium text-[var(--ui-title)]">Profitability: </span>
-              Total cost {formatMoney(item.total_cost)}
+              Total cost {fmtMoney(item.total_cost)}
               {showProfitability ? (
                 <>
                   {" · "}Net profit{" "}
@@ -476,7 +479,7 @@ export function InventoryDetailPanel({
                         : "text-[var(--ui-red)]"
                     }
                   >
-                    {formatMoney(item.net_profit)}
+                    {fmtMoney(item.net_profit)}
                   </span>
                   {" · "}Margin {formatPct(item.margin_pct)}
                   {" · "}ROI {formatPct(item.roi_pct)}
@@ -484,6 +487,11 @@ export function InventoryDetailPanel({
               ) : null}
             </div>
           )}
+          <OtherCostsManager
+            inventoryId={item.id}
+            disabled={busy || saving}
+            onTotalChanged={onReloadItem}
+          />
         </section>
 
         <section className="space-y-2">
@@ -567,9 +575,9 @@ export function InventoryDetailPanel({
             <h5 className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this</h5>
             {vendorPurchases.length > 0 ? (
               <p className="text-xs text-[var(--ui-muted)]">
-                Vendor total {formatMoney(vendorRollup)}
+                Vendor total {fmtMoney(vendorRollup)}
                 {item.purchase_cost != null
-                  ? ` · Inventory purchase cost ${formatMoney(item.purchase_cost)}`
+                  ? ` · Inventory purchase cost ${fmtMoney(item.purchase_cost)}`
                   : ""}
               </p>
             ) : null}
@@ -608,8 +616,8 @@ export function InventoryDetailPanel({
                   <tr key={row.id} className="border-t border-[var(--ui-border)]/60">
                     <td className="py-1 pr-2">{row.purchase_date ?? "—"}</td>
                     <td className="py-1 pr-2">{row.vendor_name ?? "—"}</td>
-                    <td className="py-1 pr-2">{formatMoney(row.purchase_price)}</td>
-                    <td className="py-1 pr-2">{formatMoney(row.shipping_price)}</td>
+                    <td className="py-1 pr-2">{fmtMoney(row.purchase_price)}</td>
+                    <td className="py-1 pr-2">{fmtMoney(row.shipping_price)}</td>
                     <td className="py-1 pr-2">{row.reference_number ?? "—"}</td>
                     <td className="py-1">
                       <button

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getSetting, setSetting } from "@/lib/settings-store";
+import { logActivity } from "@/lib/activity-log";
 
 function normalizeKey(raw: string): string {
   return raw.trim();
@@ -79,6 +80,12 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
     }
 
     setSetting(key, body.value);
+    const isSensitive = /key|token|secret/i.test(key);
+    logActivity({
+      action: "settings.updated",
+      entityType: "setting",
+      detail: isSensitive ? { key } : { key, value: body.value },
+    });
     return NextResponse.json({ ok: true, key, value: body.value });
   } catch (error) {
     return errorResponse(

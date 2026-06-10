@@ -97,6 +97,7 @@ export default function ConfigPage() {
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
     business_name: "",
     business_address_line_1: "",
@@ -1079,12 +1080,19 @@ export default function ConfigPage() {
               placeholder="Model"
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
-            <input
-              value={aiApiKeyDraft}
-              onChange={(e) => setAiApiKeyDraft(e.target.value)}
-              placeholder="API key"
-              className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-            />
+            <div className="mt-2">
+              <input
+                value={aiApiKeyDraft}
+                onChange={(e) => setAiApiKeyDraft(e.target.value)}
+                placeholder={aiConfig?.apiKeyConfigured ? "••••••••  (saved — enter new key to replace)" : "API key"}
+                type="password"
+                autoComplete="off"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+              {aiConfig?.apiKeyConfigured && !aiApiKeyDraft && (
+                <p className="mt-1 text-xs text-[var(--ui-green)]">API key is configured.</p>
+              )}
+            </div>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -1105,26 +1113,96 @@ export default function ConfigPage() {
             </div>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <h4 className="mb-2 text-sm font-semibold">Publish defaults</h4>
-            <input
-              value={publishConfig.taxonomyId}
-              onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))}
-              placeholder="taxonomy_id"
-              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-            />
-            <input
-              value={publishConfig.shippingProfileId}
-              onChange={(e) =>
-                setPublishConfig((c) => ({ ...c, shippingProfileId: e.target.value }))
-              }
-              placeholder="shipping_profile_id"
-              className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-            />
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Publish defaults</h4>
+            <p className="mb-2 text-xs text-[var(--ui-muted)]">
+              Etsy listing defaults applied when publishing approved drafts.
+            </p>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Taxonomy ID
+                <input
+                  value={publishConfig.taxonomyId}
+                  onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))}
+                  placeholder="e.g. 1074"
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Shipping profile ID
+                <input
+                  value={publishConfig.shippingProfileId}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, shippingProfileId: e.target.value }))
+                  }
+                  placeholder="From Etsy shop settings"
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Who made
+                <select
+                  value={publishConfig.whoMade || "i_did"}
+                  onChange={(e) => setPublishConfig((c) => ({ ...c, whoMade: e.target.value }))}
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                >
+                  <option value="i_did">I did</option>
+                  <option value="someone_else">Someone else</option>
+                  <option value="collective">A member of my shop</option>
+                </select>
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                When made
+                <select
+                  value={publishConfig.whenMade || "before_2000"}
+                  onChange={(e) => setPublishConfig((c) => ({ ...c, whenMade: e.target.value }))}
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                >
+                  <option value="made_to_order">Made to order</option>
+                  <option value="2020_2026">2020–2026</option>
+                  <option value="2010_2019">2010–2019</option>
+                  <option value="2004_2009">2004–2009</option>
+                  <option value="before_2004">Before 2004</option>
+                  <option value="2000_2003">2000–2003</option>
+                  <option value="before_2000">Before 2000</option>
+                  <option value="1990s">1990s</option>
+                  <option value="1980s">1980s</option>
+                  <option value="1970s">1970s</option>
+                  <option value="1960s">1960s</option>
+                  <option value="before_1960">Before 1960</option>
+                </select>
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Max image dimension (px)
+                <input
+                  value={publishConfig.imageMaxDimension}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, imageMaxDimension: e.target.value }))
+                  }
+                  placeholder="2000"
+                  type="number"
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                JPEG quality (1–100)
+                <input
+                  value={publishConfig.imageJpegQuality}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, imageJpegQuality: e.target.value }))
+                  }
+                  placeholder="82"
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </label>
+            </div>
             <button
               type="button"
               onClick={savePublishSettings}
               disabled={saving}
-              className="mt-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
+              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               Save publish defaults
             </button>
@@ -1292,7 +1370,7 @@ export default function ConfigPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void deleteBackup(backup.filename)}
+                            onClick={() => setDeleteTarget(backup.filename)}
                             disabled={backupLoading}
                             className="rounded border border-[var(--ui-red)]/40 px-2 py-1 text-xs text-[var(--ui-red)]"
                           >
@@ -1307,35 +1385,36 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {restoreTarget ? (
-            <div className="mt-4 rounded-lg border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 p-3">
-              <p className="text-sm font-medium text-[var(--ui-title)]">
-                Restore from {restoreTarget}?
-              </p>
-              <p className="mt-1 text-xs text-[var(--ui-muted)]">
-                This replaces your current database. A safety backup is created first.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void restoreBackup(restoreTarget)}
-                  disabled={backupLoading}
-                  className="rounded-lg bg-[var(--ui-red)] px-3 py-2 text-sm font-semibold text-white"
-                >
-                  Restore
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRestoreTarget(null)}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
+          
         </div>
 
+        <ConfirmDialog
+          open={!!restoreTarget}
+          onClose={() => setRestoreTarget(null)}
+          onConfirm={() => {
+            if (restoreTarget) void restoreBackup(restoreTarget);
+          }}
+          title="Restore backup?"
+          description={`This replaces your current database with "${restoreTarget ?? ""}". A safety backup is created automatically before restoring.`}
+          confirmLabel="Restore"
+          confirmVariant="danger"
+          busy={backupLoading}
+        />
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) {
+              void deleteBackup(deleteTarget);
+              setDeleteTarget(null);
+            }
+          }}
+          title="Delete backup?"
+          description={`"${deleteTarget ?? ""}" will be permanently deleted. This cannot be undone.`}
+          confirmLabel="Delete"
+          confirmVariant="danger"
+          busy={backupLoading}
+        />
         <ConfirmDialog
           open={disconnectOpen}
           onClose={() => setDisconnectOpen(false)}

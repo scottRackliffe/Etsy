@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TextInput } from "@/components/ui/FormField";
 
 type TipFile = { filename: string; title: string };
 
@@ -119,11 +120,11 @@ export default function TutorialPage() {
         <code className="text-xs">system/tips/</code>.
       </p>
 
-      <input
+      <TextInput
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={setQuery}
         placeholder="Search tutorial and tips…"
-        className="mb-4 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+        className="mb-4 w-full"
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

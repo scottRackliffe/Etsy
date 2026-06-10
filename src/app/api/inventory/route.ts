@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { InventoryValidationError, prepareInventoryPayload } from "@/lib/inventory-validation";
 import { enrichInventoryItems } from "@/lib/inventory-profit";
 import { createInventory, listInventory } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +78,12 @@ export async function POST(request: Request) {
       throw err;
     }
     const created = createInventory(payload);
+    logActivity({
+      action: "inventory.created",
+      entityType: "inventory",
+      entityId: (created as { id: number }).id,
+      entityLabel: itemNumber,
+    });
     return NextResponse.json({ ok: true, item: created }, { status: 201 });
   } catch (error) {
     return errorResponse(

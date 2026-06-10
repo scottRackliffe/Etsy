@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/format-currency";
 
 type InventoryValue = {
   at_cost: number;
@@ -17,11 +19,9 @@ type ProfitKpis = {
   total_profit_ytd: number;
 };
 
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(value);
-}
-
 export function InventoryValueWidget() {
+  const { currencyCode } = useApp();
+  const formatMoney = (value: number) => formatCurrency(value, currencyCode);
   const [value, setValue] = useState<InventoryValue | null>(null);
   const [profit, setProfit] = useState<ProfitKpis | null>(null);
   const [loading, setLoading] = useState(true);
