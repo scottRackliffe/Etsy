@@ -16,6 +16,8 @@ export type Column<T> = {
   editOptions?: { value: string; label: string }[];
   getEditValue?: (row: T) => string | number | boolean;
   getDisplayValue?: (row: T) => React.ReactNode;
+  isEditable?: (row: T) => boolean;
+  editDisabledTooltip?: string;
 };
 
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
@@ -196,7 +198,7 @@ export function DataTable<T extends { id?: number | string }>({
   };
 
   if (data.length === 0) {
-    return <div className="py-8 text-center text-sm text-[var(--ui-muted)]">{emptyMessage}</div>;
+    return <div role="status" className="py-8 text-center text-sm text-[var(--ui-muted)]">{emptyMessage}</div>;
   }
 
   const handleSort = (col: Column<T>) => {
@@ -222,6 +224,18 @@ export function DataTable<T extends { id?: number | string }>({
   const renderCellContent = (row: T, rowIndex: number, col: Column<T>) => {
     if (col.render) return col.render(row, rowIndex);
     if (col.editable && col.editType && onInlineEdit) {
+      const rowEditable = col.isEditable ? col.isEditable(row) : true;
+      if (!rowEditable) {
+        const rawValue = col.getEditValue
+          ? col.getEditValue(row)
+          : ((row as Record<string, unknown>)[col.key] as string | number | boolean);
+        const display = col.getDisplayValue ? col.getDisplayValue(row) : String(rawValue ?? "—");
+        return (
+          <span title={col.editDisabledTooltip} className="cursor-not-allowed opacity-60">
+            {display}
+          </span>
+        );
+      }
       const editing = activeCell?.rowIndex === rowIndex && activeCell.columnKey === col.key;
       const busy = busyCell?.rowIndex === rowIndex && busyCell.columnKey === col.key;
       const flash = flashCell?.rowIndex === rowIndex && flashCell.columnKey === col.key;

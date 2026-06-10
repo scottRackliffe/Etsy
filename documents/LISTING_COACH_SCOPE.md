@@ -50,13 +50,14 @@ The app must turn photos + optional Google screenshot + minimal confirms into a 
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **Route**           | `/listing-coach` full-screen wizard                                                                                       |
 | **Entry**           | Inventory → **Add new listing with Listing Coach** (primary CTA)                                                          |
-| **Photo intake**    | Clipboard paste (primary), drag-and-drop, file picker; up to 10 item + 5 condition photos                                 |
+| **Photo intake**    | Clipboard paste (primary), drag-and-drop, file picker; up to **20** item + 5 condition photos + optional video (MP4/MOV) |
 | **Google step**     | Optional paste zone for 0–3 Visual Search screenshots + plain instructions                                                |
-| **Analyze API**     | Photo checklist, advisories, identification, price suggestion + confidence, confirm-card seeds                            |
+| **Analyze API**     | Photo checklist, advisories, identification, price suggestion + confidence, confirm-card seeds, suggested era/category/materials |
 | **Price step**      | Use suggested / I know / Skip                                                                                             |
-| **Confirm step**    | Up to 5 cards with AI suggested answers                                                                                   |
-| **Compose API**     | Final listing + hidden template columns + ADR-068 quality score hints                                                     |
-| **Complete API**    | Create inventory row, store pictures (ADR-026), set `listing_draft_state=generated`, `listing_draft_source=integrated_ai` |
+| **Era/Cat step**    | Step 4b: confirm era (`when_made`), category (`taxonomy_id`), materials, optional dimensions/weight (ADR-072)             |
+| **Confirm step**    | Up to 6 cards with AI suggested answers (incl. materials card)                                                            |
+| **Compose API**     | Final listing + hidden template columns + ADR-068 quality score hints + era/category/materials/dimensions                 |
+| **Complete API**    | Create inventory row, store pictures + video (ADR-026), persist Etsy fields (`etsy_when_made`, `etsy_taxonomy_id`, `materials`, dimensions), set `listing_draft_state=generated`, `listing_draft_source=integrated_ai` |
 | **After save**      | Navigate to Inventory `?itemId=` with workshop open; operator approves when ready                                         |
 | **Activity log**    | `listing_coach_complete` (ADR-037)                                                                                        |
 | **Docs in prompts** | etsy-listing-template, How_to_Win_on_Etsy, Etsy_Photo_Guide                                                               |
@@ -112,7 +113,7 @@ Estimated for one focused build slice (not calendar promises).
 - [ ] `src/app/(app)/listing-coach/page.tsx`
 - [ ] `PhotoPasteZone` — `paste` event, `clipboardData.items`, preview grid, reorder, remove
 - [ ] `GoogleResultsPasteZone`
-- [ ] Step components: Welcome → Photos → Google → Review → Price → Confirms → Preview → Save
+- [ ] Step components: Welcome → Photos → Google → Review → Price → **Era/Category/Materials (4b)** → Confirms → Preview → Save
 - [ ] `ConfirmCard`, `ListingPreview`
 - [ ] Error states: AI not configured, analyze failed, validation
 
@@ -135,9 +136,9 @@ Estimated for one focused build slice (not calendar promises).
 
 | Endpoint                           | Input                                                        | Output                                             |
 | ---------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- |
-| `POST /api/listing-coach/analyze`  | multipart: item_photos[], condition_photos?, google_photos?  | photo_review, identification, price, confirm_cards |
-| `POST /api/listing-coach/compose`  | multipart photos + confirm_answers JSON + price              | listing fields + template fields + quality_score   |
-| `POST /api/listing-coach/complete` | item_number, status, condition_code, compose payload, photos | `{ item_id, item_number }`                         |
+| `POST /api/listing-coach/analyze`  | multipart: item_photos[] (1–20), condition_photos?, google_photos?, video?  | photo_review, identification, price, confirm_cards, suggested_when_made, suggested_taxonomy_id, suggested_materials |
+| `POST /api/listing-coach/compose`  | multipart photos + confirm_answers JSON + price + when_made + taxonomy_id + materials + dimensions | listing fields + template fields + quality_score   |
+| `POST /api/listing-coach/complete` | item_number, status, condition_code, etsy_when_made, etsy_taxonomy_id, materials, dimensions, compose payload, photos | `{ item_id, item_number }`                         |
 
 Full schemas: ADR-072.
 
@@ -148,17 +149,17 @@ Full schemas: ADR-072.
 Prerequisites: `npm run dev`, AI configured, `ALLOW_LOCAL_WITHOUT_ETSY=true`.
 
 1. Inventory → **Add new listing with Listing Coach**
-2. Photos → select 3+ shots → ⌘C → coach → ⌘V
+2. Photos → select 5+ shots → ⌘C → coach → ⌘V (up to 20 supported)
 3. Google → Search with Google on best photo → screenshot → paste in Google zone
-4. Review → identification and price look plausible
+4. Review → identification, suggested era/category/materials, and price look plausible
 5. Price → **Use suggested** or enter known price
-6. Confirms → **Yes** on all cards (edit one if wrong)
-7. Preview → read title/description/tags; quality score visible
-8. Save → item number `TEST-COACH-001`
-9. Inventory → item exists with pictures, listing fields filled, draft state `generated`
-10. **Do not** publish to Etsy until OAuth approved
-
-Pass criteria: Trudy completes flow without writing a paragraph from scratch; listing is Etsy-ready pending her accuracy read.
+6. Era/Category → confirm era dropdown, category, materials tags, optional dimensions/weight
+7. Confirms → **Yes** on all cards (edit one if wrong)
+8. Preview → read title/description/tags; quality score visible; era/category shown
+9. Save → item number `TEST-COACH-001`
+10. Inventory → item exists with pictures, listing fields filled, `etsy_when_made` and `etsy_taxonomy_id` set, draft state `generated`
+11. **Do not** publish to Etsy until OAuth approved
+Pass criteria: Trudy completes flow without writing a paragraph from scratch; listing is Etsy-ready (title, description, tags, era, category all populated) pending her accuracy read.
 
 ---
 

@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in the database, files on disk or object storage. We need a defined way for users to get pictures into the app: upload, bulk import from a folder, and to replace, reorder, or remove pictures without confusion.
+Inventory items have up to 20 pictures (ADR-002; Etsy allows up to 20 per listing); paths or URLs are stored in the database, files on disk or object storage. We need a defined way for users to get pictures into the app: upload, bulk import from a folder, and to replace, reorder, or remove pictures without confusion.
 
 ## Decision
 
@@ -19,7 +19,7 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 **Ways to get pictures in**
 
 - **File picker + drag-and-drop (v1 — browser):** For any picture need (main or condition), user uploads files via the native browser file picker (`<input type="file" multiple>`) or by dragging and dropping files onto the picture grid slots. Multi-file selection is supported. See ADR-033 for the full UI specification.
-- **Batch directory import (post-v1 / desktop):** In a future desktop/Electron context, a native directory picker may allow selecting a folder for batch import. This flow is **deferred to post-v1**. The concepts remain: app discovers image files by name or order, maps them to picture 1–10 (first 10 if more), copies files into app-controlled storage, saves paths to the database.
+- **Batch directory import (post-v1 / desktop):** In a future desktop/Electron context, a native directory picker may allow selecting a folder for batch import. This flow is **deferred to post-v1**. The concepts remain: app discovers image files by name or order, maps them to picture 1–20 (first 20 if more), copies files into app-controlled storage, saves paths to the database.
 - **URL (optional):** User can paste a URL for a picture; app stores the URL in the corresponding slot (no file copy).
 - **Preview (required after upload):** Display a thumbnail preview of uploaded pictures so the user can confirm before saving. Same for Replace per slot.
 - **"Why pictures matter" link:** Show a link to a doc on why pictures matter for sales. Default: documents/pictures-and-sales.md. Optional in Config: user path or URL (e.g. a PDF that was a beginning of this project).
@@ -44,8 +44,8 @@ Inventory items have up to 10 pictures (ADR-002); paths or URLs are stored in th
 ## Consequences
 
 - **Positive**
-  - Clear, consistent way to add and manage the 10 pictures; supports file-by-file upload with drag-and-drop (v1) and folder-based batch import (post-v1).
-  - Aligns with ADR-002 (picture 1–10, paths in DB); no schema change.
+  - Clear, consistent way to add and manage the 20 pictures; supports file-by-file upload with drag-and-drop (v1) and folder-based batch import (post-v1).
+  - Aligns with ADR-002 (picture 1–20, paths in DB) and Etsy's 20-photo limit.
 - **Negative**
   - Implementation must handle file I/O, safe paths, and optional size/dimension limits.
 

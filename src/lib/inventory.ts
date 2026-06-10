@@ -20,11 +20,36 @@ export type InventoryRecord = {
   picture_8: string | null;
   picture_9: string | null;
   picture_10: string | null;
+  picture_11: string | null;
+  picture_12: string | null;
+  picture_13: string | null;
+  picture_14: string | null;
+  picture_15: string | null;
+  picture_16: string | null;
+  picture_17: string | null;
+  picture_18: string | null;
+  picture_19: string | null;
+  picture_20: string | null;
+  video_path: string | null;
   condition_picture_1: string | null;
   condition_picture_2: string | null;
   condition_picture_3: string | null;
   condition_picture_4: string | null;
   condition_picture_5: string | null;
+  etsy_when_made: string | null;
+  etsy_taxonomy_id: number | null;
+  etsy_who_made: string | null;
+  etsy_shipping_profile_id: number | null;
+  etsy_return_policy_id: number | null;
+  materials: string | null;
+  item_weight: number | null;
+  item_weight_unit: string | null;
+  item_length: number | null;
+  item_width: number | null;
+  item_height: number | null;
+  item_dimensions_unit: string | null;
+  is_supply: number | null;
+  picture_classifications: string | null;
   listing_title: string | null;
   listing_description: string | null;
   listing_tags: string | null;
@@ -55,6 +80,16 @@ const PICTURE_KEYS: ReadonlyArray<keyof InventoryRecord> = [
   "picture_8",
   "picture_9",
   "picture_10",
+  "picture_11",
+  "picture_12",
+  "picture_13",
+  "picture_14",
+  "picture_15",
+  "picture_16",
+  "picture_17",
+  "picture_18",
+  "picture_19",
+  "picture_20",
   "condition_picture_1",
   "condition_picture_2",
   "condition_picture_3",

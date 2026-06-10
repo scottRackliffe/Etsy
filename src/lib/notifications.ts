@@ -86,9 +86,13 @@ export function addNotificationEntry(input: {
   let items = purgeOldNotifications();
   items = [entry, ...items];
   while (items.length > MAX_NOTIFICATIONS) {
-    const unreadIdx = items.map((n, i) => (!n.read ? i : -1)).filter((i) => i >= 0);
-    const removeIdx = unreadIdx.length > 0 ? unreadIdx[unreadIdx.length - 1] : items.length - 1;
-    items.splice(removeIdx, 1);
+    const sorted = items
+      .map((n, i) => ({ i, read: n.read, t: new Date(n.timestamp).getTime() }))
+      .sort((a, b) => {
+        if (a.read !== b.read) return a.read ? -1 : 1;
+        return a.t - b.t;
+      });
+    items.splice(sorted[0].i, 1);
   }
   saveRaw(items);
   return entry;

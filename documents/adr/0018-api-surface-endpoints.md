@@ -156,12 +156,12 @@ Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (
 | POST   | /api/inventory/[id]/listing-export           | App  | Export portable AI package                            | Path: id                                                                                               | 200: `{ package }` where package includes schema_version, export_id, item context, picture references, required output schema, and quality instructions. 400 if readiness checks fail.                                                                                                                                                                                                                                                                                                                                                                             |
 | POST   | /api/inventory/[id]/listing-import           | App  | Import portable AI draft                              | Path: id; Body: portable package output JSON                                                           | Validates schema_version/item_id and required listing fields, stores import audit, updates listing draft fields, marks draft source as portable import. 200 updated item; 400 for schema/validation errors.                                                                                                                                                                                                                                                                                                                                                        |
 | POST   | /api/inventory/[id]/listing-approve          | App  | Approve listing draft                                 | Path: id                                                                                               | Requires readiness checks and non-empty listing title/description/tags. Sets listing draft state to approved. 200 updated item.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| POST   | /api/inventory/[id]/publish-to-etsy          | App  | Publish approved listing to Etsy                      | Path: id                                                                                               | Requires approved draft and Etsy publish settings (`etsy.active_shop_id`, taxonomy/shipping/readiness settings; image ids optional). Calls Etsy `createDraftListing`, uploads local item pictures one-by-one with retry policy, activates listing state, persists `etsy_listing_id`, marks draft state `published`. Default behavior blocks publish if any local image upload fails (quality-first); override is optional via settings flag. 409 if not approved; 400 if required publish settings missing; 409 if no listing images are available for activation. |
+| POST   | /api/inventory/[id]/publish-to-etsy          | App  | Publish approved listing to Etsy                      | Path: id                                                                                               | Requires approved draft and Etsy publish settings. Per-item fields (`etsy_when_made`, `etsy_taxonomy_id`, `etsy_who_made`, `etsy_shipping_profile_id`, `etsy_return_policy_id`) override global defaults per ADR-017 §1c. Sends `who_made`, `when_made`, `taxonomy_id`, `shipping_profile_id`, `return_policy_id`, `readiness_state_id`, `materials[]`, `item_weight/length/width/height` + units, `is_supply`, `type=physical` to Etsy `createDraftListing`. Uploads local pictures (1–20) + optional video one-by-one with retry. Activates listing, persists `etsy_listing_id`, marks `published`. Blocks if any required Etsy field missing (400), if not approved (409), or if no images available (409). |
 | DELETE | /api/inventory/[id]                          | App  | Delete or retire inventory                            | Path: id. Query or body: action = "delete" \| "retire" if both supported                               | Behavior per ADR-022. If delete: 204 or 200. If inventory has **order_items** (customer sales): 409 per ADR-022; retire instead.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| POST   | /api/inventory/[id]/pictures                 | App  | Add or replace pictures                               | Multipart: files and/or slot numbers; or JSON with directory path for “import from folder” per ADR-010 | Store files per ADR-010; update picture_1…picture_10; generate and store thumbnail per ADR-002/015. 200: { picture_slots: [...] }. 400 if invalid.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| PATCH  | /api/inventory/[id]/pictures/reorder         | App  | Reorder picture slots                                 | Body: { order: [ slot indices or picture ids ] }                                                       | Update picture_1…picture_10 order. 200: updated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| DELETE | /api/inventory/[id]/pictures/[slot]          | App  | Remove picture from slot                              | Path: id, slot (1–10 or 1–5 for condition)                                                             | Set picture_N or condition_picture_N to null. 200 or 204.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| POST   | /api/inventory/[id]/generate-listing-content | App  | Generate listing content via AI                       | Path: id                                                                                               | Preflight validation required before request is allowed: item_number, description, condition_code, sale_revenue (>0), and at least one picture. Then send **all** item pictures (picture_1…10, condition_picture_1…5 — every non-empty) plus item context to AI per etsy-listing-template-and-requirements.md §3. Return listing_title, listing_description, listing_tags; write to inventory. 200: { listing_title, listing_description, listing_tags }. 400 with field errors if prerequisites missing. 404 if not found.                                        |
+| POST   | /api/inventory/[id]/pictures                 | App  | Add or replace pictures                               | Multipart: files and/or slot numbers; or JSON with directory path for “import from folder” per ADR-010 | Store files per ADR-010; update picture_1…picture_20; generate and store thumbnail per ADR-002/015. 200: { picture_slots: [...] }. 400 if invalid.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| PATCH  | /api/inventory/[id]/pictures/reorder         | App  | Reorder picture slots                                 | Body: { order: [ slot indices or picture ids ] }                                                       | Update picture_1…picture_20 order. 200: updated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| DELETE | /api/inventory/[id]/pictures/[slot]          | App  | Remove picture from slot                              | Path: id, slot (1–20 or 1–5 for condition)                                                             | Set picture_N or condition_picture_N to null. 200 or 204.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| POST   | /api/inventory/[id]/generate-listing-content | App  | Generate listing content via AI                       | Path: id                                                                                               | Preflight validation required before request is allowed: item_number, description, condition_code, sale_revenue (>0), and at least one picture. Then send **all** item pictures (picture_1…20, condition_picture_1…5 — every non-empty) plus item context to AI per etsy-listing-template-and-requirements.md §3. Return listing_title, listing_description, listing_tags; write to inventory. 200: { listing_title, listing_description, listing_tags }. 400 with field errors if prerequisites missing. 404 if not found.                                        |
 
 “App” auth: session or cookie that identifies the user (same as Etsy cookie when connected, or app-specific session when we add non-Etsy users). For single-user app, “App” may mean “any authenticated session.”
 
@@ -827,9 +827,10 @@ All three routes: `multipart/form-data`. Auth: App (local mode OK without Etsy t
 
 Form fields:
 
-- `item_photos[]` — File[] (required, 1–10)
+- `item_photos[]` — File[] (required, 1–20)
 - `condition_photos[]` — File[] (optional, 0–5)
 - `google_photos[]` — File[] (optional, 0–3)
+- `video` — File (optional, MP4/MOV, max 100 MB)
 
 200:
 
@@ -837,12 +838,26 @@ Form fields:
 {
   "ok": true,
   "photo_review": {
-    "present_shots": ["hero", "detail"],
+    "classifications": [
+      { "photo_index": 0, "type": "hero", "confidence": "high" },
+      { "photo_index": 1, "type": "detail", "confidence": "high" },
+      { "photo_index": 2, "type": "angle", "confidence": "medium" }
+    ],
+    "suggested_order": [0, 2, 1],
+    "present_shots": ["hero", "angle", "detail"],
     "missing_shots": ["backstamp", "scale"],
     "advisories": ["Consider a plain background for the hero photo."]
   },
   "suggested_identification": "Vintage Fiesta ware pitcher, Homer Laughlin, red glaze",
   "suggested_condition_code": "Excellent",
+  "suggested_when_made": "1970s",
+  "suggested_taxonomy_id": 12345,
+  "suggested_taxonomy_path": "Home & Living > Kitchen & Dining > Serveware > Pitchers",
+  "suggested_materials": ["ceramic", "glaze"],
+  "suggested_dimensions": {
+    "length": null, "width": null, "height": 9.5,
+    "unit": "in", "note": "Estimated from scale photo"
+  },
   "price": {
     "suggested_list_price": 65,
     "suggested_price_low": 55,
@@ -876,6 +891,12 @@ Form fields:
       "optional": false
     },
     {
+      "id": "materials",
+      "question": "What material(s) is this made of?",
+      "suggested_answer": "Ceramic with glazed finish",
+      "optional": true
+    },
+    {
       "id": "special",
       "question": "Anything special to highlight?",
       "suggested_answer": "",
@@ -894,9 +915,13 @@ Form fields:
 Form fields:
 
 - Same photo fields as B29a
-- `confirm_answers` — JSON string: `[{ "id": "what_is_it", "answer": "..." }, ...]`
+- `confirm_answers` — JSON string: `[{ "id": "what_is_it", "answer": "..." }, ...]` (required ids: `what_is_it`, `included`, `condition`, `buyer`; `materials` and `special` optional)
 - `price` — JSON string: `{ "sale_revenue": 65, "accept_offer_note": "Accept offers $55–$60" }` (`sale_revenue` nullable)
 - `identification_override` — optional string
+- `when_made` — string (Etsy enum from ADR-017 §1a, e.g. `1970s`)
+- `taxonomy_id` — number (Etsy numeric taxonomy ID)
+- `materials` — JSON string: `["ceramic", "glaze"]` (array of material strings)
+- `dimensions` — JSON string: `{ "length": 6, "width": 6, "height": 9.5, "unit": "in", "weight": 32, "weight_unit": "oz" }` (optional)
 
 200:
 
@@ -936,6 +961,20 @@ Form fields:
   "status": "In stock",
   "condition_code": "Excellent",
   "sale_revenue": 65,
+  "etsy_when_made": "1970s",
+  "etsy_taxonomy_id": 12345,
+  "materials": ["ceramic", "glaze"],
+  "item_weight": 32,
+  "item_weight_unit": "oz",
+  "item_length": 6,
+  "item_width": 6,
+  "item_height": 9.5,
+  "item_dimensions_unit": "in",
+  "picture_classifications": [
+    {"slot": 1, "type": "hero"},
+    {"slot": 2, "type": "angle"},
+    {"slot": 3, "type": "detail"}
+  ],
   "compose": {
     "listing_title": "…",
     "listing_description": "…",
@@ -1122,4 +1161,4 @@ Guided new-listing flow: analyze pasted photos (+ optional Google Visual Search 
 | POST   | `/api/listing-coach/compose`  | App  | Final listing + template fields from confirms + images             |
 | POST   | `/api/listing-coach/complete` | App  | Create inventory, store pictures, persist listing draft            |
 
-All three accept `multipart/form-data` with `item_photos[]`, optional `condition_photos[]`, optional `google_photos[]`. Image validation per ADR-026. Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).
+All three accept `multipart/form-data` with `item_photos[]` (1–20), optional `condition_photos[]` (0–5), optional `google_photos[]` (0–3), optional `video` (MP4/MOV). Image validation per ADR-026. Compose and complete also accept `when_made`, `taxonomy_id`, `materials`, `dimensions` fields (ADR-072 step 4b). Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).

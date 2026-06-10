@@ -21,6 +21,42 @@ import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 const CONDITIONS = ["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"] as const;
+const WHEN_MADE_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "made_to_order", label: "Made to order" },
+  { value: "2020_2026", label: "2020–2026" },
+  { value: "2010_2019", label: "2010–2019" },
+  { value: "2004_2009", label: "2004–2009" },
+  { value: "2000_2003", label: "2000–2003" },
+  { value: "1990s", label: "1990s" },
+  { value: "1980s", label: "1980s" },
+  { value: "1970s", label: "1970s" },
+  { value: "1960s", label: "1960s" },
+  { value: "1950s", label: "1950s" },
+  { value: "1940s", label: "1940s" },
+  { value: "1930s", label: "1930s" },
+  { value: "1920s", label: "1920s" },
+  { value: "1910s", label: "1910s" },
+  { value: "1900s", label: "1900s" },
+  { value: "1800s", label: "1800s" },
+  { value: "1700s", label: "1700s" },
+  { value: "before_1700", label: "Before 1700" },
+] as const;
+const WEIGHT_UNITS = [
+  { value: "", label: "—" },
+  { value: "oz", label: "oz" },
+  { value: "lb", label: "lb" },
+  { value: "g", label: "g" },
+  { value: "kg", label: "kg" },
+] as const;
+const DIMENSION_UNITS = [
+  { value: "", label: "—" },
+  { value: "in", label: "in" },
+  { value: "ft", label: "ft" },
+  { value: "mm", label: "mm" },
+  { value: "cm", label: "cm" },
+  { value: "m", label: "m" },
+] as const;
 
 export type InventoryItemDetail = InventoryItem & {
   other_costs_total?: number;
@@ -57,7 +93,34 @@ type DraftFields = {
   has_condition_issue: boolean;
   condition_notes: string;
   notes: string;
+  etsy_when_made: string;
+  etsy_taxonomy_id: string;
+  materials: string;
+  item_weight: string;
+  item_weight_unit: string;
+  item_length: string;
+  item_width: string;
+  item_height: string;
+  item_dimensions_unit: string;
+  is_supply: boolean;
 };
+
+function materialsToDisplay(json: string | null): string {
+  if (!json) return "";
+  try {
+    const arr: unknown = JSON.parse(json);
+    return Array.isArray(arr) ? arr.join(", ") : json;
+  } catch {
+    return json;
+  }
+}
+
+function displayToMaterialsJson(display: string): string | null {
+  const trimmed = display.trim();
+  if (!trimmed) return null;
+  const arr = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+  return JSON.stringify(arr);
+}
 
 function itemToDraft(item: InventoryItemDetail): DraftFields {
   return {
@@ -76,6 +139,16 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
     has_condition_issue: Boolean(item.has_condition_issue),
     condition_notes: item.condition_notes ?? "",
     notes: item.notes ?? "",
+    etsy_when_made: item.etsy_when_made ?? "",
+    etsy_taxonomy_id: item.etsy_taxonomy_id != null ? String(item.etsy_taxonomy_id) : "",
+    materials: materialsToDisplay(item.materials),
+    item_weight: item.item_weight != null ? String(item.item_weight) : "",
+    item_weight_unit: item.item_weight_unit ?? "",
+    item_length: item.item_length != null ? String(item.item_length) : "",
+    item_width: item.item_width != null ? String(item.item_width) : "",
+    item_height: item.item_height != null ? String(item.item_height) : "",
+    item_dimensions_unit: item.item_dimensions_unit ?? "",
+    is_supply: Boolean(item.is_supply),
   };
 }
 
@@ -222,6 +295,16 @@ export function InventoryDetailPanel({
         has_condition_issue: draft.has_condition_issue ? 1 : 0,
         condition_notes: draft.condition_notes.trim() || null,
         notes: draft.notes.trim() || null,
+        etsy_when_made: draft.etsy_when_made || null,
+        etsy_taxonomy_id: draft.etsy_taxonomy_id === "" ? null : Number(draft.etsy_taxonomy_id),
+        materials: displayToMaterialsJson(draft.materials),
+        item_weight: draft.item_weight === "" ? null : Number(draft.item_weight),
+        item_weight_unit: draft.item_weight_unit || null,
+        item_length: draft.item_length === "" ? null : Number(draft.item_length),
+        item_width: draft.item_width === "" ? null : Number(draft.item_width),
+        item_height: draft.item_height === "" ? null : Number(draft.item_height),
+        item_dimensions_unit: draft.item_dimensions_unit || null,
+        is_supply: draft.is_supply ? 1 : 0,
       };
       const { previousState, newState } = pickChangedFields(
         item as unknown as Record<string, unknown>,
@@ -359,7 +442,20 @@ export function InventoryDetailPanel({
           </h4>
           <p className="text-xs text-[var(--ui-muted)]">
             Item ID {item.id}
-            {item.etsy_listing_id ? ` · Etsy listing ${item.etsy_listing_id}` : ""}
+            {item.etsy_listing_id ? (
+              <>
+                {" · Etsy listing "}
+                <a
+                  href={`https://www.etsy.com/listing/${item.etsy_listing_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--ui-accent)] hover:underline"
+                >
+                  {item.etsy_listing_id}
+                </a>
+              </>
+            ) : ""}
+            {item.created_at ? ` · Created ${new Date(item.created_at).toLocaleString()}` : ""}
             {item.updated_at ? ` · Updated ${new Date(item.updated_at).toLocaleString()}` : ""}
           </p>
         </div>
@@ -571,6 +667,121 @@ export function InventoryDetailPanel({
             />
           </FormField>
         </section>
+        <section className="space-y-2 lg:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Etsy Listing Details
+          </p>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <FormField
+              label="Era (when made)"
+              helpText="Etsy-required era/date range for vintage and handmade items."
+              required
+            >
+              <SelectInput
+                value={draft.etsy_when_made}
+                onChange={(v) => setDraft((c) => ({ ...c!, etsy_when_made: v }))}
+                options={[...WHEN_MADE_OPTIONS]}
+                disabled={busy || saving}
+              />
+            </FormField>
+            <FormField
+              label="Category ID"
+              helpText="Etsy taxonomy ID for the item category. Required for publishing."
+              required
+            >
+              <TextInput
+                type="number"
+                value={draft.etsy_taxonomy_id}
+                onChange={(v) => setDraft((c) => ({ ...c!, etsy_taxonomy_id: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField
+              label="Materials"
+              helpText="Comma-separated list of materials (e.g. ceramic, glaze). Max 45 chars each."
+            >
+              <TextInput
+                value={draft.materials}
+                onChange={(v) => setDraft((c) => ({ ...c!, materials: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <label className="flex items-center gap-2 self-end pb-2 text-sm text-[var(--ui-body)]">
+              <input
+                type="checkbox"
+                checked={draft.is_supply}
+                onChange={(e) => setDraft((c) => ({ ...c!, is_supply: e.target.checked }))}
+                disabled={busy || saving}
+              />
+              Is supply
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <FormField label="Weight" helpText="Item weight for shipping calculation.">
+              <TextInput
+                type="number"
+                value={draft.item_weight}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_weight: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Weight unit">
+              <SelectInput
+                value={draft.item_weight_unit}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_weight_unit: v }))}
+                options={[...WEIGHT_UNITS]}
+                disabled={busy || saving}
+              />
+            </FormField>
+            <div className="lg:col-span-2">
+              <FormField label="Video">
+                <p className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-muted)]">
+                  {item.video_path || "No video"}
+                </p>
+              </FormField>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 lg:grid-cols-4">
+            <FormField label="Length">
+              <TextInput
+                type="number"
+                value={draft.item_length}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_length: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Width">
+              <TextInput
+                type="number"
+                value={draft.item_width}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_width: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Height">
+              <TextInput
+                type="number"
+                value={draft.item_height}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_height: v }))}
+                disabled={busy || saving}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Dim. unit" helpText="Required when any dimension is set.">
+              <SelectInput
+                value={draft.item_dimensions_unit}
+                onChange={(v) => setDraft((c) => ({ ...c!, item_dimensions_unit: v }))}
+                options={[...DIMENSION_UNITS]}
+                disabled={busy || saving}
+              />
+            </FormField>
+          </div>
+        </section>
       </div>
 
       <section className="mt-4 border-t border-[var(--ui-border)] pt-4">
@@ -612,6 +823,7 @@ export function InventoryDetailPanel({
                   <th className="py-1 pr-2">Price</th>
                   <th className="py-1 pr-2">Ship</th>
                   <th className="py-1 pr-2">Ref #</th>
+                  <th className="py-1 pr-2">Notes</th>
                   <th className="py-1 w-16" />
                 </tr>
               </thead>
@@ -623,6 +835,7 @@ export function InventoryDetailPanel({
                     <td className="py-1 pr-2">{fmtMoney(row.purchase_price)}</td>
                     <td className="py-1 pr-2">{fmtMoney(row.shipping_price)}</td>
                     <td className="py-1 pr-2">{row.reference_number ?? "—"}</td>
+                    <td className="py-1 pr-2">{row.notes ?? "—"}</td>
                     <td className="py-1">
                       <button
                         type="button"

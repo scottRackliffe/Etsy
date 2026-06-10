@@ -173,7 +173,7 @@ export async function generateThumbnail(itemId: number): Promise<string | null> 
 
   // Find first non-null picture slot
   let sourcePath: string | null = null;
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 20; i++) {
     const val = item[`picture_${i}`] as string | null;
     if (val && typeof val === "string" && val.trim()) {
       sourcePath = val.trim();
@@ -294,7 +294,7 @@ export async function reorderPictures(itemId: number, newOrder: (string | null)[
 
   // Step 1: Rename existing files to tmp_ to avoid collisions
   const existingFiles: { slot: number; tmpPath: string; originalPath: string }[] = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     const slotValue = newOrder[i];
     if (!slotValue || /^https?:\/\//i.test(slotValue)) continue;
 
@@ -313,7 +313,7 @@ export async function reorderPictures(itemId: number, newOrder: (string | null)[
   }
 
   // Step 2: Remove old files
-  for (let slot = 1; slot <= 10; slot++) {
+  for (let slot = 1; slot <= 20; slot++) {
     await removeSlotFile(dir, slot);
   }
 
@@ -331,7 +331,7 @@ export async function reorderPictures(itemId: number, newOrder: (string | null)[
   // Step 4: Update DB columns
   const params: Record<string, unknown> = { id: itemId, updated_at: now };
   const updates: string[] = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     const key = `picture_${i + 1}`;
     const val = newOrder[i];
     params[key] = typeof val === "string" && val.trim() ? val.trim() : null;

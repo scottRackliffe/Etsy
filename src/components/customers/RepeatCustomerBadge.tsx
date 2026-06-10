@@ -28,5 +28,5 @@ export function RepeatCustomerBadge({ orderCount }: { orderCount?: number | null
   }, []);
 
   if (orderCount == null || orderCount < threshold) return null;
-  return <Badge label="Repeat" variant="info" />;
+  return <Badge label={`Repeat (${orderCount})`} variant="info" />;
 }

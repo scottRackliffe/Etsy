@@ -92,6 +92,8 @@ export function getProfitKpis() {
 
 export function getDashboardStats() {
   const db = getDb();
+  const thresholdSetting = getSetting("repeat_customer_threshold");
+  const threshold = Math.max(2, parseInt(thresholdSetting ?? "2", 10) || 2);
   const repeat = (
     db
       .prepare(
@@ -100,13 +102,13 @@ export function getDashboardStats() {
           FROM orders o
           WHERE o.order_status = 'active' AND o.customer_id IS NOT NULL
           GROUP BY o.customer_id
-          HAVING COUNT(*) >= 2
+          HAVING COUNT(*) >= ?
             AND SUM(
               CASE WHEN strftime('%Y-%m', o.order_date) = strftime('%Y-%m', 'now') THEN 1 ELSE 0 END
             ) > 0
         )`
       )
-      .get() as { c: number }
+      .get(threshold) as { c: number }
   ).c;
 
   return { repeat_customers_this_month: repeat };

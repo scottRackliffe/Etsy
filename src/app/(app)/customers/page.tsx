@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useConnection } from "@/context/ConnectionContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
@@ -69,7 +70,10 @@ function CustomersPageInner() {
     setError,
     shops,
     selectedShopId,
+    pageSize: configPageSize,
   } = useApp();
+  const { state: connectionState } = useConnection();
+  const isOffline = connectionState !== "online";
 
   const router = useRouter();
   const pathname = usePathname();
@@ -80,7 +84,7 @@ function CustomersPageInner() {
   const [newCustomerLastName, setNewCustomerLastName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [customerDuplicates, setCustomerDuplicates] = useState<
-    Array<{ id: number; first_name: string | null; last_name: string | null; email: string | null }>
+    Array<{ id: number; first_name: string | null; last_name: string | null; email: string | null; match_type: "name" | "email" | "both" }>
   >([]);
   const [newAddressFirstLine, setNewAddressFirstLine] = useState("");
   const [newAddressCity, setNewAddressCity] = useState("");
@@ -92,6 +96,7 @@ function CustomersPageInner() {
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteType, setNewNoteType] = useState("general");
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
+  const [noteTypeFilter, setNoteTypeFilter] = useState<string | null>(null);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [customerDetailDirty, setCustomerDetailDirty] = useState(false);
   const [pendingCustomerId, setPendingCustomerId] = useState<number | null>(null);
@@ -107,9 +112,15 @@ function CustomersPageInner() {
   useEffect(() => {
     setFormDirty(customerDetailDirty);
   }, [customerDetailDirty, setFormDirty]);
+
+  useEffect(() => {
+    const handler = () => createEmailRef.current?.focus();
+    window.addEventListener("esm-new-record", handler);
+    return () => window.removeEventListener("esm-new-record", handler);
+  }, []);
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 300);
-  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
   useListSearchFromUrl(setCustomerSearch, () => setPage(0));
 
   const checkCustomerDuplicate = async () => {
@@ -136,7 +147,20 @@ function CustomersPageInner() {
           email: string | null;
         }>;
       };
-      if (response.ok) setCustomerDuplicates(data.duplicates ?? []);
+      if (response.ok) {
+        const classified = (data.duplicates ?? []).map((row) => {
+          const nameMatch =
+            first && last &&
+            row.first_name?.trim().toLowerCase() === first.toLowerCase() &&
+            row.last_name?.trim().toLowerCase() === last.toLowerCase();
+          const emailMatch =
+            email && row.email?.trim().toLowerCase() === email.toLowerCase();
+          const match_type: "name" | "email" | "both" =
+            nameMatch && emailMatch ? "both" : emailMatch ? "email" : "name";
+          return { ...row, match_type };
+        });
+        setCustomerDuplicates(classified);
+      }
     } catch {
       setCustomerDuplicates([]);
     }
@@ -150,6 +174,7 @@ function CustomersPageInner() {
     progressOpen,
     progressTitle,
     progressTotal,
+    progressCurrent,
   } = useBatchOperation();
 
   const customerBatchFilter = useMemo(
@@ -613,6 +638,8 @@ function CustomersPageInner() {
             variant="danger"
             size="sm"
             busy={busyAction === "batch-delete-customers" || batchBusy}
+            disabled={isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
             onClick={() => setBatchDeleteOpen(true)}
           >
             Delete
@@ -629,6 +656,7 @@ function CustomersPageInner() {
                 setCustomerSearch(e.target.value);
               }}
               placeholder="Search name, email, phone…"
+              title="Search (Ctrl+K)"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
             <Button variant="accent" size="sm" onClick={() => openMergeModal()}>
@@ -788,13 +816,21 @@ function CustomersPageInner() {
               >
                 {busyAction === "add-note" ? "Saving…" : "Add note"}
               </button>
+              <FilterChipRow
+                label="Type"
+                value={noteTypeFilter}
+                onChange={setNoteTypeFilter}
+                options={NOTE_TYPES}
+              />
               {notesLoading ? (
                 <p className="text-xs text-[var(--ui-muted)]">Loading notes…</p>
               ) : customerNotes.length === 0 ? (
                 <p className="text-xs text-[var(--ui-muted)]">No notes yet for this customer.</p>
               ) : (
                 <ul className="max-h-40 space-y-2 overflow-auto">
-                  {customerNotes.map((note) => (
+                  {customerNotes
+                    .filter((note) => !noteTypeFilter || note.note_type === noteTypeFilter)
+                    .map((note) => (
                     <li
                       key={note.id}
                       className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs"
@@ -855,9 +891,11 @@ function CustomersPageInner() {
               links={customerDuplicates.map((row) => ({
                 href: `/customers?customerId=${row.id}`,
                 label:
-                  [row.first_name, row.last_name].filter(Boolean).join(" ") ||
-                  row.email ||
-                  `Customer ${row.id}`,
+                  row.match_type === "email"
+                    ? `Email already exists: ${row.email}`
+                    : row.match_type === "both"
+                      ? `Similar name found: ${[row.first_name, row.last_name].filter(Boolean).join(" ")} (email: ${row.email})`
+                      : `Similar name found: ${[row.first_name, row.last_name].filter(Boolean).join(" ") || `Customer ${row.id}`}`,
               }))}
               onDismiss={() => setCustomerDuplicates([])}
             />
@@ -866,6 +904,7 @@ function CustomersPageInner() {
             type="button"
             onClick={createCustomerRecord}
             disabled={busyAction != null}
+            title="New customer (Ctrl+N)"
             className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {busyAction === "create-customer" ? "Creating..." : "Create customer"}
@@ -909,7 +948,7 @@ function CustomersPageInner() {
         title={progressTitle}
         statusText={progressTitle}
         mode="determinate"
-        current={progressTotal}
+        current={progressCurrent}
         total={progressTotal}
       />
       <ProgressModal {...syncModal} />

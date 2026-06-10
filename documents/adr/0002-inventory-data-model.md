@@ -22,7 +22,8 @@ Store the following in the database:
 - **Description:** description (text)
 - **Financial:** purchase cost, shipping cost, sale revenue
 - **Dates:** date purchased (when you acquired the item), date listed (when you listed it for sale, e.g. on Etsy), date of sale, shipping date
-- **Media:** picture 1 through picture 10 (stored as paths or URLs in the database; files stored on disk or object storage). **Picture icon (thumbnail):** Create and store a small thumbnail when the item is created or when its first picture is added (e.g. a `thumbnail_path` column or a thumbnails store keyed by inventory id); used by pick lists (ADR-015). Thumbnail spec: JPEG format, max dimension 200 px (width or height), stored at thumbnail_path. If the item has no picture yet, pick lists show a placeholder.
+- **Media:** picture 1 through picture 20 (stored as paths or URLs in the database; files stored on disk or object storage). Etsy allows up to 20 photos per listing — use all slots for maximum buyer confidence and search visibility. Optional **video** (MP4/MOV, 5–15 seconds) stored at `video_path`. **Picture icon (thumbnail):** Create and store a small thumbnail when the item is created or when its first picture is added (e.g. a `thumbnail_path` column or a thumbnails store keyed by inventory id); used by pick lists (ADR-015). Thumbnail spec: JPEG format, max dimension 200 px (width or height), stored at thumbnail_path. If the item has no picture yet, pick lists show a placeholder.
+- **Etsy publish fields (per-item):** `etsy_when_made` (era enum, required for publish), `etsy_taxonomy_id` (numeric category ID, required for publish), `etsy_who_made` (override), `etsy_shipping_profile_id` (override), `etsy_return_policy_id` (override), `materials` (JSON array), `item_weight` + `item_weight_unit`, `item_length`/`item_width`/`item_height` + `item_dimensions_unit`, `is_supply`. See ADR-017 for full column definitions.
 - **Condition (Etsy-aligned, antique/vintage terms):**
   - **condition_code** — Item condition using **commonly used antique condition terms on Etsy**:
     - **Mint/Near Mint** — Item appears unused, pristine, and without flaws.
@@ -54,7 +55,7 @@ Store the following in the database:
   - Pictures are referenced in the DB; actual files can be stored in a consistent location (e.g. by item id).
   - Condition section supports Etsy-aligned condition codes and up to 5 blemish/issue photos for buyer transparency.
 - **Negative**
-  - Ten main picture columns plus five condition picture columns (or normalized picture tables) add schema size; we accepted this for clarity.
+  - Twenty main picture columns plus five condition picture columns add schema size; we accepted this to match Etsy's 20-photo-per-listing limit and maximize search visibility.
   - Etsy condition code values must be checked against the current Etsy API (listing condition field) when implementing; fallback set if the API does not define an enum.
 
 ## Notes

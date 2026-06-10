@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { InventoryItem } from "@/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { patchHeaders } from "@/lib/patch-json";
 import { getPictureSlotPath, pictureDisplayUrl } from "@/lib/picture-url";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
@@ -18,9 +19,9 @@ type PictureGridProps = {
 
 function slotPaths(item: InventoryItem | null): Array<{ slot: number; path: string | null }> {
   if (!item) {
-    return Array.from({ length: 10 }, (_, i) => ({ slot: i + 1, path: null }));
+    return Array.from({ length: 20 }, (_, i) => ({ slot: i + 1, path: null }));
   }
-  return Array.from({ length: 10 }, (_, i) => {
+  return Array.from({ length: 20 }, (_, i) => {
     const slot = i + 1;
     return { slot, path: getPictureSlotPath(item as Record<string, unknown>, slot) };
   });
@@ -59,7 +60,7 @@ export function PictureGrid({
       try {
         const response = await fetch(`/api/inventory/${inventoryId}/pictures/reorder`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers: patchHeaders(item?.updated_at),
           body: JSON.stringify({ pictures: next.map((p) => p ?? "") }),
         });
         const data = (await response.json().catch(() => ({}))) as { item?: InventoryItem };

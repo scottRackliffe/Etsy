@@ -67,8 +67,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     }
 
     const shopId = parseNumberSetting("etsy.active_shop_id");
-    const taxonomyId = parseNumberSetting("etsy.publish.taxonomy_id");
-    const shippingProfileId = parseNumberSetting("etsy.publish.shipping_profile_id");
+    const globalTaxonomyId = parseNumberSetting("etsy.publish.default_taxonomy_id");
+    const globalShippingProfileId = parseNumberSetting("etsy.publish.shipping_profile_id");
+    const globalReturnPolicyId = parseNumberSetting("etsy.publish.return_policy_id");
     const readinessStateId = parseNumberSetting("etsy.publish.readiness_state_id");
     const imageIds = parseImageIdsFromSetting("etsy.publish.image_ids");
     const allowPartialImageUpload = parseBooleanSetting(
@@ -79,8 +80,19 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const imageMaxDimension = parseIntSetting("etsy.publish.image_max_dimension", 2000);
     const imageTargetDpi = parseIntSetting("etsy.publish.image_target_dpi", 300);
     const imageJpegQuality = parseIntSetting("etsy.publish.image_jpeg_quality", 82);
-    const whoMade = (getSetting("etsy.publish.who_made") ?? "i_did").trim();
-    const whenMade = (getSetting("etsy.publish.when_made") ?? "before_2000").trim();
+    const globalWhoMade = (getSetting("etsy.publish.default_who_made") ?? "someone_else").trim();
+    const globalWhenMade = (getSetting("etsy.publish.default_when_made") ?? "2010_2019").trim();
+
+    // Per-item field resolution: item-level overrides global settings (ADR-017 §1c)
+    const whoMade = (item.etsy_who_made ?? "").trim() || globalWhoMade;
+    const whenMade = (item.etsy_when_made ?? "").trim() || globalWhenMade;
+    const taxonomyId = (item.etsy_taxonomy_id ? Number(item.etsy_taxonomy_id) : null) || globalTaxonomyId;
+    const shippingProfileId =
+      (item.etsy_shipping_profile_id ? Number(item.etsy_shipping_profile_id) : null) ||
+      globalShippingProfileId;
+    const returnPolicyId =
+      (item.etsy_return_policy_id ? Number(item.etsy_return_policy_id) : null) ||
+      globalReturnPolicyId;
 
     const tags = (item.listing_tags ?? "")
       .split(/[,\n]/g)
@@ -89,6 +101,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       .slice(0, 13);
 
     const pictureReferences = getAllPictureReferences(item);
+
+    // Parse materials from JSON array or comma-separated string
+    let materials: string[] | undefined;
+    if (item.materials) {
+      try {
+        const parsed = JSON.parse(item.materials);
+        if (Array.isArray(parsed)) materials = parsed.filter((m: unknown) => typeof m === "string" && m.length > 0);
+      } catch {
+        materials = item.materials.split(",").map((m: string) => m.trim()).filter((m: string) => m.length > 0);
+      }
+    }
 
     const warnings: string[] = [];
     if (item.listing_draft_state !== "approved") {
@@ -125,9 +148,18 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         who_made: whoMade,
         when_made: whenMade,
         shipping_profile_id: shippingProfileId,
+        return_policy_id: returnPolicyId ?? null,
         readiness_state_id: readinessStateId,
         image_ids: imageIds,
         tags,
+        materials: materials ?? null,
+        item_weight: item.item_weight ? Number(item.item_weight) : null,
+        item_weight_unit: item.item_weight_unit || null,
+        item_length: item.item_length ? Number(item.item_length) : null,
+        item_width: item.item_width ? Number(item.item_width) : null,
+        item_height: item.item_height ? Number(item.item_height) : null,
+        item_dimensions_unit: item.item_dimensions_unit || null,
+        is_supply: item.is_supply != null ? Boolean(item.is_supply) : null,
       },
       image_upload: {
         local_picture_references: pictureReferences,
@@ -148,6 +180,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         who_made: whoMade,
         when_made: whenMade,
         tags,
+        return_policy_id: returnPolicyId ?? null,
+        materials: materials ?? null,
+        item_weight: item.item_weight ? Number(item.item_weight) : null,
+        item_weight_unit: item.item_weight_unit || null,
+        item_length: item.item_length ? Number(item.item_length) : null,
+        item_width: item.item_width ? Number(item.item_width) : null,
+        item_height: item.item_height ? Number(item.item_height) : null,
+        item_dimensions_unit: item.item_dimensions_unit || null,
+        is_supply: item.is_supply != null ? Boolean(item.is_supply) : null,
       },
       item_state_snapshot: {
         listing_draft_state: item.listing_draft_state,

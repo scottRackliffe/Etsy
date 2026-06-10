@@ -13,6 +13,7 @@ import {
   addRecentlyViewedEntry,
   clearRecentlyViewedStorage,
   loadRecentlyViewed,
+  removeRecentlyViewedEntry,
   type RecentlyViewedEntityType,
   type RecentlyViewedEntry,
 } from "@/lib/recently-viewed";
@@ -20,6 +21,7 @@ import {
 type RecentlyViewedContextValue = {
   entries: RecentlyViewedEntry[];
   addRecentlyViewed: (entityType: RecentlyViewedEntityType, id: number, label: string) => void;
+  removeEntry: (entityType: RecentlyViewedEntityType, id: number) => void;
   clearRecentlyViewed: () => void;
 };
 
@@ -40,9 +42,16 @@ export function RecentlyViewedProvider({ children }: { children: ReactNode }) {
     setEntries([]);
   }, []);
 
+  const removeEntry = useCallback(
+    (entityType: RecentlyViewedEntityType, id: number) => {
+      setEntries(removeRecentlyViewedEntry(entityType, id));
+    },
+    []
+  );
+
   const value = useMemo(
-    () => ({ entries, addRecentlyViewed, clearRecentlyViewed }),
-    [entries, addRecentlyViewed, clearRecentlyViewed]
+    () => ({ entries, addRecentlyViewed, removeEntry, clearRecentlyViewed }),
+    [entries, addRecentlyViewed, removeEntry, clearRecentlyViewed]
   );
 
   return <RecentlyViewedContext.Provider value={value}>{children}</RecentlyViewedContext.Provider>;

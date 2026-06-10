@@ -27,11 +27,13 @@ export type DisplaySettingsSnapshot = {
   date_format: string;
   currency_code: string;
   page_size: string;
+  timezone: string;
 };
 
 export type PublishConfigSnapshot = {
   taxonomyId: string;
   shippingProfileId: string;
+  returnPolicyId: string;
   readinessStateId: string;
   imageIds: string;
   whoMade: string;
@@ -56,6 +58,11 @@ export type ConfigFormSnapshot = {
   taxSettings: TaxSettingsSnapshot;
   displaySettings: DisplaySettingsSnapshot;
   backupSchedule: string;
+  backupDirectory: string;
+  backupTime: string;
+  backupDay: string;
+  backupIncludePictures: boolean;
+  backupMaxCount: string;
   autoSyncInterval: AutoSyncInterval;
   publishConfig: PublishConfigSnapshot;
   iconConfig: IconConfigSnapshot;
@@ -73,6 +80,11 @@ export function buildConfigFormSnapshot(input: {
   taxSettings: TaxSettingsSnapshot;
   displaySettings: DisplaySettingsSnapshot;
   backupSchedule: string;
+  backupDirectory?: string;
+  backupTime?: string;
+  backupDay?: string;
+  backupIncludePictures?: boolean;
+  backupMaxCount?: string;
   autoSyncInterval: AutoSyncInterval;
   publishConfig: PublishConfigSnapshot;
   iconConfig: IconConfigSnapshot;
@@ -85,6 +97,11 @@ export function buildConfigFormSnapshot(input: {
     taxSettings: input.taxSettings,
     displaySettings: input.displaySettings,
     backupSchedule: input.backupSchedule,
+    backupDirectory: input.backupDirectory ?? "./backups",
+    backupTime: input.backupTime ?? "02:00",
+    backupDay: input.backupDay ?? "0",
+    backupIncludePictures: input.backupIncludePictures ?? false,
+    backupMaxCount: input.backupMaxCount ?? "25",
     autoSyncInterval: input.autoSyncInterval,
     publishConfig: input.publishConfig,
     iconConfig: input.iconConfig,

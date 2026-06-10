@@ -83,6 +83,8 @@ Clean the lens with a microfiber cloth.
 
 # ⭐ 2. The “10-Shot Recipe” — Etsy’s Ideal Photo Set
 
+> **Listing Coach integration:** When you use the Listing Coach, the AI automatically identifies which shot type each photo is (hero, detail, backstamp, etc.) and sorts them into this recipe order. You just confirm with the dropdown on each photo — or change it if the AI got it wrong. This gives every listing a consistent, professional photo layout.
+
 ### 1️⃣ Hero Shot
 
 - Straight on

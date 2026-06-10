@@ -34,6 +34,7 @@ const DATE_FILTER_REPORTS = new Set([
   "thank-you-note",
   "profit-by-item",
   "sales-tax-summary",
+  "inventory-aging",
   "accounting-export",
 ]);
 
@@ -61,6 +62,7 @@ export default function ReportsPage() {
   const [reportCsvPreview, setReportCsvPreview] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [perOrderId, setPerOrderId] = useState("");
+  const [orderIdError, setOrderIdError] = useState<string | null>(null);
   const { modal: progressModal, run: runWithProgress } = useProgressOperation();
 
   const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
@@ -79,6 +81,7 @@ export default function ReportsPage() {
 
   const applyPreset = (preset: string) => {
     const today = isoToday();
+    const d = new Date();
     setActivePreset(preset);
     if (preset === "today") {
       setFromDate(today);
@@ -89,9 +92,31 @@ export default function ReportsPage() {
     } else if (preset === "month") {
       setFromDate(`${today.slice(0, 8)}01`);
       setToDate(today);
-    } else if (preset === "ytd") {
+    } else if (preset === "thisYear") {
       setFromDate(`${today.slice(0, 4)}-01-01`);
       setToDate(today);
+    } else if (preset === "thisQuarter") {
+      const qMonth = Math.floor(d.getMonth() / 3) * 3;
+      const qStart = new Date(d.getFullYear(), qMonth, 1);
+      setFromDate(qStart.toISOString().slice(0, 10));
+      setToDate(today);
+    } else if (preset === "lastMonth") {
+      const lm = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+      const lmEnd = new Date(d.getFullYear(), d.getMonth(), 0);
+      setFromDate(lm.toISOString().slice(0, 10));
+      setToDate(lmEnd.toISOString().slice(0, 10));
+    } else if (preset === "lastQuarter") {
+      const curQ = Math.floor(d.getMonth() / 3);
+      const prevQ = curQ === 0 ? 3 : curQ - 1;
+      const prevQYear = curQ === 0 ? d.getFullYear() - 1 : d.getFullYear();
+      const lqStart = new Date(prevQYear, prevQ * 3, 1);
+      const lqEnd = new Date(prevQYear, prevQ * 3 + 3, 0);
+      setFromDate(lqStart.toISOString().slice(0, 10));
+      setToDate(lqEnd.toISOString().slice(0, 10));
+    } else if (preset === "lastYear") {
+      const ly = d.getFullYear() - 1;
+      setFromDate(`${ly}-01-01`);
+      setToDate(`${ly}-12-31`);
     } else {
       setFromDate("");
       setToDate("");
@@ -123,6 +148,31 @@ export default function ReportsPage() {
   };
 
   const isPerOrder = PER_ORDER_REPORTS.has(reportType) && perOrderId.trim().length > 0;
+
+  const isThankYouPerOrder = reportType === "thank-you-note" && isPerOrder;
+
+  const validateAndGenerate = async () => {
+    if (isPerOrder) {
+      setOrderIdError(null);
+      try {
+        const resp = await fetch(`/api/orders/${encodeURIComponent(perOrderId.trim())}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (resp.status === 404) {
+          setOrderIdError("Order not found. Please check the order ID.");
+          return;
+        }
+        if (!resp.ok) {
+          setOrderIdError("Could not validate the order ID. Please try again.");
+          return;
+        }
+      } catch {
+        setOrderIdError("Could not validate the order ID. Please try again.");
+        return;
+      }
+    }
+    setGeneratedUrl(downloadUrl("pdf"));
+  };
 
   const downloadUrl = (format: "csv" | "pdf") => {
     if (isPerOrder) {
@@ -202,7 +252,11 @@ export default function ReportsPage() {
               { id: "today", label: "Today" },
               { id: "week", label: "This week" },
               { id: "month", label: "This month" },
-              { id: "ytd", label: "YTD" },
+              { id: "thisQuarter", label: "This Quarter" },
+              { id: "thisYear", label: "This Year" },
+              { id: "lastMonth", label: "Last Month" },
+              { id: "lastQuarter", label: "Last Quarter" },
+              { id: "lastYear", label: "Last Year" },
               { id: "all", label: "All time" },
             ].map((preset) => {
               const isActive =
@@ -239,11 +293,15 @@ export default function ReportsPage() {
                 onChange={(e) => {
                   setPerOrderId(e.target.value);
                   setGeneratedUrl(null);
+                  setOrderIdError(null);
                 }}
                 placeholder="e.g. 42"
                 className="w-32 rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none"
               />
             </FormField>
+            {orderIdError && (
+              <p className="mt-1 text-xs text-[var(--ui-red)]">{orderIdError}</p>
+            )}
           </div>
         )}
 
@@ -273,6 +331,7 @@ export default function ReportsPage() {
                 variant="secondary"
                 size="lg"
                 onClick={() => window.open(downloadUrl("csv"), "_blank")}
+                disabled={isThankYouPerOrder}
               >
                 Export CSV
               </Button>
@@ -290,7 +349,7 @@ export default function ReportsPage() {
             <Button
               variant="accent"
               size="lg"
-              onClick={() => setGeneratedUrl(downloadUrl("pdf"))}
+              onClick={() => void validateAndGenerate()}
               disabled={reportType === "accounting-export"}
             >
               Generate Report
@@ -308,6 +367,7 @@ export default function ReportsPage() {
               variant="secondary"
               size="lg"
               onClick={() => window.open(downloadUrl("csv"), "_blank")}
+              disabled={isThankYouPerOrder}
             >
               Export CSV
             </Button>
@@ -315,31 +375,7 @@ export default function ReportsPage() {
         )}
         {reportCsvPreview.trim().length === 0 ? (
           <EmptyState
-            message="No data for the selected date range or filters."
-            primaryAction={
-              supportsDates
-                ? {
-                    label: "Adjust date range",
-                    onClick: () => {
-                      setFromDate("");
-                      setToDate("");
-                      setActivePreset(null);
-                    },
-                  }
-                : { label: "Preview CSV", onClick: () => void previewReportCsv() }
-            }
-            secondaryAction={
-              supportsDates && (fromDate || toDate)
-                ? {
-                    label: "Clear filters",
-                    onClick: () => {
-                      setFromDate("");
-                      setToDate("");
-                      setActivePreset(null);
-                    },
-                  }
-                : undefined
-            }
+            message="No reports generated yet. Once you have orders, you can generate sales, tax, and profit reports here."
           />
         ) : (
           <textarea

@@ -46,6 +46,17 @@ One row per inventory item. Source: ADR-002.
 | picture_8                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
 | picture_9                      | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
 | picture_10                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_11                     | TEXT    | —                         | Path or URL; null if empty. (Etsy allows up to 20 photos per listing.)                                          |
+| picture_12                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_13                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_14                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_15                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_16                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_17                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_18                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_19                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| picture_20                     | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
+| video_path                     | TEXT    | —                         | Path to listing video file (MP4/MOV, 5–15 sec). Null if none.                                                   |
 | thumbnail_path                 | TEXT    | —                         | Picture icon for pick lists; created at item entry or first picture (ADR-002, ADR-015). Null if no picture yet. |
 | condition_code                 | TEXT    | —                         | One of: Mint/Near Mint, Excellent, Very Good, Good, Fair/As-Is (ADR-002).                                       |
 | has_condition_issue            | INTEGER | —                         | 0 or 1; true if item has blemish/issue to document.                                                             |
@@ -57,8 +68,22 @@ One row per inventory item. Source: ADR-002.
 | condition_picture_5            | TEXT    | —                         | Path or URL; null if empty.                                                                                     |
 | status                         | TEXT    | —                         | One of: Draft, In stock, Listed, Sold, Reserved, Retired (ADR-002).                                             |
 | etsy_listing_id                | TEXT    | —                         | Optional; Etsy listing ID for linking to Etsy.                                                                  |
+| etsy_when_made                 | TEXT    | —                         | Etsy `when_made` enum per item (e.g. `1970s`, `1980s`). Required before publish. See §1a.                       |
+| etsy_taxonomy_id               | INTEGER | —                         | Etsy numeric taxonomy/category ID per item. Required before publish.                                            |
+| etsy_who_made                  | TEXT    | —                         | Per-item override for `who_made` (`i_did`, `someone_else`, `collective`). Null = use global default.            |
+| etsy_shipping_profile_id       | INTEGER | —                         | Per-item override for shipping profile. Null = use global default.                                              |
+| etsy_return_policy_id          | INTEGER | —                         | Per-item override for return policy. Null = use global default.                                                  |
 | quantity                       | INTEGER | —                         | Default 1.                                                                                                      |
 | category_tags                  | TEXT    | —                         | Optional; category or tags.                                                                                     |
+| materials                      | TEXT    | —                         | JSON array of material strings (e.g. `["ceramic","glaze"]`). Sent to Etsy as `materials[]`.                     |
+| item_weight                    | REAL    | —                         | Item weight for shipping calculation. Null if unknown.                                                          |
+| item_weight_unit               | TEXT    | —                         | Weight unit: `oz`, `lb`, `g`, `kg`. Default `oz` when weight provided.                                          |
+| item_length                    | REAL    | —                         | Item length for shipping. Null if unknown.                                                                      |
+| item_width                     | REAL    | —                         | Item width for shipping. Null if unknown.                                                                       |
+| item_height                    | REAL    | —                         | Item height for shipping. Null if unknown.                                                                      |
+| item_dimensions_unit           | TEXT    | —                         | Dimension unit: `in`, `ft`, `mm`, `cm`, `m`. Default `in` when dimensions provided.                             |
+| is_supply                      | INTEGER | DEFAULT 0                 | 0 = finished product, 1 = craft supply. Determines Etsy marketplace section.                                    |
+| picture_classifications        | TEXT    | —                         | JSON array of `{slot, type}` objects. Shot types from Photo Guide 10-Shot Recipe (ADR-072 §Photo classification). Null if unclassified. |
 | listing_title                  | TEXT    | —                         | Etsy listing title (AI-generated or manual); required before List on Etsy.                                      |
 | listing_description            | TEXT    | —                         | Etsy listing description (AI-generated or manual); required before List on Etsy.                                |
 | listing_tags                   | TEXT    | —                         | Etsy listing tags (comma-separated or equivalent); required before List on Etsy.                                |
@@ -78,6 +103,32 @@ One row per inventory item. Source: ADR-002.
 | notes                          | TEXT    | —                         | Optional.                                                                                                       |
 | created_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
 | updated_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
+
+#### 1a. Etsy `when_made` enum (canonical values)
+
+The `etsy_when_made` column must contain one of these Etsy API enum values:
+
+`made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700`
+
+For vintage items (20+ years old as of 2026), the value must be `2004_2009` or earlier. The Listing Coach (ADR-072) suggests this from AI photo analysis; the operator confirms or overrides.
+
+#### 1b. Etsy `who_made` enum
+
+`i_did`, `someone_else`, `collective`
+
+For vintage/antique resale, the default should be `someone_else`. The global default is stored in `etsy.publish.default_who_made` (settings); per-item override via `etsy_who_made` column.
+
+#### 1c. Publish-time field resolution
+
+At publish time, per-item values take precedence over global settings defaults:
+
+| Field | Per-item column | Global setting fallback | Required for publish |
+| --- | --- | --- | --- |
+| `who_made` | `inventory.etsy_who_made` | `etsy.publish.default_who_made` | Yes |
+| `when_made` | `inventory.etsy_when_made` | `etsy.publish.default_when_made` | Yes |
+| `taxonomy_id` | `inventory.etsy_taxonomy_id` | `etsy.publish.default_taxonomy_id` | Yes |
+| `shipping_profile_id` | `inventory.etsy_shipping_profile_id` | `etsy.publish.shipping_profile_id` | Yes |
+| `return_policy_id` | `inventory.etsy_return_policy_id` | `etsy.publish.return_policy_id` | Yes |
 
 ---
 
@@ -320,9 +371,20 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                              | ISO 8601                                                                            |
 | integrity_warning            | Set when last integrity check failed (ADR-058)                                                               | "true" or absent                                                                    |
 | repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                                 | "2"                                                                                 |
-| etsy.active_shop_id          | Selected Etsy shop id (ADR-007)                                                                              | Shop id string                                                                      |
-| etsy.oauth.state             | OAuth PKCE state (ADR-007)                                                                                   | Opaque string                                                                       |
-| etsy.oauth.verifier          | OAuth PKCE verifier (ADR-007)                                                                                | Opaque string                                                                       |
+| etsy.active_shop_id              | Selected Etsy shop id (ADR-007)                                                                              | Shop id string                                                                      |
+| etsy.publish.default_who_made    | Global default `who_made` for Etsy listings; vintage shops should set `someone_else`                         | `someone_else`                                                                      |
+| etsy.publish.default_when_made   | Global default `when_made` for Etsy listings (fallback when per-item is null)                                | `before_2004`                                                                       |
+| etsy.publish.default_taxonomy_id | Global default taxonomy ID for Etsy listings (fallback when per-item is null)                                | Numeric Etsy taxonomy ID                                                            |
+| etsy.publish.shipping_profile_id | Etsy shipping profile ID (required for physical listings)                                                    | Numeric Etsy profile ID                                                             |
+| etsy.publish.return_policy_id    | Etsy return policy ID (required for active listings)                                                         | Numeric Etsy return policy ID                                                       |
+| etsy.publish.readiness_state_id  | Etsy readiness/processing state ID                                                                           | Numeric Etsy readiness ID                                                           |
+| etsy.publish.image_max_dimension | Max pixel dimension for image upload resize                                                                  | `2000`                                                                              |
+| etsy.publish.image_target_dpi    | Target DPI for image upload metadata                                                                         | `300`                                                                               |
+| etsy.publish.image_jpeg_quality  | JPEG quality for upload compression                                                                          | `82`                                                                                |
+| etsy.publish.allow_partial_image_upload | Allow publish when some images fail upload                                                              | `false`                                                                             |
+| etsy.publish.image_upload_attempts | Retry count per image upload                                                                                | `3`                                                                                 |
+| etsy.oauth.state                 | OAuth PKCE state (ADR-007)                                                                                   | Opaque string                                                                       |
+| etsy.oauth.verifier              | OAuth PKCE verifier (ADR-007)                                                                                | Opaque string                                                                       |
 | etsy_access_token_encrypted  | Current Etsy access token (encrypted)                                                                        | Encrypted string/blob                                                               |
 | etsy_refresh_token_encrypted | Current Etsy refresh token (encrypted)                                                                       | Encrypted string/blob                                                               |
 | etsy_token_expires_at        | Access token expiry timestamp (ISO 8601)                                                                     | "2026-02-16T10:30:00Z"                                                              |
@@ -377,6 +439,17 @@ CREATE TABLE inventory (
   picture_8 TEXT,
   picture_9 TEXT,
   picture_10 TEXT,
+  picture_11 TEXT,
+  picture_12 TEXT,
+  picture_13 TEXT,
+  picture_14 TEXT,
+  picture_15 TEXT,
+  picture_16 TEXT,
+  picture_17 TEXT,
+  picture_18 TEXT,
+  picture_19 TEXT,
+  picture_20 TEXT,
+  video_path TEXT,
   thumbnail_path TEXT,
   condition_code TEXT,
   has_condition_issue INTEGER,
@@ -388,8 +461,22 @@ CREATE TABLE inventory (
   condition_picture_5 TEXT,
   status TEXT,
   etsy_listing_id TEXT,
+  etsy_when_made TEXT,
+  etsy_taxonomy_id INTEGER,
+  etsy_who_made TEXT,
+  etsy_shipping_profile_id INTEGER,
+  etsy_return_policy_id INTEGER,
   quantity INTEGER,
   category_tags TEXT,
+  materials TEXT,
+  item_weight REAL,
+  item_weight_unit TEXT,
+  item_length REAL,
+  item_width REAL,
+  item_height REAL,
+  item_dimensions_unit TEXT,
+  is_supply INTEGER DEFAULT 0,
+  picture_classifications TEXT,
   listing_title TEXT,
   listing_description TEXT,
   listing_tags TEXT,

@@ -36,79 +36,89 @@ export function batchOrders(
   if (idList.length > MAX_BATCH) {
     throw new Error("BATCH_TOO_LARGE");
   }
-  const failed: BatchResult["failed"] = [];
-  let succeeded = 0;
 
-  for (const id of idList) {
-    try {
-      if (action === "mark_paid") {
-        const order = getOrder(id) as Record<string, unknown> | null;
-        if (!order) {
-          failed.push({ id, reason: "Order not found" });
-          continue;
-        }
-        if (Number(order.was_paid) === 1) continue;
-        markOrderPaid(id);
-        succeeded += 1;
-      } else if (action === "mark_shipped") {
-        const order = getOrder(id) as Record<string, unknown> | null;
-        if (!order) {
-          failed.push({ id, reason: "Order not found" });
-          continue;
-        }
-        if (order.shipping_date) continue;
-        const shipper = typeof params.shipper === "string" ? params.shipper : "USPS";
-        const shippingDate =
-          typeof params.shipping_date === "string"
-            ? params.shipping_date
-            : new Date().toISOString().slice(0, 10);
-        markOrderShipped(id, {
-          shipper,
-          shipping_date: shippingDate,
-          tracking_number:
-            typeof params.tracking_number === "string" ? params.tracking_number : undefined,
-          shipped_without_paid_override: params.shipped_without_paid_override === true,
-          force_unpaid: params.shipped_without_paid_override === true,
-        });
-        succeeded += 1;
-      } else if (action === "void") {
-        const db = getDb();
-        const result = db
-          .prepare(
-            "UPDATE orders SET order_status = 'void', updated_at = ? WHERE id = ? AND order_status = 'active'"
-          )
-          .run(new Date().toISOString(), id);
-        if (result.changes === 0) {
-          failed.push({ id, reason: "Order not found or already void/cancelled" });
-        } else {
+  const db = getDb();
+  const result = db.transaction(() => {
+    const failed: BatchResult["failed"] = [];
+    let succeeded = 0;
+
+    for (const id of idList) {
+      try {
+        if (action === "mark_paid") {
+          const order = getOrder(id) as Record<string, unknown> | null;
+          if (!order) {
+            failed.push({ id, reason: "Order not found" });
+            continue;
+          }
+          if (Number(order.was_paid) === 1) continue;
+          markOrderPaid(id);
           succeeded += 1;
+        } else if (action === "mark_shipped") {
+          const order = getOrder(id) as Record<string, unknown> | null;
+          if (!order) {
+            failed.push({ id, reason: "Order not found" });
+            continue;
+          }
+          if (order.shipping_date) continue;
+          const shipper = typeof params.shipper === "string" ? params.shipper : "USPS";
+          const shippingDate =
+            typeof params.shipping_date === "string"
+              ? params.shipping_date
+              : new Date().toISOString().slice(0, 10);
+          markOrderShipped(id, {
+            shipper,
+            shipping_date: shippingDate,
+            tracking_number:
+              typeof params.tracking_number === "string" ? params.tracking_number : undefined,
+            shipped_without_paid_override: params.shipped_without_paid_override === true,
+            force_unpaid: params.shipped_without_paid_override === true,
+          });
+          succeeded += 1;
+        } else if (action === "void") {
+          const r = db
+            .prepare(
+              "UPDATE orders SET order_status = 'void', updated_at = ? WHERE id = ? AND order_status = 'active'"
+            )
+            .run(new Date().toISOString(), id);
+          if (r.changes === 0) {
+            failed.push({ id, reason: "Order not found or already void/cancelled" });
+          } else {
+            succeeded += 1;
+          }
+        } else {
+          throw new Error("INVALID_ACTION");
         }
-      } else {
-        throw new Error("INVALID_ACTION");
-      }
-    } catch (err) {
-      if (err instanceof OrderShipBlockedError) {
-        failed.push({
-          id,
-          reason: "Order is not paid; use shipped_without_paid_override to ship anyway",
-        });
-      } else {
-        failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
+      } catch (err) {
+        if (err instanceof OrderShipBlockedError) {
+          failed.push({
+            id,
+            reason: "Order is not paid; use shipped_without_paid_override to ship anyway",
+          });
+        } else {
+          failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
+        }
       }
     }
-  }
 
-  if (succeeded > 0 || failed.length > 0) {
+    return { succeeded, failed, total: idList.length };
+  })();
+
+  if (result.succeeded > 0 || result.failed.length > 0) {
+    const actionNameMap: Record<string, string> = {
+      mark_paid: "order.batch_marked_paid",
+      mark_shipped: "order.batch_marked_shipped",
+      void: "order.batch_void",
+    };
     logActivity({
-      action: `order.batch_${action}`,
+      action: actionNameMap[action] ?? `order.batch_${action}`,
       entityType: "order",
       entityLabel: `Batch: ${idList.length} orders`,
-      detail: { ids: idList, succeeded, failed, params },
+      detail: { ids: idList, succeeded: result.succeeded, failed: result.failed, params },
       source: "user",
     });
   }
 
-  return { succeeded, failed, total: idList.length };
+  return result;
 }
 
 export function batchInventory(
@@ -118,84 +128,98 @@ export function batchInventory(
 ): BatchResult {
   const idList = normalizeIds(ids);
   if (idList.length > MAX_BATCH) throw new Error("BATCH_TOO_LARGE");
-  const failed: BatchResult["failed"] = [];
-  let succeeded = 0;
   const db = getDb();
 
-  for (const id of idList) {
-    try {
-      if (action === "change_status") {
-        const status = typeof params.status === "string" ? params.status : "";
-        prepareInventoryPayload({ status });
-        const result = db
-          .prepare("UPDATE inventory SET status = ?, updated_at = ? WHERE id = ?")
-          .run(status, new Date().toISOString(), id);
-        if (result.changes === 0) failed.push({ id, reason: "Item not found" });
-        else succeeded += 1;
-      } else if (action === "delete") {
-        const linked = db
-          .prepare("SELECT COUNT(*) AS c FROM order_items WHERE inventory_id = ?")
-          .get(id) as { c: number };
-        if (linked.c > 0) {
-          failed.push({ id, reason: "Item has associated orders and cannot be deleted" });
-          continue;
-        }
-        if (deleteInventory(id)) succeeded += 1;
-        else failed.push({ id, reason: "Item not found" });
-      } else {
-        throw new Error("INVALID_ACTION");
-      }
-    } catch (err) {
-      failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
-    }
-  }
+  const result = db.transaction(() => {
+    const failed: BatchResult["failed"] = [];
+    let succeeded = 0;
 
-  if (succeeded > 0 || failed.length > 0) {
+    for (const id of idList) {
+      try {
+        if (action === "change_status") {
+          const status = typeof params.status === "string" ? params.status : "";
+          prepareInventoryPayload({ status });
+          const r = db
+            .prepare("UPDATE inventory SET status = ?, updated_at = ? WHERE id = ?")
+            .run(status, new Date().toISOString(), id);
+          if (r.changes === 0) failed.push({ id, reason: "Item not found" });
+          else succeeded += 1;
+        } else if (action === "delete") {
+          const linked = db
+            .prepare("SELECT COUNT(*) AS c FROM order_items WHERE inventory_id = ?")
+            .get(id) as { c: number };
+          if (linked.c > 0) {
+            failed.push({ id, reason: "Item has associated orders and cannot be deleted" });
+            continue;
+          }
+          if (deleteInventory(id)) succeeded += 1;
+          else failed.push({ id, reason: "Item not found" });
+        } else {
+          throw new Error("INVALID_ACTION");
+        }
+      } catch (err) {
+        failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
+      }
+    }
+
+    return { succeeded, failed, total: idList.length };
+  })();
+
+  if (result.succeeded > 0 || result.failed.length > 0) {
+    const actionNameMap: Record<string, string> = {
+      change_status: "inventory.batch_status_changed",
+      delete: "inventory.batch_deleted",
+    };
     logActivity({
-      action: `inventory.batch_${action}`,
+      action: actionNameMap[action] ?? `inventory.batch_${action}`,
       entityType: "inventory",
       entityLabel: `Batch: ${idList.length} items`,
-      detail: { ids: idList, succeeded, failed, params },
+      detail: { ids: idList, succeeded: result.succeeded, failed: result.failed, params },
       source: "user",
     });
   }
 
-  return { succeeded, failed, total: idList.length };
+  return result;
 }
 
 export function batchCustomers(action: string, ids: unknown): BatchResult {
   const idList = normalizeIds(ids);
   if (idList.length > MAX_BATCH) throw new Error("BATCH_TOO_LARGE");
-  const failed: BatchResult["failed"] = [];
-  let succeeded = 0;
   const db = getDb();
 
-  for (const id of idList) {
-    try {
-      if (action !== "delete") throw new Error("INVALID_ACTION");
-      const linked = db
-        .prepare("SELECT COUNT(*) AS c FROM orders WHERE customer_id = ?")
-        .get(id) as { c: number };
-      if (linked.c > 0) {
-        failed.push({ id, reason: "Customer has existing orders and cannot be deleted" });
-        continue;
-      }
-      if (deleteCustomer(id)) succeeded += 1;
-      else failed.push({ id, reason: "Customer not found" });
-    } catch (err) {
-      failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
-    }
-  }
+  const result = db.transaction(() => {
+    const failed: BatchResult["failed"] = [];
+    let succeeded = 0;
 
-  if (succeeded > 0 || failed.length > 0) {
+    for (const id of idList) {
+      try {
+        if (action !== "delete") throw new Error("INVALID_ACTION");
+        const linked = db
+          .prepare("SELECT COUNT(*) AS c FROM orders WHERE customer_id = ?")
+          .get(id) as { c: number };
+        if (linked.c > 0) {
+          failed.push({ id, reason: "Customer has existing orders and cannot be deleted" });
+          continue;
+        }
+        if (deleteCustomer(id)) succeeded += 1;
+        else failed.push({ id, reason: "Customer not found" });
+      } catch (err) {
+        failed.push({ id, reason: err instanceof Error ? err.message : "Operation failed" });
+      }
+    }
+
+    return { succeeded, failed, total: idList.length };
+  })();
+
+  if (result.succeeded > 0 || result.failed.length > 0) {
     logActivity({
-      action: "customer.batch_delete",
+      action: "customer.batch_deleted",
       entityType: "customer",
       entityLabel: `Batch: ${idList.length} customers`,
-      detail: { ids: idList, succeeded, failed },
+      detail: { ids: idList, succeeded: result.succeeded, failed: result.failed },
       source: "user",
     });
   }
 
-  return { succeeded, failed, total: idList.length };
+  return result;
 }

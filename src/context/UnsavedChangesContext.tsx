@@ -76,7 +76,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
         description="You have unsaved changes that will be lost. What would you like to do?"
         cancelLabel="Keep editing"
         confirmLabel="Discard changes"
-        confirmVariant="danger"
+        confirmVariant="accent"
       />
     </UnsavedChangesContext.Provider>
   );

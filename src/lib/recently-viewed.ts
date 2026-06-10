@@ -99,6 +99,17 @@ export function clearRecentlyViewedStorage(): void {
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
+export function removeRecentlyViewedEntry(
+  entityType: RecentlyViewedEntityType,
+  id: number
+): RecentlyViewedEntry[] {
+  const entries = loadRecentlyViewed().filter(
+    (entry) => !(entry.entityType === entityType && entry.id === id)
+  );
+  saveRecentlyViewed(entries);
+  return entries;
+}
+
 export function formatRecentlyViewedTime(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
   const diffMin = Math.floor(diffMs / 60_000);

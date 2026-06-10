@@ -64,6 +64,19 @@ export default function ListingCoachPage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"In stock" | "Draft">("In stock");
 
+  const [etsyWhenMade, setEtsyWhenMade] = useState("");
+  const [etsyTaxonomyId, setEtsyTaxonomyId] = useState<number | null>(null);
+  const [materialsText, setMaterialsText] = useState("");
+  const [itemWeight, setItemWeight] = useState<number | null>(null);
+  const [itemWeightUnit, setItemWeightUnit] = useState("oz");
+  const [itemLength, setItemLength] = useState<number | null>(null);
+  const [itemWidth, setItemWidth] = useState<number | null>(null);
+  const [itemHeight, setItemHeight] = useState<number | null>(null);
+  const [itemDimensionsUnit, setItemDimensionsUnit] = useState("in");
+  const [photoClassifications, setPhotoClassifications] = useState<
+    Array<{ photo_index: number; type: string; confidence: number }>
+  >([]);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
@@ -100,7 +113,7 @@ export default function ListingCoachPage() {
       }
       if (files.length > 0) {
         e.preventDefault();
-        const room = 10 - itemPhotos.length;
+        const room = 20 - itemPhotos.length;
         if (room <= 0) return;
         const next = [...itemPhotos];
         for (const file of files.slice(0, room)) {
@@ -132,6 +145,16 @@ export default function ListingCoachPage() {
     setItemNumber("");
     setDescription("");
     setStatus("In stock");
+    setEtsyWhenMade("");
+    setEtsyTaxonomyId(null);
+    setMaterialsText("");
+    setItemWeight(null);
+    setItemWeightUnit("oz");
+    setItemLength(null);
+    setItemWidth(null);
+    setItemHeight(null);
+    setItemDimensionsUnit("in");
+    setPhotoClassifications([]);
     setError(null);
   }, [itemPhotos, conditionPhotos, googlePhotos]);
 
@@ -163,6 +186,24 @@ export default function ListingCoachPage() {
         seeds[card.id] = card.suggested_answer;
       }
       setConfirmAnswers(seeds);
+
+      if (data.suggested_when_made) setEtsyWhenMade(data.suggested_when_made);
+      if (data.suggested_taxonomy_id) setEtsyTaxonomyId(data.suggested_taxonomy_id);
+      if (data.suggested_materials?.length) {
+        setMaterialsText(data.suggested_materials.join(", "));
+      }
+      if (data.suggested_dimensions) {
+        const d = data.suggested_dimensions;
+        if (d.weight) setItemWeight(d.weight);
+        if (d.weight_unit) setItemWeightUnit(d.weight_unit);
+        if (d.length) setItemLength(d.length);
+        if (d.width) setItemWidth(d.width);
+        if (d.height) setItemHeight(d.height);
+        if (d.dimensions_unit) setItemDimensionsUnit(d.dimensions_unit);
+      }
+      if (data.photo_review?.classifications?.length) {
+        setPhotoClassifications(data.photo_review.classifications);
+      }
       setStep("analyze");
     } catch {
       setError(
@@ -203,6 +244,35 @@ export default function ListingCoachPage() {
         formData.append("identification_override", identification.trim());
       }
       formData.append("suggested_condition_code", conditionCode);
+
+      if (etsyWhenMade) formData.append("when_made", etsyWhenMade);
+      if (etsyTaxonomyId) formData.append("taxonomy_id", String(etsyTaxonomyId));
+      if (materialsText.trim()) {
+        formData.append(
+          "materials",
+          JSON.stringify(
+            materialsText
+              .split(",")
+              .map((m) => m.trim())
+              .filter(Boolean)
+          )
+        );
+      }
+      if (itemWeight != null) {
+        formData.append("item_weight", String(itemWeight));
+        formData.append("item_weight_unit", itemWeightUnit);
+      }
+      if (itemLength != null || itemWidth != null || itemHeight != null) {
+        formData.append(
+          "dimensions",
+          JSON.stringify({
+            length: itemLength,
+            width: itemWidth,
+            height: itemHeight,
+            unit: itemDimensionsUnit,
+          })
+        );
+      }
 
       const response = await fetch("/api/listing-coach/compose", {
         method: "POST",
@@ -252,6 +322,33 @@ export default function ListingCoachPage() {
       }
       formData.append("compose", JSON.stringify(composeResult));
 
+      if (etsyWhenMade) formData.append("etsy_when_made", etsyWhenMade);
+      if (etsyTaxonomyId) formData.append("etsy_taxonomy_id", String(etsyTaxonomyId));
+      if (materialsText.trim()) {
+        formData.append(
+          "materials",
+          JSON.stringify(
+            materialsText
+              .split(",")
+              .map((m) => m.trim())
+              .filter(Boolean)
+          )
+        );
+      }
+      if (itemWeight != null) {
+        formData.append("item_weight", String(itemWeight));
+        formData.append("item_weight_unit", itemWeightUnit);
+      }
+      if (itemLength != null) formData.append("item_length", String(itemLength));
+      if (itemWidth != null) formData.append("item_width", String(itemWidth));
+      if (itemHeight != null) formData.append("item_height", String(itemHeight));
+      if (itemLength != null || itemWidth != null || itemHeight != null) {
+        formData.append("item_dimensions_unit", itemDimensionsUnit);
+      }
+      if (photoClassifications.length > 0) {
+        formData.append("picture_classifications", JSON.stringify(photoClassifications));
+      }
+
       const response = await fetch("/api/listing-coach/complete", {
         method: "POST",
         body: formData,
@@ -291,6 +388,8 @@ export default function ListingCoachPage() {
         return "What we found";
       case "price":
         return "Confirm price";
+      case "era_category":
+        return "Era, category & materials";
       case "confirm":
         return "Quick confirms";
       case "compose":
@@ -359,9 +458,9 @@ export default function ListingCoachPage() {
           <PhotoPasteZone
             photos={itemPhotos}
             onChange={setItemPhotos}
-            maxPhotos={10}
+            maxPhotos={20}
             title="Item photos"
-            pasteHint="Click here, then press ⌘V to paste photos from Photos"
+            pasteHint="Click here, then press ⌘V to paste photos from Photos (up to 20)"
           />
           <PhotoPasteZone
             photos={conditionPhotos}
@@ -465,6 +564,60 @@ export default function ListingCoachPage() {
               </ul>
             </div>
           </div>
+
+          {photoClassifications.length > 0 ? (
+            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+              <p className="text-sm font-semibold text-[var(--ui-title)]">Photo classifications</p>
+              <p className="mb-3 text-xs text-[var(--ui-muted)]">
+                AI-assigned shot types. Override any with the dropdown if needed.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {photoClassifications.map((pc, idx) => (
+                  <div
+                    key={pc.photo_index}
+                    className="flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
+                  >
+                    <span className="shrink-0 text-[var(--ui-muted)]">#{pc.photo_index + 1}</span>
+                    <select
+                      value={pc.type}
+                      onChange={(e) => {
+                        const updated = [...photoClassifications];
+                        updated[idx] = { ...pc, type: e.target.value, confidence: 1 };
+                        setPhotoClassifications(updated);
+                      }}
+                      className="flex-1 rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-1 text-xs"
+                    >
+                      <option value={pc.type}>OK as classified</option>
+                      {[
+                        "hero",
+                        "angle",
+                        "detail",
+                        "backstamp",
+                        "scale",
+                        "imperfection",
+                        "underside",
+                        "grouping",
+                        "lifestyle",
+                        "measurement",
+                        "extra",
+                      ]
+                        .filter((t) => t !== pc.type)
+                        .map((t) => (
+                          <option key={t} value={t}>
+                            {SHOT_LABELS[t] ?? t}
+                          </option>
+                        ))}
+                    </select>
+                    {pc.confidence < 0.7 ? (
+                      <span className="text-xs text-[var(--ui-yellow)]" title="Low confidence">
+                        ?
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {analyzeResult.photo_review.advisories.length > 0 ? (
             <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--ui-yellow)]">
@@ -574,6 +727,156 @@ export default function ListingCoachPage() {
             <Button variant="secondary" onClick={() => setSaleRevenue(null)}>
               Skip for now
             </Button>
+            <Button variant="primary" onClick={() => setStep("era_category")}>
+              Continue
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {step === "era_category" ? (
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--ui-body)]">
+            These Etsy-required fields help buyers find your item. Confirm or adjust.
+          </p>
+          <label className="block text-sm text-[var(--ui-body)]">
+            When was it made? <span className="text-[var(--ui-red)]">*</span>
+            <select
+              value={etsyWhenMade}
+              onChange={(e) => setEtsyWhenMade(e.target.value)}
+              className="mt-1 w-full max-w-xs rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+            >
+              <option value="">Select era…</option>
+              <option value="made_to_order">Made to order</option>
+              <option value="2020_2026">2020–2026</option>
+              <option value="2010_2019">2010–2019</option>
+              <option value="2004_2009">2004–2009</option>
+              <option value="2000_2003">2000–2003</option>
+              <option value="1990s">1990s</option>
+              <option value="1980s">1980s</option>
+              <option value="1970s">1970s</option>
+              <option value="1960s">1960s</option>
+              <option value="1950s">1950s</option>
+              <option value="1940s">1940s</option>
+              <option value="1930s">1930s</option>
+              <option value="1920s">1920s</option>
+              <option value="1910s">1910s</option>
+              <option value="1900s">1900s</option>
+              <option value="1800s">1800s</option>
+              <option value="1700s">1700s</option>
+              <option value="before_1700">Before 1700</option>
+            </select>
+          </label>
+          <label className="block text-sm text-[var(--ui-body)]">
+            Etsy category/taxonomy ID
+            <input
+              type="number"
+              min="1"
+              value={etsyTaxonomyId ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEtsyTaxonomyId(val === "" ? null : Number(val));
+              }}
+              className="mt-1 w-full max-w-xs rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+              placeholder="e.g. 1229"
+            />
+          </label>
+          <label className="block text-sm text-[var(--ui-body)]">
+            Materials (comma-separated)
+            <input
+              value={materialsText}
+              onChange={(e) => setMaterialsText(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+              placeholder="e.g. ceramic, glaze, gold trim"
+            />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm text-[var(--ui-body)]">
+              Weight
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={itemWeight ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setItemWeight(val === "" ? null : Number(val));
+                  }}
+                  className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  placeholder="0.0"
+                />
+                <select
+                  value={itemWeightUnit}
+                  onChange={(e) => setItemWeightUnit(e.target.value)}
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                >
+                  <option value="oz">oz</option>
+                  <option value="lb">lb</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                </select>
+              </div>
+            </label>
+            <label className="block text-sm text-[var(--ui-body)]">
+              Dimensions (L × W × H)
+              <div className="mt-1 flex flex-wrap gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={itemLength ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setItemLength(val === "" ? null : Number(val));
+                  }}
+                  className="w-16 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  placeholder="L"
+                />
+                <span className="self-center text-[var(--ui-muted)]">×</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={itemWidth ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setItemWidth(val === "" ? null : Number(val));
+                  }}
+                  className="w-16 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  placeholder="W"
+                />
+                <span className="self-center text-[var(--ui-muted)]">×</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={itemHeight ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setItemHeight(val === "" ? null : Number(val));
+                  }}
+                  className="w-16 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  placeholder="H"
+                />
+                <select
+                  value={itemDimensionsUnit}
+                  onChange={(e) => setItemDimensionsUnit(e.target.value)}
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                >
+                  <option value="in">in</option>
+                  <option value="ft">ft</option>
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setStep("price")}>
+              Back
+            </Button>
             <Button variant="primary" onClick={() => setStep("confirm")}>
               Continue
             </Button>
@@ -596,7 +899,7 @@ export default function ListingCoachPage() {
             />
           ))}
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setStep("price")}>
+            <Button variant="secondary" onClick={() => setStep("era_category")}>
               Back
             </Button>
             <Button variant="primary" busy={busy} onClick={() => void runCompose()}>

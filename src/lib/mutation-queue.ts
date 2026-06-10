@@ -1,5 +1,5 @@
 const QUEUE_KEY = "esm_mutation_queue";
-const MAX_QUEUE = 100;
+const MAX_QUEUE = 50;
 
 export type QueuedMutation = {
   id: string;

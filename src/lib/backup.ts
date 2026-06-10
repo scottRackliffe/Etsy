@@ -45,7 +45,22 @@ function assertSafeFilename(filename: string): void {
 
 async function ensureBackupDir(): Promise<string> {
   const dir = getBackupDirectory();
-  await fsp.mkdir(dir, { recursive: true });
+  try {
+    await fsp.mkdir(dir, { recursive: true });
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EACCES" || code === "EPERM") {
+      throw new ApiRouteError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: `Cannot access backup directory: ${dir}`,
+        userMessage: `The backup directory "${dir}" cannot be accessed. Check that the application has read/write permissions for this folder.`,
+        actions: ["Change the backup directory in Config → Backup & Restore, or fix folder permissions."],
+        canRetry: false,
+      });
+    }
+    throw err;
+  }
   return dir;
 }
 
@@ -155,7 +170,20 @@ export async function createBackup(options?: {
     }
   }
 
-  await fsp.copyFile(getSqliteDatabasePath(), sqliteDest);
+  await fsp.copyFile(getSqliteDatabasePath(), sqliteDest).catch((err: unknown) => {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOSPC") {
+      throw new ApiRouteError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: "Disk full during backup",
+        userMessage: "Not enough disk space for backup.",
+        actions: ["Free up disk space and try again, or change the backup directory."],
+        canRetry: true,
+      });
+    }
+    throw err;
+  });
 
   let finalFilename = sqliteFilename;
   let finalPath = sqliteDest;

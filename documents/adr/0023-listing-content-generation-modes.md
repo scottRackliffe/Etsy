@@ -58,6 +58,7 @@ The default workflow will be:
 - All modes must pass the same readiness checks before generation/import approval.
 - Imported/generated output must pass the same schema validation.
 - Operator can always edit draft content before approval.
+- All listings require `etsy_when_made` (Etsy era enum) and `etsy_taxonomy_id` (Etsy numeric category ID) to be set before publish. These are per-item fields on the inventory table (ADR-017).
 
 ### Required listing-authoring surfaces
 
@@ -79,6 +80,8 @@ The listing workflow state model is:
 - `draft` -> (`generated` or `imported`) -> `approved` -> `published`
 
 Readiness is checked before generation but is not a separate draft state. The system validates that all required fields (item_number, description, condition_code, sale_revenue > 0, at least one picture) are present before allowing generation or import — this is a validation gate, not a lifecycle state.
+
+Additional publish-gate fields (not required for draft/generation): `etsy_when_made`, `etsy_taxonomy_id`, `etsy_shipping_profile_id` or global default, `etsy_return_policy_id` or global default. See ADR-017 §1c for per-item vs global resolution.
 
 `published` is irreversible from this workflow perspective; later edits are handled by separate Etsy update behavior.
 

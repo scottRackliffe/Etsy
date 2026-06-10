@@ -79,6 +79,7 @@ export function CustomerMergeModal({
   const [secondary, setSecondary] = useState<Customer | null>(null);
   const [secondaryOrders, setSecondaryOrders] = useState<Order[]>([]);
   const [secondaryAddresses, setSecondaryAddresses] = useState<CustomerAddress[]>([]);
+  const [secondaryNotesCount, setSecondaryNotesCount] = useState(0);
   const [choices, setChoices] = useState<Record<MergeCustomerField, FieldChoice>>(
     () =>
       Object.fromEntries(MERGE_CUSTOMER_FIELDS.map((f) => [f, "primary"])) as Record<
@@ -97,6 +98,7 @@ export function CustomerMergeModal({
     setSecondary(null);
     setSecondaryOrders([]);
     setSecondaryAddresses([]);
+    setSecondaryNotesCount(0);
     setChoices(
       Object.fromEntries(MERGE_CUSTOMER_FIELDS.map((f) => [f, "primary"])) as Record<
         MergeCustomerField,
@@ -116,18 +118,20 @@ export function CustomerMergeModal({
       }
       setBusy(true);
       try {
-        const [pRes, sRes, oRes, aRes] = await Promise.all([
+        const [pRes, sRes, oRes, aRes, nRes] = await Promise.all([
           fetch(`/api/customers/${pId}`, { headers: { Accept: "application/json" } }),
           fetch(`/api/customers/${sId}`, { headers: { Accept: "application/json" } }),
           fetch(`/api/customers/${sId}/orders?limit=50`, {
             headers: { Accept: "application/json" },
           }),
           fetch(`/api/customers/${sId}/addresses`, { headers: { Accept: "application/json" } }),
+          fetch(`/api/customers/${sId}/notes`, { headers: { Accept: "application/json" } }),
         ]);
         const pData = (await pRes.json()) as ApiErrorShape & { customer?: Customer };
         const sData = (await sRes.json()) as ApiErrorShape & { customer?: Customer };
         const oData = (await oRes.json()) as { items?: Order[] };
         const aData = (await aRes.json()) as { items?: CustomerAddress[] };
+        const nData = (await nRes.json().catch(() => ({}))) as { items?: unknown[] };
         if (!pRes.ok || !pData.customer) throw pData;
         if (!sRes.ok || !sData.customer) throw sData;
         setPrimaryId(pId);
@@ -136,6 +140,7 @@ export function CustomerMergeModal({
         setSecondary(sData.customer);
         setSecondaryOrders(oData.items ?? []);
         setSecondaryAddresses(aData.items ?? []);
+        setSecondaryNotesCount(nData.items?.length ?? 0);
         setChoices(
           Object.fromEntries(MERGE_CUSTOMER_FIELDS.map((f) => [f, "primary"])) as Record<
             MergeCustomerField,
@@ -339,6 +344,12 @@ export function CustomerMergeModal({
                 </ul>
               )}
             </div>
+            {secondaryNotesCount > 0 ? (
+              <p className="text-sm text-[var(--ui-body)]">
+                {secondaryNotesCount} interaction note{secondaryNotesCount === 1 ? "" : "s"} will be
+                moved.
+              </p>
+            ) : null}
             <div>
               <p className="text-sm font-medium text-[var(--ui-title)]">
                 Addresses to move ({secondaryAddresses.length})
@@ -374,7 +385,7 @@ export function CustomerMergeModal({
         onClose={() => setConfirmOpen(false)}
         onConfirm={() => void performMerge()}
         title={`Merge "${secondaryName}" into "${primaryName}"?`}
-        description={`${secondaryOrders.length} order(s) and ${secondaryAddresses.length} address(es) will move to ${primaryName}. ${secondaryName} will be permanently deleted. This cannot be undone.`}
+        description={`${secondaryOrders.length} order(s), ${secondaryAddresses.length} address(es)${secondaryNotesCount > 0 ? `, and ${secondaryNotesCount} note(s)` : ""} will move to ${primaryName}. ${secondaryName} will be permanently deleted. This cannot be undone.`}
         confirmLabel="Merge"
         confirmVariant="danger"
         busy={busy}

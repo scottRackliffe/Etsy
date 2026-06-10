@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { getOrder, patchOrder } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 async function getOrderId(context: { params: Promise<{ order_id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).order_id);
@@ -74,7 +75,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       }
       throw err;
     }
-    const order = patchOrder(id, payload);
+    const order = patchOrder(id, payload) as Record<string, unknown> | null;
     if (!order) {
       throw new ApiRouteError({
         status: 404,
@@ -85,6 +86,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         canRetry: false,
       });
     }
+    logActivity({
+      action: "order.updated",
+      entityType: "order",
+      entityId: id,
+      entityLabel: String(order.order_number ?? `Order ${id}`),
+      source: "user",
+    });
     return NextResponse.json({ ok: true, order });
   } catch (error) {
     return errorResponse(

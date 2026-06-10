@@ -54,8 +54,8 @@ type NavResult = {
 };
 
 const SECTION_ICONS: Record<string, string> = {
-  Orders: "📋",
-  Inventory: "📦",
+  Orders: "📦",
+  Inventory: "📋",
   Customers: "👤",
 };
 

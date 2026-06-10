@@ -1,7 +1,5 @@
 import { listCustomers, listInventory, listOrders } from "@/lib/records";
 
-const MAX_BATCH = 100;
-
 export type OrderBatchFilter = {
   search?: string;
   payment_status?: string;
@@ -19,56 +17,82 @@ export type CustomerBatchFilter = {
   is_active?: number;
 };
 
-function capIds(ids: number[], total: number): number[] {
-  if (total > MAX_BATCH) {
-    throw new Error("BATCH_TOO_LARGE");
-  }
-  return ids;
-}
+const CHUNK_SIZE = 100;
 
 export function resolveOrderIds(filter: OrderBatchFilter): number[] {
   const shipping_status =
     filter.shipping_status === "shipped" || filter.shipping_status === "not_shipped"
       ? filter.shipping_status
       : undefined;
-  const { items, total } = listOrders({
-    limit: MAX_BATCH + 1,
-    offset: 0,
-    search: filter.search,
-    payment_status: filter.payment_status,
-    shipping_status,
-    source_channel: filter.source_channel,
-  });
-  return capIds(
-    items.map((row) => Number((row as { id: number }).id)),
-    total
-  );
+
+  const allIds: number[] = [];
+  let offset = 0;
+  const pageSize = CHUNK_SIZE;
+
+  while (true) {
+    const { items } = listOrders({
+      limit: pageSize,
+      offset,
+      search: filter.search,
+      payment_status: filter.payment_status,
+      shipping_status,
+      source_channel: filter.source_channel,
+    });
+    if (items.length === 0) break;
+    for (const row of items) {
+      allIds.push(Number((row as { id: number }).id));
+    }
+    if (items.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allIds;
 }
 
 export function resolveInventoryIds(filter: InventoryBatchFilter): number[] {
-  const { items, total } = listInventory({
-    limit: MAX_BATCH + 1,
-    offset: 0,
-    search: filter.search,
-    status: filter.status,
-  });
-  return capIds(
-    items.map((row) => Number((row as { id: number }).id)),
-    total
-  );
+  const allIds: number[] = [];
+  let offset = 0;
+  const pageSize = CHUNK_SIZE;
+
+  while (true) {
+    const { items } = listInventory({
+      limit: pageSize,
+      offset,
+      search: filter.search,
+      status: filter.status,
+    });
+    if (items.length === 0) break;
+    for (const row of items) {
+      allIds.push(Number((row as { id: number }).id));
+    }
+    if (items.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allIds;
 }
 
 export function resolveCustomerIds(filter: CustomerBatchFilter): number[] {
-  const { items, total } = listCustomers({
-    limit: MAX_BATCH + 1,
-    offset: 0,
-    search: filter.search,
-    is_active: filter.is_active,
-  });
-  return capIds(
-    items.map((row) => Number((row as { id: number }).id)),
-    total
-  );
+  const allIds: number[] = [];
+  let offset = 0;
+  const pageSize = CHUNK_SIZE;
+
+  while (true) {
+    const { items } = listCustomers({
+      limit: pageSize,
+      offset,
+      search: filter.search,
+      is_active: filter.is_active,
+    });
+    if (items.length === 0) break;
+    for (const row of items) {
+      allIds.push(Number((row as { id: number }).id));
+    }
+    if (items.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allIds;
 }
 
 export function resolveBatchIds(

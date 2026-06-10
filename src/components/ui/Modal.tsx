@@ -9,12 +9,16 @@ export function Modal({
   title,
   children,
   maxWidth = "max-w-lg",
+  role: roleProp,
+  "aria-describedby": ariaDescribedBy,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
   maxWidth?: string;
+  role?: "dialog" | "alertdialog";
+  "aria-describedby"?: string;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -34,9 +38,10 @@ export function Modal({
     >
       <div
         ref={dialogRef}
-        role="dialog"
+        role={roleProp ?? "dialog"}
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        aria-describedby={ariaDescribedBy}
         className={`${maxWidth} w-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 shadow-2xl`}
       >
         {title && (

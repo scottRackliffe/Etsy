@@ -28,7 +28,7 @@ function groupEntries(
 }
 
 export function RecentlyViewedMenu() {
-  const { entries, clearRecentlyViewed } = useRecentlyViewed();
+  const { entries, removeEntry, clearRecentlyViewed } = useRecentlyViewed();
   const { confirmLeave } = useUnsavedChanges();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -85,7 +85,7 @@ export function RecentlyViewedMenu() {
                     </p>
                     <ul className="space-y-1">
                       {group.map((entry) => (
-                        <li key={`${entry.entityType}-${entry.id}`}>
+                        <li key={`${entry.entityType}-${entry.id}`} className="group relative">
                           <button
                             type="button"
                             role="menuitem"
@@ -95,7 +95,7 @@ export function RecentlyViewedMenu() {
                               setOpen(false);
                               router.push(recentlyViewedHref(entry));
                             }}
-                            className="block w-full rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-[var(--ui-card-bg)]"
+                            className="block w-full rounded-lg px-2 py-1.5 pr-7 text-left text-sm transition hover:bg-[var(--ui-card-bg)]"
                           >
                             <span className="block truncate text-[var(--ui-body)]">
                               {entry.label}
@@ -103,6 +103,18 @@ export function RecentlyViewedMenu() {
                             <span className="text-xs text-[var(--ui-muted)]">
                               {formatRecentlyViewedTime(entry.timestamp)}
                             </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeEntry(entry.entityType, entry.id);
+                            }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-xs text-[var(--ui-muted)] opacity-0 transition hover:text-[var(--ui-red)] group-hover:opacity-100"
+                            aria-label={`Remove ${entry.label}`}
+                            title="Remove"
+                          >
+                            ×
                           </button>
                         </li>
                       ))}

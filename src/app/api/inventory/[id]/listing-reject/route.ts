@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { logActivity } from "@/lib/activity-log";
 import { getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 
@@ -48,6 +49,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     `
       )
       .run({ id, updated_at: now });
+
+    logActivity({
+      action: "listing.rejected",
+      entityType: "inventory",
+      entityId: id,
+      entityLabel: item.item_number || item.description || `Item ${id}`,
+      source: "user",
+    });
 
     return NextResponse.json({ ok: true, item: getInventoryById(id) });
   } catch (error) {

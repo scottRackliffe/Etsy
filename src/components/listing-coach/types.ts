@@ -4,10 +4,18 @@ export type CoachPhoto = {
   previewUrl: string;
 };
 
+export type PhotoClassification = {
+  photo_index: number;
+  type: string;
+  confidence: number;
+};
+
 export type PhotoReview = {
   present_shots: string[];
   missing_shots: string[];
   advisories: string[];
+  classifications?: PhotoClassification[];
+  suggested_order?: number[];
 };
 
 export type PriceSuggestion = {
@@ -25,6 +33,15 @@ export type ConfirmCardData = {
   optional?: boolean;
 };
 
+export type SuggestedDimensions = {
+  weight?: number;
+  weight_unit?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  dimensions_unit?: string;
+};
+
 export type AnalyzeResponse = {
   ok: true;
   photo_review: PhotoReview;
@@ -32,6 +49,10 @@ export type AnalyzeResponse = {
   suggested_condition_code: string;
   price: PriceSuggestion;
   confirm_cards: ConfirmCardData[];
+  suggested_when_made?: string;
+  suggested_taxonomy_id?: number;
+  suggested_materials?: string[];
+  suggested_dimensions?: SuggestedDimensions;
 };
 
 export type ConfirmAnswer = {
@@ -63,6 +84,7 @@ export type CoachStep =
   | "google"
   | "analyze"
   | "price"
+  | "era_category"
   | "confirm"
   | "compose"
   | "save";
@@ -100,9 +122,14 @@ export function revokeCoachPhotos(photos: CoachPhoto[]): void {
 
 export const SHOT_LABELS: Record<string, string> = {
   hero: "Hero / main shot",
+  angle: "Alternate angle",
   detail: "Detail close-up",
   backstamp: "Maker mark / backstamp",
   scale: "Scale / size reference",
-  imperfections: "Flaws / wear",
-  group: "Group / context shot",
+  imperfection: "Flaws / wear",
+  underside: "Underside / bottom",
+  grouping: "Group / context shot",
+  lifestyle: "Lifestyle / in-use",
+  measurement: "Measurement / ruler",
+  extra: "Extra / supplemental",
 };

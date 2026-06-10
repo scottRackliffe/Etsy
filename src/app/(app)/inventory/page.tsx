@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useConnection } from "@/context/ConnectionContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useUndoRedo } from "@/context/UndoRedoContext";
@@ -32,6 +33,7 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { FormField } from "@/components/ui/FormField";
 import { stampUiError } from "@/lib/ui-error";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
+import { clearDraft, draftKey } from "@/lib/form-draft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import {
   itemToListingWorkshopDraft,
@@ -45,6 +47,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import { computeListingScore } from "@/lib/listing-score";
+import { patchHeaders } from "@/lib/patch-json";
 import type { InlineEditResult } from "@/components/ui/DataTable";
 import type {
   ApiErrorShape,
@@ -102,7 +105,10 @@ function InventoryPageInner() {
     setBusyAction,
     setApiError,
     setError,
+    pageSize: configPageSize,
   } = useApp();
+  const { state: connectionState } = useConnection();
+  const isOffline = connectionState !== "online";
 
   const [pageInventory, setPageInventory] = useState<InventoryItem[]>([]);
   const inventory = pageInventory;
@@ -194,6 +200,8 @@ function InventoryPageInner() {
   const [exportPackage, setExportPackage] = useState<unknown | null>(null);
   const [workflowStep, setWorkflowStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [rejectDraftOpen, setRejectDraftOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchRetireOpen, setBatchRetireOpen] = useState(false);
@@ -241,7 +249,7 @@ function InventoryPageInner() {
     Array<{ id: number; item_number: string | null; description: string | null }>
   >([]);
   const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
-  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
 
   useListSearchFromUrl(setInventorySearch, () => setPage(0));
 
@@ -252,6 +260,12 @@ function InventoryPageInner() {
       action: () => setImportOpen(true),
     },
   ]);
+
+  useEffect(() => {
+    const handler = () => createItemRef.current?.focus();
+    window.addEventListener("esm-new-record", handler);
+    return () => window.removeEventListener("esm-new-record", handler);
+  }, []);
 
   const checkInventoryDuplicate = async () => {
     const desc = newInventoryDescription.trim();
@@ -281,6 +295,7 @@ function InventoryPageInner() {
     progressOpen,
     progressTitle,
     progressTotal,
+    progressCurrent,
   } = useBatchOperation();
 
   const inventoryBatchFilter = useMemo(
@@ -407,7 +422,11 @@ function InventoryPageInner() {
     );
   }, [reloadInventory, setApiError]);
 
-  const { patchWithUndo } = useUndoRedo();
+  const { patchWithUndo, clearStacks } = useUndoRedo();
+
+  useEffect(() => {
+    clearStacks();
+  }, [selectedItemId, clearStacks]);
 
   const inventoryColumns = useMemo(
     () => [
@@ -439,7 +458,7 @@ function InventoryPageInner() {
           return (
             <span className="inline-flex items-center gap-1.5">
               {status}
-              {isSlowMover && <Badge label="Slow" variant="warning" />}
+              {isSlowMover && <Badge label="Slow mover" variant="warning" />}
             </span>
           );
         },
@@ -600,7 +619,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     const response = await fetch(`/api/inventory/${selectedItemId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: patchHeaders(selectedItem?.updated_at),
       body: JSON.stringify(payload),
     });
     const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
@@ -870,7 +889,7 @@ function InventoryPageInner() {
       setNewInventoryItemNumber("");
       setNewInventoryDescription("");
       setInventoryDuplicates([]);
-      setError(null);
+      setError({ title: "Item created", message: "New inventory item was created successfully.", actions: [] });
     } catch (err) {
       setApiError("Could not create inventory", "We could not create the inventory item.", err);
     } finally {
@@ -943,6 +962,7 @@ function InventoryPageInner() {
               type="button"
               onClick={createInventoryRecord}
               disabled={busyAction != null}
+              title="New item (Ctrl+N)"
               className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               {busyAction === "create-inventory" ? "Creating..." : "Add item"}
@@ -950,7 +970,8 @@ function InventoryPageInner() {
             <button
               type="button"
               onClick={() => setDeleteConfirmOpen(true)}
-              disabled={busyAction != null || !selectedItemId}
+              disabled={busyAction != null || !selectedItemId || isOffline}
+              title={isOffline ? "Unavailable while offline" : "Delete selected item"}
               className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
             >
               Delete selected
@@ -1023,6 +1044,8 @@ function InventoryPageInner() {
             variant="secondary"
             size="sm"
             busy={busyAction === "batch-status" || batchBusy}
+            disabled={isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
             onClick={() => setBatchRetireOpen(true)}
           >
             Retire
@@ -1031,6 +1054,8 @@ function InventoryPageInner() {
             variant="danger"
             size="sm"
             busy={busyAction === "batch-delete" || batchBusy}
+            disabled={isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
             onClick={() => setBatchDeleteOpen(true)}
           >
             Delete
@@ -1048,11 +1073,13 @@ function InventoryPageInner() {
               setInventorySearch(e.target.value);
             }}
             placeholder="Search item #, description, status…"
+            title="Search (Ctrl+K)"
             className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
           />
           <button
             type="button"
             onClick={() => setImportOpen(true)}
+            title="Import CSV (Ctrl+Shift+I)"
             className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm"
           >
             Import CSV
@@ -1277,7 +1304,7 @@ function InventoryPageInner() {
                         className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
-                    <FormField label="Listing tags" required>
+                    <FormField label="Listing tags" required helpText="Comma-separated keywords buyers search for. Use all 13 slots for best visibility.">
                       <input
                         placeholder="Comma separated, up to 13"
                         value={selectedItem.listing_tags ?? ""}
@@ -1423,6 +1450,14 @@ function InventoryPageInner() {
                 </div>
               )}
 
+              <FormField label="Draft state" helpText="Current state of this listing draft in the approval workflow.">
+                <input
+                  readOnly
+                  value={selectedItem?.listing_draft_state ?? "none"}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-muted)]"
+                />
+              </FormField>
+
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -1458,7 +1493,7 @@ function InventoryPageInner() {
                 </button>
                 <button
                   type="button"
-                  onClick={rejectDraft}
+                  onClick={() => setRejectDraftOpen(true)}
                   disabled={busyAction != null}
                   className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
                 >
@@ -1466,7 +1501,7 @@ function InventoryPageInner() {
                 </button>
                 <button
                   type="button"
-                  onClick={publishApprovedDraft}
+                  onClick={() => setPublishConfirmOpen(true)}
                   disabled={busyAction != null || !canPublish || workflowStep < 2}
                   className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
@@ -1637,7 +1672,8 @@ function InventoryPageInner() {
         open={progressOpen}
         title={progressTitle}
         statusText={progressTitle}
-        mode="indeterminate"
+        mode="determinate"
+        current={progressCurrent}
         total={progressTotal}
       />
       <ConfirmDialog
@@ -1670,6 +1706,10 @@ function InventoryPageInner() {
           setPendingItemId(null);
         }}
         onConfirm={() => {
+          if (selectedItemId != null) {
+            clearDraft(draftKey("inventory", selectedItemId));
+            clearDraft(draftKey("listing_workshop", selectedItemId));
+          }
           setDiscardDirtyOpen(false);
           if (pendingItemId != null) setSelectedItemId(pendingItemId);
           setPendingItemId(null);
@@ -1682,6 +1722,30 @@ function InventoryPageInner() {
         confirmVariant="danger"
       />
 
+      <ConfirmDialog
+        open={rejectDraftOpen}
+        onClose={() => setRejectDraftOpen(false)}
+        onConfirm={() => {
+          setRejectDraftOpen(false);
+          void rejectDraft();
+        }}
+        title="Reject draft?"
+        description="This will reset the listing to draft state. You can generate or write new content afterward."
+        confirmLabel="Reject"
+        confirmVariant="danger"
+      />
+      <ConfirmDialog
+        open={publishConfirmOpen}
+        onClose={() => setPublishConfirmOpen(false)}
+        onConfirm={() => {
+          setPublishConfirmOpen(false);
+          void publishApprovedDraft();
+        }}
+        title="Publish to Etsy?"
+        description={`Publish ${selectedItem?.item_number ? `item ${selectedItem.item_number}` : "this item"}${selectedItem?.listing_title ? ` — "${selectedItem.listing_title}"` : ""} to your Etsy shop.`}
+        confirmLabel="Publish"
+        confirmVariant="accent"
+      />
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}

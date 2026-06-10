@@ -72,7 +72,7 @@ Per `documents/frontend-architecture.md`:
 
 #### PictureGrid (ADR-033)
 
-- **Desktop:** 5-column grid (10 slots)
+- **Desktop:** 5-column grid (20 slots, scrollable)
 - **Tablet:** 3-column grid
 - **Mobile:** 2-column grid (already specified in ADR-033)
 - Drag-to-reorder: disabled on mobile; replaced with "Move up" / "Move down" buttons on each picture slot

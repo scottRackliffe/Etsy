@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { recordListingImport, validateAndNormalizeListingImport } from "@/lib/listing-handoff";
+import { logActivity } from "@/lib/activity-log";
 import { getInventoryById, updateListingContent } from "@/lib/inventory";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -51,6 +52,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       listing_draft_source: "portable_import",
       listing_export_id: normalized.exportId,
     });
+
+    logActivity({
+      action: "listing.imported",
+      entityType: "inventory",
+      entityId: id,
+      entityLabel: item.item_number || item.description || `Item ${id}`,
+      detail: { export_id: body.export_id, source_label: body.source_label },
+      source: "user",
+    });
+
     return NextResponse.json({ ok: true, item: updated });
   } catch (error) {
     return errorResponse(

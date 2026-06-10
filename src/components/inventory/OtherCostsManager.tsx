@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { formatCurrency } from "@/lib/format-currency";
+import { patchHeaders } from "@/lib/patch-json";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -100,9 +101,10 @@ export function OtherCostsManager({ inventoryId, disabled, onTotalChanged }: Pro
         note: formNote || null,
       };
       if (editingId) {
+        const editingCost = costs.find((c) => c.id === editingId);
         const res = await fetch(`/api/other-costs/${editingId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers: patchHeaders(editingCost?.updated_at),
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error("Update failed");

@@ -1,3 +1,4 @@
+import { Children, cloneElement, isValidElement } from "react";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 
 export function FormField({
@@ -16,6 +17,21 @@ export function FormField({
   children: React.ReactNode;
 }) {
   const errorId = htmlFor && error ? `${htmlFor}-error` : undefined;
+
+  const ariaProps: Record<string, unknown> = {};
+  if (required) ariaProps["aria-required"] = true;
+  if (error) ariaProps["aria-invalid"] = true;
+  if (errorId) ariaProps["aria-describedby"] = errorId;
+
+  const enhancedChildren =
+    Object.keys(ariaProps).length > 0
+      ? Children.map(children, (child) =>
+          isValidElement<Record<string, unknown>>(child)
+            ? cloneElement(child, ariaProps)
+            : child
+        )
+      : children;
+
   return (
     <div className="flex flex-col gap-1">
       <label
@@ -26,7 +42,7 @@ export function FormField({
         {required ? <span className="ml-0.5 text-[var(--ui-red)]" aria-hidden="true">*</span> : null}
         {helpText ? <HelpTooltip text={helpText} /> : null}
       </label>
-      {children}
+      {enhancedChildren}
       {error && <p id={errorId} role="alert" className="text-xs text-[var(--ui-red)]">{error}</p>}
     </div>
   );

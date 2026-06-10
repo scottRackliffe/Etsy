@@ -161,7 +161,12 @@ function validateRow(
     }
   }
 
-  if (raw.description?.trim()) data.description = raw.description.trim();
+  const description = raw.description?.trim() ?? "";
+  if (!description) {
+    errors.push({ field: "description", message: "Description is required" });
+  } else {
+    data.description = description;
+  }
 
   const purchaseCost = parseDecimal(raw.purchase_cost ?? "", "purchase_cost", errors);
   if (purchaseCost != null) data.purchase_cost = purchaseCost;
@@ -263,6 +268,17 @@ function parseInventoryCsvBuffer(buffer: Buffer): {
       validCount: 0,
       errorCount: 0,
       parseError: "CSV must include an item_number column",
+    };
+  }
+
+  if (!columnIndex.has("description")) {
+    return {
+      columns: [...columnIndex.keys()],
+      previewRows: [],
+      total_rows: 0,
+      validCount: 0,
+      errorCount: 0,
+      parseError: "CSV must include a description column",
     };
   }
 

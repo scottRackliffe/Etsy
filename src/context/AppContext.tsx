@@ -19,6 +19,7 @@ import type {
 type PublishConfig = {
   taxonomyId: string;
   shippingProfileId: string;
+  returnPolicyId: string;
   readinessStateId: string;
   imageIds: string;
   whoMade: string;
@@ -87,6 +88,7 @@ type AppState = {
   urlError: UiError | null;
   busyAction: string | null;
   currencyCode: string;
+  pageSize: number;
 };
 
 type AppActions = {
@@ -182,10 +184,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [publishConfig, setPublishConfig] = useState<PublishConfig>({
     taxonomyId: "",
     shippingProfileId: "",
+    returnPolicyId: "",
     readinessStateId: "",
     imageIds: "",
-    whoMade: "i_did",
-    whenMade: "before_2000",
+    whoMade: "someone_else",
+    whenMade: "2010_2019",
     imageMaxDimension: "2000",
     imageTargetDpi: "300",
     imageJpegQuality: "82",
@@ -205,6 +208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [urlError] = useState<UiError | null>(parseUrlError);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [currencyCode, setCurrencyCode] = useState("USD");
+  const [pageSize, setPageSize] = useState(25);
 
   const setErrorWithNotify: React.Dispatch<React.SetStateAction<UiError | null>> = useCallback(
     (value) => {
@@ -262,6 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPublishHistory(null);
     setAiConfig(null);
     setCount(0);
+    addNotificationEntry({ type: "info", message: "Disconnected from Etsy" });
   }, []);
 
   // Load shops on mount
@@ -280,12 +285,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         if (cancelled) return;
         setError(null);
+        const prevShops = shops;
         setShops(data.shops ?? []);
         if (data.shops?.length) {
           const preferred = data.active_shop_id ?? data.shops[0].shop_id;
           const resolved =
             data.shops.find((shop) => shop.shop_id === preferred)?.shop_id ?? data.shops[0].shop_id;
           setSelectedShopId(resolved);
+          if (prevShops.length === 0) {
+            const shopName =
+              data.shops.find((s) => s.shop_id === resolved)?.shop_name ?? `Shop ${resolved}`;
+            addNotificationEntry({
+              type: "success",
+              message: `Connected to Etsy shop: ${shopName}`,
+            });
+          }
         }
       })
       .catch((err) => {
@@ -464,6 +478,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const [
         taxonomyId,
         shippingProfileId,
+        returnPolicyId,
         readinessStateId,
         imageIds,
         whoMade,
@@ -478,13 +493,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         screenHeaderSizePx,
         reportHeaderWidthPx,
         savedCurrencyCode,
+        savedPageSize,
       ] = await Promise.all([
-        getSettingValue("etsy.publish.taxonomy_id"),
+        getSettingValue("etsy.publish.default_taxonomy_id"),
         getSettingValue("etsy.publish.shipping_profile_id"),
+        getSettingValue("etsy.publish.return_policy_id"),
         getSettingValue("etsy.publish.readiness_state_id"),
         getSettingValue("etsy.publish.image_ids"),
-        getSettingValue("etsy.publish.who_made"),
-        getSettingValue("etsy.publish.when_made"),
+        getSettingValue("etsy.publish.default_who_made"),
+        getSettingValue("etsy.publish.default_when_made"),
         getSettingValue("etsy.publish.image_max_dimension"),
         getSettingValue("etsy.publish.image_target_dpi"),
         getSettingValue("etsy.publish.image_jpeg_quality"),
@@ -495,14 +512,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettingValue("ui.icons.screen_header_size_px"),
         getSettingValue("ui.icons.report_header_width_px"),
         getSettingValue("ui.currency_code"),
+        getSettingValue("ui.page_size"),
       ]);
       setPublishConfig({
         taxonomyId,
         shippingProfileId,
+        returnPolicyId,
         readinessStateId,
         imageIds,
-        whoMade: whoMade || "i_did",
-        whenMade: whenMade || "before_2000",
+        whoMade: whoMade || "someone_else",
+        whenMade: whenMade || "2010_2019",
         imageMaxDimension: imageMaxDimension || "2000",
         imageTargetDpi: imageTargetDpi || "300",
         imageJpegQuality: imageJpegQuality || "82",
@@ -516,6 +535,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         reportHeaderWidthPx: reportHeaderWidthPx || "220",
       });
       if (savedCurrencyCode) setCurrencyCode(savedCurrencyCode);
+      const parsedPageSize = parseInt(savedPageSize, 10);
+      if (parsedPageSize > 0) setPageSize(parsedPageSize);
     };
     load().catch(() => {});
   }, [loading]);
@@ -544,6 +565,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     urlError,
     busyAction,
     currencyCode,
+    pageSize,
     setShops,
     setSelectedShopId,
     setReceipts,

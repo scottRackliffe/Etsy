@@ -21,7 +21,7 @@ async function parseParams(context: {
   const params = await context.params;
   const inventoryId = parsePositiveInt(params.id);
   const slot = parsePositiveInt(params.slot);
-  const maxSlot = type === "condition" ? 5 : 10;
+  const maxSlot = type === "condition" ? 5 : 20;
   if (!inventoryId) {
     throw new ApiRouteError({
       status: 400,

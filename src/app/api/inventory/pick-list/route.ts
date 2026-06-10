@@ -13,7 +13,7 @@ export async function GET() {
         `
         SELECT id, item_number, description, quantity, status
         FROM inventory
-        WHERE status IN ('In stock', 'Listed')
+        WHERE status IN ('In stock', 'Listed', 'Reserved')
         ORDER BY id DESC
       `
       )

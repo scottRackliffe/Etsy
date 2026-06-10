@@ -177,9 +177,11 @@ export async function refreshAccessToken(
 
 export class EtsyApiError extends Error {
   readonly status: number;
-  constructor(path: string, status: number, body: string) {
+  readonly retryAfter: string | null;
+  constructor(path: string, status: number, body: string, retryAfter?: string | null) {
     super(`Etsy API ${path}: ${status} ${body}`);
     this.status = status;
+    this.retryAfter = retryAfter ?? null;
   }
 }
 
@@ -223,7 +225,7 @@ export async function etsyApi<T>(
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new EtsyApiError(path, res.status, text);
+      throw new EtsyApiError(path, res.status, text, res.headers.get("Retry-After"));
     }
     return res.json() as Promise<T>;
   } finally {
@@ -243,9 +245,19 @@ export async function createDraftListing(
     whoMade: string;
     whenMade: string;
     shippingProfileId: number;
+    returnPolicyId?: number;
     readinessStateId: number;
     imageIds?: number[];
     tags: string[];
+    materials?: string[];
+    itemWeight?: number;
+    itemWeightUnit?: string;
+    itemLength?: number;
+    itemWidth?: number;
+    itemHeight?: number;
+    itemDimensionsUnit?: string;
+    isSupply?: boolean;
+    type?: string;
   }
 ): Promise<{ listing_id: number; state?: string }> {
   assertBearerFormat(accessToken);
@@ -258,6 +270,9 @@ export async function createDraftListing(
   form.set("when_made", params.whenMade);
   form.set("taxonomy_id", String(params.taxonomyId));
   form.set("shipping_profile_id", String(params.shippingProfileId));
+  if (params.returnPolicyId) {
+    form.set("return_policy_id", String(params.returnPolicyId));
+  }
   form.set("readiness_state_id", String(params.readinessStateId));
   if (params.imageIds && params.imageIds.length > 0) {
     form.set("image_ids", params.imageIds.join(","));
@@ -265,6 +280,33 @@ export async function createDraftListing(
   for (const tag of params.tags.slice(0, 13)) {
     form.append("tags[]", tag);
   }
+  if (params.materials && params.materials.length > 0) {
+    for (const material of params.materials) {
+      form.append("materials[]", material);
+    }
+  }
+  if (params.itemWeight != null && params.itemWeight > 0) {
+    form.set("item_weight", String(params.itemWeight));
+  }
+  if (params.itemWeightUnit) {
+    form.set("item_weight_unit", params.itemWeightUnit);
+  }
+  if (params.itemLength != null && params.itemLength > 0) {
+    form.set("item_length", String(params.itemLength));
+  }
+  if (params.itemWidth != null && params.itemWidth > 0) {
+    form.set("item_width", String(params.itemWidth));
+  }
+  if (params.itemHeight != null && params.itemHeight > 0) {
+    form.set("item_height", String(params.itemHeight));
+  }
+  if (params.itemDimensionsUnit) {
+    form.set("item_dimensions_unit", params.itemDimensionsUnit);
+  }
+  if (params.isSupply != null) {
+    form.set("is_supply", params.isSupply ? "true" : "false");
+  }
+  form.set("type", params.type ?? "physical");
 
   const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings`, {
     method: "POST",
@@ -431,6 +473,15 @@ export async function updateListingDetails(
     whoMade: string;
     whenMade: string;
     tags: string[];
+    returnPolicyId?: number;
+    materials?: string[];
+    itemWeight?: number;
+    itemWeightUnit?: string;
+    itemLength?: number;
+    itemWidth?: number;
+    itemHeight?: number;
+    itemDimensionsUnit?: string;
+    isSupply?: boolean;
   }
 ): Promise<void> {
   assertBearerFormat(accessToken);
@@ -444,6 +495,35 @@ export async function updateListingDetails(
   form.set("when_made", params.whenMade);
   for (const tag of params.tags.slice(0, 13)) {
     form.append("tags[]", tag);
+  }
+  if (params.returnPolicyId) {
+    form.set("return_policy_id", String(params.returnPolicyId));
+  }
+  if (params.materials && params.materials.length > 0) {
+    for (const material of params.materials) {
+      form.append("materials[]", material);
+    }
+  }
+  if (params.itemWeight != null && params.itemWeight > 0) {
+    form.set("item_weight", String(params.itemWeight));
+  }
+  if (params.itemWeightUnit) {
+    form.set("item_weight_unit", params.itemWeightUnit);
+  }
+  if (params.itemLength != null && params.itemLength > 0) {
+    form.set("item_length", String(params.itemLength));
+  }
+  if (params.itemWidth != null && params.itemWidth > 0) {
+    form.set("item_width", String(params.itemWidth));
+  }
+  if (params.itemHeight != null && params.itemHeight > 0) {
+    form.set("item_height", String(params.itemHeight));
+  }
+  if (params.itemDimensionsUnit) {
+    form.set("item_dimensions_unit", params.itemDimensionsUnit);
+  }
+  if (params.isSupply != null) {
+    form.set("is_supply", params.isSupply ? "true" : "false");
   }
   const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}`, {
     method: "PATCH",
@@ -534,6 +614,10 @@ export type Receipt = {
   was_digital: boolean;
   needs_gift_wrap: boolean;
   is_gift_wrap: boolean;
+  is_gift?: boolean;
+  gift_message?: string;
+  discount_amt?: { amount: number; divisor: number; currency_code: string } | string;
+  subtotal?: { amount: number; divisor: number; currency_code: string } | string;
   transactions: ReceiptTransaction[];
 };
 

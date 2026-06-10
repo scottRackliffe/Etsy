@@ -68,7 +68,7 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  const pageSize = 25;
+  const pageSize = 10;
 
   const loadPage = useCallback(
     async (nextOffset: number, append: boolean) => {
@@ -155,6 +155,11 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
                       </Link>
                       <p className="text-xs text-[var(--ui-muted)]">
                         {formatDate(order.order_date)}
+                        {order.items.length > 0 ? (
+                          <span className="ml-2">
+                            {order.items.length} item{order.items.length === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="mt-1 text-xs text-[var(--ui-body)]">
                         {itemSummary(order.items)}
@@ -166,8 +171,20 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
                       </p>
                       <div className="mt-1 flex flex-wrap justify-end gap-1">
                         <Badge
-                          label={order.payment_status === "paid" ? "Paid" : "Unpaid"}
-                          variant={order.payment_status === "paid" ? "success" : "warning"}
+                          label={
+                            order.payment_status === "paid"
+                              ? "Paid"
+                              : order.payment_status === "refunded"
+                                ? "Refunded"
+                                : "Unpaid"
+                          }
+                          variant={
+                            order.payment_status === "paid"
+                              ? "success"
+                              : order.payment_status === "refunded"
+                                ? "neutral"
+                                : "warning"
+                          }
                         />
                         <Badge
                           label={order.source_channel === "etsy" ? "Etsy" : "Manual"}

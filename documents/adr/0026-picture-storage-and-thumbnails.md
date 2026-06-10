@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-ADR-010 defines the picture import UX (directory picker, preview, confirm). ADR-002 defines 10 main picture slots and 5 condition picture slots. The no-developer-questions checklist flagged missing details: canonical storage path layout, filename strategy and collision handling, upload/import limits (type, size, count), failure/rollback behavior, and thumbnail generation specification.
+ADR-010 defines the picture import UX (directory picker, preview, confirm). ADR-002 defines 20 main picture slots and 5 condition picture slots. The no-developer-questions checklist flagged missing details: canonical storage path layout, filename strategy and collision handling, upload/import limits (type, size, count), failure/rollback behavior, and thumbnail generation specification.
 
 ## Decision
 
@@ -26,7 +26,7 @@ uploads/
         1.jpg          # picture_1
         2.jpg          # picture_2
         ...
-        10.jpg         # picture_10
+        20.jpg         # picture_20
       condition/
         1.jpg          # condition_picture_1
         ...
@@ -35,7 +35,7 @@ uploads/
 ```
 
 - `<item_id>` is the numeric inventory row ID.
-- Main pictures are stored in `pictures/` with filenames `1` through `10` (matching slot number).
+- Main pictures are stored in `pictures/` with filenames `1` through `20` (matching slot number).
 - Condition pictures are stored in `condition/` with filenames `1` through `5`.
 - All stored files use `.jpg` extension (all formats are re-encoded to JPEG during processing).
 - The `uploads/` directory is at the project root; configurable via environment variable `UPLOADS_PATH` (default: `./uploads`).
@@ -127,11 +127,15 @@ When importing from a directory:
 
 1. App reads all image files from the selected directory (filtered by allowed types).
 2. Files are sorted alphabetically by filename.
-3. First 10 files are assigned to `picture_1` through `picture_10` (or first 5 for condition pictures).
-4. If fewer than 10 files, remaining slots are left empty.
-5. If more than 10 files, excess files are ignored; UI shows a message: "Imported first 10 of N images."
+3. First 20 files are assigned to `picture_1` through `picture_20` (or first 5 for condition pictures).
+4. If fewer than 20 files, remaining slots are left empty.
+5. If more than 20 files, excess files are ignored; UI shows a message: "Imported first 20 of N images."
 
-### 9. Disk usage and cleanup
+### 9. Video storage
+
+Video files stored at `uploads/inventory/<item_id>/video/` path. Accepted formats: MP4, MOV. Max 100 MB. Duration 5–15 seconds. Path stored in `inventory.video_path`. Only one video per item. Uploading a new video replaces the existing one (old file is deleted). Video files are included in the item's storage directory and deleted when the inventory item is deleted (same as pictures per §9 below).
+
+### 10. Disk usage and cleanup
 
 - When an inventory item is deleted (ADR-022), the entire `uploads/inventory/<item_id>/` directory is deleted from disk.
 - Orphaned upload directories (no matching inventory row) can be cleaned via a maintenance script (`scripts/cleanup-uploads.mjs`).
@@ -143,5 +147,5 @@ When importing from a directory:
 
 ## Notes
 
-- This ADR is the SSOT for picture storage layout and thumbnail spec. ADR-010 remains the SSOT for the import UX flow. ADR-002 remains the SSOT for the data model (10 picture columns + 5 condition picture columns).
+- This ADR is the SSOT for picture storage layout and thumbnail spec. ADR-010 remains the SSOT for the import UX flow. ADR-002 remains the SSOT for the data model (20 picture columns + 5 condition picture columns).
 - The `uploads/` directory should be included in backups (ADR-027).

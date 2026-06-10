@@ -13,6 +13,7 @@ import {
 } from "@/lib/inventory";
 import { loadListingGuidance } from "@/lib/listing-guidance";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
+import { logActivity } from "@/lib/activity-log";
 import { logger } from "@/lib/logging";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 
@@ -88,6 +89,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const updatedItem = updateListingContent(inventoryId, {
       ...generated,
       listing_draft_source: "integrated_ai",
+    });
+
+    logActivity({
+      action: "listing.generated",
+      entityType: "inventory",
+      entityId: inventoryId,
+      entityLabel: item.item_number || item.description || `Item ${inventoryId}`,
+      detail: { listing_draft_source: "integrated_ai" },
+      source: "user",
     });
 
     return NextResponse.json(

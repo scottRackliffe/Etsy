@@ -18,7 +18,7 @@ We decided to use a database for application data (ADR-001) and defined reports 
 
 - **Stored in SQLite (all app data)**  
   Every operational, auth/session, and business data field is persisted in SQLite:
-  - **Inventory:** item number, description, costs, dates, pictures 1–10, status, other costs (in a related table), etc. (ADR-002).
+  - **Inventory:** item number, description, costs, dates, pictures 1–20, status, other costs (in a related table), etc. (ADR-002).
   - **Customers:** first name, last name, address lines, city, state/province, country, postal code, email, etc. (ADR-003).
   - **Purchases/shipments:** customer, item purchased, date(s), shipping cost, shipper (USPS, UPS, FedEx, DHL, Other), Etsy receipt ID, notes, etc. (ADR-003, ADR-004).
   - **Other costs:** amount and description per line, linked to inventory (ADR-002).

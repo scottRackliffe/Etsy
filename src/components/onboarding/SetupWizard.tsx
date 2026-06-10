@@ -73,7 +73,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
   const loadBusiness = useCallback(async () => {
     try {
-      const response = await fetch("/api/settings?limit=500", {
+      const response = await fetch("/api/settings?limit=500&wizard=1", {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -112,7 +112,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
     }
   };
 
-  const skip = () => void finish();
+  const skip = () => void finish("/dashboard");
 
   const saveBusinessAndNext = async () => {
     try {

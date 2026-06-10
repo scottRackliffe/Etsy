@@ -28,9 +28,9 @@ A score from 0 to 100, computed from a weighted checklist of listing best practi
 | Description length               | ≥ 500 characters                                                | +15    |
 | Description length (partial)     | 200–499 characters                                              | +8     |
 | Description length (minimal)     | < 200 characters                                                | +0     |
-| Picture count                    | ≥ 5 non-null pictures (`picture_1` through `picture_10`)        | +15    |
-| Picture count (partial)          | 3–4 pictures                                                    | +8     |
-| Picture count (minimal)          | < 3 pictures                                                    | +0     |
+| Picture count                    | ≥ 10 non-null pictures (`picture_1` through `picture_20`)       | +15    |
+| Picture count (partial)          | 5–9 pictures                                                    | +8     |
+| Picture count (minimal)          | < 5 pictures                                                    | +0     |
 | Tags filled                      | All 13 tags in `listing_tags` (comma-separated)                 | +10    |
 | Tags filled (partial)            | 8–12 tags                                                       | +5     |
 | Tags filled (minimal)            | < 8 tags (including < 5)                                        | +0     |
@@ -39,10 +39,16 @@ A score from 0 to 100, computed from a weighted checklist of listing best practi
 | Sale revenue set                 | `sale_revenue` is non-null and > 0                              | +5     |
 | Item number set                  | `item_number` is non-null and non-empty                         | +5     |
 | Category tags set                | `category_tags` is non-null and non-empty                       | +5     |
+| Era set                          | `etsy_when_made` is non-null                                    | +3     |
+| Category set                     | `etsy_taxonomy_id` is non-null                                  | +3     |
+| Materials set                    | `materials` is non-null and has ≥1 entry                        | +3     |
+| Dimensions/weight provided       | At least one of `item_weight`, `item_length` is set             | +3     |
+| Video included                   | `video_path` is non-null                                        | +3     |
+| Photos classified                | `picture_classifications` is non-null and covers ≥3 distinct shot types | +3 |
 | Description mentions dimensions  | `listing_description` matches dimensions pattern (see Appendix A) | +5   |
 | Description mentions materials   | `listing_description` matches materials pattern (see Appendix A)  | +5   |
 
-**Maximum possible score: 100.**
+**Maximum possible score: 118.** Displayed as percentage of 100 (capped at 100). A listing that fills structured fields (era, category, materials, dimensions, video) and classifies photos earns bonus points that push toward a perfect score.
 
 Tag count is determined by splitting `listing_tags` on commas and counting non-empty trimmed entries.
 
@@ -57,7 +63,7 @@ Response:
   "score": 78,
   "grade": "yellow",
   "tips": [
-    "Add more photos — you have 3 of 10 slots filled.",
+    "Add more photos — you have 3 of 20 slots filled.",
     "Your title is 45 characters — aim for 60+ for better search visibility.",
     "Add measurements or dimensions to your description."
   ],
@@ -115,7 +121,7 @@ Response:
 ## Consequences
 
 - **Positive:** Actionable feedback loop for listing quality; encourages complete, SEO-friendly listings; no schema changes; scoring rubric is transparent and deterministic.
-- **Negative:** Regex-based detection of dimensions/materials is approximate; rubric may need tuning over time; per-item API call for score (mitigated by computing inline for list views).
+- **Negative:** Regex-based detection of dimensions/materials is approximate (mitigated by structured `materials` and dimension columns in ADR-017); rubric may need tuning over time; per-item API call for score (mitigated by computing inline for list views).
 
 ## Notes
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { getValidAccessToken } from "@/lib/auth-session";
+import { logActivity } from "@/lib/activity-log";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
@@ -149,8 +150,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
 
     const shopId = parseNumberSetting("etsy.active_shop_id");
-    const taxonomyId = parseNumberSetting("etsy.publish.taxonomy_id");
-    const shippingProfileId = parseNumberSetting("etsy.publish.shipping_profile_id");
+    const globalTaxonomyId = parseNumberSetting("etsy.publish.default_taxonomy_id");
+    const globalShippingProfileId = parseNumberSetting("etsy.publish.shipping_profile_id");
+    const globalReturnPolicyId = parseNumberSetting("etsy.publish.return_policy_id");
     const readinessStateId = parseNumberSetting("etsy.publish.readiness_state_id");
     const imageIds = parseImageIdsFromSetting("etsy.publish.image_ids");
     const allowPartialImageUpload = parseBooleanSetting(
@@ -161,14 +163,25 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const imageMaxDimension = parseIntSetting("etsy.publish.image_max_dimension", 2000);
     const imageTargetDpi = parseIntSetting("etsy.publish.image_target_dpi", 300);
     const imageJpegQuality = parseIntSetting("etsy.publish.image_jpeg_quality", 82);
-    const whoMade = (getSetting("etsy.publish.who_made") ?? "i_did").trim();
-    const whenMade = (getSetting("etsy.publish.when_made") ?? "before_2000").trim();
+    const globalWhoMade = (getSetting("etsy.publish.default_who_made") ?? "someone_else").trim();
+    const globalWhenMade = (getSetting("etsy.publish.default_when_made") ?? "2010_2019").trim();
+
+    // Per-item field resolution: item-level overrides global settings (ADR-017 §1c)
+    const whoMade = (item.etsy_who_made ?? "").trim() || globalWhoMade;
+    const whenMade = (item.etsy_when_made ?? "").trim() || globalWhenMade;
+    const taxonomyId = (item.etsy_taxonomy_id ? Number(item.etsy_taxonomy_id) : null) || globalTaxonomyId;
+    const shippingProfileId =
+      (item.etsy_shipping_profile_id ? Number(item.etsy_shipping_profile_id) : null) ||
+      globalShippingProfileId;
+    const returnPolicyId =
+      (item.etsy_return_policy_id ? Number(item.etsy_return_policy_id) : null) ||
+      globalReturnPolicyId;
 
     const fields: Record<string, string[]> = {};
     if (!shopId) fields.shop_id = ["Set etsy.active_shop_id by selecting a shop on dashboard."];
-    if (!taxonomyId) fields.taxonomy_id = ["Set etsy.publish.taxonomy_id in settings."];
+    if (!taxonomyId) fields.taxonomy_id = ["Set taxonomy ID in publish defaults or on the item."];
     if (!shippingProfileId)
-      fields.shipping_profile_id = ["Set etsy.publish.shipping_profile_id in settings."];
+      fields.shipping_profile_id = ["Set shipping profile ID in publish defaults or on the item."];
     if (!readinessStateId)
       fields.readiness_state_id = ["Set etsy.publish.readiness_state_id in settings."];
     if (Object.keys(fields).length > 0) {
@@ -189,6 +202,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const resolvedShopId = shopId as number;
     const resolvedTaxonomyId = taxonomyId as number;
     const resolvedShippingProfileId = shippingProfileId as number;
+    const resolvedReturnPolicyId = returnPolicyId ?? undefined;
     const resolvedReadinessStateId = readinessStateId as number;
     if (!item.listing_title || !item.listing_description || !item.listing_tags) {
       throw new ApiRouteError({
@@ -208,6 +222,17 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       .slice(0, 13);
     const pictureReferences = getAllPictureReferences(item);
 
+    // Parse materials from JSON array or comma-separated string
+    let materials: string[] | undefined;
+    if (item.materials) {
+      try {
+        const parsed = JSON.parse(item.materials);
+        if (Array.isArray(parsed)) materials = parsed.filter((m: unknown) => typeof m === "string" && m.length > 0);
+      } catch {
+        materials = item.materials.split(",").map((m: string) => m.trim()).filter((m: string) => m.length > 0);
+      }
+    }
+
     const etsyListing = await createDraftListing(token, {
       shopId: resolvedShopId,
       title: item.listing_title,
@@ -218,9 +243,18 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       whoMade,
       whenMade,
       shippingProfileId: resolvedShippingProfileId,
+      returnPolicyId: resolvedReturnPolicyId,
       readinessStateId: resolvedReadinessStateId,
       imageIds: imageIds.length > 0 ? imageIds : undefined,
       tags,
+      materials,
+      itemWeight: item.item_weight ? Number(item.item_weight) : undefined,
+      itemWeightUnit: item.item_weight_unit || undefined,
+      itemLength: item.item_length ? Number(item.item_length) : undefined,
+      itemWidth: item.item_width ? Number(item.item_width) : undefined,
+      itemHeight: item.item_height ? Number(item.item_height) : undefined,
+      itemDimensionsUnit: item.item_dimensions_unit || undefined,
+      isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
     });
 
     let uploadedImageCount = 0;
@@ -299,6 +333,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         whoMade,
         whenMade,
         tags,
+        returnPolicyId: resolvedReturnPolicyId,
+        materials,
+        itemWeight: item.item_weight ? Number(item.item_weight) : undefined,
+        itemWeightUnit: item.item_weight_unit || undefined,
+        itemLength: item.item_length ? Number(item.item_length) : undefined,
+        itemWidth: item.item_width ? Number(item.item_width) : undefined,
+        itemHeight: item.item_height ? Number(item.item_height) : undefined,
+        itemDimensionsUnit: item.item_dimensions_unit || undefined,
+        isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
       });
       await updateListingState(token, {
         shopId: resolvedShopId,
@@ -331,6 +374,16 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         updated_at: now,
       });
     const updated = getInventoryById(id);
+
+    logActivity({
+      action: "listing.published",
+      entityType: "inventory",
+      entityId: id,
+      entityLabel: item.item_number || item.description || `Item ${id}`,
+      detail: { etsy_listing_id: listingId },
+      source: "user",
+    });
+
     return NextResponse.json({
       ok: true,
       item: updated,

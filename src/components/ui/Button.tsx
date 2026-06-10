@@ -23,6 +23,7 @@ export function Button({
   onClick,
   type = "button",
   className,
+  title,
 }: {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "danger" | "accent" | "ghost";
@@ -32,12 +33,14 @@ export function Button({
   onClick?: () => void;
   type?: "button" | "submit";
   className?: string;
+  title?: string;
 }) {
   return (
     <button
       type={type}
       disabled={disabled || busy}
       onClick={onClick}
+      title={title}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className ?? ""}`}
     >
       {busy && (

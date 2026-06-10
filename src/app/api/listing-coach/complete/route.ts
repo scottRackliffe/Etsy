@@ -116,6 +116,49 @@ export async function POST(request: Request) {
         ? priceConfidenceRaw.trim()
         : undefined;
 
+    const etsyWhenMadeRaw = formData.get("etsy_when_made");
+    const etsyWhenMade =
+      typeof etsyWhenMadeRaw === "string" && etsyWhenMadeRaw.trim()
+        ? etsyWhenMadeRaw.trim()
+        : undefined;
+    const etsyTaxonomyIdRaw = formData.get("etsy_taxonomy_id");
+    const etsyTaxonomyId =
+      etsyTaxonomyIdRaw != null && etsyTaxonomyIdRaw !== ""
+        ? Number(etsyTaxonomyIdRaw)
+        : undefined;
+    const materialsRaw = formData.get("materials");
+    const materials =
+      typeof materialsRaw === "string" && materialsRaw.trim()
+        ? materialsRaw.trim()
+        : undefined;
+    const itemWeightRaw = formData.get("item_weight");
+    const itemWeight =
+      itemWeightRaw != null && itemWeightRaw !== "" ? Number(itemWeightRaw) : undefined;
+    const itemWeightUnitRaw = formData.get("item_weight_unit");
+    const itemWeightUnit =
+      typeof itemWeightUnitRaw === "string" && itemWeightUnitRaw.trim()
+        ? itemWeightUnitRaw.trim()
+        : undefined;
+    const itemLengthRaw = formData.get("item_length");
+    const itemLength =
+      itemLengthRaw != null && itemLengthRaw !== "" ? Number(itemLengthRaw) : undefined;
+    const itemWidthRaw = formData.get("item_width");
+    const itemWidth =
+      itemWidthRaw != null && itemWidthRaw !== "" ? Number(itemWidthRaw) : undefined;
+    const itemHeightRaw = formData.get("item_height");
+    const itemHeight =
+      itemHeightRaw != null && itemHeightRaw !== "" ? Number(itemHeightRaw) : undefined;
+    const itemDimensionsUnitRaw = formData.get("item_dimensions_unit");
+    const itemDimensionsUnit =
+      typeof itemDimensionsUnitRaw === "string" && itemDimensionsUnitRaw.trim()
+        ? itemDimensionsUnitRaw.trim()
+        : undefined;
+    const pictureClassificationsRaw = formData.get("picture_classifications");
+    const pictureClassifications =
+      typeof pictureClassificationsRaw === "string" && pictureClassificationsRaw.trim()
+        ? pictureClassificationsRaw.trim()
+        : undefined;
+
     const result = await completeListingCoach({
       itemNumber,
       description,
@@ -127,6 +170,16 @@ export async function POST(request: Request) {
       conditionPhotos: photos.conditionPhotos,
       googlePhotosCount: photos.googlePhotos.length,
       priceConfidence,
+      etsyWhenMade,
+      etsyTaxonomyId: etsyTaxonomyId != null && Number.isFinite(etsyTaxonomyId) ? etsyTaxonomyId : undefined,
+      materials,
+      itemWeight: itemWeight != null && Number.isFinite(itemWeight) ? itemWeight : undefined,
+      itemWeightUnit,
+      itemLength: itemLength != null && Number.isFinite(itemLength) ? itemLength : undefined,
+      itemWidth: itemWidth != null && Number.isFinite(itemWidth) ? itemWidth : undefined,
+      itemHeight: itemHeight != null && Number.isFinite(itemHeight) ? itemHeight : undefined,
+      itemDimensionsUnit,
+      pictureClassifications,
     });
 
     return NextResponse.json(

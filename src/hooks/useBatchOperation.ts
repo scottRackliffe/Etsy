@@ -16,6 +16,7 @@ export function useBatchOperation() {
   const [progressOpen, setProgressOpen] = useState(false);
   const [progressTitle, setProgressTitle] = useState("");
   const [progressTotal, setProgressTotal] = useState(0);
+  const [progressCurrent, setProgressCurrent] = useState(0);
 
   const runBatch = useCallback(
     async (
@@ -28,6 +29,7 @@ export function useBatchOperation() {
       if (showProgress) {
         setProgressTitle(`Processing ${labels.count} ${labels.entity}s…`);
         setProgressTotal(labels.count);
+        setProgressCurrent(0);
         setProgressOpen(true);
       }
       try {
@@ -38,6 +40,9 @@ export function useBatchOperation() {
         });
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape & BatchApiResult;
         if (!response.ok) throw data;
+        if (showProgress) {
+          setProgressCurrent(data.total ?? labels.count);
+        }
         const feedback = summarizeBatchResult(data, labels.entity, labels.actionPast);
         return { ok: true, feedback, result: data };
       } catch (err) {
@@ -65,6 +70,7 @@ export function useBatchOperation() {
     progressOpen,
     progressTitle,
     progressTotal,
+    progressCurrent,
     runBatch,
   };
 }

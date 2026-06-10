@@ -14,12 +14,12 @@ export function hasSampleData(): boolean {
 }
 
 export function loadSampleData(): {
-  items_created: number;
-  customers_created: number;
-  orders_created: number;
+  items: number;
+  customers: number;
+  orders: number;
 } {
   if (hasSampleData()) {
-    return { items_created: 0, customers_created: 0, orders_created: 0 };
+    return { items: 0, customers: 0, orders: 0 };
   }
 
   const sqlPath = path.join(process.cwd(), "fixtures", "sample-data.sql");
@@ -43,17 +43,17 @@ export function loadSampleData(): {
   load();
 
   const counts = {
-    items_created: (
+    items: (
       db
         .prepare("SELECT COUNT(*) AS c FROM inventory WHERE item_number LIKE ?")
         .get(SAMPLE_PREFIX) as { c: number }
     ).c,
-    customers_created: (
+    customers: (
       db.prepare("SELECT COUNT(*) AS c FROM customers WHERE email LIKE '%@example.com'").get() as {
         c: number;
       }
     ).c,
-    orders_created: (
+    orders: (
       db
         .prepare("SELECT COUNT(*) AS c FROM orders WHERE order_number LIKE 'SAMPLE-ORD-%'")
         .get() as { c: number }

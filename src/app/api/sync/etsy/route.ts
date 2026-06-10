@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       message: "Starting Etsy sync…",
     });
 
-    logActivity({ action: "sync.started", source: "system", detail: { shop_id: shopId } });
+    logActivity({ action: "sync.started", source: "etsy_sync", detail: { shop_id: shopId } });
     void runSyncJob(job.id, cookieStore, shopId);
 
     return NextResponse.json(
@@ -116,6 +116,7 @@ async function runSyncJob(
       result.skipped_already_imported === 0 &&
       result.skipped_errors.length > 0
     ) {
+      logActivity({ action: "sync.failed", source: "etsy_sync", detail: { reason: "All receipts failed to import", errors: result.skipped_errors.length } });
       failJob(jobId, {
         code: "ETSY_API_FAILED",
         message: "All receipts failed to import",
@@ -124,13 +125,14 @@ async function runSyncJob(
       return;
     }
 
-    logActivity({ action: "sync.completed", source: "system", detail: { synced: result.synced, skipped: result.skipped_already_imported } });
+    logActivity({ action: "sync.completed", source: "etsy_sync", detail: { synced: result.synced, skipped: result.skipped_already_imported } });
     completeJob(jobId, {
       ...result,
       last_synced_at: getSetting("last_etsy_sync_at"),
     });
   } catch (error) {
     if (error instanceof ApiRouteError) {
+      logActivity({ action: "sync.failed", source: "etsy_sync", detail: { code: error.code, message: error.message } });
       failJob(jobId, {
         code: error.code,
         message: error.message,
@@ -139,6 +141,7 @@ async function runSyncJob(
       return;
     }
     const message = error instanceof Error ? error.message : "Failed to sync Etsy receipts";
+    logActivity({ action: "sync.failed", source: "etsy_sync", detail: { code: "ETSY_API_FAILED", message } });
     failJob(jobId, {
       code: "ETSY_API_FAILED",
       message,

@@ -141,6 +141,19 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 
 Validation for `POST /api/listing-coach/*` is defined in **ADR-072 § Validation**. Coach **complete** uses the same `item_number` uniqueness and inventory field rules as `POST /api/inventory`. Composed listing fields must satisfy listing title/description/tags rules before workshop **Approve** (same as integrated AI generation).
 
+### 8. Listing publish / List on Etsy validation
+
+These rules apply when publishing a listing to Etsy (`listing_draft_state` transition to `published`). They are **not** required for draft creation or AI generation — only at publish time.
+
+| Field | Rule | Error message if violated |
+| --- | --- | --- |
+| `etsy_when_made` | Required before publish. Must be a valid Etsy `when_made` enum value (see ADR-017 §1a). | "Era (when made) is required before publishing to Etsy." |
+| `etsy_taxonomy_id` | Required before publish. Must be a positive integer. | "Etsy category is required before publishing to Etsy." |
+| `materials` | Optional but recommended. If provided, each element must be a string ≤ 45 chars matching alphanumeric + whitespace only. Warning-level — not blocking. | "Each material must be 45 characters or less and contain only letters, numbers, and spaces." |
+| `item_weight` / `item_weight_unit` | Optional. If `item_weight` is provided, must be a positive number and `item_weight_unit` must also be set (one of: `oz`, `lb`, `g`, `kg`). Warning if missing for physical items. | "Weight unit is required when weight is provided." |
+| `item_length`, `item_width`, `item_height` / `item_dimensions_unit` | Optional. If any dimension is provided, all three should be provided along with `item_dimensions_unit` (one of: `in`, `ft`, `mm`, `cm`, `m`). | "All three dimensions and a unit are required when any dimension is provided." |
+| `etsy_return_policy_id` | Required before publish. Must resolve — either per-item value or global default (`etsy.publish.return_policy_id`). | "A return policy is required before publishing to Etsy. Set one on the item or in Config → Publish Defaults." |
+
 ### Schema mapping (updated 2026-05-24)
 
 This ADR uses original data model terms. The implementation maps as follows:

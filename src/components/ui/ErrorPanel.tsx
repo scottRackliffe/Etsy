@@ -3,7 +3,7 @@ import type { UiError } from "@/types";
 
 export function ErrorPanel({ error, onDismiss }: { error: UiError; onDismiss?: () => void }) {
   return (
-    <div className="rounded-lg border border-[var(--ui-red)]/30 bg-[var(--ui-red)]/10 p-4">
+    <div role="alert" aria-live="assertive" className="rounded-lg border border-[var(--ui-red)]/30 bg-[var(--ui-red)]/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="font-semibold text-[var(--ui-red)]">{error.title}</h4>

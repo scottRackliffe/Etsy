@@ -1,4 +1,5 @@
 import { logActivity } from "@/lib/activity-log";
+import { ApiRouteError } from "@/lib/api-error";
 import { getInventory, getOrder } from "@/lib/records";
 import { getDb } from "@/lib/sqlite";
 
@@ -96,6 +97,22 @@ export function deleteOrderItem(itemId: number): Record<string, unknown> | null 
   if (!existing) return null;
 
   const orderId = existing.order_id;
+  const itemCount = (
+    db.prepare("SELECT COUNT(*) AS c FROM order_items WHERE order_id = ?").get(orderId) as {
+      c: number;
+    }
+  ).c;
+  if (itemCount <= 1) {
+    throw new ApiRouteError({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      message: "Cannot delete the last line item on an order.",
+      userMessage: "Cannot delete the last line item on an order.",
+      actions: ["Void or cancel the order instead of removing its last item."],
+      canRetry: false,
+    });
+  }
+
   db.prepare("DELETE FROM order_items WHERE id = ?").run(itemId);
   recalculateOrderTotals(orderId);
 

@@ -71,10 +71,9 @@ export function mergeCustomers(input: {
       .prepare("UPDATE addresses SET customer_id = ?, updated_at = ? WHERE customer_id = ?")
       .run(input.primaryId, new Date().toISOString(), input.secondaryId).changes;
 
-    db.prepare("UPDATE customer_notes SET customer_id = ? WHERE customer_id = ?").run(
-      input.primaryId,
-      input.secondaryId
-    );
+    const notesMoved = db
+      .prepare("UPDATE customer_notes SET customer_id = ? WHERE customer_id = ?")
+      .run(input.primaryId, input.secondaryId).changes;
 
     const overrides = input.fieldOverrides ?? {};
     const keys = Object.keys(overrides).filter((k) =>
@@ -106,10 +105,10 @@ export function mergeCustomers(input: {
       });
     }
 
-    return { ordersMoved, addressesMoved };
+    return { ordersMoved, addressesMoved, notesMoved };
   });
 
-  const { ordersMoved, addressesMoved } = run();
+  const { ordersMoved, addressesMoved, notesMoved } = run();
 
   logActivity({
     action: "customer.merged",
@@ -123,6 +122,7 @@ export function mergeCustomers(input: {
       secondary_name: secondaryName,
       orders_moved: ordersMoved,
       addresses_moved: addressesMoved,
+      notes_moved: notesMoved,
     },
     source: "user",
   });

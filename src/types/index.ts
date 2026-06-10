@@ -21,6 +21,17 @@ export type InventoryItem = {
   picture_8: string | null;
   picture_9: string | null;
   picture_10: string | null;
+  picture_11: string | null;
+  picture_12: string | null;
+  picture_13: string | null;
+  picture_14: string | null;
+  picture_15: string | null;
+  picture_16: string | null;
+  picture_17: string | null;
+  picture_18: string | null;
+  picture_19: string | null;
+  picture_20: string | null;
+  video_path: string | null;
   thumbnail_path: string | null;
   condition_code: string | null;
   has_condition_issue: number | null;
@@ -32,8 +43,22 @@ export type InventoryItem = {
   condition_picture_5: string | null;
   status: string | null;
   etsy_listing_id: string | null;
+  etsy_when_made: string | null;
+  etsy_taxonomy_id: number | null;
+  etsy_who_made: string | null;
+  etsy_shipping_profile_id: number | null;
+  etsy_return_policy_id: number | null;
   quantity: number | null;
   category_tags: string | null;
+  materials: string | null;
+  item_weight: number | null;
+  item_weight_unit: string | null;
+  item_length: number | null;
+  item_width: number | null;
+  item_height: number | null;
+  item_dimensions_unit: string | null;
+  is_supply: number | null;
+  picture_classifications: string | null;
   listing_title: string | null;
   listing_description: string | null;
   listing_tags: string | null;
@@ -217,7 +242,8 @@ export type OutstandingItem = {
     | "not_listed"
     | "incomplete_address"
     | "missing_shipping_cost"
-    | "validation_issue";
+    | "validation_issue"
+    | "missing_etsy_fields";
   id: string;
   summary: string;
   targetTab: AppTab;

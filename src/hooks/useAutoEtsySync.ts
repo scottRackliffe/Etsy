@@ -6,6 +6,7 @@ import {
   parseAutoSyncInterval,
   type AutoSyncInterval,
 } from "@/lib/auto-sync-interval";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useToast } from "@/hooks/useToast";
 
 const POLL_MS = 2000;
@@ -27,6 +28,8 @@ async function waitForJob(jobId: string): Promise<{ ok: boolean; status: string 
   }
 }
 
+const SETTING_REFRESH_MS = 60_000;
+
 export function useAutoEtsySync({
   connected,
   shopId,
@@ -35,34 +38,41 @@ export function useAutoEtsySync({
   shopId: number | null;
 }) {
   const { showToast } = useToast();
+  const { state: connectionState } = useConnectionStatus();
   const [interval, setIntervalSetting] = useState<AutoSyncInterval>("off");
   const [loaded, setLoaded] = useState(false);
   const failuresRef = useRef(0);
   const warnedRef = useRef(false);
   const runningRef = useRef(false);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const response = await fetch("/api/settings/sync.auto_interval", {
-          headers: { Accept: "application/json" },
-        });
-        if (response.status === 404) {
-          setIntervalSetting("off");
-          return;
-        }
-        const data = (await response.json().catch(() => ({}))) as { value?: string };
-        if (response.ok) setIntervalSetting(parseAutoSyncInterval(data.value));
-      } catch {
+  const loadIntervalSetting = useCallback(async () => {
+    try {
+      const response = await fetch("/api/settings/sync.auto_interval", {
+        headers: { Accept: "application/json" },
+      });
+      if (response.status === 404) {
         setIntervalSetting("off");
-      } finally {
-        setLoaded(true);
+        return;
       }
-    })();
+      const data = (await response.json().catch(() => ({}))) as { value?: string };
+      if (response.ok) setIntervalSetting(parseAutoSyncInterval(data.value));
+    } catch {
+      setIntervalSetting("off");
+    }
   }, []);
 
+  useEffect(() => {
+    void loadIntervalSetting().finally(() => setLoaded(true));
+  }, [loadIntervalSetting]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const timer = window.setInterval(() => void loadIntervalSetting(), SETTING_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [loaded, loadIntervalSetting]);
+
   const runSilentSync = useCallback(async () => {
-    if (!shopId || runningRef.current) return;
+    if (!shopId || runningRef.current || connectionState !== "online") return;
     runningRef.current = true;
     try {
       const response = await fetch("/api/sync/etsy", {
@@ -86,7 +96,7 @@ export function useAutoEtsySync({
     } finally {
       runningRef.current = false;
     }
-  }, [shopId, showToast]);
+  }, [shopId, showToast, connectionState]);
 
   useEffect(() => {
     if (!loaded || !connected || !shopId || interval === "off") return;

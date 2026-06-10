@@ -24,7 +24,7 @@ import { logActivity } from "@/lib/activity-log";
 type PictureType = "main" | "condition";
 
 function validateSlot(slot: number, type: PictureType): void {
-  const max = type === "condition" ? 5 : 10;
+  const max = type === "condition" ? 5 : 20;
   if (!Number.isInteger(slot) || slot < 1 || slot > max) {
     throw new ApiRouteError({
       status: 400,

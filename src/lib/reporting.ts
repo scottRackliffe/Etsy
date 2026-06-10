@@ -743,8 +743,13 @@ function buildSalesTaxSummaryReport(params?: ReportParams): ReportResult {
   };
 }
 
-function buildInventoryAgingReport(): ReportResult {
+function buildInventoryAgingReport(params?: ReportParams): ReportResult {
   const db = getDb();
+  const { dateClause, dateParams } = buildDateClause(
+    "COALESCE(date_purchased, created_at)",
+    params?.from_date,
+    params?.to_date
+  );
   const rows = db
     .prepare(
       `
@@ -762,10 +767,11 @@ function buildInventoryAgingReport(): ReportResult {
         ) AS days_in_stock
       FROM inventory
       WHERE status IN ('Draft', 'In stock', 'Listed', 'Reserved')
+        ${dateClause}
       ORDER BY days_in_stock DESC, item_number ASC
     `
     )
-    .all() as Array<{
+    .all(...dateParams) as Array<{
     item_number: string;
     description: string;
     status: string;
@@ -855,6 +861,81 @@ export function buildAccountingExportRows(params?: ReportParams): AccountingExpo
       Description: `Sale: ${row.item_description} (${row.item_number})`,
       Debit: "",
       Credit: row.amount.toFixed(2),
+      Account: "Sales Revenue",
+    });
+  }
+
+  const shippingRevenue = db
+    .prepare(
+      `
+      SELECT order_date AS tx_date, COALESCE(order_number, CAST(id AS TEXT)) AS order_number,
+        ROUND(COALESCE(shipping_total, 0), 2) AS amount
+      FROM orders
+      WHERE order_status = 'active' AND COALESCE(shipping_total, 0) > 0
+    `
+    )
+    .all() as Array<{ tx_date: string; order_number: string; amount: number }>;
+
+  for (const row of shippingRevenue) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Shipping Revenue",
+      Reference: row.order_number,
+      Description: `Shipping revenue: Order ${row.order_number}`,
+      Debit: "",
+      Credit: row.amount.toFixed(2),
+      Account: "Shipping Income",
+    });
+  }
+
+  const discountRows = db
+    .prepare(
+      `
+      SELECT order_date AS tx_date, COALESCE(order_number, CAST(id AS TEXT)) AS order_number,
+        ROUND(COALESCE(discount_total, 0), 2) AS amount
+      FROM orders
+      WHERE order_status = 'active' AND COALESCE(discount_total, 0) > 0
+    `
+    )
+    .all() as Array<{ tx_date: string; order_number: string; amount: number }>;
+
+  for (const row of discountRows) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Discount",
+      Reference: row.order_number,
+      Description: `Discount: Order ${row.order_number}`,
+      Debit: row.amount.toFixed(2),
+      Credit: "",
+      Account: "Sales Discounts",
+    });
+  }
+
+  const refundedOrders = db
+    .prepare(
+      `
+      SELECT o.order_date AS tx_date, COALESCE(o.order_number, CAST(o.id AS TEXT)) AS order_number,
+        ROUND(COALESCE(o.subtotal, 0), 2) AS amount
+      FROM orders o
+      WHERE o.order_status = 'active' AND o.payment_status = 'refunded'
+    `
+    )
+    .all() as Array<{ tx_date: string; order_number: string; amount: number }>;
+
+  for (const row of refundedOrders) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    rows.push({
+      Date: row.tx_date?.slice(0, 10) ?? "",
+      "Transaction Type": "Refund",
+      Reference: row.order_number,
+      Description: `Refund: Order ${row.order_number}`,
+      Debit: row.amount.toFixed(2),
+      Credit: "",
       Account: "Sales Revenue",
     });
   }
@@ -1058,7 +1139,7 @@ export function buildReport(reportName: string, params?: ReportParams): ReportRe
   if (reportName === "thank-you-note") return buildThankYouReport();
   if (reportName === "profit-by-item") return buildProfitByItemReport(params);
   if (reportName === "sales-tax-summary") return buildSalesTaxSummaryReport(params);
-  if (reportName === "inventory-aging") return buildInventoryAgingReport();
+  if (reportName === "inventory-aging") return buildInventoryAgingReport(params);
   if (reportName === "accounting-export") return buildAccountingExportReport(params);
   const generated_at = new Date().toISOString();
   return {

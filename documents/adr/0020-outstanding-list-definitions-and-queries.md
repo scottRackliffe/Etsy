@@ -96,6 +96,29 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ---
 
+### 8. Items missing Etsy publish fields (era/category)
+
+**Definition:** Inventory items with a listing draft in progress (`generated`, `imported`, or `approved`) that are missing required Etsy publish fields (`etsy_when_made` or `etsy_taxonomy_id`).
+
+**Label:** "Missing era or category for Etsy"
+
+**Severity:** Warning (advisory — not blocking until publish attempt).
+
+**Query rule:** From `inventory` where `listing_draft_state` IN ('generated', 'imported', 'approved') AND (`etsy_when_made` IS NULL OR `etsy_taxonomy_id` IS NULL).
+
+```sql
+SELECT id, item_number, description
+FROM inventory
+WHERE listing_draft_state IN ('generated','imported','approved')
+  AND (etsy_when_made IS NULL OR etsy_taxonomy_id IS NULL)
+```
+
+One outstanding item per inventory row. Display: e.g. "Item &lt;item_number&gt; – missing era or category for Etsy".
+
+**Target on click:** Inventory tab; open/select that inventory item. Deep link: `/inventory?itemId=<id>`.
+
+---
+
 ### 7. Records with validation or context-check issues (in scope)
 
 **Definition:** Records that failed validation or context checks at save time and were not auto-corrected. Each such record appears as an outstanding to-do so the user can fix it (e.g. "Order #123 — select a customer," "Item X — listing description required before List on Etsy").
@@ -117,6 +140,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 | Customer no/incomplete address  | customers, addresses | no complete flat or ship-to address                                | customers.id       | Customers, customer |
 | Missing shipping cost           | orders               | shipped but seller_shipping_cost null/0                            | orders.id          | Sales, order        |
 | Validation/context-check issues | DB or computed       | records with unresolved validation/context failures                | record or order_id | Tab and record      |
+| Missing era/category for Etsy   | inventory            | draft in progress, etsy_when_made or etsy_taxonomy_id null         | inventory.id       | Inventory, item     |
 
 ---
 
@@ -175,7 +199,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 When a user clicks an outstanding item in the Outstanding tab, the app navigates to the relevant page (Sales, Inventory, or Customers) with a deep-link query parameter that selects, scrolls to, and highlights the target record. ADR-035 defines the full deep-link protocol:
 
 - Paid-not-shipped / Unpaid / Missing-shipping-cost / Orders-missing-customer → navigates to `/sales?orderId=<id>`
-- Not-listed → navigates to `/inventory?itemId=<id>`
+- Not-listed / Missing-era-or-category → navigates to `/inventory?itemId=<id>`
 - Missing-address → navigates to `/customers?customerId=<id>`
 
 The target page reads the query parameter on mount, fetches the record if not already loaded, scrolls it into view, applies a highlight animation, and cleans the URL. This satisfies the "context in place" requirement from ADR-009 without requiring the side panel.
@@ -212,5 +236,6 @@ The following outstanding types require additional infrastructure and are deferr
 | -------------------- | -------------- | ------------------------------------------------------------------------------- |
 | `etsy_not_synced`    | Type 3         | Requires live Etsy API call at query time; depends on sync infrastructure       |
 | `validation_issue`   | Type 7         | Requires runtime validation checks across all entity types at outstanding build |
+| `missing_etsy_fields`| Type 8         | Advisory — requires new Etsy-specific columns on inventory                      |
 
-See Types 3 and 7 definitions above for full query rules and caching behavior.
+See Types 3, 7, and 8 definitions above for full query rules and caching behavior.

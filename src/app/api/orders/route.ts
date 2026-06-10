@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     const shipRaw = parseOptionalString(params, "shipping_status");
     const shipping_status =
       shipRaw === "shipped" || shipRaw === "not_shipped" ? shipRaw : undefined;
+    const customerIdRaw = parseOptionalString(params, "customer_id");
+    const customer_id = customerIdRaw ? parseInt(customerIdRaw, 10) : undefined;
     const { items, total } = listOrders({
       limit,
       offset,
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
       payment_status: parseOptionalString(params, "payment_status"),
       shipping_status,
       source_channel: parseOptionalString(params, "source_channel"),
+      customer_id: customer_id && Number.isFinite(customer_id) ? customer_id : undefined,
       sortBy: parseOptionalString(params, "sort_by"),
       sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
     });

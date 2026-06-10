@@ -85,7 +85,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Add new listing with Listing Coach** (ADR-072) — recommended for new items; navigates to `/listing-coach`.
 - **Add item** (quick: item number + description only).
 - **Edit** (selected item).
-- **Add / Import pictures** (selected item: **file picker + drag-and-drop upload** → **preview thumbnails** → confirm → assign to slots 1–10; per ADR-033). Show **link to "Why pictures matter"** doc.
+- **Add / Import pictures** (selected item: **file picker + drag-and-drop upload** → **preview thumbnails** → confirm → assign to slots 1–20; per ADR-033). Show **link to "Why pictures matter"** doc.
 - **Replace / Reorder / Remove** (Replace uses same file picker or drag-and-drop; drag to reorder slots).
 - **Condition** — Set condition code (Etsy-aligned), “has blemish/issue”, condition notes; condition pictures (up to 5) use same **file picker + drag-and-drop** flow (ADR-033); show **"Why pictures matter"** link.
 - **Mark as listed** (set date listed, optional Etsy link).
@@ -188,14 +188,14 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 **Quick add (unchanged):**
 
 1. **Inventory** tab → **Add item** (item number + short description only).
-2. Enter: item number, description, **date purchased**, purchase cost, shipping cost (if any), other costs (with descriptions). Upload pictures 1–10. Optional: category, notes.
+2. Enter: item number, description, **date purchased**, purchase cost, shipping cost (if any), other costs (with descriptions). Upload pictures 1–20. Optional: category, notes.
 3. Save. Status “In stock” (or “Draft” if we support that).
 4. When listed: set **date listed**, optional Etsy listing ID; status → “Listed.”
 
 ### 5.4 List item for sale (optional flow)
 
 1. **Inventory** tab: select item.
-2. **Generate listing content** (optional): User runs "Generate listing content" (or equivalent). The app **sends all item pictures** (picture_1…picture_10 and condition_picture_1…condition_picture_5 — every non-empty one) to the AI with item context and the listing template/requirements. The AI returns title, description, and 13 tags; the app saves them to the item. Do not generate listing content without providing all associated pictures. Full requirements: **[documents/etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md)**.
+2. **Generate listing content** (optional): User runs "Generate listing content" (or equivalent). The app **sends all item pictures** (picture_1…picture_20 and condition_picture_1…condition_picture_5 — every non-empty one) to the AI with item context and the listing template/requirements. The AI returns title, description, and 13 tags; the app saves them to the item. Do not generate listing content without providing all associated pictures. Full requirements: **[documents/etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md)**.
 3. Command **Mark as listed** (or “List on Etsy” if we integrate listing creation). Item cannot be listed until required listing content is complete per the template doc.
 4. Set **date listed**. Optionally link Etsy listing ID when listed on Etsy.
 5. Status → “Listed.”
@@ -220,17 +220,17 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Panel layout**: Which side is commands vs outstanding. An **icon** in the UI flips the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse.
 - **Preferences**: e.g. date format, currency, first-day-of-week (if we add them).
 
-### 5.8 Importing the 10 pictures (and related)
+### 5.8 Importing the 20 pictures, video, and condition photos
 
-Each inventory item can have up to **10 pictures** (picture 1 = primary; order matters for listing/reports); **condition pictures** use the same flow (up to 5). The app stores **paths or URLs** in the database; the actual files live on disk or in object storage.
+Each inventory item can have up to **20 pictures** (picture 1 = primary; order matters for listing/reports; Etsy allows up to 20 per listing); **condition pictures** use the same flow (up to 5). Optional **listing video** (MP4/MOV, 5–15 seconds). The app stores **paths or URLs** in the database; the actual files live on disk or in object storage.
 
 **Standard flow for all pictures (main and condition): file picker + drag-and-drop → preview → confirm (ADR-033)**
 
 > **Reconciliation (2026-06-09):** The original design described a "directory picker" flow. ADR-033 replaced this with **file picker + drag-and-drop upload** for v1. The directory/folder import concept is deferred to post-v1 (see below).
 
 - For **any** picture need (main or condition), the user selects files via a **file picker dialog** or **drags and drops** files onto the upload grid (ADR-033).
-- The app displays **thumbnail previews** of selected files in a visual grid (10 slots main, 5 slots condition) so the user can confirm before saving.
-- User confirms or removes files. App processes images (Sharp: validation, resizing, thumbnail generation per ADR-026), assigns to slots (main: 1–10; condition: 1–5), copies into app storage, saves paths. **Replace** (per slot) uses the same file picker or drag-and-drop.
+- The app displays **thumbnail previews** of selected files in a visual grid (20 slots main, 5 slots condition) so the user can confirm before saving.
+- User confirms or removes files. App processes images (Sharp: validation, resizing, thumbnail generation per ADR-026), assigns to slots (main: 1–20; condition: 1–5), copies into app storage, saves paths. **Replace** (per slot) uses the same file picker or drag-and-drop.
 
 **"Why pictures matter" — link in the UI**
 
@@ -242,7 +242,7 @@ Each inventory item can have up to **10 pictures** (picture 1 = primary; order m
 
 | Method                    | Description                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **File picker**           | User picks one or more files from a file dialog. App assigns them to slots 1–10 in order; user can reorder or replace.                                                               |
+| **File picker**           | User picks one or more files from a file dialog. App assigns them to slots 1–20 in order; user can reorder or replace.                                                               |
 | **Drag-and-drop**         | User drags image files onto the upload grid (ADR-033). App previews thumbnails and assigns to slots.                                                                                  |
 | **Paste (Listing Coach)** | In Listing Coach (ADR-072), user can paste images from macOS Photos (⌘C/⌘V).                                                                                                        |
 | **URL** (optional)        | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot.                                                                          |
@@ -252,14 +252,14 @@ Each inventory item can have up to **10 pictures** (picture 1 = primary; order m
 1. **Inventory** tab → select item → **Upload / Import pictures** (or do it inside Add/Edit item).
 2. Choose method: **File picker**, **drag-and-drop**, or optionally **Paste URL** per slot.
 3. Selected files appear as **thumbnail previews** in the slot grid (ADR-033). User can reorder by drag, replace per slot, or remove.
-4. User confirms → app processes images (validation, resize, thumbnail per ADR-026), assigns to slots (main 1–10 or condition 1–5), saves paths. If more images than slots, use first N by order or let user choose. Allow drag-to-reorder, Replace (same file picker or drag-and-drop per slot), Remove.
-5. Save. Item record now has picture_1 … picture_10 (paths or URLs); empty slots are null.
+4. User confirms → app processes images (validation, resize, thumbnail per ADR-026), assigns to slots (main 1–20 or condition 1–5), saves paths. If more images than slots, use first N by order or let user choose. Allow drag-to-reorder, Replace (same file picker or drag-and-drop per slot), Remove.
+5. Save. Item record now has picture_1 … picture_20 (paths or URLs); empty slots are null.
 
 **Post-v1: Bulk folder import**
 
 > The following bulk/directory import flow is **deferred to post-v1**. V1 uses per-file upload only (ADR-033).
 
-- "Import multiple items" flow: user selects a parent folder containing one subfolder per item (subfolder name = item number or new item); for each subfolder, create or find the item and import that folder's images into picture 1–10. Requires matching by item number or creating new items.
+- "Import multiple items" flow: user selects a parent folder containing one subfolder per item (subfolder name = item number or new item); for each subfolder, create or find the item and import that folder's images into picture 1–20. Requires matching by item number or creating new items.
 - Single-item directory import (select a folder, preview contents, confirm) is also deferred; v1 uses file picker + drag-and-drop per ADR-033.
 
 **Constraints / rules**

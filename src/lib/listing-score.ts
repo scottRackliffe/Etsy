@@ -13,6 +13,12 @@ export type ListingScoreBreakdown = {
   category_tags: number;
   description_dimensions: number;
   description_materials: number;
+  etsy_when_made: number;
+  etsy_taxonomy_id: number;
+  materials_field: number;
+  measurements: number;
+  video: number;
+  picture_classifications: number;
 };
 
 export type ListingScoreResult = {
@@ -42,6 +48,23 @@ export type ListingScoreInput = {
   picture_8?: string | null;
   picture_9?: string | null;
   picture_10?: string | null;
+  picture_11?: string | null;
+  picture_12?: string | null;
+  picture_13?: string | null;
+  picture_14?: string | null;
+  picture_15?: string | null;
+  picture_16?: string | null;
+  picture_17?: string | null;
+  picture_18?: string | null;
+  picture_19?: string | null;
+  picture_20?: string | null;
+  etsy_when_made?: string | null;
+  etsy_taxonomy_id?: number | string | null;
+  materials?: string | null;
+  item_weight?: number | null;
+  item_length?: number | null;
+  video_path?: string | null;
+  picture_classifications?: string | null;
 };
 
 const DIMENSIONS_RE = /\b\d+(\.\d+)?\s*("|inch|inches|cm|mm|feet|ft)\b/i;
@@ -60,6 +83,16 @@ function countPictures(input: ListingScoreInput): number {
     "picture_8",
     "picture_9",
     "picture_10",
+    "picture_11",
+    "picture_12",
+    "picture_13",
+    "picture_14",
+    "picture_15",
+    "picture_16",
+    "picture_17",
+    "picture_18",
+    "picture_19",
+    "picture_20",
   ] as const;
   return keys.filter((key) => {
     const value = input[key];
@@ -100,8 +133,8 @@ function scoreDescriptionLength(description: string): number {
 }
 
 function scorePictureCount(count: number): number {
-  if (count >= 5) return 15;
-  if (count >= 3) return 8;
+  if (count >= 10) return 15;
+  if (count >= 5) return 8;
   return 0;
 }
 
@@ -168,7 +201,7 @@ function buildTips(input: ListingScoreInput, breakdown: ListingScoreBreakdown): 
   if (breakdown.picture_count < 15) {
     candidates.push({
       gain: 15 - breakdown.picture_count,
-      tip: `Add more photos — you have ${pictureCount} of 10 slots filled.`,
+      tip: `Add more photos — you have ${pictureCount} of 20 slots filled.`,
     });
   }
 
@@ -216,6 +249,34 @@ function buildTips(input: ListingScoreInput, breakdown: ListingScoreBreakdown): 
     .map((entry) => entry.tip);
 }
 
+function countDistinctClassifications(input: ListingScoreInput): number {
+  const raw = input.picture_classifications;
+  if (!raw?.trim()) return 0;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return 0;
+    const types = new Set<string>();
+    for (const val of Object.values(parsed)) {
+      if (typeof val === "string" && val.trim()) types.add(val.trim());
+    }
+    return types.size;
+  } catch {
+    return 0;
+  }
+}
+
+function countMaterialsEntries(input: ListingScoreInput): number {
+  const raw = input.materials;
+  if (!raw?.trim()) return 0;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === "string" && v.trim()).length;
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function computeListingScore(input: ListingScoreInput): ListingScoreResult {
   const title = input.listing_title?.trim() ?? "";
   const description = input.listing_description?.trim() ?? "";
@@ -235,9 +296,16 @@ export function computeListingScore(input: ListingScoreInput): ListingScoreResul
     category_tags: input.category_tags?.trim() ? 5 : 0,
     description_dimensions: description && DIMENSIONS_RE.test(description) ? 5 : 0,
     description_materials: description && MATERIALS_RE.test(description) ? 5 : 0,
+    etsy_when_made: input.etsy_when_made?.trim() ? 3 : 0,
+    etsy_taxonomy_id: input.etsy_taxonomy_id != null && input.etsy_taxonomy_id !== "" ? 3 : 0,
+    materials_field: countMaterialsEntries(input) >= 1 ? 3 : 0,
+    measurements: (input.item_weight != null && input.item_weight > 0) || (input.item_length != null && input.item_length > 0) ? 3 : 0,
+    video: input.video_path?.trim() ? 3 : 0,
+    picture_classifications: countDistinctClassifications(input) >= 3 ? 3 : 0,
   };
 
-  const score = Object.values(breakdown).reduce((sum, points) => sum + points, 0);
+  const rawScore = Object.values(breakdown).reduce((sum, points) => sum + points, 0);
+  const score = Math.min(rawScore, 100);
 
   return {
     score,

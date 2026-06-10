@@ -20,6 +20,16 @@ export type CompleteListingCoachInput = {
   conditionPhotos: CoachPhotoFile[];
   googlePhotosCount?: number;
   priceConfidence?: string;
+  etsyWhenMade?: string;
+  etsyTaxonomyId?: number;
+  materials?: string;
+  itemWeight?: number;
+  itemWeightUnit?: string;
+  itemLength?: number;
+  itemWidth?: number;
+  itemHeight?: number;
+  itemDimensionsUnit?: string;
+  pictureClassifications?: string;
 };
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -69,6 +79,16 @@ export async function completeListingCoach(
         listing_draft_state: "generated",
         listing_draft_source: "integrated_ai",
         is_listed: 0,
+        ...(input.etsyWhenMade ? { etsy_when_made: input.etsyWhenMade } : {}),
+        ...(input.etsyTaxonomyId ? { etsy_taxonomy_id: input.etsyTaxonomyId } : {}),
+        ...(input.materials ? { materials: input.materials } : {}),
+        ...(input.itemWeight != null ? { item_weight: input.itemWeight } : {}),
+        ...(input.itemWeightUnit ? { item_weight_unit: input.itemWeightUnit } : {}),
+        ...(input.itemLength != null ? { item_length: input.itemLength } : {}),
+        ...(input.itemWidth != null ? { item_width: input.itemWidth } : {}),
+        ...(input.itemHeight != null ? { item_height: input.itemHeight } : {}),
+        ...(input.itemDimensionsUnit ? { item_dimensions_unit: input.itemDimensionsUnit } : {}),
+        ...(input.pictureClassifications ? { picture_classifications: input.pictureClassifications } : {}),
       },
       { forCreate: true }
     );
@@ -149,6 +169,9 @@ export async function completeListingCoach(
       price_confidence: input.priceConfidence ?? null,
       sale_revenue_set: input.saleRevenue != null && input.saleRevenue > 0,
       quality_score: input.compose.quality_score.score,
+      when_made: input.etsyWhenMade ?? null,
+      taxonomy_id: input.etsyTaxonomyId ?? null,
+      materials_count: input.materials ? JSON.parse(input.materials).length : 0,
     },
     source: "user",
   });

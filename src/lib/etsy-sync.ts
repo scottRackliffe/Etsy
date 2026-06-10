@@ -90,16 +90,6 @@ function resolveOrCreateCustomer(receipt: Receipt): number {
     if (byEmail) return byEmail.id;
   }
 
-  // Fall back to name match (case-insensitive)
-  if (nameParts.firstName || nameParts.lastName) {
-    const byName = db
-      .prepare(
-        "SELECT id FROM customers WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)"
-      )
-      .get(nameParts.firstName, nameParts.lastName) as { id: number } | undefined;
-    if (byName) return byName.id;
-  }
-
   // Create new customer
   const now = new Date().toISOString();
   const result = db
@@ -220,6 +210,22 @@ function resolveOrCreateInventory(
 }
 
 // ---------------------------------------------------------------------------
+// Raw receipt cache (ADR-019) — called for EVERY receipt including skipped
+// ---------------------------------------------------------------------------
+
+function upsertEtsyReceipt(receipt: Receipt, shopId: number): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO etsy_receipts (receipt_id, shop_id, receipt_json, synced_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(receipt_id) DO UPDATE SET
+       receipt_json = excluded.receipt_json,
+       synced_at = excluded.synced_at`
+  ).run(String(receipt.receipt_id), String(shopId), JSON.stringify(receipt), now);
+}
+
+// ---------------------------------------------------------------------------
 // Receipt → order + order_items (ADR-019 §2)
 // ---------------------------------------------------------------------------
 
@@ -233,7 +239,6 @@ function isReceiptAlreadySynced(receiptId: string): boolean {
 
 function importReceipt(
   receipt: Receipt,
-  shopId: number,
   createdPlaceholders: Map<string, number>
 ): {
   createdCustomer: boolean;
@@ -275,9 +280,24 @@ function importReceipt(
   const createdAddress = addressCountAfter > addressCountBefore;
 
   // Compute totals from receipt
-  const totalPrice = parseMoneyAmount(receipt.total_price) ?? 0;
+  const subtotal = parseMoneyAmount(receipt.subtotal) ?? parseMoneyAmount(receipt.total_price) ?? 0;
   const totalShipping = parseMoneyAmount(receipt.total_shipping_cost) ?? 0;
   const totalTax = parseMoneyAmount(receipt.total_tax_cost) ?? 0;
+  const discountTotal = parseMoneyAmount(receipt.discount_amt) ?? 0;
+  const grandTotal = subtotal + totalShipping + totalTax - discountTotal;
+
+  // Build notes dynamically (ADR-019: buyer message + gift message)
+  let notes = "Synced from Etsy";
+  if (receipt.message_from_buyer && receipt.message_from_buyer.trim()) {
+    notes += `\nBuyer message: ${receipt.message_from_buyer.trim()}`;
+  }
+  if (receipt.is_gift) {
+    if (receipt.gift_message && receipt.gift_message.trim()) {
+      notes += `\nGift message: ${receipt.gift_message.trim()}`;
+    } else {
+      notes += "\nGift order (no message)";
+    }
+  }
 
   // Receipt creation date → YYYY-MM-DD
   const orderDate = receipt.creation_tsz
@@ -301,12 +321,12 @@ function importReceipt(
       ) VALUES (
         ?, ?, ?, 'active', ?, ?, ?, 'etsy',
         ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, 0, ?,
-        'Synced from Etsy', ?, ?
+        ?, ?, ?, ?, ?,
+        ?, ?, ?
       )`
     )
     .run(
-      `ETSY-${receiptId}`,
+      String(receiptId),
       customerId,
       orderDate,
       receipt.was_paid ? "paid" : "unpaid",
@@ -320,10 +340,12 @@ function importReceipt(
       receipt.state || null,
       receipt.country_iso || null,
       receipt.zip || null,
-      totalPrice,
+      subtotal,
       totalShipping,
       totalTax,
-      totalPrice + totalShipping + totalTax,
+      discountTotal,
+      grandTotal,
+      notes,
       now,
       now
     );
@@ -352,15 +374,6 @@ function importReceipt(
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).run(orderId, inventoryId, qty, unitPrice, lineTotal, now, now);
   }
-
-  // Also cache the raw receipt JSON
-  db.prepare(
-    `INSERT INTO etsy_receipts (receipt_id, shop_id, receipt_json, synced_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(receipt_id) DO UPDATE SET
-       receipt_json = excluded.receipt_json,
-       synced_at = excluded.synced_at`
-  ).run(receiptId, String(shopId), JSON.stringify(receipt), now);
 
   return {
     createdCustomer,
@@ -427,12 +440,29 @@ export async function syncEtsyReceipts(
       const token = await getValidAccessToken(cookieStore);
 
       let data;
+      const fetchWithRetry = async (accessToken: string) => {
+        const MAX_429_RETRIES = 2;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await getShopReceipts(accessToken, shopId, { limit: PAGE_SIZE, offset });
+          } catch (err) {
+            if (err instanceof EtsyApiError && err.status === 429 && attempt < MAX_429_RETRIES) {
+              const retryAfter = parseInt(err.retryAfter ?? "", 10);
+              const waitMs = (isNaN(retryAfter) ? 5 : retryAfter) * 1000;
+              logger.warn("etsy.sync.rate_limited", { attempt: attempt + 1, wait_ms: waitMs });
+              await new Promise((resolve) => setTimeout(resolve, waitMs));
+              continue;
+            }
+            throw err;
+          }
+        }
+      };
       try {
-        data = await getShopReceipts(token, shopId, { limit: PAGE_SIZE, offset });
+        data = await fetchWithRetry(token);
       } catch (err) {
         if (err instanceof EtsyApiError && err.status === 401) {
           data = await refreshAndRetry(cookieStore, `/shops/${shopId}/receipts`, (t) =>
-            getShopReceipts(t, shopId, { limit: PAGE_SIZE, offset })
+            fetchWithRetry(t)
           );
         } else {
           throw err;
@@ -462,6 +492,9 @@ export async function syncEtsyReceipts(
         const receiptId = String(receipt.receipt_id);
         reportProgress(`Processing receipt #${receiptId}…`);
 
+        // Always upsert raw receipt cache (even for already-imported receipts)
+        upsertEtsyReceipt(receipt, shopId);
+
         if (isReceiptAlreadySynced(receiptId)) {
           result.skipped_already_imported++;
           processed++;
@@ -481,7 +514,7 @@ export async function syncEtsyReceipts(
         }
 
         try {
-          const imported = importReceipt(receipt, shopId, createdPlaceholders);
+          const imported = importReceipt(receipt, createdPlaceholders);
           result.synced++;
           result.created_orders++;
           result.created_order_items += imported.orderItemCount;

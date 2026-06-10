@@ -63,7 +63,7 @@ const INVENTORY_SORT: Record<string, string> = {
   sale_revenue: "sale_revenue",
   date_purchased: "date_purchased",
   date_listed: "date_listed",
-  margin_pct: "sale_revenue",
+  margin_pct: "CASE WHEN sale_revenue > 0 THEN ((sale_revenue - COALESCE(purchase_cost, 0) - COALESCE(shipping_cost, 0)) * 100.0 / sale_revenue) ELSE NULL END",
 };
 
 export function listInventory(options: InventoryListOptions) {
@@ -278,6 +278,7 @@ export type OrderListOptions = {
   payment_status?: string;
   shipping_status?: "shipped" | "not_shipped";
   source_channel?: string;
+  customer_id?: number;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 };
@@ -303,6 +304,10 @@ export function listOrders(options: OrderListOptions) {
   if (options.source_channel?.trim()) {
     where += " AND source_channel = @source_channel";
     params.source_channel = options.source_channel.trim();
+  }
+  if (options.customer_id != null) {
+    where += " AND customer_id = @customer_id";
+    params.customer_id = options.customer_id;
   }
   if (options.shipping_status === "shipped") {
     where += " AND shipping_date IS NOT NULL AND shipping_date != ''";
@@ -500,6 +505,18 @@ export function patchOrder(id: number, input: Record<string, unknown>) {
   const patch = buildPatchSql("orders", id, pickDefined(input));
   if (!patch) return getOrder(id);
   db.prepare(patch.sql).run(patch.params);
+
+  const financialKeys = ["shipping_total", "tax_total", "discount_total", "subtotal"];
+  if (financialKeys.some((k) => input[k] !== undefined)) {
+    const row = db.prepare("SELECT subtotal, shipping_total, tax_total, discount_total FROM orders WHERE id = ?").get(id) as
+      | { subtotal: number | null; shipping_total: number | null; tax_total: number | null; discount_total: number | null }
+      | undefined;
+    if (row) {
+      const grand = (row.subtotal ?? 0) + (row.shipping_total ?? 0) + (row.tax_total ?? 0) - (row.discount_total ?? 0);
+      db.prepare("UPDATE orders SET grand_total = ?, updated_at = ? WHERE id = ?").run(grand, nowIso(), id);
+    }
+  }
+
   return getOrder(id);
 }
 

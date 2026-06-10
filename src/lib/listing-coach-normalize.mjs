@@ -12,11 +12,18 @@ const CONDITION_CODES = new Set([
 
 const PHOTO_SHOT_TYPES = new Set([
   "hero",
+  "angle",
   "detail",
   "backstamp",
   "scale",
+  "imperfection",
   "imperfections",
+  "underside",
+  "grouping",
   "group",
+  "lifestyle",
+  "measurement",
+  "extra",
 ]);
 
 export function cleanJsonResponse(text) {

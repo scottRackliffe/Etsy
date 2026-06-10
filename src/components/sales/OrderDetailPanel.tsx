@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useConnection } from "@/context/ConnectionContext";
 import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -33,6 +34,7 @@ type OrderDetailPanelProps = {
   onMarkPaid: () => void;
   onMarkShipped: () => void;
   onVoid: () => void;
+  onCancel?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
 
@@ -99,9 +101,12 @@ export function OrderDetailPanel({
   onMarkPaid,
   onMarkShipped,
   onVoid,
+  onCancel,
   onDirtyChange,
 }: OrderDetailPanelProps) {
   const { currencyCode } = useApp();
+  const { state: connectionState } = useConnection();
+  const isOffline = connectionState !== "online";
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const [order, setOrder] = useState<Order | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
@@ -174,6 +179,18 @@ export function OrderDetailPanel({
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const prevSubtotalRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!order || !draft || defaultTaxRate == null) return;
+    if (order.source_channel === "etsy") return;
+    const subtotal = Number(order.subtotal) || 0;
+    if (prevSubtotalRef.current !== null && prevSubtotalRef.current !== subtotal && subtotal > 0) {
+      const calc = Math.round(subtotal * defaultTaxRate) / 100;
+      setDraft((c) => (c ? { ...c, tax_total: calc.toFixed(2) } : c));
+    }
+    prevSubtotalRef.current = subtotal;
+  }, [order?.subtotal, order?.source_channel, defaultTaxRate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOrder = useCallback(
     async (id: number) => {
@@ -499,15 +516,18 @@ export function OrderDetailPanel({
               label={order.source_channel === "etsy" ? "Etsy" : "Manual"}
               variant={order.source_channel === "etsy" ? "info" : "neutral"}
             />
+            <HelpTooltip text="Where this order originated — synced from Etsy or created manually." />
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
           <Badge label={isPaid ? "Paid" : "Unpaid"} variant={isPaid ? "success" : "warning"} />
+          <HelpTooltip text="Whether payment has been received for this order." />
           <Badge
             label={isShipped ? "Shipped" : "Not shipped"}
             variant={isShipped ? "success" : "neutral"}
           />
           <Badge label={order.order_status ?? "active"} variant={isVoid ? "error" : "neutral"} />
+          <HelpTooltip text="Order lifecycle status: active, void, or cancelled." />
         </div>
       </div>
 
@@ -813,10 +833,22 @@ export function OrderDetailPanel({
           <button
             type="button"
             onClick={onVoid}
-            disabled={busy || saving}
+            disabled={busy || saving || isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
             className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
           >
             Void order
+          </button>
+        ) : null}
+        {!isVoid && order.order_status !== "cancelled" && onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy || saving || isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
+            className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
+          >
+            Cancel order
           </button>
         ) : null}
       </div>

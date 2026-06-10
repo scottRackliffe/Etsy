@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useConnection } from "@/context/ConnectionContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useUndoRedo } from "@/context/UndoRedoContext";
@@ -23,6 +24,8 @@ import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { addNotificationEntry } from "@/lib/notifications";
+import { patchHeaders } from "@/lib/patch-json";
+import { clearDraft, draftKey } from "@/lib/form-draft";
 import { addOrdersToPrintQueue, type PrintQueueDocType } from "@/lib/print-queue";
 import { orderRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { InlineEditResult } from "@/components/ui/DataTable";
@@ -44,7 +47,10 @@ function SalesPageInner() {
     setApiError,
     setError,
     shops,
+    pageSize: configPageSize,
   } = useApp();
+  const { state: connectionState } = useConnection();
+  const isOffline = connectionState !== "online";
 
   const router = useRouter();
   const pathname = usePathname();
@@ -56,7 +62,7 @@ function SalesPageInner() {
   const [orderSearch, setOrderSearch] = useState("");
   const debouncedOrderSearch = useDebouncedValue(orderSearch, 300);
   useListSearchFromUrl(setOrderSearch, () => setPage(0));
-  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(25);
+  const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [shippingFilter, setShippingFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -68,6 +74,7 @@ function SalesPageInner() {
     progressOpen,
     progressTitle,
     progressTotal,
+    progressCurrent,
   } = useBatchOperation();
   const { modal: syncModal, runSync } = useEtsySync();
   const [printQueueOpen, setPrintQueueOpen] = useState(false);
@@ -75,19 +82,43 @@ function SalesPageInner() {
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [shipModalMode, setShipModalMode] = useState<"single" | "batch">("single");
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [batchVoidConfirmOpen, setBatchVoidConfirmOpen] = useState(false);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [orderDetailDirty, setOrderDetailDirty] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
   const [discardOrderDirtyOpen, setDiscardOrderDirtyOpen] = useState(false);
   const { setFormDirty } = useUnsavedChanges();
-  const { patchWithUndo } = useUndoRedo();
+  const { patchWithUndo, clearStacks } = useUndoRedo();
+
+  useEffect(() => {
+    clearStacks();
+  }, [selectedOrderId, clearStacks]);
   const [shipForm, setShipForm] = useState({
     shipper: "USPS",
     tracking_number: "",
     shipping_date: new Date().toISOString().slice(0, 10),
     ship_anyway: false,
   });
+  const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/tax.default_rate", {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { value?: string };
+        if (!cancelled && data.value) {
+          const rate = parseFloat(data.value);
+          if (Number.isFinite(rate) && rate > 0) setDefaultTaxRate(rate);
+        }
+      } catch { /* optional */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     setFormDirty(orderDetailDirty);
@@ -151,6 +182,8 @@ function SalesPageInner() {
         editType: "toggle" as const,
         getEditValue: (order: Order) => Boolean(order.was_paid),
         getDisplayValue: (order: Order) => (order.was_paid ? "Paid" : "Unpaid"),
+        isEditable: (order: Order) => order.payment_status !== "refunded",
+        editDisabledTooltip: "Refunded orders cannot be toggled.",
       },
       {
         key: "shipper",
@@ -260,6 +293,12 @@ function SalesPageInner() {
     );
   }, [reloadOrders, setApiError]);
 
+  useEffect(() => {
+    const handler = () => createOrderRef.current?.focus();
+    window.addEventListener("esm-new-record", handler);
+    return () => window.removeEventListener("esm-new-record", handler);
+  }, []);
+
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -354,12 +393,19 @@ function SalesPageInner() {
     }
     setBusyAction("create-order");
     try {
+      const subtotal = Number(newOrderTotal || "0");
+      const taxTotal =
+        defaultTaxRate != null && subtotal > 0
+          ? Math.round(subtotal * defaultTaxRate) / 100
+          : 0;
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           order_number: newOrderNumber.trim(),
-          grand_total: Number(newOrderTotal || "0"),
+          subtotal,
+          tax_total: taxTotal,
+          grand_total: subtotal + taxTotal,
           payment_status: "unpaid",
           order_status: "active",
           source_channel: "manual",
@@ -484,7 +530,7 @@ function SalesPageInner() {
     try {
       const response = await fetch(`/api/orders/${selectedOrderId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: patchHeaders(selectedOrder?.updated_at),
         body: JSON.stringify({ order_status: "void" }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
@@ -494,6 +540,27 @@ function SalesPageInner() {
       setError(null);
     } catch (err) {
       setApiError("Could not void order", "We could not void the order.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const cancelSelectedOrder = async () => {
+    if (!selectedOrderId) return;
+    setBusyAction("cancel-order");
+    try {
+      const response = await fetch(`/api/orders/${selectedOrderId}`, {
+        method: "PATCH",
+        headers: patchHeaders(selectedOrder?.updated_at),
+        body: JSON.stringify({ order_status: "cancelled" }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+      if (!response.ok) throw data;
+      if (data.order) updateOrderInList(data.order);
+      setCancelConfirmOpen(false);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not cancel order", "We could not cancel the order.", err);
     } finally {
       setBusyAction(null);
     }
@@ -632,6 +699,8 @@ function SalesPageInner() {
             variant="danger"
             size="sm"
             busy={busyAction === "batch-void" || batchBusy}
+            disabled={isOffline}
+            title={isOffline ? "Unavailable while offline" : undefined}
             onClick={() => setBatchVoidConfirmOpen(true)}
           >
             Void
@@ -659,6 +728,7 @@ function SalesPageInner() {
           type="button"
           onClick={createOrderRecord}
           disabled={busyAction != null}
+          title="New order (Ctrl+N)"
           className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {busyAction === "create-order" ? "Creating..." : "Create order"}
@@ -677,6 +747,7 @@ function SalesPageInner() {
               }}
               aria-label="Search orders"
               placeholder="Search order #, name, city…"
+              title="Search (Ctrl+K)"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
           </div>
@@ -756,6 +827,7 @@ function SalesPageInner() {
           onMarkPaid={() => void markSelectedOrderPaid()}
           onMarkShipped={() => openShipModal("single")}
           onVoid={() => setVoidConfirmOpen(true)}
+          onCancel={() => setCancelConfirmOpen(true)}
           onDirtyChange={setOrderDetailDirty}
         />
       </div>
@@ -805,7 +877,7 @@ function SalesPageInner() {
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
               {shipModalMode === "batch"
                 ? `Mark ${batch.selectionCount} orders shipped`
-                : "Mark order shipped"}
+                : `Ship order ${selectedOrder?.order_number ?? ""}`}
             </h4>
             <label className="mb-2 block text-sm">
               Carrier
@@ -866,7 +938,7 @@ function SalesPageInner() {
               >
                 {busyAction === "mark-shipped" || busyAction === "batch-ship"
                   ? "Saving…"
-                  : "Mark shipped"}
+                  : "Confirm shipment"}
               </button>
             </div>
           </div>
@@ -885,6 +957,19 @@ function SalesPageInner() {
         confirmLabel="Void order"
         confirmVariant="danger"
         busy={busyAction === "void-order"}
+      />
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        onClose={() => setCancelConfirmOpen(false)}
+        onConfirm={() => void cancelSelectedOrder()}
+        title="Cancel order?"
+        description="This will cancel the order. Cancelled orders are excluded from active reports and cannot be shipped."
+        affectedLabel={
+          selectedOrder?.order_number ? `Order ${selectedOrder.order_number}` : undefined
+        }
+        confirmLabel="Cancel order"
+        confirmVariant="danger"
+        busy={busyAction === "cancel-order"}
       />
       <ConfirmDialog
         open={batchVoidConfirmOpen}
@@ -927,7 +1012,7 @@ function SalesPageInner() {
         title={progressTitle}
         statusText={progressTitle}
         mode="determinate"
-        current={progressTotal}
+        current={progressCurrent}
         total={progressTotal}
       />
       <ProgressModal {...syncModal} />
@@ -938,6 +1023,7 @@ function SalesPageInner() {
           setPendingOrderId(null);
         }}
         onConfirm={() => {
+          if (selectedOrderId != null) clearDraft(draftKey("order", selectedOrderId));
           setDiscardOrderDirtyOpen(false);
           if (pendingOrderId != null) setSelectedOrderId(pendingOrderId);
           setPendingOrderId(null);

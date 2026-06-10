@@ -108,12 +108,25 @@ export async function POST(request: Request) {
         ? suggestedConditionRaw.trim()
         : undefined;
 
+    const whenMadeRaw = formData.get("when_made");
+    const whenMade =
+      typeof whenMadeRaw === "string" && whenMadeRaw.trim() ? whenMadeRaw.trim() : undefined;
+    const taxonomyIdRaw = formData.get("taxonomy_id");
+    const taxonomyId =
+      taxonomyIdRaw != null && taxonomyIdRaw !== "" ? Number(taxonomyIdRaw) : undefined;
+    const materialsRaw = formData.get("materials");
+    const materials =
+      typeof materialsRaw === "string" && materialsRaw.trim() ? materialsRaw.trim() : undefined;
+
     const result = await composeListingCoach({
       ...photos,
       confirmAnswers,
       price,
       identificationOverride,
       suggestedConditionCode,
+      whenMade,
+      taxonomyId: taxonomyId != null && Number.isFinite(taxonomyId) ? taxonomyId : undefined,
+      materials,
     });
 
     return NextResponse.json({ ok: true, ...result });

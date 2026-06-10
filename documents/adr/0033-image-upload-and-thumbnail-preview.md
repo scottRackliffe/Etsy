@@ -22,7 +22,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ Pictures                                    [+ Add]      │
+│ Pictures (20 slots)                         [+ Add]      │
 ├──────────────────────────────────────────────────────────┤
 │ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
 │ │  pic 1 │ │  pic 2 │ │  pic 3 │ │  pic 4 │ │  pic 5 │ │
@@ -34,13 +34,27 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 │ │  pic 6 │ │  pic 7 │ │  pic 8 │ │  pic 9 │ │ pic 10 │ │
 │ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │
 │ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
+│ │ pic 11 │ │ pic 12 │ │ pic 13 │ │ pic 14 │ │ pic 15 │ │
+│ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │
+│ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
+│ │ pic 16 │ │ pic 17 │ │ pic 18 │ │ pic 19 │ │ pic 20 │ │
+│ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │ (empty)│ │
+│ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ │
 │                                                          │
 │ Drag to reorder. Slot 1 is the primary listing image.    │
+│                                                          │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ 🎬 Video (optional)              [Upload video]      │ │
+│ │ MP4/MOV · max 100 MB · 5–15 seconds                  │ │
+│ └──────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
 ```
 
-- 10 slots displayed in a 5×2 grid (responsive: 3×4 on medium, 2×5 on small).
+- 20 item photo slots displayed in a 5×4 grid (responsive: 3-col on medium, 2-col on small; grid scrolls vertically as needed).
 - Each slot is a square card (~120×120px on desktop, ~100×100px on mobile).
+- Optional video upload zone (MP4/MOV, max 100 MB, 5–15 seconds) below the photo grid. Video is stored at `inventory.video_path`.
 
 ---
 
@@ -54,7 +68,8 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
   - `✕` (top-right corner): delete this picture (confirmation per ADR-032: "Remove picture from slot {n}?").
   - `👁` or expand icon (center): open full-size preview in a `Modal`.
 - Slot 1 indicator: a small `★` badge in the bottom-left corner ("Primary image").
-- Draggable: the card can be dragged to another slot position to reorder.
+- **Shot type badge:** If `picture_classifications` contains an entry for this slot, display a small label badge in the top-left corner with the shot type (e.g. "Hero", "Detail", "Backstamp"). Badge color: `var(--ui-accent)` background with white text. In edit mode (Listing Coach review or inventory detail), the badge is a compact dropdown: first option "OK" (accept current), followed by the full shot type enum (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). See ADR-072 §Photo classification.
+- Draggable: the card can be dragged to another slot position to reorder. When reordering, classifications move with their photos (the classification is bound to the image, not the slot number).
 
 **Empty slot:**
 
@@ -84,7 +99,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
 ### Drag-to-reorder
 
 - Filled slots can be dragged and dropped onto other slots (filled or empty).
-- Use the HTML Drag and Drop API (no external library required for 10 items).
+- Use the HTML Drag and Drop API (no external library required for 20 items).
 - Visual feedback during drag: dragged card becomes semi-transparent; drop target shows a blue highlight border.
 - On drop: call `PATCH /api/inventory/[id]/pictures/reorder` with body `{ order: [3, 1, 2, 4, ...] }` where the array represents the new slot permutation — the value at index 0 becomes `picture_1`, the value at index 1 becomes `picture_2`, etc. Array values are the original slot numbers being moved into each position.
 - During reorder API call: show a brief loading overlay on the grid.
@@ -125,7 +140,7 @@ Alternative (simpler, if Next.js supports it): configure `next.config.ts` to ser
 The "+ Add" button supports multi-file selection:
 
 - `<input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif">`.
-- Files are assigned to consecutive empty slots (slot 1, then 2, then 3, etc.).
+- Files are assigned to consecutive empty slots (slot 1, then 2, then 3, etc.) up to 20 slots.
 - If more files are selected than empty slots, show a toast: "Only {n} slots available. {m} files were not uploaded."
 - Files upload sequentially (one at a time) to avoid overwhelming the server.
 - Progress: each slot shows its individual upload state.
@@ -136,7 +151,7 @@ The "+ Add" button supports multi-file selection:
 
 - Drag-to-reorder is not reliable on touch devices. On mobile (detected via `pointer: coarse` media query), show "Move up" / "Move down" buttons on each filled slot instead of drag handles.
 - File picker: on mobile, the `<input type="file" capture="environment">` attribute allows direct camera capture.
-- Grid: 2 columns on mobile, 3 on tablet, 5 on desktop.
+- Grid: 2 columns on mobile, 3 on tablet, 5 on desktop (4 rows for 20 slots).
 
 ## Consequences
 
@@ -153,3 +168,4 @@ The "+ Add" button supports multi-file selection:
 ## Notes
 
 - **Listing Coach (ADR-072):** Uses the same file type/size limits (ADR-026) but adds **clipboard paste** (`⌘V` from macOS Photos) on `/listing-coach`. Pasted images are held in client memory until **complete** uploads to inventory via picture API. Inventory `PictureGrid` may add paste in post-v1; v1 paste is coach-only.
+- **Photo slot limit:** 20 item photos (`picture_1..picture_20`). Condition photos remain at 5 (`condition_picture_1..condition_picture_5`).

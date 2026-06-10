@@ -48,6 +48,7 @@ type UndoRedoContextValue = {
   redo: () => Promise<void>;
   canUndo: boolean;
   canRedo: boolean;
+  clearStacks: () => void;
 };
 
 const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
@@ -103,6 +104,11 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
     },
     [dismissToast]
   );
+
+  const clearStacks = useCallback(() => {
+    setUndoStack([]);
+    setRedoStack([]);
+  }, []);
 
   const pushUndoEntry = useCallback((entry: UndoEntry) => {
     setUndoStack((current) => [...current, entry].slice(-UNDO_STACK_MAX));
@@ -251,8 +257,9 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       redo,
       canUndo: undoStack.length > 0,
       canRedo: redoStack.length > 0,
+      clearStacks,
     }),
-    [patchWithUndo, undo, redo, undoStack.length, redoStack.length]
+    [patchWithUndo, undo, redo, undoStack.length, redoStack.length, clearStacks]
   );
 
   return (

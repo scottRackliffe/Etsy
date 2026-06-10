@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { getDb } from "@/lib/sqlite";
 import { getSetting, setSetting } from "@/lib/settings-store";
 import { logActivity } from "@/lib/activity-log";
 
@@ -9,10 +10,22 @@ function normalizeKey(raw: string): string {
   return raw.trim();
 }
 
+function isWizardExemptKey(key: string): boolean {
+  return (
+    key === "setup.completed" ||
+    key === "business_name" ||
+    key === "business_phone" ||
+    key === "business_email" ||
+    key.startsWith("business_address_")
+  );
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ key: string }> }) {
   try {
-    requireEtsyAccessToken(await cookies());
     const key = normalizeKey((await context.params).key);
+    if (!isWizardExemptKey(key)) {
+      requireEtsyAccessToken(await cookies());
+    }
     if (!key) {
       throw new ApiRouteError({
         status: 400,
@@ -52,8 +65,10 @@ export async function GET(_request: Request, context: { params: Promise<{ key: s
 
 export async function PUT(request: Request, context: { params: Promise<{ key: string }> }) {
   try {
-    requireEtsyAccessToken(await cookies());
     const key = normalizeKey((await context.params).key);
+    if (!isWizardExemptKey(key)) {
+      requireEtsyAccessToken(await cookies());
+    }
     if (!key) {
       throw new ApiRouteError({
         status: 400,
@@ -64,6 +79,24 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
         fields: { key: ["Key is required"] },
         canRetry: false,
       });
+    }
+
+    const ifMatch = request.headers.get("If-Match");
+    if (ifMatch) {
+      const db = getDb();
+      const row = db.prepare("SELECT updated_at FROM settings WHERE key = ?").get(key) as
+        | { updated_at: string }
+        | undefined;
+      if (row && row.updated_at !== ifMatch) {
+        throw new ApiRouteError({
+          status: 409,
+          code: "CONCURRENT_EDIT",
+          message: "Setting was modified",
+          userMessage: "This setting was modified since you loaded it. Reload and try again.",
+          actions: ["Reload the page to see the latest value."],
+          canRetry: true,
+        });
+      }
     }
 
     const body = (await request.json().catch(() => ({}))) as { value?: unknown };

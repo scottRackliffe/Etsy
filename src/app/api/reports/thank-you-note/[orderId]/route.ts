@@ -19,6 +19,17 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
         canRetry: false,
       });
     }
+    const format = resolveReportFormat(request.url);
+    if (format === "csv") {
+      throw new ApiRouteError({
+        status: 400,
+        code: "VALIDATION_ERROR",
+        message: "CSV not supported for thank-you notes",
+        userMessage: "Thank-you notes are available in PDF format only.",
+        actions: ["Use format=pdf or omit the format parameter."],
+        canRetry: false,
+      });
+    }
     const report = buildSingleOrderThankYou(orderId);
     if (!report) {
       throw new ApiRouteError({
@@ -30,7 +41,6 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
         canRetry: false,
       });
     }
-    const format = resolveReportFormat(request.url);
     return await reportResponse(report.report_name, report, format);
   } catch (error) {
     return errorResponse(

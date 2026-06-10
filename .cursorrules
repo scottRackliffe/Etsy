@@ -120,7 +120,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-006** (Reports scope) | ADR-017, ADR-013, ADR-036; includes profit-by-item, tax summary, inventory aging, accounting export (038/039/054/056). |
 | **ADR-013** (Reports output) | ADR-036 (per-order endpoints, date range UI). Schema mapping: purchase → orders + order_items. Edge cases section added. |
 | **ADR-016** (Dashboard) | ADR-028, ADR-037 (activity feed), ADR-038/064/066 (KPI APIs per ADR-018 §10), ADR-044 (wizard overlay). |
-| **ADR-017** (DB schema) | ADR-031 (`tracking_number`), ADR-037 (`activity_log`), ADR-065 (`customer_notes`), ADR-038 (`other_costs`). §1–§7 narrative matches §8 DDL (reconciled 2026-05-24). |
+| **ADR-017** (DB schema) | ADR-031 (`tracking_number`), ADR-037 (`activity_log`), ADR-065 (`customer_notes`), ADR-038 (`other_costs`). §1–§7 narrative matches §8 DDL (reconciled 2026-05-24). §1a/1b/1c: Etsy per-item fields (`etsy_when_made`, `etsy_taxonomy_id`, etc.) + publish resolution (2026-06-10). |
 | **ADR-018** (API surface) | ADR-029–037 in Extensions §12–18; ADR-038–069 in §19–28. Full route catalog — not only sections 1–10. |
 | **ADR-019** (Etsy sync) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). Buyer message → `orders.notes`. Raw receipt → `etsy_receipts`. Customer dedup caveat (ADR-053). |
 | **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
@@ -187,6 +187,11 @@ developer will guess — which means bugs. Before finishing any ADR change:
 - **Activity log source:** `user`, `system`, `etsy_sync` (ADR-037)
 - **Listing draft state:** `draft`, `generated`, `imported`, `approved`, `published`
 - **Listing draft source:** `manual`, `integrated_ai`, `portable_import`
+- **Etsy who_made:** `i_did`, `someone_else`, `collective` (ADR-017 §1b; default `someone_else` for vintage)
+- **Etsy when_made:** `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700` (ADR-017 §1a)
+- **Weight unit:** `oz`, `lb`, `g`, `kg` (ADR-017)
+- **Dimensions unit:** `in`, `ft`, `mm`, `cm`, `m` (ADR-017)
+- **Photo shot type:** `hero`, `angle`, `detail`, `backstamp`, `scale`, `imperfection`, `underside`, `grouping`, `lifestyle`, `measurement`, `extra` (ADR-072 §Photo classification)
 - **Source channel:** `etsy`, `manual`
 - **Shipper:** `USPS`, `UPS`, `FedEx`, `DHL`, `Other` (ADR-004)
 
@@ -247,9 +252,15 @@ Customer sales = `orders` + `order_items`.
 ```
 id, item_number, description, purchase_cost, shipping_cost, sale_revenue,
 date_purchased, date_listed, date_of_sale, shipping_date,
-picture_1..picture_10, thumbnail_path,
+picture_1..picture_20, video_path, thumbnail_path,
 condition_code, has_condition_issue, condition_notes, condition_picture_1..5,
-status, etsy_listing_id, quantity, category_tags,
+status, etsy_listing_id,
+etsy_when_made, etsy_taxonomy_id, etsy_who_made,
+etsy_shipping_profile_id, etsy_return_policy_id,
+quantity, category_tags,
+materials, item_weight, item_weight_unit,
+item_length, item_width, item_height, item_dimensions_unit,
+is_supply, picture_classifications,
 listing_title, listing_description, listing_tags, listing_category_path,
 listing_title_strategy, listing_product_story, listing_condition_clarity,
 listing_attributes, listing_pricing_shipping_notes, listing_quality_checklist,
@@ -261,6 +272,8 @@ notes, created_at, updated_at
 - `condition_code`: Mint/Near Mint | Excellent | Very Good | Good | Fair/As-Is
 - `listing_draft_state`: draft | generated | imported | approved | published
 - `listing_draft_source`: manual | integrated_ai | portable_import
+- `etsy_when_made`: made_to_order | 2020_2026 | 2010_2019 | 2004_2009 | 2000_2003 | 1990s | 1980s | 1970s | 1960s | 1950s | 1940s | 1930s | 1920s | 1910s | 1900s | 1800s | 1700s | before_1700
+- `etsy_who_made`: i_did | someone_else | collective (default `someone_else` for vintage)
 
 ### `settings` table — key/value store
 Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
@@ -276,7 +289,15 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `activity_log.retention_days` (ADR-037),
 `tax.default_rate` (ADR-039), `setup.completed` (ADR-044),
 `sync.auto_interval` (ADR-057), `last_integrity_check`, `integrity_warning` (ADR-058),
-`repeat_customer_threshold` (ADR-066, optional)
+`repeat_customer_threshold` (ADR-066, optional),
+`etsy.publish.default_who_made` (ADR-017 §1b, default `someone_else`),
+`etsy.publish.default_when_made` (ADR-017 §1a),
+`etsy.publish.default_taxonomy_id` (ADR-017 §1c),
+`etsy.publish.shipping_profile_id`, `etsy.publish.return_policy_id`,
+`etsy.publish.readiness_state_id`,
+`etsy.publish.image_max_dimension`, `etsy.publish.image_target_dpi`,
+`etsy.publish.image_jpeg_quality`, `etsy.publish.allow_partial_image_upload`,
+`etsy.publish.image_upload_attempts`
 
 ### `customer_notes` table — per-customer interaction log (ADR-065)
 ```
@@ -388,9 +409,10 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 ### Key rules to always enforce:
 - **Mark as shipped**: blocked until order is paid UNLESS user explicitly chooses "Ship anyway"
   → store `shipped_without_paid_override` audit flag on **orders** when overridden (ADR-021, ADR-040)
-- **List on Etsy / publish**: blocked until listing_draft_state = 'approved'
+- **List on Etsy / publish**: blocked until listing_draft_state = 'approved' AND `etsy_when_made` set AND `etsy_taxonomy_id` set AND (`etsy_return_policy_id` or global default) AND (`etsy_shipping_profile_id` or global default)
 - **Listing generation**: blocked until item has item_number + description + condition_code + sale_revenue > 0 + at least one picture
 - **Can't list until complete**: listing_title + listing_description + listing_tags must all be non-empty
+- **Publish-time field resolution**: per-item Etsy fields override global settings defaults (ADR-017 §1c)
 - **Delete with purchases**: 409 if inventory item has associated order_items; can retire instead
 - **Delete customer with orders**: 409 if customer has orders; cannot delete
 - **Void/cancel order**: status change only, never delete rows; void/cancelled excluded from all reports
@@ -438,12 +460,13 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 9. PICTURES AND FILE HANDLING
 
-- **Frontend (ADR-033):** Visual 10-slot grid with drag-and-drop upload, file picker, thumbnail preview, drag-to-reorder
+- **Frontend (ADR-033):** Visual 20-slot grid with drag-and-drop upload, file picker, thumbnail preview, drag-to-reorder
 - **Backend (ADR-026):** File validation, Sharp processing, canonical storage paths, thumbnail generation
-- Main pictures: picture_1..picture_10 (picture_1 = primary/hero)
+- Main pictures: picture_1..picture_20 (picture_1 = primary/hero; Etsy allows up to 20 per listing)
 - Condition pictures: condition_picture_1..condition_picture_5
+- Video: video_path (MP4/MOV, max 100 MB, 5–15 seconds; optional)
 - Always show "Why pictures matter" link near any picture import UI
-- Storage: paths stored in DB; files in `uploads/inventory/<item_id>/pictures/`
+- Storage: paths stored in DB; files in `uploads/inventory/<item_id>/pictures/`; video in `uploads/inventory/<item_id>/video/`
 - Thumbnail: JPEG, max 200px dimension; stored at `thumbnail_path`; auto-regenerated when picture_1 changes
 - Allow: JPEG, PNG, WebP, GIF; reject others; max 15 MB per file
 - Image serving: `GET /api/uploads/[...path]` (ADR-018 §16, ADR-033)

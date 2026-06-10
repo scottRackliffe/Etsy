@@ -20,6 +20,17 @@ export function FilterChipRow({
     <div className="space-y-1">
       {label ? <p className="text-xs font-medium text-[var(--ui-muted)]">{label}</p> : null}
       <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            value === null
+              ? "bg-[var(--ui-accent)] text-white"
+              : "bg-[var(--ui-neutral)] text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
+          }`}
+        >
+          All
+        </button>
         {options.map((option) => {
           const selected = value === option.value;
           return (

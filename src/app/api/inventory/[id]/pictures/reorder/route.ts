@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
 
     const newOrder: (string | null)[] = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
       const val = pictures[i];
       newOrder.push(typeof val === "string" && val.trim() ? val.trim() : null);
     }

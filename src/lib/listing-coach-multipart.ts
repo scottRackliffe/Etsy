@@ -48,14 +48,14 @@ export async function parseCoachMultipartPhotos(formData: FormData): Promise<Coa
       canRetry: false,
     });
   }
-  if (itemFiles.length > 10) {
+  if (itemFiles.length > 20) {
     throw new ApiRouteError({
       status: 400,
       code: "VALIDATION_ERROR",
       message: "Too many item photos",
-      userMessage: "You can add up to 10 item photos.",
+      userMessage: "You can add up to 20 item photos.",
       actions: ["Remove extra photos and retry."],
-      fields: { item_photos: ["Maximum 10 item photos"] },
+      fields: { item_photos: ["Maximum 20 item photos"] },
       canRetry: false,
     });
   }

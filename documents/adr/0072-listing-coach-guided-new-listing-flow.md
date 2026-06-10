@@ -63,10 +63,13 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
 **Step 1 — Item photos (paste zone)**
 
 - Large focused paste target: “Click here, then press ⌘V to paste photos from Photos.”
-- Also: **Choose files…** (file picker backup) and drag-and-drop (ADR-033 limits: JPEG/PNG/WebP/GIF, max 15 MB each, max 10 item photos + 5 condition photos in v1 coach session).
+- Also: **Choose files…** (file picker backup) and drag-and-drop (ADR-033 limits: JPEG/PNG/WebP/GIF, max 15 MB each, max **20 item photos** + 5 condition photos per session). Etsy allows up to 20 photos per listing — encourage using all slots for maximum search visibility and buyer confidence.
 - Thumbnail grid with reorder (first = hero) and remove per image.
 - Minimum **1 item photo** to continue.
 - Optional subsection: **Condition photos** (same paste/file/drag behavior; up to 5).
+- Optional subsection: **Video** — upload a short video (MP4/MOV, max 100 MB, 5–15 seconds). Shown in Etsy listing gallery alongside photos. Label: "Add a short video (optional)."
+
+**Photo classification (AI auto-classify):** After photos are uploaded, the AI in Step 3 (analyze) auto-classifies each photo into a shot type from the Photo Guide's 10-Shot Recipe. In the review step, each photo thumbnail shows a small classification dropdown. The first option is **"OK"** (accept AI classification), followed by the full list of shot types. The operator can override any classification with a single tap. See §Photo classification below.
 
 **Step 2 — Google Visual Search (optional but encouraged)**
 
@@ -79,9 +82,14 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
 - Client calls `POST /api/listing-coach/analyze`.
 - Server sends **all pasted item + condition photos** and **Google screenshot(s)** to integrated AI with marketing/photo guidance docs.
 - UI shows:
-  - **Photo checklist** — which recommended shots appear present/missing (group, detail, backstamp, scale, imperfections) per Photo Guide.
+  - **Photo classifications** — each uploaded photo displayed as a thumbnail with an AI-assigned shot-type label and a compact dropdown to override. First dropdown option: **“OK”** (accept AI classification). Remaining options: full shot type enum (see §Photo classification below). Photos auto-reorder into canonical Photo Guide sequence (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). Operator can drag-reorder after confirming classifications.
+  - **Photo checklist** — which recommended shot types appear present/missing, derived from the classifications above. E.g. “Missing: backstamp, scale.”
   - **Plain-language issues** — e.g. “Background is busy; consider a retake” (advisory only; does not block).
   - **Suggested identification** — maker, pattern, item type, era (if inferable).
+  - **Suggested era** — `suggested_when_made` (Etsy enum value, e.g. `1970s`); inferred from labels, markings, style, Google results.
+  - **Suggested category** — `suggested_taxonomy_id` and `suggested_taxonomy_path` (Etsy numeric ID + human-readable path).
+  - **Suggested materials** — `suggested_materials` (array of material strings, e.g. `["ceramic", "glaze"]`).
+  - **Suggested dimensions** — `suggested_dimensions` (if scale reference photo present; advisory only).
   - **Suggested list-price range** — `suggested_list_price`, optional `suggested_price_low` / `suggested_price_high`, `price_confidence` (`high` \| `medium` \| `low`), `price_rationale` (short text citing Google screenshot when present).
 - Buttons: **Looks right** | **Fix identification** (inline edit one line) | **Continue**
 
@@ -95,14 +103,25 @@ Each step is one screen. Primary actions use ADR-071 button variants. Back navig
   - **Skip for now** — `sale_revenue` null; listing still composed; outstanding may flag later
 - Optional (v1 notes field only): **Accept-offer range** stored in `listing_pricing_shipping_notes` text (e.g. “Accept offers $72–$78”) when operator provides it.
 
+**Step 4b — Era, category, and materials (Etsy-required)**
+
+These fields are **required by Etsy's API** to create and activate a listing. The AI suggests values from photo analysis and Google results; the operator confirms or overrides.
+
+- **When was it made?** — Dropdown pre-filled with AI `suggested_when_made`. Full Etsy `when_made` enum: `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700`. Required for vintage items. Maps to `etsy_when_made` column (ADR-017).
+- **Category** — Search/browse selector pre-filled with AI `suggested_taxonomy_path`. Operator can search Etsy categories by keyword. Must resolve to a numeric `etsy_taxonomy_id`. Maps to `etsy_taxonomy_id` column (ADR-017). Also sets `listing_category_path` for display.
+- **Materials** — Tag-style multi-value input pre-filled with AI `suggested_materials` (e.g. "ceramic", "glaze", "porcelain"). Optional but strongly recommended — Etsy uses materials as a search filter. Maps to `materials` JSON array column (ADR-017).
+- **Dimensions & weight** (optional) — If AI detects a scale reference photo, suggest dimensions. Otherwise show empty fields. Fields: length/width/height (in or cm) + weight (oz or lb). Maps to `item_weight`, `item_length`, `item_width`, `item_height` columns.
+- Buttons: **Continue** (era and category required; materials/dimensions optional with "skip" affordance)
+
 **Step 5 — Quick confirms (no blank essays)**
 
-- Up to **5 confirm cards**, each with AI **suggested answer** pre-filled:
+- Up to **6 confirm cards**, each with AI **suggested answer** pre-filled:
   1. What is this item? (may pre-fill from step 3)
   2. What's included / quantity?
   3. Condition and any flaws to mention?
   4. Who buys this? (collector, gift, decor style)
-  5. Anything special we should highlight? (optional skip)
+  5. What material(s) is this made of? (pre-filled from step 4b materials if provided; allows refinement)
+  6. Anything special we should highlight? (optional skip)
 - Each card: suggested text + **Yes, use this** | **Edit** (short textarea only if edit).
 - Operator never sees internal field names (`listing_title_strategy`, etc.).
 
@@ -147,9 +166,77 @@ The compose step **must** populate these inventory columns from confirm answers 
 | `listing_description`            | AI final                                                                                   |
 | `listing_tags`                   | AI final (exactly up to 13, Keywords 101 rules)                                            |
 | `listing_category_path`          | AI optional                                                                                |
+| `etsy_when_made`                 | Step 4b era confirmation (Etsy enum, e.g. `1970s`)                                         |
+| `etsy_taxonomy_id`               | Step 4b category confirmation (Etsy numeric ID)                                            |
+| `materials`                      | Step 4b materials confirmation (JSON array)                                                |
+| `item_weight`                    | Step 4b dimensions (optional)                                                              |
+| `item_weight_unit`               | Step 4b dimensions (optional; default `oz`)                                                |
+| `item_length`                    | Step 4b dimensions (optional)                                                              |
+| `item_width`                     | Step 4b dimensions (optional)                                                              |
+| `item_height`                    | Step 4b dimensions (optional)                                                              |
+| `item_dimensions_unit`           | Step 4b dimensions (optional; default `in`)                                                |
+| `video_path`                     | Step 1 video upload (optional)                                                             |
+| `picture_classifications`        | Step 3 AI auto-classify + operator overrides (JSON array; see §Photo classification)       |
 | `sale_revenue`                   | Price step                                                                                 |
 | `condition_code`                 | Suggested in analyze; operator confirm in step 5; may default `Good` if unset with warning |
 | `description`                    | Item number companion short description                                                    |
+
+### Photo classification
+
+The AI auto-classifies each uploaded item photo into a shot type from the Photo Guide's 10-Shot Recipe. This enables systematic, repeatable photo ordering across all listings.
+
+#### Shot type enum (canonical values)
+
+| Value           | Label (UI)        | Photo Guide slot | Purpose                                      |
+| --------------- | ----------------- | ---------------- | --------------------------------------------- |
+| `hero`          | Hero              | 1                | Full item, straight on, clean and bright      |
+| `angle`         | Angle             | 2                | 45-degree view showing depth                  |
+| `detail`        | Detail            | 3                | Close-up of pattern, texture, edges           |
+| `backstamp`     | Backstamp/Marking | 4                | Maker's mark, label, stamp (vintage essential) |
+| `scale`         | Scale             | 5                | Item with ruler, hand, or familiar object     |
+| `imperfection`  | Imperfection      | 6                | Crazing, chips, scratches, wear               |
+| `underside`     | Underside         | 7                | Bottom view, structure, authenticity           |
+| `grouping`      | Grouping          | 8                | All pieces in a set arranged together          |
+| `lifestyle`     | Lifestyle         | 9                | In-context staging (table, shelf, etc.)        |
+| `measurement`   | Measurement       | 10               | Ruler or tape directly against item            |
+| `extra`         | Extra             | 11+              | Additional views not fitting above categories  |
+
+#### How it works
+
+1. **Upload (Step 1):** Operator uploads photos in any order. No classification yet.
+2. **Analyze (Step 3):** AI examines each photo and returns a `photo_classifications` array mapping each photo index to a shot type. The AI prompt includes the Photo Guide shot type definitions.
+3. **Review UI (Step 3):** Each photo thumbnail displays:
+   - The AI-assigned shot type as a small label badge (e.g. "Hero", "Detail")
+   - A compact dropdown below or on the badge. The dropdown options are:
+     1. **OK** (accept AI classification) — shown first, pre-selected
+     2. Hero
+     3. Angle
+     4. Detail
+     5. Backstamp/Marking
+     6. Scale
+     7. Imperfection
+     8. Underside
+     9. Grouping
+     10. Lifestyle
+     11. Measurement
+     12. Extra
+   - If the operator changes the dropdown, the label updates immediately.
+4. **Auto-reorder:** After all classifications are confirmed (or left as "OK"), photos are reordered into canonical Photo Guide sequence: hero first, then angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra. Within the same type, original upload order is preserved. Operator can still drag-reorder after auto-sort.
+5. **Persistence (Complete):** The final classifications are stored as a JSON array in `inventory.picture_classifications`. Format: `[{"slot":1,"type":"hero"},{"slot":2,"type":"angle"},...]`. This allows the inventory detail panel and future re-listings to display and maintain consistent ordering.
+
+#### Photo checklist (derived)
+
+The present/missing shot checklist in Step 3 is derived from the classifications:
+- **Present:** shot types that have at least one classified photo
+- **Missing:** shot types from the recommended set (`hero`, `detail`, `backstamp`, `scale`, `imperfection`) that have no photo. Advisory only, does not block.
+
+#### Condition photos
+
+Condition photos (`condition_picture_1..5`) are **not** classified with this system. They are always categorized as condition documentation and listed separately in the UI.
+
+#### Inventory detail panel (ADR-030)
+
+When editing an existing item's photos in the inventory detail panel, each photo thumbnail shows its stored classification as a read-only badge. The dropdown is available for reclassification. Changing a classification triggers a reorder suggestion (operator confirms or dismisses). New photos added outside the coach default to `extra` unless the operator assigns a type.
 
 ### AI guidance inputs (mandatory on every analyze/compose call)
 
@@ -182,10 +269,11 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
 
 - `Content-Type: multipart/form-data`
 - Fields:
-  - `item_photos[]` — 1–10 files (required ≥1)
+  - `item_photos[]` — 1–20 files (required ≥1)
   - `condition_photos[]` — 0–5 files (optional)
   - `google_photos[]` — 0–3 files (optional)
-- Validation: ADR-026 image rules per file.
+  - `video` — 0–1 video file (MP4/MOV, max 100 MB, optional)
+- Validation: ADR-026 image rules per file; video validated for format and size.
 
 **Response — analyze (200)**
 
@@ -193,8 +281,15 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
 {
   "ok": true,
   "photo_review": {
-    "present_shots": ["hero", "detail"],
-    "missing_shots": ["backstamp", "scale"],
+    "classifications": [
+      { "photo_index": 0, "type": "hero", "confidence": "high" },
+      { "photo_index": 1, "type": "detail", "confidence": "high" },
+      { "photo_index": 2, "type": "angle", "confidence": "medium" },
+      { "photo_index": 3, "type": "backstamp", "confidence": "low" }
+    ],
+    "suggested_order": [0, 2, 1, 3],
+    "present_shots": ["hero", "angle", "detail", "backstamp"],
+    "missing_shots": ["scale", "imperfection"],
     "advisories": ["Consider a plain background for the hero photo."]
   },
   "suggested_identification": "Vintage Fiesta ware pitcher, Homer Laughlin, red glaze",
@@ -206,6 +301,14 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
     "confidence": "medium",
     "rationale": "Google results show similar red Fiesta pitchers listed $58–72."
   },
+  "suggested_when_made": "1970s",
+  "suggested_taxonomy_id": 12345,
+  "suggested_taxonomy_path": "Home & Living > Kitchen & Dining > Serveware > Pitchers",
+  "suggested_materials": ["ceramic", "glaze"],
+  "suggested_dimensions": {
+    "length": null, "width": null, "height": 9.5,
+    "unit": "in", "note": "Estimated from scale photo"
+  },
   "confirm_cards": [
     { "id": "what_is_it", "question": "What is this item?", "suggested_answer": "..." },
     { "id": "included", "question": "What's included?", "suggested_answer": "..." },
@@ -215,6 +318,7 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
       "suggested_answer": "..."
     },
     { "id": "buyer", "question": "Who is this for?", "suggested_answer": "..." },
+    { "id": "materials", "question": "What material(s) is this made of?", "suggested_answer": "Ceramic with glazed finish" },
     {
       "id": "special",
       "question": "Anything special to highlight?",
@@ -230,9 +334,13 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
 - `multipart/form-data` or JSON + separate image re-upload (implementation choice; **images must be included on every compose call** — do not generate without full visual context per etsy-listing-template §3).
 - Body fields:
   - Same photo fields as analyze
-  - `confirm_answers`: JSON array `{ id, answer }`
+  - `confirm_answers`: JSON array `{ id, answer }` (required ids: `what_is_it`, `included`, `condition`, `buyer`; `materials` and `special` optional)
   - `price`: `{ sale_revenue?: number | null, accept_offer_note?: string }`
   - `identification_override?: string`
+  - `when_made`: string (Etsy enum, from step 4b confirmation)
+  - `taxonomy_id`: number (Etsy numeric ID, from step 4b confirmation)
+  - `materials`: string[] (from step 4b confirmation)
+  - `dimensions`: `{ length?, width?, height?, unit?, weight?, weight_unit? }` (optional, from step 4b)
 
 **Response — compose (200)**
 
@@ -262,6 +370,21 @@ All routes: **App auth** (`requireEtsyAccessToken`; local mode allowed without E
   "status": "In stock",
   "condition_code": "Excellent",
   "sale_revenue": 65,
+  "etsy_when_made": "1970s",
+  "etsy_taxonomy_id": 12345,
+  "materials": ["ceramic", "glaze"],
+  "item_weight": 32,
+  "item_weight_unit": "oz",
+  "item_length": 6,
+  "item_width": 6,
+  "item_height": 9.5,
+  "item_dimensions_unit": "in",
+  "picture_classifications": [
+    {"slot": 1, "type": "hero"},
+    {"slot": 2, "type": "angle"},
+    {"slot": 3, "type": "detail"},
+    {"slot": 4, "type": "backstamp"}
+  ],
   "compose": {
     /* full compose response fields */
   }
@@ -311,11 +434,11 @@ Log on complete:
 - `action`: `listing.coach_complete`
 - `entity_type`: `inventory`
 - `entity_id`: new item id
-- `detail_json`: `{ picture_count, price_confidence, google_photos_count }`
+- `detail_json`: `{ picture_count, video_included, price_confidence, google_photos_count, when_made, taxonomy_id, materials_count }`
 
 ### Outstanding (ADR-020)
 
-No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved).
+No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved). Items saved without `etsy_when_made` or `etsy_taxonomy_id` will appear on outstanding as "Missing era/category for Etsy publish" (ADR-020 Type 9).
 
 ### Validation (ADR-021)
 
@@ -324,7 +447,7 @@ No new outstanding type. Existing rules apply after save (e.g. missing `sale_rev
 | Rule                                              | Error                              |
 | ------------------------------------------------- | ---------------------------------- |
 | ≥1 `item_photos[]`                                | 400 `fields.item_photos`           |
-| ≤10 item photos, ≤5 condition, ≤3 google          | 400 `BATCH_TOO_LARGE` or field max |
+| ≤20 item photos, ≤5 condition, ≤3 google          | 400 `BATCH_TOO_LARGE` or field max |
 | Each file passes ADR-026 (type, size, dimensions) | 400 per file                       |
 | AI configured                                     | 503 `AI_NOT_CONFIGURED`            |
 
@@ -333,9 +456,12 @@ No new outstanding type. Existing rules apply after save (e.g. missing `sale_rev
 | Rule                                                                                                                              | Error                                                 |
 | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | Same photo rules as analyze                                                                                                       | 400                                                   |
-| `confirm_answers` non-empty array; required card ids present (`what_is_it`, `included`, `condition`, `buyer`); `special` optional | 400 `fields.confirm_answers`                          |
+| `confirm_answers` non-empty array; required card ids present (`what_is_it`, `included`, `condition`, `buyer`); `materials` and `special` optional | 400 `fields.confirm_answers`                          |
 | Each answer ≤ 500 chars                                                                                                           | 400 field length                                      |
 | `sale_revenue` if provided: number > 0                                                                                            | 400 `fields.sale_revenue`                             |
+| `when_made` if provided: must be valid Etsy enum (see ADR-017 §1a)                                                               | 400 `fields.when_made`                                |
+| `taxonomy_id` if provided: positive integer                                                                                       | 400 `fields.taxonomy_id`                              |
+| `materials` if provided: array of strings, each ≤ 45 chars, alphanumeric+spaces only                                             | 400 `fields.materials`                                |
 | AI returns valid title, description, ≥1 tag                                                                                       | 500 `LISTING_COMPOSE_FAILED` (retry once client-side) |
 
 **Complete (`POST /api/listing-coach/complete`)**
@@ -345,6 +471,11 @@ No new outstanding type. Existing rules apply after save (e.g. missing `sale_rev
 | `item_number` non-empty, unique (ADR-021 inventory create)                                | 400 / 409 duplicate |
 | `compose` object includes `listing_title`, `listing_description`, `listing_tags`          | 400                 |
 | `condition_code` one of ADR-002 enum if set                                               | 400                 |
+| `etsy_when_made` if provided: valid Etsy enum (ADR-017 §1a)                              | 400                 |
+| `etsy_taxonomy_id` if provided: positive integer                                         | 400                 |
+| `materials` if provided: array of valid material strings                                  | 400                 |
+| `item_weight` if provided: number > 0; `item_weight_unit` must accompany                 | 400                 |
+| dimension fields if provided: numbers > 0; `item_dimensions_unit` must accompany         | 400                 |
 | `status` one of inventory status enum; default `In stock`                                 | 400                 |
 | Photos re-uploaded (v1) same as analyze minimum                                           | 400                 |
 | On success: `listing_draft_state` = `generated`, `listing_draft_source` = `integrated_ai` | —                   |
@@ -360,7 +491,7 @@ Post-save listing content must pass same ADR-021 / ADR-068 checks as integrated 
 | `LISTING_COMPOSE_FAILED` | 500  | AI/parse error on compose         | "We couldn't write the listing. Try again."             |
 | `VALIDATION_ERROR`       | 400  | Missing photos, item number, etc. | Field-level `fields` object                             |
 | `DUPLICATE_ITEM_NUMBER`  | 409  | `item_number` exists              | "That item number is already in use."                   |
-| `BATCH_TOO_LARGE`        | 400  | Too many images in one request    | "Too many photos (max 10 item, 5 condition, 3 Google)." |
+| `BATCH_TOO_LARGE`        | 400  | Too many images in one request    | "Too many photos (max 20 item, 5 condition, 3 Google)." |
 
 Actions array must include: link to Config for 503; retry for 500; fix field for 400.
 
@@ -375,8 +506,8 @@ Two calls — **analyze** (vision + guidance) and **compose** (vision + guidance
 - Load guidance bundle (template, How_to_Win, Photo_Guide).
 - Output: **strict JSON only** matching analyze response schema (§ API surface).
 - Rules:
-  - Photo review: map to Photo Guide shot types (`hero`, `detail`, `backstamp`, `scale`, `group`, `lifestyle`, `imperfection`).
-  - Do not block flow on missing shots — advisories only.
+  - Photo classification: for each item photo, assign a shot type from the canonical enum (`hero`, `angle`, `detail`, `backstamp`, `scale`, `imperfection`, `underside`, `grouping`, `lifestyle`, `measurement`, `extra`) with a confidence level (`high`, `medium`, `low`). Return as `photo_review.classifications[]`. Also return `suggested_order` — photo indices sorted in canonical Photo Guide sequence.
+  - Photo checklist: derive present/missing shot types from classifications. Do not block flow on missing shots — advisories only.
   - Identification: conservative; cite Google screenshot when used.
   - Price: prefer Google screenshot comps; else vision-only estimate with `confidence: low`.
   - Confirm cards: write suggested answers Trudy can accept with one tap (plain English, ≤2 sentences each).
@@ -407,6 +538,7 @@ Two calls — **analyze** (vision + guidance) and **compose** (vision + guidance
 | 3 Review       | What we found                    | Plain list: photo tips, identification, suggested price.                                                                                         |
 | 3 Review CTA   | Looks right                      | Continue                                                                                                                                         |
 | 4 Price        | Suggested price                  | Show `$low – $high` or single value + rationale. Buttons: **Use this price** · **I know the price** · **Skip for now**                           |
+| 4b Era/Cat     | Era, category & details          | When was it made? What category? What materials? Dimensions/weight? AI pre-fills; you confirm.                                                   |
 | 5 Confirms     | Quick checks                     | One card at a time or stacked; **Yes, use this** · **Edit**                                                                                      |
 | 6 Preview      | Your listing                     | Read-only title, description, tags, quality score. **Save to inventory** · **Back** · **Start over**                                             |
 | 7 Save         | Item number                      | Enter your item number (e.g. TCT-2026-042). Optional short description. **Save**                                                                 |

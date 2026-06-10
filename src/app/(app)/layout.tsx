@@ -115,13 +115,26 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     });
   }, [selectedShopId, runSync, setApiError, setError, toast]);
 
+  const triggerNewRecord = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("esm-new-record"));
+  }, []);
+
   const shortcuts = useMemo(
     () => [
       {
         key: "k",
         modifiers: ["meta" as const],
         action: () => setSearchOpen(true),
-        enabled: !searchOpen,
+        enabled: !searchOpen && !helpOpen && !showSetup,
+      },
+      {
+        key: "n",
+        modifiers: ["meta" as const],
+        action: triggerNewRecord,
+        enabled:
+          pathname.startsWith("/inventory") ||
+          pathname.startsWith("/sales") ||
+          pathname.startsWith("/customers"),
       },
       {
         key: "s",
@@ -172,7 +185,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       searchOpen,
       selectedShopId,
       shops.length,
+      showSetup,
       syncFromEtsy,
+      triggerNewRecord,
       undo,
       redo,
       canUndo,

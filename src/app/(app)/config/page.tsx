@@ -60,7 +60,21 @@ type DisplaySettings = {
   date_format: string;
   currency_code: string;
   page_size: string;
+  timezone: string;
 };
+
+const COMMON_TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Phoenix",
+  "America/Indiana/Indianapolis",
+  "America/Detroit",
+  "America/Boise",
+] as const;
 
 type BackupEntry = {
   filename: string;
@@ -124,9 +138,17 @@ export default function ConfigPage() {
     date_format: "MM/DD/YYYY",
     currency_code: "USD",
     page_size: "25",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   const [backupSchedule, setBackupSchedule] = useState("manual");
+  const [backupDirectory, setBackupDirectory] = useState("./backups");
+  const [backupTime, setBackupTime] = useState("02:00");
+  const [backupDay, setBackupDay] = useState("0");
+  const [backupIncludePictures, setBackupIncludePictures] = useState(false);
+  const [backupMaxCount, setBackupMaxCount] = useState("25");
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const [autoSyncInterval, setAutoSyncInterval] = useState<AutoSyncInterval>("off");
+  const [repeatCustomerThreshold, setRepeatCustomerThreshold] = useState("2");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
@@ -140,6 +162,11 @@ export default function ConfigPage() {
         taxSettings,
         displaySettings,
         backupSchedule,
+        backupDirectory,
+        backupTime,
+        backupDay,
+        backupIncludePictures,
+        backupMaxCount,
         autoSyncInterval,
         publishConfig,
         iconConfig,
@@ -152,6 +179,11 @@ export default function ConfigPage() {
       taxSettings,
       displaySettings,
       backupSchedule,
+      backupDirectory,
+      backupTime,
+      backupDay,
+      backupIncludePictures,
+      backupMaxCount,
       autoSyncInterval,
       publishConfig,
       iconConfig,
@@ -182,6 +214,11 @@ export default function ConfigPage() {
     setTaxSettings(configBaseline.taxSettings);
     setDisplaySettings(configBaseline.displaySettings);
     setBackupSchedule(configBaseline.backupSchedule);
+    setBackupDirectory(configBaseline.backupDirectory);
+    setBackupTime(configBaseline.backupTime);
+    setBackupDay(configBaseline.backupDay);
+    setBackupIncludePictures(configBaseline.backupIncludePictures);
+    setBackupMaxCount(configBaseline.backupMaxCount);
     setAutoSyncInterval(configBaseline.autoSyncInterval);
     setPublishConfig(configBaseline.publishConfig);
     setIconConfig(configBaseline.iconConfig);
@@ -289,9 +326,17 @@ export default function ConfigPage() {
         date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
         currency_code: map.get("ui.currency_code") ?? "USD",
         page_size: map.get("ui.page_size") ?? "25",
+        timezone: map.get("ui.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       setBackupSchedule(map.get("backup_schedule") ?? "manual");
+      setBackupDirectory(map.get("backup_directory") ?? "./backups");
+      setBackupTime(map.get("backup_time") ?? "02:00");
+      setBackupDay(map.get("backup_day") ?? "0");
+      setBackupIncludePictures(map.get("backup_include_pictures") === "true");
+      setBackupMaxCount(map.get("backup_max_count") ?? "25");
+      setLastBackupAt(map.get("last_backup_at") ?? null);
       setAutoSyncInterval(parseAutoSyncInterval(map.get("sync.auto_interval")));
+      setRepeatCustomerThreshold(map.get("repeat_customer_threshold") ?? "2");
       setConfigBaseline(
         buildConfigFormSnapshot({
           businessProfile: {
@@ -315,8 +360,14 @@ export default function ConfigPage() {
             date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
             currency_code: map.get("ui.currency_code") ?? "USD",
             page_size: map.get("ui.page_size") ?? "25",
+            timezone: map.get("ui.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
           backupSchedule: map.get("backup_schedule") ?? "manual",
+          backupDirectory: map.get("backup_directory") ?? "./backups",
+          backupTime: map.get("backup_time") ?? "02:00",
+          backupDay: map.get("backup_day") ?? "0",
+          backupIncludePictures: map.get("backup_include_pictures") === "true",
+          backupMaxCount: map.get("backup_max_count") ?? "25",
           autoSyncInterval: parseAutoSyncInterval(map.get("sync.auto_interval")),
           publishConfig,
           iconConfig,
@@ -409,9 +460,11 @@ export default function ConfigPage() {
         { key: "ui.date_format", value: displaySettings.date_format },
         { key: "ui.currency_code", value: displaySettings.currency_code },
         { key: "ui.page_size", value: displaySettings.page_size },
+        { key: "ui.timezone", value: displaySettings.timezone },
+        { key: "repeat_customer_threshold", value: repeatCustomerThreshold },
       ],
       "Display preferences saved",
-      "Date format, currency, and page size were updated."
+      "Date format, currency, page size, timezone, and repeat threshold were updated."
     );
 
   useEffect(() => {
@@ -440,16 +493,16 @@ export default function ConfigPage() {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        items_created?: number;
-        customers_created?: number;
-        orders_created?: number;
+        items?: number;
+        customers?: number;
+        orders?: number;
       };
       if (!response.ok) throw data;
       setSampleDataLoaded(true);
       setLoadSampleConfirm(false);
       setError({
         title: "Sample data loaded",
-        message: `Added ${data.items_created ?? 0} items, ${data.customers_created ?? 0} customers, and ${data.orders_created ?? 0} orders.`,
+        message: `Added ${data.items ?? 0} items, ${data.customers ?? 0} customers, and ${data.orders ?? 0} orders.`,
         actions: ["Refresh other tabs to see demo records."],
       });
     } catch (err) {
@@ -532,12 +585,8 @@ export default function ConfigPage() {
           };
           if (!response.ok) throw data;
           setRestoreTarget(null);
-          setError({
-            title: "Backup restored",
-            message: `Restored from ${filename}. A safety backup was saved as ${data.pre_restore_backup ?? "pre-restore backup"}.`,
-            actions: ["Refresh the page to load restored data."],
-          });
           await loadBackups();
+          window.location.reload();
         },
       });
     } catch {
@@ -622,12 +671,19 @@ export default function ConfigPage() {
     setSaving(true);
     try {
       const updates: Array<{ key: string; value: string }> = [
-        { key: "etsy.publish.taxonomy_id", value: publishConfig.taxonomyId.trim() },
+        { key: "etsy.publish.default_taxonomy_id", value: publishConfig.taxonomyId.trim() },
         { key: "etsy.publish.shipping_profile_id", value: publishConfig.shippingProfileId.trim() },
+        { key: "etsy.publish.return_policy_id", value: publishConfig.returnPolicyId.trim() },
         { key: "etsy.publish.readiness_state_id", value: publishConfig.readinessStateId.trim() },
         { key: "etsy.publish.image_ids", value: publishConfig.imageIds.trim() },
-        { key: "etsy.publish.who_made", value: publishConfig.whoMade.trim() || "i_did" },
-        { key: "etsy.publish.when_made", value: publishConfig.whenMade.trim() || "before_2000" },
+        {
+          key: "etsy.publish.default_who_made",
+          value: publishConfig.whoMade.trim() || "someone_else",
+        },
+        {
+          key: "etsy.publish.default_when_made",
+          value: publishConfig.whenMade.trim() || "2010_2019",
+        },
         {
           key: "etsy.publish.image_max_dimension",
           value: publishConfig.imageMaxDimension.trim() || "2000",
@@ -1048,6 +1104,45 @@ export default function ConfigPage() {
                 ))}
               </select>
             </label>
+            <label className="block text-xs text-[var(--ui-muted)]">
+              Timezone
+              <select
+                value={displaySettings.timezone}
+                onChange={(e) => setDisplaySettings((c) => ({ ...c, timezone: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                {(() => {
+                  let allTimezones: string[];
+                  try {
+                    allTimezones = Intl.supportedValuesOf("timeZone");
+                  } catch {
+                    allTimezones = [...COMMON_TIMEZONES];
+                  }
+                  if (!allTimezones.includes(displaySettings.timezone)) {
+                    allTimezones = [displaySettings.timezone, ...allTimezones];
+                  }
+                  return allTimezones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz.replace(/_/g, " ")}
+                    </option>
+                  ));
+                })()}
+              </select>
+            </label>
+            <label className="block text-xs text-[var(--ui-muted)]">
+              Repeat customer threshold
+              <input
+                type="number"
+                min={2}
+                max={50}
+                value={repeatCustomerThreshold}
+                onChange={(e) => setRepeatCustomerThreshold(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+              <span className="mt-0.5 block text-[10px] text-[var(--ui-muted)]">
+                Number of orders before a customer gets the Repeat badge.
+              </span>
+            </label>
             <button
               type="button"
               onClick={saveDisplaySettings}
@@ -1117,13 +1212,17 @@ export default function ConfigPage() {
             <p className="mb-2 text-xs text-[var(--ui-muted)]">
               Etsy listing defaults applied when publishing approved drafts.
             </p>
+            <p className="mb-3 text-xs text-[var(--ui-yellow)]">
+              Per-item overrides on inventory records take precedence at publish time.
+            </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <label className="block text-xs text-[var(--ui-muted)]">
-                Taxonomy ID
+                Default Taxonomy ID
                 <input
                   value={publishConfig.taxonomyId}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))}
                   placeholder="e.g. 1074"
+                  type="number"
                   className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </label>
@@ -1135,13 +1234,26 @@ export default function ConfigPage() {
                     setPublishConfig((c) => ({ ...c, shippingProfileId: e.target.value }))
                   }
                   placeholder="From Etsy shop settings"
+                  type="number"
+                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--ui-muted)]">
+                Return policy ID
+                <input
+                  value={publishConfig.returnPolicyId}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, returnPolicyId: e.target.value }))
+                  }
+                  placeholder="From Etsy shop settings"
+                  type="number"
                   className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </label>
               <label className="block text-xs text-[var(--ui-muted)]">
                 Who made
                 <select
-                  value={publishConfig.whoMade || "i_did"}
+                  value={publishConfig.whoMade || "someone_else"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whoMade: e.target.value }))}
                   className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 >
@@ -1153,7 +1265,7 @@ export default function ConfigPage() {
               <label className="block text-xs text-[var(--ui-muted)]">
                 When made
                 <select
-                  value={publishConfig.whenMade || "before_2000"}
+                  value={publishConfig.whenMade || "2010_2019"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whenMade: e.target.value }))}
                   className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 >
@@ -1161,14 +1273,20 @@ export default function ConfigPage() {
                   <option value="2020_2026">2020–2026</option>
                   <option value="2010_2019">2010–2019</option>
                   <option value="2004_2009">2004–2009</option>
-                  <option value="before_2004">Before 2004</option>
                   <option value="2000_2003">2000–2003</option>
-                  <option value="before_2000">Before 2000</option>
                   <option value="1990s">1990s</option>
                   <option value="1980s">1980s</option>
                   <option value="1970s">1970s</option>
                   <option value="1960s">1960s</option>
-                  <option value="before_1960">Before 1960</option>
+                  <option value="1950s">1950s</option>
+                  <option value="1940s">1940s</option>
+                  <option value="1930s">1930s</option>
+                  <option value="1920s">1920s</option>
+                  <option value="1910s">1910s</option>
+                  <option value="1900s">1900s</option>
+                  <option value="1800s">1800s</option>
+                  <option value="1700s">1700s</option>
+                  <option value="before_1700">Before 1700</option>
                 </select>
               </label>
               <label className="block text-xs text-[var(--ui-muted)]">
@@ -1317,11 +1435,44 @@ export default function ConfigPage() {
                 <option value="weekly">Weekly</option>
               </select>
             </label>
+            {(backupSchedule === "daily" || backupSchedule === "weekly") && (
+              <label className="text-xs text-[var(--ui-muted)]">
+                Backup time
+                <input
+                  type="time"
+                  value={backupTime}
+                  onChange={(e) => setBackupTime(e.target.value)}
+                  className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                />
+              </label>
+            )}
+            {backupSchedule === "weekly" && (
+              <label className="text-xs text-[var(--ui-muted)]">
+                Backup day
+                <select
+                  value={backupDay}
+                  onChange={(e) => setBackupDay(e.target.value)}
+                  className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                >
+                  <option value="0">Sunday</option>
+                  <option value="1">Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                </select>
+              </label>
+            )}
             <button
               type="button"
               onClick={() =>
                 void saveSettingsKeys(
-                  [{ key: "backup_schedule", value: backupSchedule }],
+                  [
+                    { key: "backup_schedule", value: backupSchedule },
+                    { key: "backup_time", value: backupTime },
+                    { key: "backup_day", value: backupDay },
+                  ],
                   "Backup schedule saved",
                   backupSchedule === "manual"
                     ? "Backups will run only when you choose Backup now."
@@ -1333,6 +1484,67 @@ export default function ConfigPage() {
             >
               Save schedule
             </button>
+          </div>
+
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <label className="text-xs text-[var(--ui-muted)]">
+              Backup directory
+              <input
+                value={backupDirectory}
+                onChange={(e) => setBackupDirectory(e.target.value)}
+                placeholder="./backups"
+                className="mt-0.5 block w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+              />
+            </label>
+            <label className="text-xs text-[var(--ui-muted)]">
+              Max backups to keep
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={backupMaxCount}
+                onChange={(e) => setBackupMaxCount(e.target.value)}
+                className="mt-0.5 block w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+              />
+            </label>
+            <div className="flex flex-col justify-end">
+              <label className="flex items-center gap-2 text-xs text-[var(--ui-muted)]">
+                <input
+                  type="checkbox"
+                  checked={backupIncludePictures}
+                  onChange={(e) => setBackupIncludePictures(e.target.checked)}
+                />
+                Include pictures in backup
+              </label>
+              <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                Include uploaded photos in backup (increases backup size)
+              </p>
+            </div>
+          </div>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                void saveSettingsKeys(
+                  [
+                    { key: "backup_directory", value: backupDirectory },
+                    { key: "backup_max_count", value: backupMaxCount },
+                    { key: "backup_include_pictures", value: backupIncludePictures ? "true" : "false" },
+                  ],
+                  "Backup settings saved",
+                  "Backup directory, retention, and picture settings were updated."
+                )
+              }
+              disabled={extraSettingsLoading}
+              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
+            >
+              Save backup settings
+            </button>
+            {lastBackupAt && (
+              <p className="text-xs text-[var(--ui-muted)]">
+                Last backup: {formatConnectionTimestamp(lastBackupAt)}
+              </p>
+            )}
           </div>
 
           {backupLoading && backups.length === 0 ? (
@@ -1351,7 +1563,7 @@ export default function ConfigPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {backups.slice(0, 5).map((backup) => (
+                  {backups.map((backup) => (
                     <tr key={backup.filename} className="border-b border-[var(--ui-border)]/60">
                       <td className="py-2 pr-3 text-[var(--ui-body)]">{backup.filename}</td>
                       <td className="py-2 pr-3 text-[var(--ui-muted)]">{backup.created_at}</td>

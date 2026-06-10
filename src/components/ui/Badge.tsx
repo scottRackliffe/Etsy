@@ -9,12 +9,15 @@ const VARIANT_CLASSES: Record<string, string> = {
 export function Badge({
   label,
   variant = "neutral",
+  ariaLabel,
 }: {
   label: string;
   variant?: "success" | "warning" | "error" | "info" | "neutral";
+  ariaLabel?: string;
 }) {
   return (
     <span
+      aria-label={ariaLabel}
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${VARIANT_CLASSES[variant] ?? VARIANT_CLASSES.neutral}`}
     >
       {label}

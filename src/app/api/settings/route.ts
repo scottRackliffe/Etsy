@@ -7,7 +7,10 @@ import { getDb } from "@/lib/sqlite";
 
 export async function GET(request: NextRequest) {
   try {
-    requireEtsyAccessToken(await cookies());
+    const skipAuth = request.nextUrl.searchParams.get("wizard") === "1";
+    if (!skipAuth) {
+      requireEtsyAccessToken(await cookies());
+    }
     const { limit, offset } = parsePagination(request.nextUrl.searchParams);
     const db = getDb();
     const total = (db.prepare("SELECT COUNT(*) AS c FROM settings").get() as { c: number }).c;

@@ -129,9 +129,20 @@ Existing card with model, API key, base URL, timeout. Already implemented.
 
 ---
 
-### Section 5: Publish defaults (EXISTING — relocated)
+### Section 5: Publish defaults (EXISTING — relocated and expanded)
 
-The existing Etsy publish defaults section. Moved here from the Inventory page (per ADR-030, eliminates duplication). All existing fields retained.
+The existing Etsy publish defaults section. Moved here from the Inventory page (per ADR-030, eliminates duplication). Setting keys renamed to `default_*` to clarify these are defaults that can be overridden per-item on the inventory record.
+
+| Setting key                          | Label                  | Input type    | Notes                                                                                                                                                                                                                                                                  |
+| ------------------------------------ | ---------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `etsy.publish.default_who_made`      | Who made               | `SelectInput` | Options: `i_did`, `someone_else`, `collective`. Default: `someone_else` (appropriate for vintage/antique shops). |
+| `etsy.publish.default_when_made`     | When made (era)        | `SelectInput` | Options per ADR-017 §1a: `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700`. Default: `2004_2009` (vintage items are 20+ years old). |
+| `etsy.publish.default_taxonomy_id`   | Default category       | `SelectInput` | Etsy taxonomy ID. Used when no per-item `etsy_taxonomy_id` is set. |
+| `etsy.publish.return_policy_id`      | Return policy ID       | `TextInput` type="number" | **Required.** Etsy return policy ID. Must be set before any listing can be published. Obtain from Etsy Shop Manager → Policies. |
+
+> **Note:** Per-item overrides on the inventory record take precedence over these global defaults at publish time. See ADR-017 §1c.
+
+Save: "Save publish defaults" button.
 
 ---
 

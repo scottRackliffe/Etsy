@@ -2,8 +2,8 @@
  * GET /api/outstanding
  *
  * Returns all outstanding items per ADR-020: paid-not-shipped, unpaid,
- * in-stock-not-listed, missing-address, missing-shipping-cost, and
- * orders-missing-customer. Each item includes type, label, target tab, and record id.
+ * in-stock-not-listed, missing-address, and missing-shipping-cost.
+ * Each item includes type, label, target tab, and record id.
  */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
@@ -114,7 +114,8 @@ function queryOutstandingItems(): OutstandingItem[] {
   // Type 5: Customers with no address or incomplete address (ADR-020 §5)
   const missingAddress = db
     .prepare(
-      `SELECT c.id, c.first_name, c.last_name, c.created_at
+      `SELECT c.id, c.first_name, c.last_name, c.created_at,
+              c.address_1, c.city, c.postal_code, c.country
        FROM customers c
        WHERE c.id NOT IN (
          SELECT a.customer_id FROM addresses a
@@ -123,6 +124,10 @@ function queryOutstandingItems(): OutstandingItem[] {
            AND a.country IS NOT NULL AND a.country <> ''
            AND a.postal_code IS NOT NULL AND a.postal_code <> ''
        )
+       AND (c.address_1 IS NULL OR c.address_1 = ''
+            OR c.city IS NULL OR c.city = ''
+            OR c.postal_code IS NULL OR c.postal_code = ''
+            OR c.country IS NULL OR c.country = '')
        AND (c.is_active = 1 OR c.is_active IS NULL)`
     )
     .all() as Array<{
@@ -130,17 +135,53 @@ function queryOutstandingItems(): OutstandingItem[] {
     first_name: string | null;
     last_name: string | null;
     created_at: string | null;
+    address_1: string | null;
+    city: string | null;
+    postal_code: string | null;
+    country: string | null;
   }>;
 
   for (const c of missingAddress) {
     const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || `Customer #${c.id}`;
+    const hasAnyAddressData = !!(c.address_1 || c.city || c.postal_code || c.country);
+    const addressLabel = hasAnyAddressData ? "Incomplete address" : "No address on file";
     items.push({
       type: "missing_address",
       type_label: "Missing address",
-      label: `${name} – no complete address`,
+      label: `${name} – ${addressLabel}`,
       target_tab: "customers",
       record_id: c.id,
       date: c.created_at,
+    });
+  }
+
+  // Type 8: Inventory items missing Etsy publish fields (era or category)
+  const missingEtsyFields = db
+    .prepare(
+      `SELECT id, item_number, description
+       FROM inventory
+       WHERE listing_draft_state IN ('generated','imported','approved')
+         AND (etsy_when_made IS NULL OR etsy_taxonomy_id IS NULL)`
+    )
+    .all() as Array<{
+    id: number;
+    item_number: string | null;
+    description: string | null;
+  }>;
+
+  for (const row of missingEtsyFields) {
+    const desc = row.description
+      ? row.description.length > 40
+        ? row.description.slice(0, 40) + "…"
+        : row.description
+      : "";
+    items.push({
+      type: "missing_etsy_fields",
+      type_label: "Missing Etsy fields",
+      label: `Item ${row.item_number ?? `#${row.id}`}${desc ? ` – ${desc}` : ""} – missing era or category for Etsy publish`,
+      target_tab: "inventory",
+      record_id: row.id,
+      date: null,
     });
   }
 

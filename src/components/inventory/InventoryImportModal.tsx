@@ -69,6 +69,8 @@ export function InventoryImportModal({ open, onClose, onImported, onError, onSuc
         columns: data.columns ?? [],
         rows: data.rows ?? [],
         total_rows: data.total_rows ?? 0,
+        valid_count: data.valid_count ?? undefined,
+        error_count: data.error_count ?? undefined,
       });
     } catch (err) {
       setPreview(null);
