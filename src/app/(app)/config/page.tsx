@@ -1706,15 +1706,35 @@ export default function ConfigPage() {
               size="lg"
               onClick={async () => {
                 try {
-                  const res = await fetch("/api/health", { headers: { Accept: "application/json" } });
-                  const data = (await res.json().catch(() => ({}))) as { integrity_warning?: string; last_integrity_check?: string };
-                  if (data.integrity_warning) {
-                    alert(`Integrity issue detected: ${data.integrity_warning}`);
+                  const res = await fetch("/api/settings/integrity-check", {
+                    method: "POST",
+                    headers: { Accept: "application/json" },
+                  });
+                  const data = (await res.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    result?: string;
+                    details?: string[];
+                  };
+                  if (!res.ok) throw data;
+                  if (data.result === "ok") {
+                    setError({
+                      title: "Database is healthy",
+                      message: "Integrity check passed — all tables and indexes are intact.",
+                      actions: [],
+                    });
                   } else {
-                    alert(`Database is healthy. Last check: ${data.last_integrity_check ?? "just now"}`);
+                    setError({
+                      title: "Integrity issues found",
+                      message: `The integrity check found problems: ${(data.details ?? []).join("; ")}`,
+                      actions: ["Consider restoring from a recent backup."],
+                    });
                   }
-                } catch {
-                  alert("Could not run integrity check.");
+                } catch (err) {
+                  setApiError(
+                    "Integrity check failed",
+                    "We could not run the database integrity check.",
+                    err
+                  );
                 }
               }}
             >

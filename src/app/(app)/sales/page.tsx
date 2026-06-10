@@ -23,6 +23,8 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { useEtsySync } from "@/hooks/useEtsySync";
+import { HelpTooltip } from "@/components/ui/HelpTooltip";
+import { apiFetch } from "@/lib/api-fetch";
 import { addNotificationEntry } from "@/lib/notifications";
 import { patchHeaders } from "@/lib/patch-json";
 import { clearDraft, draftKey } from "@/lib/form-draft";
@@ -398,7 +400,7 @@ function SalesPageInner() {
         defaultTaxRate != null && subtotal > 0
           ? Math.round(subtotal * defaultTaxRate) / 100
           : 0;
-      const response = await fetch("/api/orders", {
+      const response = await apiFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -435,7 +437,7 @@ function SalesPageInner() {
     if (!selectedOrderId) return;
     setBusyAction("mark-paid");
     try {
-      const response = await fetch(`/api/orders/${selectedOrderId}/mark-paid`, {
+      const response = await apiFetch(`/api/orders/${selectedOrderId}/mark-paid`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -473,7 +475,7 @@ function SalesPageInner() {
       }
       setBusyAction("mark-shipped");
       try {
-        const response = await fetch(`/api/orders/${selectedOrderId}/mark-shipped`, {
+        const response = await apiFetch(`/api/orders/${selectedOrderId}/mark-shipped`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({
@@ -528,7 +530,7 @@ function SalesPageInner() {
     if (!selectedOrderId) return;
     setBusyAction("void-order");
     try {
-      const response = await fetch(`/api/orders/${selectedOrderId}`, {
+      const response = await apiFetch(`/api/orders/${selectedOrderId}`, {
         method: "PATCH",
         headers: patchHeaders(selectedOrder?.updated_at),
         body: JSON.stringify({ order_status: "void" }),
@@ -549,7 +551,7 @@ function SalesPageInner() {
     if (!selectedOrderId) return;
     setBusyAction("cancel-order");
     try {
-      const response = await fetch(`/api/orders/${selectedOrderId}`, {
+      const response = await apiFetch(`/api/orders/${selectedOrderId}`, {
         method: "PATCH",
         headers: patchHeaders(selectedOrder?.updated_at),
         body: JSON.stringify({ order_status: "cancelled" }),
@@ -920,6 +922,7 @@ function SalesPageInner() {
                 {shipModalMode === "batch"
                   ? `Ship anyway (${batchUnpaidCount} unpaid order(s))`
                   : "Ship anyway (not paid)"}
+                <HelpTooltip text="When checked, allows shipping an order that hasn't been marked as paid. An audit flag is recorded." />
               </label>
             ) : null}
             <div className="flex justify-end gap-2">

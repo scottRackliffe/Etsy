@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/Button";
@@ -55,6 +55,7 @@ const PER_ORDER_REPORTS = new Set(["invoice", "thank-you-note"]);
 export default function ReportsPage() {
   const { iconConfig, busyAction, setBusyAction, setError } = useApp();
 
+  const reportTypeSelectorRef = useRef<HTMLDivElement>(null);
   const [reportType, setReportType] = useState("sales");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -210,7 +211,7 @@ export default function ReportsPage() {
           <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
         </div>
 
-        <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div ref={reportTypeSelectorRef} className="mb-3 flex flex-wrap items-end gap-3">
           <FormField label="Report type">
             <SelectInput
               value={reportType}
@@ -376,6 +377,14 @@ export default function ReportsPage() {
         {reportCsvPreview.trim().length === 0 ? (
           <EmptyState
             message="No reports generated yet. Once you have orders, you can generate sales, tax, and profit reports here."
+            primaryAction={{
+              label: "Generate a report",
+              onClick: () => {
+                reportTypeSelectorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                const select = reportTypeSelectorRef.current?.querySelector("select");
+                select?.focus();
+              },
+            }}
           />
         ) : (
           <textarea

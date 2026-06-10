@@ -7,6 +7,7 @@ import { useConnection } from "@/context/ConnectionContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
+import { FormField } from "@/components/ui/FormField";
 import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
@@ -29,7 +30,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
-import { MutationQueueFullError } from "@/lib/api-fetch";
+import { apiFetch, MutationQueueFullError } from "@/lib/api-fetch";
 import { customerRecentlyViewedLabel } from "@/lib/recently-viewed";
 import type { ApiErrorShape, Customer, CustomerAddress, PaginationInfo } from "@/types";
 
@@ -97,6 +98,8 @@ function CustomersPageInner() {
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteType, setNewNoteType] = useState("general");
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<CustomerNote | null>(null);
+  const [pinnedNote, setPinnedNote] = useState("");
+  const [pinnedNoteSaving, setPinnedNoteSaving] = useState(false);
   const [noteTypeFilter, setNoteTypeFilter] = useState<string | null>(null);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [customerDetailDirty, setCustomerDetailDirty] = useState(false);
@@ -315,6 +318,20 @@ function CustomersPageInner() {
     setSelectedCustomerId(id);
   };
 
+  useEffect(() => {
+    setPinnedNote(selectedCustomer?.notes ?? "");
+  }, [selectedCustomer?.id, selectedCustomer?.notes]);
+
+  const savePinnedNote = async () => {
+    if (!selectedCustomerId) return;
+    setPinnedNoteSaving(true);
+    try {
+      await updateSelectedCustomer({ notes: pinnedNote });
+    } finally {
+      setPinnedNoteSaving(false);
+    }
+  };
+
   const loadCustomerNotes = useCallback(
     async (customerId: number) => {
       setNotesLoading(true);
@@ -416,7 +433,7 @@ function CustomersPageInner() {
     }
     setBusyAction("create-customer");
     try {
-      const response = await fetch("/api/customers", {
+      const response = await apiFetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -453,7 +470,7 @@ function CustomersPageInner() {
     if (!selectedCustomerId || !newAddressFirstLine.trim()) return;
     setBusyAction("create-address");
     try {
-      const response = await fetch(`/api/customers/${selectedCustomerId}/addresses`, {
+      const response = await apiFetch(`/api/customers/${selectedCustomerId}/addresses`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -490,7 +507,7 @@ function CustomersPageInner() {
   const deleteAddress = async (addressId: number) => {
     setBusyAction("delete-address");
     try {
-      const response = await fetch(`/api/addresses/${addressId}`, {
+      const response = await apiFetch(`/api/addresses/${addressId}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
@@ -509,7 +526,7 @@ function CustomersPageInner() {
     if (!selectedCustomerId || !newNoteText.trim()) return;
     setBusyAction("add-note");
     try {
-      const response = await fetch(`/api/customers/${selectedCustomerId}/notes`, {
+      const response = await apiFetch(`/api/customers/${selectedCustomerId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ note_text: newNoteText.trim(), note_type: newNoteType }),
@@ -534,7 +551,7 @@ function CustomersPageInner() {
     if (!deleteNoteTarget) return;
     setBusyAction("delete-note");
     try {
-      const response = await fetch(`/api/customer-notes/${deleteNoteTarget.id}`, {
+      const response = await apiFetch(`/api/customer-notes/${deleteNoteTarget.id}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
@@ -785,6 +802,30 @@ function CustomersPageInner() {
             customerId={selectedCustomerId}
             onError={(title, message, err) => setApiError(title, message, err)}
           />
+          {selectedCustomer && (
+            <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+              <FormField label="Pinned note" helpText="A quick note visible at the top of this customer's record.">
+                <textarea
+                  value={pinnedNote}
+                  onChange={(e) => setPinnedNote(e.target.value)}
+                  placeholder="Add a pinned note for this customer…"
+                  rows={2}
+                  maxLength={2000}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void savePinnedNote()}
+                busy={pinnedNoteSaving}
+                disabled={pinnedNote === (selectedCustomer.notes ?? "")}
+                className="mt-2"
+              >
+                Save pinned note
+              </Button>
+            </div>
+          )}
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
               <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Interaction notes</p>

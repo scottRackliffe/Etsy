@@ -31,6 +31,7 @@ import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { ConditionPictureGrid } from "@/components/inventory/ConditionPictureGrid";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { FormField } from "@/components/ui/FormField";
+import { apiFetch } from "@/lib/api-fetch";
 import { stampUiError } from "@/lib/ui-error";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { clearDraft, draftKey } from "@/lib/form-draft";
@@ -617,7 +618,7 @@ function InventoryPageInner() {
 
   const patchSelectedItem = async (payload: Record<string, unknown>) => {
     if (!selectedItemId) return;
-    const response = await fetch(`/api/inventory/${selectedItemId}`, {
+    const response = await apiFetch(`/api/inventory/${selectedItemId}`, {
       method: "PATCH",
       headers: patchHeaders(selectedItem?.updated_at),
       body: JSON.stringify(payload),
@@ -666,7 +667,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("generate-ai");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/generate-listing-content`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/generate-listing-content`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -704,7 +705,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("export-ai");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/listing-export`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/listing-export`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -726,7 +727,7 @@ function InventoryPageInner() {
     setBusyAction("import-ai");
     try {
       const parsed = JSON.parse(importPayload);
-      const response = await fetch(`/api/inventory/${selectedItemId}/listing-import`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/listing-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(parsed),
@@ -761,7 +762,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("approve-draft");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/listing-approve`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/listing-approve`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -782,7 +783,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("publish-draft");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/publish-to-etsy`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/publish-to-etsy`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ preview_hash: publishPreview?.preview_hash ?? "" }),
@@ -835,7 +836,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("reject-draft");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}/listing-reject`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}/listing-reject`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -864,7 +865,7 @@ function InventoryPageInner() {
     }
     setBusyAction("create-inventory");
     try {
-      const response = await fetch("/api/inventory", {
+      const response = await apiFetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -901,7 +902,7 @@ function InventoryPageInner() {
     if (!selectedItemId) return;
     setBusyAction("delete-inventory");
     try {
-      const response = await fetch(`/api/inventory/${selectedItemId}`, {
+      const response = await apiFetch(`/api/inventory/${selectedItemId}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
