@@ -86,8 +86,7 @@ function queryOutstandingItems(): OutstandingItem[] {
     .prepare(
       `SELECT id, item_number, description, created_at
        FROM inventory
-       WHERE (status = 'In stock' AND (date_listed IS NULL OR date_listed = ''))
-          OR status = 'Draft'`
+       WHERE status = 'In stock' AND (date_listed IS NULL OR date_listed = '')`
     )
     .all() as Array<{
     id: number;

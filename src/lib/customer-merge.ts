@@ -40,11 +40,11 @@ export function mergeCustomers(input: {
   if (!secondary) {
     throw new ApiRouteError({
       status: 409,
-      code: "CONFLICT_STALE_RECORD",
+      code: "CONCURRENT_EDIT",
       message: "Secondary customer not found",
       userMessage: "The secondary customer was already deleted or could not be found.",
       actions: ["Refresh the customer list and try again."],
-      canRetry: false,
+      canRetry: true,
     });
   }
 
@@ -98,7 +98,7 @@ export function mergeCustomers(input: {
     if (deleted === 0) {
       throw new ApiRouteError({
         status: 409,
-        code: "CONFLICT_STALE_RECORD",
+        code: "CONCURRENT_EDIT",
         message: "Secondary customer delete failed",
         userMessage: "The secondary customer could not be deleted.",
         actions: ["Refresh and try again."],

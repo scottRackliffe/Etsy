@@ -264,7 +264,7 @@ export function OrderDetailPanel({
     if (!removeLineTarget) return;
     setLineItemBusy(true);
     try {
-      const response = await fetch(`/api/order-items/${removeLineTarget.id}`, {
+      const response = await fetch(`/api/orders/${order.id}/items/${removeLineTarget.id}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });

@@ -14,5 +14,5 @@ export function patchHeaders(updatedAt: string | null | undefined): HeadersInit 
 export function isStaleConflictPayload(payload: unknown): payload is ApiErrorShape {
   if (!payload || typeof payload !== "object") return false;
   const err = (payload as ApiErrorShape).error;
-  return err?.code === "CONFLICT_STALE_RECORD";
+  return err?.code === "CONCURRENT_EDIT";
 }

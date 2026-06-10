@@ -13,7 +13,7 @@ export async function GET() {
         `
         SELECT id, item_number, description, quantity, status
         FROM inventory
-        WHERE COALESCE(status, '') NOT IN ('Sold', 'Retired')
+        WHERE status IN ('In stock', 'Listed')
         ORDER BY id DESC
       `
       )

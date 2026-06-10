@@ -92,11 +92,23 @@ export function removeSampleData(): boolean {
     const orphanCustomers = db
       .prepare(
         `SELECT c.id FROM customers c
-         WHERE c.email LIKE '%@example.com'
-           AND c.id NOT IN (SELECT DISTINCT customer_id FROM orders WHERE customer_id IS NOT NULL)`
+         WHERE c.id NOT IN (
+           SELECT DISTINCT customer_id FROM orders
+           WHERE customer_id IS NOT NULL
+             AND order_number NOT LIKE 'SAMPLE-ORD-%'
+         )`
       )
       .all() as Array<{ id: number }>;
-    for (const row of orphanCustomers) {
+    const sampleCustomerIds = orphanCustomers
+      .filter((row) => {
+        const hasNonSample = db
+          .prepare(
+            "SELECT 1 FROM orders WHERE customer_id = ? AND order_number NOT LIKE 'SAMPLE-ORD-%' LIMIT 1"
+          )
+          .get(row.id);
+        return !hasNonSample;
+      });
+    for (const row of sampleCustomerIds) {
       db.prepare("DELETE FROM addresses WHERE customer_id = ?").run(row.id);
       db.prepare("DELETE FROM customer_notes WHERE customer_id = ?").run(row.id);
       db.prepare("DELETE FROM customers WHERE id = ?").run(row.id);

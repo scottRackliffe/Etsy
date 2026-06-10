@@ -18,7 +18,7 @@ export type ApiErrorCode =
   | "NO_SAMPLE_DATA"
   | "QUERY_TOO_SHORT"
   | "BATCH_TOO_LARGE"
-  | "CONFLICT_STALE_RECORD"
+  | "CONCURRENT_EDIT"
   | "DATABASE_BUSY";
 
 export type ApiErrorPayload = {

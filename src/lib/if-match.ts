@@ -28,11 +28,11 @@ export function assertRecordNotStale(
   if (current !== ifMatch) {
     throw new ApiRouteError({
       status: 409,
-      code: "CONFLICT_STALE_RECORD",
+      code: "CONCURRENT_EDIT",
       message: "Record has been modified since it was loaded",
       userMessage: "This record was modified since you loaded it. Please reload and try again.",
       actions: ["Reload"],
-      canRetry: false,
+      canRetry: true,
     });
   }
 }

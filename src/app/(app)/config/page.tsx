@@ -981,13 +981,13 @@ export default function ConfigPage() {
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Tax settings</h4>
             <label className="block text-xs text-[var(--ui-muted)]">
-              Default sales tax rate (decimal, e.g. 0.0825 = 8.25%)
+              Default sales tax rate (percentage, e.g. 8.25 for 8.25%)
               <input
                 value={taxSettings.default_rate}
                 onChange={(e) => setTaxSettings({ default_rate: e.target.value })}
-                placeholder="0.0825"
+                placeholder="8.25"
                 type="number"
-                step="0.0001"
+                step="0.01"
                 className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
             </label>
