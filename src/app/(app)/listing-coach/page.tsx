@@ -9,6 +9,7 @@ import { ListingPreview } from "@/components/listing-coach/ListingPreview";
 import { PhotoPasteZone } from "@/components/listing-coach/PhotoPasteZone";
 import {
   appendCoachPhotos,
+  createCoachPhoto,
   revokeCoachPhotos,
   SHOT_LABELS,
   type AnalyzeResponse,
@@ -82,6 +83,37 @@ export default function ListingCoachPage() {
       revokeCoachPhotos([...itemPhotos, ...conditionPhotos, ...googlePhotos]);
     };
   }, [itemPhotos, conditionPhotos, googlePhotos]);
+
+  useEffect(() => {
+    if (step !== "photos") return;
+    const handler = (e: ClipboardEvent) => {
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        const room = 10 - itemPhotos.length;
+        if (room <= 0) return;
+        const next = [...itemPhotos];
+        for (const file of files.slice(0, room)) {
+          if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) continue;
+          if (file.size > 15 * 1024 * 1024) continue;
+          next.push(createCoachPhoto(file));
+        }
+        if (next.length !== itemPhotos.length) setItemPhotos(next);
+      }
+    };
+    document.addEventListener("paste", handler);
+    return () => document.removeEventListener("paste", handler);
+  }, [step, itemPhotos]);
 
   const resetSession = useCallback(() => {
     revokeCoachPhotos([...itemPhotos, ...conditionPhotos, ...googlePhotos]);
@@ -256,7 +288,7 @@ export default function ListingCoachPage() {
       case "google":
         return "Google Visual Search";
       case "analyze":
-        return "Photo review";
+        return "What we found";
       case "price":
         return "Confirm price";
       case "confirm":
@@ -271,7 +303,7 @@ export default function ListingCoachPage() {
   }, [step]);
 
   return (
-    <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
+    <section className="mx-auto max-w-3xl rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
@@ -442,7 +474,24 @@ export default function ListingCoachPage() {
             </ul>
           ) : null}
 
-          {!skippedGoogle && analyzeResult.price.rationale ? (
+          {analyzeResult.price.confidence !== "low" &&
+          suggestedPriceValue(analyzeResult.price) != null ? (
+            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+              <p className="text-sm font-semibold text-[var(--ui-title)]">Suggested price</p>
+              <p className="mt-1 text-lg font-bold text-[var(--ui-green)]">
+                ${suggestedPriceValue(analyzeResult.price)?.toFixed(2)}
+                {analyzeResult.price.suggested_price_low != null &&
+                analyzeResult.price.suggested_price_high != null
+                  ? ` (range $${analyzeResult.price.suggested_price_low}–$${analyzeResult.price.suggested_price_high})`
+                  : ""}
+              </p>
+              {analyzeResult.price.rationale ? (
+                <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                  {analyzeResult.price.rationale}
+                </p>
+              ) : null}
+            </div>
+          ) : analyzeResult.price.rationale ? (
             <p className="text-sm text-[var(--ui-body)]">{analyzeResult.price.rationale}</p>
           ) : null}
 
@@ -561,6 +610,48 @@ export default function ListingCoachPage() {
         <div className="flex flex-col items-center gap-3 py-12">
           <LoadingSpinner />
           <p className="text-sm text-[var(--ui-muted)]">Writing your listing…</p>
+        </div>
+      ) : null}
+
+      {step === "compose" && !busy && !composeResult && error ? (
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--ui-body)]">
+            AI compose failed. You can retry or switch to manual entry in the Inventory workshop.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setStep("confirm")}>
+              Back to edit answers
+            </Button>
+            <Button variant="primary" busy={busy} onClick={() => void runCompose()}>
+              Retry compose
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const fallbackCompose: ComposeResponse = {
+                  ok: true,
+                  listing_title: identification || "Untitled item",
+                  listing_description: "",
+                  listing_tags: "",
+                  listing_category_path: "",
+                  listing_title_strategy: "",
+                  listing_product_story: "",
+                  listing_condition_clarity: "",
+                  listing_attributes: "",
+                  listing_pricing_shipping_notes: acceptOfferNote || "",
+                  listing_quality_checklist: "",
+                  quality_score: { score: 0, hints: ["Complete the listing in the Inventory workshop."] },
+                };
+                setComposeResult(fallbackCompose);
+                setError(null);
+                if (!description.trim()) {
+                  setDescription(identification.trim() || "New item");
+                }
+              }}
+            >
+              Skip — I&apos;ll write it manually
+            </Button>
+          </div>
         </div>
       ) : null}
 

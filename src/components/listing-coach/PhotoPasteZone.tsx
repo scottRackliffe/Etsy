@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   createCoachPhoto,
@@ -40,19 +40,34 @@ export function PhotoPasteZone({
 }: PhotoPasteZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
+  const [rejectMessage, setRejectMessage] = useState<string | null>(null);
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
       const incoming = Array.from(files);
       if (incoming.length === 0) return;
       const room = maxPhotos - photos.length;
-      if (room <= 0) return;
+      if (room <= 0) {
+        setRejectMessage(`Maximum ${maxPhotos} photos reached.`);
+        return;
+      }
 
       const next = [...photos];
+      let skipped = 0;
       for (const file of incoming.slice(0, room)) {
         const err = validateFile(file);
-        if (err) continue;
+        if (err) {
+          skipped++;
+          continue;
+        }
         next.push(createCoachPhoto(file));
+      }
+      if (skipped > 0) {
+        setRejectMessage(
+          `${skipped} file${skipped === 1 ? " was" : "s were"} skipped (must be JPEG, PNG, WebP, or GIF, max 15 MB).`
+        );
+      } else {
+        setRejectMessage(null);
       }
       if (next.length !== photos.length) {
         onChange(next);
@@ -123,7 +138,7 @@ export function PhotoPasteZone({
           e.preventDefault();
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
-        className="rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
+        className="min-h-[200px] rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
       >
         <p className="text-sm font-medium text-[var(--ui-title)]">{pasteHint}</p>
         <p className="mt-1 text-xs text-[var(--ui-muted)]">
@@ -149,6 +164,10 @@ export function PhotoPasteZone({
           }}
         />
       </div>
+
+      {rejectMessage ? (
+        <p className="text-xs text-[var(--ui-yellow)]">{rejectMessage}</p>
+      ) : null}
 
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">

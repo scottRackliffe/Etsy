@@ -17,15 +17,42 @@ function parseConfirmAnswers(raw: unknown): ConfirmAnswer[] {
       canRetry: false,
     });
   }
+  const REQUIRED_IDS = ["what_is_it", "included", "condition", "buyer"];
+  const MAX_ANSWER_LENGTH = 500;
   const answers: ConfirmAnswer[] = [];
+  const fieldErrors: Record<string, string[]> = {};
+
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
     const obj = entry as Record<string, unknown>;
     const id = typeof obj.id === "string" ? obj.id.trim() : "";
     const answer = typeof obj.answer === "string" ? obj.answer.trim() : "";
     if (!id) continue;
-    answers.push({ id, answer });
+    if (answer.length > MAX_ANSWER_LENGTH) {
+      fieldErrors[id] = [`Answer must be ${MAX_ANSWER_LENGTH} characters or fewer`];
+    }
+    answers.push({ id, answer: answer.slice(0, MAX_ANSWER_LENGTH) });
   }
+
+  const presentIds = new Set(answers.map((a) => a.id));
+  for (const reqId of REQUIRED_IDS) {
+    if (!presentIds.has(reqId)) {
+      fieldErrors[reqId] = ["This confirm card is required"];
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new ApiRouteError({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      message: "Confirm answers have validation errors",
+      userMessage: "Some confirm answers need fixing. Please go back and check.",
+      actions: ["Go back to the confirm step and retry."],
+      fields: fieldErrors,
+      canRetry: false,
+    });
+  }
+
   if (answers.length === 0) {
     throw new ApiRouteError({
       status: 400,
