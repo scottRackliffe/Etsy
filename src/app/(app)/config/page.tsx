@@ -11,7 +11,9 @@ import {
 } from "@/lib/auto-sync-interval";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { buildConfigFormSnapshot, type ConfigFormSnapshot } from "@/lib/config-form-snapshot";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FormField } from "@/components/ui/FormField";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
@@ -124,6 +126,9 @@ export default function ConfigPage() {
     business_email: "",
   });
   const [businessLoading, setBusinessLoading] = useState(false);
+  const [logoPath, setLogoPath] = useState<string | null>(null);
+  const [logoVersion, setLogoVersion] = useState(0);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [sampleDataBusy, setSampleDataBusy] = useState(false);
   const [sampleDataLoaded, setSampleDataLoaded] = useState<boolean | null>(null);
   const [loadSampleConfirm, setLoadSampleConfirm] = useState(false);
@@ -149,7 +154,9 @@ export default function ConfigPage() {
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const [autoSyncInterval, setAutoSyncInterval] = useState<AutoSyncInterval>("off");
   const [repeatCustomerThreshold, setRepeatCustomerThreshold] = useState("2");
+  const [activityRetentionDays, setActivityRetentionDays] = useState("365");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
+  const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<Map<string, string>>(new Map());
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
   const { modal: progressModal, run: runWithProgress } = useProgressOperation();
@@ -301,10 +308,15 @@ export default function ConfigPage() {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        items?: Array<{ key: string; value: string }>;
+        items?: Array<{ key: string; value: string; updated_at?: string }>;
       };
       if (!response.ok) throw data;
       const map = new Map((data.items ?? []).map((row) => [row.key, row.value]));
+      const updatedAtMap = new Map<string, string>();
+      for (const row of data.items ?? []) {
+        if (row.updated_at) updatedAtMap.set(row.key, row.updated_at);
+      }
+      setSettingsUpdatedAt(updatedAtMap);
       setBusinessProfile({
         business_name: map.get("business_name") ?? "",
         business_address_line_1: map.get("business_address_line_1") ?? "",
@@ -316,6 +328,8 @@ export default function ConfigPage() {
         business_phone: map.get("business_phone") ?? "",
         business_email: map.get("business_email") ?? "",
       });
+      const rawLogo = map.get("business_logo_path") ?? "";
+      setLogoPath(rawLogo || null);
       setShippingSettings({
         default_carrier: map.get("shipping.default_carrier") ?? "USPS",
         default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
@@ -337,6 +351,7 @@ export default function ConfigPage() {
       setLastBackupAt(map.get("last_backup_at") ?? null);
       setAutoSyncInterval(parseAutoSyncInterval(map.get("sync.auto_interval")));
       setRepeatCustomerThreshold(map.get("repeat_customer_threshold") ?? "2");
+      setActivityRetentionDays(map.get("activity_log.retention_days") ?? "365");
       setConfigBaseline(
         buildConfigFormSnapshot({
           businessProfile: {
@@ -390,14 +405,27 @@ export default function ConfigPage() {
     setBusinessLoading(true);
     try {
       for (const key of BUSINESS_KEYS) {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+        const updatedAt = settingsUpdatedAt.get(key);
+        if (updatedAt) headers["If-Match"] = updatedAt;
+
         const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers,
           body: JSON.stringify({ value: businessProfile[key] }),
         });
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
         if (!response.ok) throw data;
       }
+      setSettingsUpdatedAt((prev) => {
+        const next = new Map(prev);
+        const now = new Date().toISOString();
+        for (const key of BUSINESS_KEYS) next.set(key, now);
+        return next;
+      });
       setError({
         title: "Business profile saved",
         message: "Your business details were saved for invoices and reports.",
@@ -411,6 +439,39 @@ export default function ConfigPage() {
     }
   };
 
+  const uploadLogo = async (file: File) => {
+    setLogoUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/settings/logo", { method: "POST", body });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; path?: string } & ApiErrorShape;
+      if (!res.ok) throw data;
+      setLogoPath(data.path ?? null);
+      setLogoVersion((v) => v + 1);
+    } catch (err) {
+      setApiError("Logo upload failed", "We could not save the business logo.", err);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    setLogoUploading(true);
+    try {
+      const res = await fetch("/api/settings/logo", { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const data = (await res.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setLogoPath(null);
+    } catch (err) {
+      setApiError("Could not remove logo", "We could not remove the business logo.", err);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   const saveSettingsKeys = async (
     updates: Array<{ key: string; value: string }>,
     successTitle: string,
@@ -419,14 +480,27 @@ export default function ConfigPage() {
     setExtraSettingsLoading(true);
     try {
       for (const update of updates) {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+        const updatedAt = settingsUpdatedAt.get(update.key);
+        if (updatedAt) headers["If-Match"] = updatedAt;
+
         const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers,
           body: JSON.stringify({ value: update.value }),
         });
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
         if (!response.ok) throw data;
       }
+      setSettingsUpdatedAt((prev) => {
+        const next = new Map(prev);
+        const now = new Date().toISOString();
+        for (const update of updates) next.set(update.key, now);
+        return next;
+      });
       setError({ title: successTitle, message: successMessage, actions: ["Settings saved."] });
       markConfigClean();
     } catch (err) {
@@ -462,9 +536,10 @@ export default function ConfigPage() {
         { key: "ui.page_size", value: displaySettings.page_size },
         { key: "ui.timezone", value: displaySettings.timezone },
         { key: "repeat_customer_threshold", value: repeatCustomerThreshold },
+        { key: "activity_log.retention_days", value: activityRetentionDays },
       ],
       "Display preferences saved",
-      "Date format, currency, page size, timezone, and repeat threshold were updated."
+      "Date format, currency, page size, timezone, repeat threshold, and retention were updated."
     );
 
   useEffect(() => {
@@ -753,14 +828,27 @@ export default function ConfigPage() {
         },
       ];
       for (const update of updates) {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+        const updatedAt = settingsUpdatedAt.get(update.key);
+        if (updatedAt) headers["If-Match"] = updatedAt;
+
         const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers,
           body: JSON.stringify({ value: update.value }),
         });
         const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
         if (!response.ok) throw data;
       }
+      setSettingsUpdatedAt((prev) => {
+        const next = new Map(prev);
+        const now = new Date().toISOString();
+        for (const update of updates) next.set(update.key, now);
+        return next;
+      });
       setError({
         title: "Icon settings saved",
         message: "Screen and report icon configuration was updated.",
@@ -785,6 +873,44 @@ export default function ConfigPage() {
             <p className="mb-3 text-xs text-[var(--ui-muted)]">
               Used on invoices, thank-you notes, and report headers.
             </p>
+            <div className="mb-4 flex items-center gap-4">
+              {logoPath ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/uploads/${logoPath.replace(/^uploads\//, "")}?v=${logoVersion}`}
+                    alt="Business logo"
+                    className="h-20 w-20 rounded-lg border border-[var(--ui-border)] object-contain bg-[var(--ui-card-bg)]"
+                  />
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={removeLogo}
+                    busy={logoUploading}
+                  >
+                    Remove logo
+                  </Button>
+                </>
+              ) : (
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-4 py-3 text-sm text-[var(--ui-muted)] hover:border-[var(--ui-accent)]">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {logoUploading ? "Uploading…" : "Upload logo"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={logoUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void uploadLogo(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <input
                 value={businessProfile.business_name}
@@ -861,14 +987,16 @@ export default function ConfigPage() {
                 className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
             </div>
-            <button
-              type="button"
+            <Button
+              variant="accent"
+              size="lg"
               onClick={saveBusinessProfile}
               disabled={businessLoading}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              busy={businessLoading}
+              className="mt-3"
             >
-              {businessLoading ? "Saving…" : "Save business profile"}
-            </button>
+              Save business profile
+            </Button>
           </div>
           <div
             id="etsy-connection"
@@ -933,14 +1061,14 @@ export default function ConfigPage() {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={saveAutoSyncSettings}
                     disabled={extraSettingsLoading}
-                    className="rounded-lg border border-[var(--ui-border)] px-2 py-1.5 text-xs disabled:opacity-60"
                   >
                     Save auto-sync
-                  </button>
+                  </Button>
                 </dd>
                 <p className="mt-1 text-xs text-[var(--ui-muted)]">
                   Runs only while this app is open in your browser.
@@ -954,30 +1082,22 @@ export default function ConfigPage() {
               </div>
             </dl>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={connect}
-                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white"
-              >
+              <Button variant="accent" size="lg" onClick={connect}>
                 {shops.length ? "Reconnect Etsy" : "Connect Etsy"}
-              </button>
+              </Button>
               {shops.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setDisconnectOpen(true)}
-                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm text-[var(--ui-body)]"
-                >
+                <Button variant="secondary" size="lg" onClick={() => setDisconnectOpen(true)}>
                   Disconnect
-                </button>
+                </Button>
               ) : null}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="lg"
                 onClick={() => void loadEtsyConnectionInfo()}
                 disabled={etsyInfoLoading}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
               >
                 Refresh
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -992,14 +1112,13 @@ export default function ConfigPage() {
         <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping defaults</h4>
-            <label className="mb-2 block text-xs text-[var(--ui-muted)]">
-              Default carrier
+            <FormField label="Default carrier">
               <select
                 value={shippingSettings.default_carrier}
                 onChange={(e) =>
                   setShippingSettings((c) => ({ ...c, default_carrier: e.target.value }))
                 }
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               >
                 {["USPS", "UPS", "FedEx", "DHL", "Other"].map((carrier) => (
                   <option key={carrier} value={carrier}>
@@ -1007,7 +1126,7 @@ export default function ConfigPage() {
                   </option>
                 ))}
               </select>
-            </label>
+            </FormField>
             <input
               value={shippingSettings.default_origin_zip}
               onChange={(e) =>
@@ -1025,47 +1144,47 @@ export default function ConfigPage() {
               type="number"
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
-            <button
-              type="button"
+            <Button
+              variant="accent"
+              size="lg"
               onClick={saveShippingSettings}
               disabled={extraSettingsLoading}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="mt-3"
             >
               Save shipping defaults
-            </button>
+            </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Tax settings</h4>
-            <label className="block text-xs text-[var(--ui-muted)]">
-              Default sales tax rate (percentage, e.g. 8.25 for 8.25%)
+            <FormField label="Default sales tax rate" helpText="Percentage, e.g. 8.25 for 8.25%">
               <input
                 value={taxSettings.default_rate}
                 onChange={(e) => setTaxSettings({ default_rate: e.target.value })}
                 placeholder="8.25"
                 type="number"
                 step="0.01"
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
-            </label>
-            <button
-              type="button"
+            </FormField>
+            <Button
+              variant="accent"
+              size="lg"
               onClick={saveTaxSettings}
               disabled={extraSettingsLoading}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="mt-3"
             >
               Save tax settings
-            </button>
+            </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">
               Display preferences
             </h4>
-            <label className="mb-2 block text-xs text-[var(--ui-muted)]">
-              Date format
+            <FormField label="Date format">
               <select
                 value={displaySettings.date_format}
                 onChange={(e) => setDisplaySettings((c) => ({ ...c, date_format: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               >
                 {["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"].map((fmt) => (
                   <option key={fmt} value={fmt}>
@@ -1073,15 +1192,14 @@ export default function ConfigPage() {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="mb-2 block text-xs text-[var(--ui-muted)]">
-              Currency
+            </FormField>
+            <FormField label="Currency">
               <select
                 value={displaySettings.currency_code}
                 onChange={(e) =>
                   setDisplaySettings((c) => ({ ...c, currency_code: e.target.value }))
                 }
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               >
                 {["USD", "CAD", "GBP", "EUR", "AUD"].map((code) => (
                   <option key={code} value={code}>
@@ -1089,13 +1207,12 @@ export default function ConfigPage() {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="block text-xs text-[var(--ui-muted)]">
-              Records per page
+            </FormField>
+            <FormField label="Records per page">
               <select
                 value={displaySettings.page_size}
                 onChange={(e) => setDisplaySettings((c) => ({ ...c, page_size: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               >
                 {["10", "25", "50", "100"].map((size) => (
                   <option key={size} value={size}>
@@ -1103,13 +1220,12 @@ export default function ConfigPage() {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="block text-xs text-[var(--ui-muted)]">
-              Timezone
+            </FormField>
+            <FormField label="Timezone">
               <select
                 value={displaySettings.timezone}
                 onChange={(e) => setDisplaySettings((c) => ({ ...c, timezone: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               >
                 {(() => {
                   let allTimezones: string[];
@@ -1128,29 +1244,36 @@ export default function ConfigPage() {
                   ));
                 })()}
               </select>
-            </label>
-            <label className="block text-xs text-[var(--ui-muted)]">
-              Repeat customer threshold
+            </FormField>
+            <FormField label="Repeat customer threshold" helpText="Number of orders before a customer gets the Repeat badge.">
               <input
                 type="number"
                 min={2}
                 max={50}
                 value={repeatCustomerThreshold}
                 onChange={(e) => setRepeatCustomerThreshold(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
-              <span className="mt-0.5 block text-[10px] text-[var(--ui-muted)]">
-                Number of orders before a customer gets the Repeat badge.
-              </span>
-            </label>
-            <button
-              type="button"
+            </FormField>
+            <FormField label="Activity log retention (days)" helpText="Entries older than this are purged on startup.">
+              <input
+                type="number"
+                min={1}
+                max={9999}
+                value={activityRetentionDays}
+                onChange={(e) => setActivityRetentionDays(e.target.value)}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <Button
+              variant="accent"
+              size="lg"
               onClick={saveDisplaySettings}
               disabled={extraSettingsLoading}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="mt-3"
             >
               Save display preferences
-            </button>
+            </Button>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
@@ -1189,22 +1312,12 @@ export default function ConfigPage() {
               )}
             </div>
             <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={saveAiSettings}
-                disabled={saving}
-                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white"
-              >
+              <Button variant="accent" size="lg" onClick={saveAiSettings} busy={saving}>
                 Save AI settings
-              </button>
-              <button
-                type="button"
-                onClick={testAiSettings}
-                disabled={saving}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-              >
+              </Button>
+              <Button variant="secondary" size="lg" onClick={testAiSettings} disabled={saving}>
                 Test connection
-              </button>
+              </Button>
             </div>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
@@ -1216,18 +1329,16 @@ export default function ConfigPage() {
               Per-item overrides on inventory records take precedence at publish time.
             </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <label className="block text-xs text-[var(--ui-muted)]">
-                Default Taxonomy ID
+              <FormField label="Default Taxonomy ID" helpText="Etsy category ID for your listings">
                 <input
                   value={publishConfig.taxonomyId}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))}
                   placeholder="e.g. 1074"
                   type="number"
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                Shipping profile ID
+              </FormField>
+              <FormField label="Shipping profile ID" helpText="From Etsy shop settings">
                 <input
                   value={publishConfig.shippingProfileId}
                   onChange={(e) =>
@@ -1235,11 +1346,10 @@ export default function ConfigPage() {
                   }
                   placeholder="From Etsy shop settings"
                   type="number"
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                Return policy ID
+              </FormField>
+              <FormField label="Return policy ID" helpText="From Etsy shop settings">
                 <input
                   value={publishConfig.returnPolicyId}
                   onChange={(e) =>
@@ -1247,27 +1357,25 @@ export default function ConfigPage() {
                   }
                   placeholder="From Etsy shop settings"
                   type="number"
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                Who made
+              </FormField>
+              <FormField label="Who made">
                 <select
                   value={publishConfig.whoMade || "someone_else"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whoMade: e.target.value }))}
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 >
                   <option value="i_did">I did</option>
                   <option value="someone_else">Someone else</option>
                   <option value="collective">A member of my shop</option>
                 </select>
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                When made
+              </FormField>
+              <FormField label="When made">
                 <select
                   value={publishConfig.whenMade || "2010_2019"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whenMade: e.target.value }))}
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 >
                   <option value="made_to_order">Made to order</option>
                   <option value="2020_2026">2020–2026</option>
@@ -1288,9 +1396,8 @@ export default function ConfigPage() {
                   <option value="1700s">1700s</option>
                   <option value="before_1700">Before 1700</option>
                 </select>
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                Max image dimension (px)
+              </FormField>
+              <FormField label="Max image dimension (px)">
                 <input
                   value={publishConfig.imageMaxDimension}
                   onChange={(e) =>
@@ -1298,11 +1405,10 @@ export default function ConfigPage() {
                   }
                   placeholder="2000"
                   type="number"
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
-              </label>
-              <label className="block text-xs text-[var(--ui-muted)]">
-                JPEG quality (1–100)
+              </FormField>
+              <FormField label="JPEG quality (1–100)">
                 <input
                   value={publishConfig.imageJpegQuality}
                   onChange={(e) =>
@@ -1312,18 +1418,19 @@ export default function ConfigPage() {
                   type="number"
                   min="1"
                   max="100"
-                  className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
-              </label>
+              </FormField>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="accent"
+              size="lg"
               onClick={savePublishSettings}
               disabled={saving}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="mt-3"
             >
               Save publish defaults
-            </button>
+            </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold">Icons and sizing</h4>
@@ -1356,14 +1463,9 @@ export default function ConfigPage() {
               placeholder="Report icon width px"
               className="mt-2 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
-            <button
-              type="button"
-              onClick={saveIconSettings}
-              disabled={saving}
-              className="mt-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-            >
+            <Button variant="secondary" size="lg" onClick={saveIconSettings} disabled={saving} className="mt-2">
               Save icon settings
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -1373,23 +1475,23 @@ export default function ConfigPage() {
             Load example inventory, customers, and orders to explore the application.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
+              variant="accent"
+              size="lg"
               onClick={() => setLoadSampleConfirm(true)}
               disabled={sampleDataBusy || sampleDataLoaded === true}
-              className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               Load Sample Data
-            </button>
+            </Button>
             {sampleDataLoaded ? (
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="lg"
                 onClick={() => setRemoveSampleConfirm(true)}
                 disabled={sampleDataBusy}
-                className="rounded-lg border border-[var(--ui-red)]/50 bg-[var(--ui-red)]/10 px-3 py-2 text-sm font-semibold text-[var(--ui-red)] disabled:opacity-60"
               >
                 Remove Sample Data
-              </button>
+              </Button>
             ) : null}
           </div>
           <p className="mt-3 text-xs text-[var(--ui-muted)]">
@@ -1412,47 +1514,39 @@ export default function ConfigPage() {
                 Local SQLite backups (ADR-027). Rolling retention keeps recent copies.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={createBackup}
-              disabled={backupLoading}
-              className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
+            <Button variant="accent" size="lg" onClick={createBackup} disabled={backupLoading}>
               Backup now
-            </button>
+            </Button>
           </div>
 
           <div className="mb-4 flex flex-wrap items-end gap-3">
-            <label className="text-xs text-[var(--ui-muted)]">
-              Automatic backup
+            <FormField label="Automatic backup">
               <select
                 value={backupSchedule}
                 onChange={(e) => setBackupSchedule(e.target.value)}
-                className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
               >
                 <option value="manual">Manual only</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
               </select>
-            </label>
+            </FormField>
             {(backupSchedule === "daily" || backupSchedule === "weekly") && (
-              <label className="text-xs text-[var(--ui-muted)]">
-                Backup time
+              <FormField label="Backup time">
                 <input
                   type="time"
                   value={backupTime}
                   onChange={(e) => setBackupTime(e.target.value)}
-                  className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
                 />
-              </label>
+              </FormField>
             )}
             {backupSchedule === "weekly" && (
-              <label className="text-xs text-[var(--ui-muted)]">
-                Backup day
+              <FormField label="Backup day">
                 <select
                   value={backupDay}
                   onChange={(e) => setBackupDay(e.target.value)}
-                  className="mt-0.5 block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
                 >
                   <option value="0">Sunday</option>
                   <option value="1">Monday</option>
@@ -1462,10 +1556,11 @@ export default function ConfigPage() {
                   <option value="5">Friday</option>
                   <option value="6">Saturday</option>
                 </select>
-              </label>
+              </FormField>
             )}
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={() =>
                 void saveSettingsKeys(
                   [
@@ -1480,33 +1575,30 @@ export default function ConfigPage() {
                 )
               }
               disabled={extraSettingsLoading}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
             >
               Save schedule
-            </button>
+            </Button>
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <label className="text-xs text-[var(--ui-muted)]">
-              Backup directory
+            <FormField label="Backup directory">
               <input
                 value={backupDirectory}
                 onChange={(e) => setBackupDirectory(e.target.value)}
                 placeholder="./backups"
-                className="mt-0.5 block w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
               />
-            </label>
-            <label className="text-xs text-[var(--ui-muted)]">
-              Max backups to keep
+            </FormField>
+            <FormField label="Max backups to keep">
               <input
                 type="number"
                 min={1}
                 max={100}
                 value={backupMaxCount}
                 onChange={(e) => setBackupMaxCount(e.target.value)}
-                className="mt-0.5 block w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
               />
-            </label>
+            </FormField>
             <div className="flex flex-col justify-end">
               <label className="flex items-center gap-2 text-xs text-[var(--ui-muted)]">
                 <input
@@ -1522,8 +1614,9 @@ export default function ConfigPage() {
             </div>
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={() =>
                 void saveSettingsKeys(
                   [
@@ -1536,10 +1629,9 @@ export default function ConfigPage() {
                 )
               }
               disabled={extraSettingsLoading}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
             >
               Save backup settings
-            </button>
+            </Button>
             {lastBackupAt && (
               <p className="text-xs text-[var(--ui-muted)]">
                 Last backup: {formatConnectionTimestamp(lastBackupAt)}
@@ -1572,22 +1664,29 @@ export default function ConfigPage() {
                       </td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
+                          <a
+                            href={`/api/backup/${encodeURIComponent(backup.filename)}`}
+                            download
+                            className="rounded border border-[var(--ui-border)] px-2 py-1 text-xs text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
+                          >
+                            Download
+                          </a>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setRestoreTarget(backup.filename)}
                             disabled={backupLoading}
-                            className="rounded border border-[var(--ui-border)] px-2 py-1 text-xs"
                           >
                             Restore
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
                             onClick={() => setDeleteTarget(backup.filename)}
                             disabled={backupLoading}
-                            className="rounded border border-[var(--ui-red)]/40 px-2 py-1 text-xs text-[var(--ui-red)]"
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -1602,8 +1701,9 @@ export default function ConfigPage() {
             <p className="mb-2 text-xs text-[var(--ui-muted)]">
               Run a full integrity check on the SQLite database. This verifies all tables and indexes are intact.
             </p>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={async () => {
                 try {
                   const res = await fetch("/api/health", { headers: { Accept: "application/json" } });
@@ -1617,10 +1717,9 @@ export default function ConfigPage() {
                   alert("Could not run integrity check.");
                 }
               }}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
             >
               Run integrity check
-            </button>
+            </Button>
           </div>
         </div>
 

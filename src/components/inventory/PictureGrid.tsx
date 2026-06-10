@@ -3,16 +3,23 @@
 import { useCallback, useRef, useState } from "react";
 import type { InventoryItem } from "@/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Modal } from "@/components/ui/Modal";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { patchHeaders } from "@/lib/patch-json";
 import { getPictureSlotPath, pictureDisplayUrl } from "@/lib/picture-url";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm";
 const MAX_BYTES = 15 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+type Classifications = Record<string, string>;
 
 type PictureGridProps = {
   inventoryId: number | null;
   item: InventoryItem | null;
   disabled?: boolean;
+  classifications?: string | Classifications | null;
   onItemUpdated: (item: InventoryItem) => void;
   onError: (title: string, message: string, err?: unknown) => void;
 };
@@ -27,18 +34,37 @@ function slotPaths(item: InventoryItem | null): Array<{ slot: number; path: stri
   });
 }
 
+function parseClassifications(raw: string | Classifications | null | undefined): Classifications {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as Classifications;
+    } catch {
+      return {};
+    }
+  }
+  return raw;
+}
+
 export function PictureGrid({
   inventoryId,
   item,
   disabled,
+  classifications: classificationsProp,
   onItemUpdated,
   onError,
 }: PictureGridProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [uploadSlot, setUploadSlot] = useState<number | null>(null);
   const [busySlot, setBusySlot] = useState<number | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState<Set<number>>(new Set());
   const [removeSlot, setRemoveSlot] = useState<number | null>(null);
   const [dragSlot, setDragSlot] = useState<number | null>(null);
+  const [previewSlot, setPreviewSlot] = useState<number | null>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+
+  const classifications = parseClassifications(classificationsProp);
 
   const slots = slotPaths(item);
 
@@ -73,7 +99,7 @@ export function PictureGrid({
         setDragSlot(null);
       }
     },
-    [inventoryId, slots, onError, onItemUpdated]
+    [inventoryId, slots, item, onError, onItemUpdated]
   );
 
   const validateFile = (file: File): string | null => {
@@ -95,6 +121,7 @@ export function PictureGrid({
         return;
       }
       setBusySlot(slot);
+      setLoadingSlots((prev) => new Set(prev).add(slot));
       try {
         const form = new FormData();
         form.set("slot", String(slot));
@@ -113,6 +140,11 @@ export function PictureGrid({
         onError("Upload failed", "We could not upload that picture.", err);
       } finally {
         setBusySlot(null);
+        setLoadingSlots((prev) => {
+          const next = new Set(prev);
+          next.delete(slot);
+          return next;
+        });
       }
     },
     [inventoryId, onError, onItemUpdated]
@@ -148,6 +180,61 @@ export function PictureGrid({
     }
   };
 
+  const uploadVideo = useCallback(
+    async (file: File) => {
+      if (!inventoryId) return;
+      if (!VIDEO_ACCEPT.split(",").includes(file.type)) {
+        onError("Invalid video", "File must be MP4, MOV, or WebM.");
+        return;
+      }
+      if (file.size > VIDEO_MAX_BYTES) {
+        onError("Video too large", "Video must be under 100 MB.");
+        return;
+      }
+      setVideoBusy(true);
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        const response = await fetch(`/api/inventory/${inventoryId}/video`, {
+          method: "POST",
+          body: form,
+        });
+        const data = (await response.json().catch(() => ({}))) as { item?: InventoryItem };
+        if (!response.ok) throw data;
+        if (data.item) onItemUpdated(data.item);
+      } catch (err) {
+        onError("Video upload failed", "We could not upload the video.", err);
+      } finally {
+        setVideoBusy(false);
+      }
+    },
+    [inventoryId, onError, onItemUpdated]
+  );
+
+  const removeVideo = useCallback(async () => {
+    if (!inventoryId) return;
+    setVideoBusy(true);
+    try {
+      const response = await fetch(`/api/inventory/${inventoryId}/video`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as { item?: InventoryItem };
+      if (!response.ok) throw data;
+      if (data.item) onItemUpdated(data.item);
+    } catch (err) {
+      onError("Remove failed", "We could not remove the video.", err);
+    } finally {
+      setVideoBusy(false);
+    }
+  }, [inventoryId, onError, onItemUpdated]);
+
+  const videoPath = (item as Record<string, unknown> | null)?.video_path as string | null;
+  const videoFilename = videoPath ? videoPath.split("/").pop() : null;
+  const previewUrl = previewSlot != null
+    ? pictureDisplayUrl(slots.find((s) => s.slot === previewSlot)?.path ?? null)
+    : null;
+
   return (
     <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -180,6 +267,8 @@ export function PictureGrid({
         {slots.map(({ slot, path }) => {
           const url = pictureDisplayUrl(path);
           const isBusy = busySlot === slot;
+          const isLoading = loadingSlots.has(slot);
+          const shotType = classifications[String(slot)];
           return (
             <div
               key={slot}
@@ -208,9 +297,9 @@ export function PictureGrid({
                 if (file) void uploadFile(slot, file);
               }}
             >
-              {isBusy ? (
-                <div className="flex h-full items-center justify-center text-xs text-[var(--ui-muted)]">
-                  Uploading…
+              {(isBusy || isLoading) ? (
+                <div className="flex h-full items-center justify-center">
+                  <LoadingSpinner size="sm" />
                 </div>
               ) : url ? (
                 <>
@@ -219,6 +308,7 @@ export function PictureGrid({
                     src={url}
                     alt={`Slot ${slot}`}
                     draggable={!disabled}
+                    onClick={() => setPreviewSlot(slot)}
                     onDragStart={(e) => {
                       if (disabled || !path) return;
                       e.dataTransfer.setData("application/x-picture-slot", String(slot));
@@ -226,11 +316,20 @@ export function PictureGrid({
                       setDragSlot(slot);
                     }}
                     onDragEnd={() => setDragSlot(null)}
-                    className="h-full w-full cursor-grab object-cover active:cursor-grabbing"
+                    className="h-full w-full cursor-pointer object-cover"
                   />
                   {slot === 1 ? (
                     <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[10px] text-white">
                       ★ Primary
+                    </span>
+                  ) : null}
+                  {shotType ? (
+                    <span
+                      className={`absolute rounded bg-[var(--ui-accent)]/80 px-1 text-[10px] text-white ${
+                        slot === 1 ? "bottom-1 right-6" : "bottom-1 left-1"
+                      }`}
+                    >
+                      {shotType}
                     </span>
                   ) : null}
                   <button
@@ -270,6 +369,75 @@ export function PictureGrid({
           Why pictures matter
         </a>
       </p>
+
+      {/* Video upload zone */}
+      <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+        <p className="mb-2 text-xs font-semibold text-[var(--ui-title)]">Video (optional)</p>
+        {videoFilename ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-xs text-[var(--ui-body)]">{videoFilename}</span>
+            <button
+              type="button"
+              onClick={() => void removeVideo()}
+              disabled={disabled || videoBusy}
+              className="rounded border border-[var(--ui-border)] px-2 py-0.5 text-xs text-[var(--ui-red)] hover:bg-[var(--ui-red)]/10 disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div
+            className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[var(--ui-border)] px-4 py-3 text-xs text-[var(--ui-muted)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-body)]"
+            onClick={() => {
+              if (!disabled && inventoryId) videoInputRef.current?.click();
+            }}
+            onDragOver={(e) => {
+              if (disabled) return;
+              if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (disabled || !inventoryId) return;
+              const file = e.dataTransfer.files?.[0];
+              if (file) void uploadVideo(file);
+            }}
+          >
+            {videoBusy ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <span>Drop or click to add video (MP4, MOV, WebM — max 100 MB)</span>
+            )}
+          </div>
+        )}
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept={VIDEO_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            e.target.value = "";
+            if (file) void uploadVideo(file);
+          }}
+        />
+      </div>
+
+      {/* Full-size preview modal */}
+      <Modal
+        open={previewSlot != null && previewUrl != null}
+        onClose={() => setPreviewSlot(null)}
+        title={previewSlot != null ? `Photo ${previewSlot}` : undefined}
+        maxWidth="max-w-4xl"
+      >
+        {previewUrl && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={previewUrl}
+            alt={previewSlot != null ? `Photo ${previewSlot} full size` : ""}
+            className="mx-auto max-h-[80vh] max-w-full rounded object-contain"
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={removeSlot != null}

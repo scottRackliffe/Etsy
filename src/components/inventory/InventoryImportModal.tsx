@@ -189,6 +189,30 @@ export function InventoryImportModal({ open, onClose, onImported, onError, onSuc
                 </li>
               ))}
             </ul>
+            <div className="mt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const header = "row,field,message\n";
+                  const rows = importResult.errors
+                    .map(
+                      (err) =>
+                        `${err.row},"${err.field.replace(/"/g, '""')}","${err.message.replace(/"/g, '""')}"`
+                    )
+                    .join("\n");
+                  const blob = new Blob([header + rows], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "skipped-rows.csv";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Download skipped rows
+              </Button>
+            </div>
           </details>
         ) : null}
 

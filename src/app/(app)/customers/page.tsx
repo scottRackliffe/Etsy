@@ -23,6 +23,7 @@ import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge"
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
@@ -859,6 +860,14 @@ function CustomersPageInner() {
                   ))}
                 </ul>
               )}
+            </div>
+          )}
+          {selectedCustomer && (
+            <div className="mt-4 border-t border-[var(--ui-border)] pt-4">
+              <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+                Recent activity
+              </h5>
+              <ActivityTimeline entityType="customer" entityId={selectedCustomer.id} />
             </div>
           )}
         </div>
