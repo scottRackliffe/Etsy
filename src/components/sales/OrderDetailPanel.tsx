@@ -261,7 +261,7 @@ export function OrderDetailPanel({
   };
 
   const removeLineItem = async () => {
-    if (!removeLineTarget) return;
+    if (!removeLineTarget || !order) return;
     setLineItemBusy(true);
     try {
       const response = await fetch(`/api/orders/${order.id}/items/${removeLineTarget.id}`, {
