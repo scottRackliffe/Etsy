@@ -12,7 +12,7 @@ export function DuplicateWarning({
   onDismiss?: () => void;
 }) {
   return (
-    <div className="mt-1 rounded-lg border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 px-2 py-1.5 text-xs text-[var(--ui-body)]">
+    <div role="alert" className="mt-1 rounded-lg border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 px-2 py-1.5 text-xs text-[var(--ui-body)]">
       <p>{message}</p>
       {links && links.length > 0 ? (
         <ul className="mt-1 list-none space-y-0.5">

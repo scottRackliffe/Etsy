@@ -15,6 +15,7 @@ export function FormField({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const errorId = htmlFor && error ? `${htmlFor}-error` : undefined;
   return (
     <div className="flex flex-col gap-1">
       <label
@@ -22,11 +23,11 @@ export function FormField({
         className="flex items-center text-xs font-medium text-[var(--ui-muted)]"
       >
         {label}
-        {required ? <span className="ml-0.5 text-[var(--ui-red)]">*</span> : null}
+        {required ? <span className="ml-0.5 text-[var(--ui-red)]" aria-hidden="true">*</span> : null}
         {helpText ? <HelpTooltip text={helpText} /> : null}
       </label>
       {children}
-      {error && <p className="text-xs text-[var(--ui-red)]">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-xs text-[var(--ui-red)]">{error}</p>}
     </div>
   );
 }

@@ -1385,7 +1385,31 @@ export default function ConfigPage() {
             </div>
           )}
 
-          
+          <div className="mt-4 border-t border-[var(--ui-border)] pt-3">
+            <h4 className="mb-1 text-sm font-semibold text-[var(--ui-title)]">Database integrity</h4>
+            <p className="mb-2 text-xs text-[var(--ui-muted)]">
+              Run a full integrity check on the SQLite database. This verifies all tables and indexes are intact.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/health", { headers: { Accept: "application/json" } });
+                  const data = (await res.json().catch(() => ({}))) as { integrity_warning?: string; last_integrity_check?: string };
+                  if (data.integrity_warning) {
+                    alert(`Integrity issue detected: ${data.integrity_warning}`);
+                  } else {
+                    alert(`Database is healthy. Last check: ${data.last_integrity_check ?? "just now"}`);
+                  }
+                } catch {
+                  alert("Could not run integrity check.");
+                }
+              }}
+              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
+            >
+              Run integrity check
+            </button>
+          </div>
         </div>
 
         <ConfirmDialog

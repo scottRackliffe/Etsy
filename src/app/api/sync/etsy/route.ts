@@ -16,6 +16,7 @@ import {
   updateJobProgress,
 } from "@/lib/jobs/job-store";
 import { getSetting } from "@/lib/settings-store";
+import { logActivity } from "@/lib/activity-log";
 
 const ETSY_SYNC_JOB_TYPE = "etsy_sync";
 
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       message: "Starting Etsy sync…",
     });
 
+    logActivity({ action: "sync.started", source: "system", detail: { shop_id: shopId } });
     void runSyncJob(job.id, cookieStore, shopId);
 
     return NextResponse.json(
@@ -122,6 +124,7 @@ async function runSyncJob(
       return;
     }
 
+    logActivity({ action: "sync.completed", source: "system", detail: { synced: result.synced, skipped: result.skipped_already_imported } });
     completeJob(jobId, {
       ...result,
       last_synced_at: getSetting("last_etsy_sync_at"),

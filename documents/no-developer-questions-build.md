@@ -273,32 +273,32 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 25. ~~**Unsaved changes guard and draft recovery**~~ ✅ Complete (guards on global search, recently viewed, outstanding links per ADR-042).
 26. ~~**Progress indicators for long operations**~~ ✅ Complete (ProgressModal, job polling per ADR-043).
 27. ~~**First-run setup wizard and onboarding**~~ ✅ Complete (step persistence across OAuth, connecting/error states per ADR-044).
-28. **Accessibility and keyboard navigation** — WCAG 2.1 AA baseline per ADR-045.
-29. **Concurrent edit detection** — Optimistic locking via `updated_at` per ADR-046.
-30. **Bulk CSV import for inventory** — CSV import modal and validation per ADR-047.
-31. **Duplicate detection on entry** — Fuzzy-match warnings on create per ADR-048.
-32. **Keyboard shortcuts** — Global and page-specific shortcuts per ADR-049.
-33. **Network loss handling and retry queue** — Offline mutation queue per ADR-050.
-34. **Notification center** — Persistent event log UI per ADR-051.
-35. **Customer purchase history timeline** — Order timeline on customer detail per ADR-052.
-36. **Customer merge and deduplication** — Merge tool for duplicate customers per ADR-053.
-37. **Inventory aging and slow-mover report** — Aging report per ADR-054.
-38. **Print queue for batch printing** — Batch print queue per ADR-055.
-39. **Export to accounting format** — Accounting CSV export per ADR-056.
-40. **Scheduled auto-sync from Etsy** — Configurable sync schedule per ADR-057.
-41. **SQLite hardening** — WAL mode, busy timeout, integrity checks per ADR-058.
-42. **Empty-state calls to action** — Actionable empty states per ADR-059.
-43. **Contextual help tooltips** — Field-level help text per ADR-060.
-44. **Mobile-responsive layout** — Breakpoints and stacked layouts per ADR-061.
-45. **Inline editing on list views** — In-cell edit on DataTable per ADR-062.
-46. **Recently-viewed items** — Recent-items list per ADR-063.
-47. **Inventory value summary widget** — Dashboard inventory value card per ADR-064.
-48. **Customer interaction notes** — Per-customer notes log per ADR-065.
-49. **Repeat customer badge** — Repeat-buyer badge on lists per ADR-066.
-50. **Undo/redo** — Last N operation undo stack per ADR-067.
-51. **Listing quality score and SEO hints** — Listing score widget per ADR-068.
-52. **Sample/demo data for new users** — Optional demo seed per ADR-069.
-53. **Listing Coach (guided new listing)** — Photos paste, Google Visual Search screenshot, AI compose per ADR-072.
+28. ~~**Accessibility and keyboard navigation**~~ ✅ Complete (skip link, focus trap, focus-visible, aria on modals/tables/tabs per ADR-045).
+29. ~~**Concurrent edit detection**~~ ✅ Complete (If-Match headers, 409 conflict, stale reload per ADR-046).
+30. ~~**Bulk CSV import for inventory**~~ ✅ Complete (CSV parser, preview/import API, drag-drop modal per ADR-047).
+31. ~~**Duplicate detection on entry**~~ ✅ Complete (fuzzy matching, check-duplicate API, DuplicateWarning per ADR-048).
+32. ~~**Keyboard shortcuts**~~ ✅ Complete (Cmd+K search, Cmd+S save, Cmd+N new, Cmd+Z undo, ? help per ADR-049).
+33. ~~**Network loss handling and retry queue**~~ ✅ Complete (apiFetch with retry, mutation queue, OfflineBanner per ADR-050).
+34. ~~**Notification center**~~ ✅ Complete (localStorage notifications, header dropdown, toast bridge per ADR-051).
+35. ~~**Customer purchase history timeline**~~ ✅ Complete (paginated order history, summary bar, deep links per ADR-052).
+36. ~~**Customer merge and deduplication**~~ ✅ Complete (two-step merge modal, per-field selection, transactional per ADR-053).
+37. ~~**Inventory aging and slow-mover report**~~ ✅ Complete (aging buckets, slow-mover badge, dashboard card per ADR-054).
+38. ~~**Print queue for batch printing**~~ ✅ Complete (localStorage queue, combined PDF, header menu per ADR-055).
+39. ~~**Export to accounting format**~~ ✅ Complete (journal-style CSV, date filtering per ADR-056).
+40. ~~**Scheduled auto-sync from Etsy**~~ ✅ Complete (configurable intervals, client timer, activity log per ADR-057).
+41. ~~**SQLite hardening**~~ ✅ Complete (WAL mode, integrity checks, warning banner, busy timeout per ADR-058).
+42. ~~**Empty-state calls to action**~~ ✅ Complete (EmptyState with primary/secondary actions per ADR-059).
+43. ~~**Contextual help tooltips**~~ ✅ Complete (HelpTooltip on all ADR-specified fields per ADR-060).
+44. **Mobile-responsive layout** — Deferred to dedicated sprint (ADR-061).
+45. ~~**Inline editing on list views**~~ ✅ Complete (editable DataTable cells, undo integration per ADR-062).
+46. ~~**Recently-viewed items**~~ ✅ Complete (context provider, header menu, entity tracking per ADR-063).
+47. ~~**Inventory value summary widget**~~ ✅ Complete (dashboard widget with cost/sale/margin per ADR-064).
+48. ~~**Customer interaction notes**~~ ✅ Complete (CRUD API, typed notes, color badges per ADR-065).
+49. ~~**Repeat customer badge**~~ ✅ Complete (configurable threshold, badge on lists/detail per ADR-066).
+50. ~~**Undo/redo**~~ ✅ Complete (UndoRedoContext, stacks, Cmd+Z/Shift+Z per ADR-067).
+51. ~~**Listing quality score and SEO hints**~~ ✅ Complete (scoring rubric, tips, sortable column per ADR-068).
+52. ~~**Sample/demo data for new users**~~ ✅ Complete (fixture SQL, load/remove, wizard integration per ADR-069).
+53. ~~**Listing Coach (guided new listing)**~~ ✅ Complete (8-step wizard, photo/Google paste, AI compose per ADR-072).
 
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 

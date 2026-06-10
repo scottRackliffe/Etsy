@@ -10,6 +10,7 @@ import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField, SelectInput, TextInput } from "@/components/ui/FormField";
+import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
@@ -391,7 +392,7 @@ export function InventoryDetailPanel({
             />
           </FormField>
           <div className="grid grid-cols-2 gap-2">
-            <FormField label="Status">
+            <FormField label="Status" helpText="Current inventory status of this item.">
               <SelectInput
                 value={draft.status}
                 onChange={(v) => setDraft((c) => ({ ...c!, status: v }))}
@@ -399,7 +400,7 @@ export function InventoryDetailPanel({
                 disabled={busy || saving}
               />
             </FormField>
-            <FormField label="Quantity">
+            <FormField label="Quantity" helpText="Number of units available for this item.">
               <TextInput
                 type="number"
                 value={draft.quantity}
@@ -546,7 +547,10 @@ export function InventoryDetailPanel({
               onChange={(e) => setDraft((c) => ({ ...c!, has_condition_issue: e.target.checked }))}
               disabled={busy || saving}
             />
-            Has condition issue
+            <span className="inline-flex items-center">
+              Has condition issue
+              <HelpTooltip text="Check if the item has any condition issues that should be disclosed." />
+            </span>
           </label>
           <FormField label="Condition notes">
             <textarea
@@ -642,6 +646,7 @@ export function InventoryDetailPanel({
           variant="accent"
           onClick={() => void saveChanges()}
           disabled={busy || saving || !isDirty}
+          data-save-button
         >
           {saving ? "Saving…" : "Save changes"}
         </Button>

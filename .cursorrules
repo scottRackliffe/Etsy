@@ -509,33 +509,34 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Progress indicators (ADR-043): ProgressModal, job polling for long operations
 - First-run setup wizard (ADR-044): step persistence across OAuth, connecting/error states
 
-### Pending (priority order per `documents/no-developer-questions-build.md` §5; after §4 doc gate + §7 audit):
-- Priority 28: Accessibility and keyboard navigation (ADR-045)
-- Priority 29: Concurrent edit detection (ADR-046)
-- Priority 30: Bulk CSV import for inventory (ADR-047)
-- Priority 31: Duplicate detection on entry (ADR-048)
-- Priority 32: Keyboard shortcuts (ADR-049)
-- Priority 33: Network loss handling and retry queue (ADR-050)
-- Priority 34: Notification center (ADR-051)
-- Priority 35: Customer purchase history timeline (ADR-052)
-- Priority 36: Customer merge and deduplication (ADR-053)
-- Priority 37: Inventory aging and slow-mover report (ADR-054)
-- Priority 38: Print queue for batch printing (ADR-055)
-- Priority 39: Export to accounting format (ADR-056)
-- Priority 40: Scheduled auto-sync from Etsy (ADR-057)
-- Priority 41: SQLite hardening (ADR-058)
-- Priority 42: Empty-state calls to action (ADR-059)
-- Priority 43: Contextual help tooltips (ADR-060)
-- Priority 44: Mobile-responsive layout (ADR-061)
-- Priority 45: Inline editing on list views (ADR-062)
-- Priority 46: Recently-viewed items (ADR-063)
-- Priority 47: Inventory value summary widget (ADR-064)
-- Priority 48: Customer interaction notes (ADR-065)
-- Priority 49: Repeat customer badge (ADR-066)
-- Priority 50: Undo/redo (ADR-067)
-- Priority 51: Listing quality score and SEO hints (ADR-068)
-- Priority 52: Sample/demo data for new users (ADR-069)
-- Priority 53: Listing Coach guided new listing (ADR-072)
+- Accessibility (ADR-045): skip link, focus trap, focus-visible styles, aria on modals/tables/tabs
+- Concurrent edit detection (ADR-046): If-Match headers, 409 conflict, stale reload on all PATCH routes
+- Bulk CSV import (ADR-047): CSV parser, preview/import API, drag-drop modal, activity log
+- Duplicate detection (ADR-048): fuzzy matching, check-duplicate API, DuplicateWarning on create
+- Keyboard shortcuts (ADR-049): useKeyboardShortcuts, Cmd+K search, Cmd+Z undo, ? help modal
+- Network loss handling (ADR-050): apiFetch with retry, mutation queue, OfflineBanner, health endpoint
+- Notification center (ADR-051): localStorage notifications, header dropdown, toast bridge
+- Customer purchase history (ADR-052): paginated order history with summary bar, deep links
+- Customer merge (ADR-053): two-step merge modal, per-field selection, transactional merge
+- Inventory aging report (ADR-054): aging buckets, PDF/CSV report endpoint
+- Print queue (ADR-055): localStorage queue, combined PDF, header menu, add from order detail
+- Export to accounting (ADR-056): journal-style CSV, date filtering, all cost categories
+- Scheduled auto-sync (ADR-057): configurable intervals, client timer, failure warning
+- SQLite hardening (ADR-058): WAL mode, integrity checks, warning banner, busy timeout
+- Empty-state CTAs (ADR-059): EmptyState component with primary/secondary actions on all list pages
+- Contextual help tooltips (ADR-060): HelpTooltip component, FormField integration
+- Inline editing (ADR-062): editable DataTable cells, select/number/toggle, undo integration
+- Recently-viewed items (ADR-063): context provider, header menu, localStorage, entity tracking
+- Inventory value widget (ADR-064): dashboard widget with cost/sale/margin/count, auto-refresh
+- Customer interaction notes (ADR-065): CRUD API, typed notes, activity log
+- Repeat customer badge (ADR-066): badge on customer list/detail/orders, dashboard KPI
+- Undo/redo (ADR-067): UndoRedoContext, undo/redo stacks, Cmd+Z/Shift+Z, toast with undo action
+- Listing quality score (ADR-068): scoring rubric, tips, circular badge, sortable column
+- Sample/demo data (ADR-069): fixture SQL, load/remove API, wizard integration, Config UI
+- Listing Coach (ADR-072): 8-step guided wizard, photo paste, Google paste, AI compose, activity log
+
+### Pending:
+- Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint
 
 ---
 

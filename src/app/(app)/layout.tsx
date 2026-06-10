@@ -124,6 +124,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         enabled: !searchOpen,
       },
       {
+        key: "s",
+        modifiers: ["meta" as const],
+        action: () => {
+          const btn = document.querySelector<HTMLButtonElement>("[data-save-button]");
+          btn?.click();
+        },
+        allowInInput: true,
+      },
+      {
         key: "?",
         action: () => setHelpOpen(true),
       },

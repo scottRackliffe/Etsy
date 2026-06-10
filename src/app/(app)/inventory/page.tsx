@@ -41,6 +41,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
+import { Badge } from "@/components/ui/Badge";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import { computeListingScore } from "@/lib/listing-score";
@@ -54,6 +55,17 @@ import type {
 } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
+const SLOW_MOVER_DAYS = 90;
+
+function getDaysInStock(item: InventoryItem): number {
+  const candidates = [item.date_purchased, item.date_listed, item.created_at].filter(
+    Boolean
+  ) as string[];
+  if (candidates.length === 0) return 0;
+  const timestamps = candidates.map((d) => new Date(d).getTime()).filter((t) => !isNaN(t));
+  if (timestamps.length === 0) return 0;
+  return Math.floor((Date.now() - Math.min(...timestamps)) / (1000 * 60 * 60 * 24));
+}
 
 type PublishHistory = {
   item?: {
@@ -419,6 +431,18 @@ function InventoryPageInner() {
         editType: "select" as const,
         editOptions: INVENTORY_STATUSES.map((status) => ({ value: status, label: status })),
         getEditValue: (item: InventoryItem) => item.status ?? "Draft",
+        render: (item: InventoryItem) => {
+          const status = item.status ?? "Draft";
+          const isSlowMover =
+            (status === "In stock" || status === "Listed") &&
+            getDaysInStock(item) > SLOW_MOVER_DAYS;
+          return (
+            <span className="inline-flex items-center gap-1.5">
+              {status}
+              {isSlowMover && <Badge label="Slow" variant="warning" />}
+            </span>
+          );
+        },
       },
       {
         key: "sale_revenue",

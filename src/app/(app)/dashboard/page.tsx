@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Badge } from "@/components/ui/Badge";
@@ -34,6 +35,10 @@ export default function DashboardPage() {
   const { modal: syncModal, runSync } = useEtsySync();
   const toast = useToast();
 
+  const [agingItems, setAgingItems] = useState<
+    Array<{ date_purchased: string | null; date_listed: string | null; created_at: string | null; status: string | null }>
+  >([]);
+
   useEffect(() => {
     void fetch("/api/dashboard/stats", { headers: { Accept: "application/json" } })
       .then((r) => r.json())
@@ -41,7 +46,29 @@ export default function DashboardPage() {
         setRepeatCustomersMonth(data.repeat_customers_this_month ?? 0)
       )
       .catch(() => setRepeatCustomersMonth(null));
+
+    void fetch("/api/inventory?limit=1000", { headers: { Accept: "application/json" } })
+      .then((r) => r.json())
+      .then((data: { items?: Array<{ date_purchased: string | null; date_listed: string | null; created_at: string | null; status: string | null }> }) =>
+        setAgingItems(data.items ?? [])
+      )
+      .catch(() => setAgingItems([]));
   }, []);
+
+  const agingCount = useMemo(() => {
+    const now = Date.now();
+    return agingItems.filter((item) => {
+      if (item.status !== "In stock" && item.status !== "Listed") return false;
+      const candidates = [item.date_purchased, item.date_listed, item.created_at].filter(
+        Boolean
+      ) as string[];
+      if (candidates.length === 0) return false;
+      const timestamps = candidates.map((d) => new Date(d).getTime()).filter((t) => !isNaN(t));
+      if (timestamps.length === 0) return false;
+      const days = Math.floor((now - Math.min(...timestamps)) / (1000 * 60 * 60 * 24));
+      return days > 90;
+    }).length;
+  }, [agingItems]);
 
   const paidCount = receipts.filter((r) => r.was_paid).length;
   const shippedCount = receipts.filter((r) => r.was_shipped).length;
@@ -149,6 +176,24 @@ export default function DashboardPage() {
                 currency: grossCurrency,
               }).format(grossTotal)}
             </p>
+          </article>
+        </div>
+
+        <div className="mt-4">
+          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
+              Aging Inventory
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-[var(--ui-yellow)]">{agingCount}</p>
+            <p className="mt-1 text-xs text-[var(--ui-muted)]">
+              items &gt; 90 days in stock
+            </p>
+            <Link
+              href="/reports?report_type=inventory-aging"
+              className="mt-2 inline-block text-xs font-medium text-[var(--ui-accent)] hover:underline"
+            >
+              View aging report →
+            </Link>
           </article>
         </div>
       </section>

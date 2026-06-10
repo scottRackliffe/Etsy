@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
+  clearAllNotifications,
   formatNotificationTime,
   listNotifications,
   markAllNotificationsRead,
@@ -110,15 +111,22 @@ export function NotificationCenter() {
           <div className="flex items-center justify-between border-b border-[var(--ui-border)] px-3 py-2">
             <h2 className="text-sm font-semibold text-[var(--ui-title)]">Notifications</h2>
             {notifications.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  markAllNotificationsRead();
-                }}
-                className="text-xs text-[var(--ui-accent)] hover:underline"
-              >
-                Mark all read
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => markAllNotificationsRead()}
+                  className="text-xs text-[var(--ui-accent)] hover:underline"
+                >
+                  Mark all read
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clearAllNotifications()}
+                  className="text-xs text-[var(--ui-muted)] hover:text-[var(--ui-red)] hover:underline"
+                >
+                  Clear all
+                </button>
+              </div>
             ) : null}
           </div>
           <div className="max-h-[420px] overflow-y-auto">

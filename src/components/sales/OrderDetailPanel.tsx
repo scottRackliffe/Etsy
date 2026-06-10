@@ -652,7 +652,7 @@ export function OrderDetailPanel({
               )}
             </span>
           </p>
-          {field("shipping_total", "Shipping (buyer pays")}
+          {field("shipping_total", "Shipping (buyer pays", "text", "Amount the buyer paid for shipping.")}
           {field(
             "seller_shipping_cost",
             "Shipping cost (seller)",
@@ -676,7 +676,7 @@ export function OrderDetailPanel({
               </button>
             )}
           </div>
-          {field("discount_total", "Discount")}
+          {field("discount_total", "Discount", "text", "Discount applied to this order.")}
         </div>
       </section>
 
@@ -684,7 +684,10 @@ export function OrderDetailPanel({
         <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping</h5>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="text-xs text-[var(--ui-muted)]">
-            Carrier
+            <span className="inline-flex items-center">
+              Carrier
+              <HelpTooltip text="Carrier used to ship this order." />
+            </span>
             <select
               value={draft.shipper}
               onChange={(e) => setDraft((c) => (c ? { ...c, shipper: e.target.value } : c))}
@@ -734,6 +737,7 @@ export function OrderDetailPanel({
           onClick={() => void saveChanges()}
           disabled={busy || saving || isVoid}
           className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          data-save-button
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

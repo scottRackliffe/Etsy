@@ -10,6 +10,7 @@ import { DataTable, type SortState } from "@/components/ui/DataTable";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
 import { useBatchSelection } from "@/hooks/useBatchSelection";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
@@ -45,6 +46,14 @@ const NOTE_TYPES = [
   { value: "follow_up", label: "Follow up" },
   { value: "complaint", label: "Complaint" },
 ];
+
+const NOTE_TYPE_VARIANT: Record<string, "neutral" | "info" | "warning" | "error"> = {
+  general: "neutral",
+  shipping_preference: "info",
+  communication: "info",
+  follow_up: "warning",
+  complaint: "error",
+};
 
 function CustomersPageInner() {
   const {
@@ -750,44 +759,12 @@ function CustomersPageInner() {
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
               <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Interaction notes</p>
-              {notesLoading ? (
-                <p className="text-xs text-[var(--ui-muted)]">Loading notes…</p>
-              ) : customerNotes.length === 0 ? (
-                <p className="text-xs text-[var(--ui-muted)]">No notes yet for this customer.</p>
-              ) : (
-                <ul className="mb-3 max-h-40 space-y-2 overflow-auto">
-                  {customerNotes.map((note) => (
-                    <li
-                      key={note.id}
-                      className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[var(--ui-body)]">{note.note_text}</p>
-                          <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--ui-muted)]">
-                            {note.note_type.replace(/_/g, " ")} ·{" "}
-                            {new Date(note.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteNoteTarget(note)}
-                          disabled={busyAction != null}
-                          className="shrink-0 rounded border border-[var(--ui-border)] px-2 py-0.5"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+              <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
                 <textarea
                   value={newNoteText}
                   onChange={(e) => setNewNoteText(e.target.value)}
                   placeholder="Add a note about this customer…"
-                  rows={2}
+                  rows={4}
                   maxLength={2000}
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
                 />
@@ -807,10 +784,45 @@ function CustomersPageInner() {
                 type="button"
                 onClick={addCustomerNote}
                 disabled={busyAction != null || !newNoteText.trim()}
-                className="mt-2 rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                className="mb-3 rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
               >
                 {busyAction === "add-note" ? "Saving…" : "Add note"}
               </button>
+              {notesLoading ? (
+                <p className="text-xs text-[var(--ui-muted)]">Loading notes…</p>
+              ) : customerNotes.length === 0 ? (
+                <p className="text-xs text-[var(--ui-muted)]">No notes yet for this customer.</p>
+              ) : (
+                <ul className="max-h-40 space-y-2 overflow-auto">
+                  {customerNotes.map((note) => (
+                    <li
+                      key={note.id}
+                      className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1.5 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[var(--ui-body)]">{note.note_text}</p>
+                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-[var(--ui-muted)]">
+                            <Badge
+                              label={note.note_type.replace(/_/g, " ")}
+                              variant={NOTE_TYPE_VARIANT[note.note_type] ?? "neutral"}
+                            />
+                            <span>{new Date(note.created_at).toLocaleString()}</span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteNoteTarget(note)}
+                          disabled={busyAction != null}
+                          className="shrink-0 rounded border border-[var(--ui-border)] px-2 py-0.5"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>
