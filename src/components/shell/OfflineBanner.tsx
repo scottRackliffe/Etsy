@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useConnection } from "@/context/ConnectionContext";
 
 export function OfflineBanner() {
   const { state, queueLength, replaying } = useConnection();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  if (state === "online") return null;
+  if (!mounted || state === "online") return null;
 
   const message =
     state === "offline"
