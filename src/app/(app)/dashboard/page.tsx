@@ -231,7 +231,8 @@ export default function DashboardPage() {
         ) : receipts.length === 0 ? (
           <EmptyState
             message="No orders yet."
-            primaryAction={
+            primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
+            secondaryAction={
               shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
                 : {
@@ -240,7 +241,6 @@ export default function DashboardPage() {
                     variant: "secondary",
                   }
             }
-            secondaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
           />
         ) : (
           <div className="overflow-x-auto">

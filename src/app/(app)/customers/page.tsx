@@ -511,8 +511,10 @@ function CustomersPageInner() {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
       setCustomerAddresses((current) => current.filter((row) => row.id !== addressId));
       setError(null);
     } catch (err) {

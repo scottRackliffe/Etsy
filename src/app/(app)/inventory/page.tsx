@@ -906,8 +906,10 @@ function InventoryPageInner() {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
       const removeItem = (current: InventoryItem[]) =>
         current.filter((row) => row.id !== selectedItemId);
       setInventory((current) => {
@@ -963,7 +965,7 @@ function InventoryPageInner() {
               type="button"
               onClick={createInventoryRecord}
               disabled={busyAction != null}
-              title="New item (Ctrl+N)"
+              title="New item (⌘N)"
               className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               {busyAction === "create-inventory" ? "Creating..." : "Add item"}
@@ -1074,13 +1076,13 @@ function InventoryPageInner() {
               setInventorySearch(e.target.value);
             }}
             placeholder="Search item #, description, status…"
-            title="Search (Ctrl+K)"
+            title="Search (⌘K)"
             className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
           />
           <button
             type="button"
             onClick={() => setImportOpen(true)}
-            title="Import CSV (Ctrl+Shift+I)"
+            title="Import CSV (⌘⇧I)"
             className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm"
           >
             Import CSV
@@ -1112,7 +1114,7 @@ function InventoryPageInner() {
                       setPage(0);
                     },
                   }
-                : { label: "Add first item", onClick: () => createItemRef.current?.focus() }
+                : { label: "Add your first item", onClick: () => createItemRef.current?.focus() }
             }
             secondaryAction={
               inventorySearch.trim() || statusFilter
@@ -1134,6 +1136,11 @@ function InventoryPageInner() {
                 indeterminate: batch.headerIndeterminate,
               }}
               onRowClick={(item) => selectInventoryItem(item.id)}
+              onDeleteRow={(item) => {
+                setSelectedItemId(item.id);
+                setSelectedItem(item);
+                setDeleteConfirmOpen(true);
+              }}
               onInlineEdit={handleInventoryInlineEdit}
               onRowPatched={handleInventoryRowPatched}
               sort={sort}
@@ -1451,7 +1458,7 @@ function InventoryPageInner() {
                 </div>
               )}
 
-              <FormField label="Draft state" helpText="Current state of this listing draft in the approval workflow.">
+              <FormField label="Draft state" helpText="Listing drafts progress through stages: draft → generated/imported → approved → published. Only approved drafts can be published to Etsy.">
                 <input
                   readOnly
                   value={selectedItem?.listing_draft_state ?? "none"}

@@ -6,6 +6,7 @@ import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChipRow } from "@/components/ui/FilterChipRow";
 
 type OutstandingItem = {
   type: string;
@@ -122,36 +123,15 @@ export default function OutstandingPage() {
 
       {/* Type filter chips */}
       {typeEntries.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setFilterType(null)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              filterType === null
-                ? "bg-[var(--ui-accent)] text-white"
-                : "bg-[var(--ui-neutral)] text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
-            }`}
-          >
-            All ({items.length})
-          </button>
-          {typeEntries.map(([type, count]) => {
-            const label = items.find((i) => i.type === type)?.type_label ?? type;
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setFilterType(filterType === type ? null : type)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  filterType === type
-                    ? "bg-[var(--ui-accent)] text-white"
-                    : "bg-[var(--ui-neutral)] text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
-                }`}
-              >
-                {label} ({count})
-              </button>
-            );
-          })}
-        </div>
+        <FilterChipRow
+          label="Type"
+          value={filterType}
+          onChange={setFilterType}
+          options={typeEntries.map(([type, count]) => ({
+            value: type,
+            label: `${items.find((i) => i.type === type)?.type_label ?? type} (${count})`,
+          }))}
+        />
       )}
 
       {/* Outstanding items list */}

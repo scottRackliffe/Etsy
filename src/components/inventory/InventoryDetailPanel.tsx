@@ -526,7 +526,7 @@ export function InventoryDetailPanel({
               />
             </FormField>
             <FormField
-              label="Inbound shipping"
+              label="Shipping cost (inbound)"
               helpText="Your cost to receive this item from the vendor/seller."
             >
               <TextInput
@@ -645,7 +645,7 @@ export function InventoryDetailPanel({
             />
             <span className="inline-flex items-center">
               Has condition issue
-              <HelpTooltip text="Check if the item has any condition issues that should be disclosed." />
+              <HelpTooltip text="Check this if the item has notable damage, wear, or defects that a buyer should know about." />
             </span>
           </label>
           <FormField label="Condition notes">
@@ -739,7 +739,7 @@ export function InventoryDetailPanel({
             <div className="lg:col-span-2">
               <FormField label="Video">
                 <p className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-muted)]">
-                  {item.video_path || "No video"}
+                  Managed in the photo grid above
                 </p>
               </FormField>
             </div>
@@ -858,10 +858,12 @@ export function InventoryDetailPanel({
         <Button
           variant="accent"
           onClick={() => void saveChanges()}
-          disabled={busy || saving || !isDirty}
+          disabled={busy || !isDirty}
+          busy={saving}
+          title="Save (⌘S)"
           data-save-button
         >
-          {saving ? "Saving…" : "Save changes"}
+          Save changes
         </Button>
       </div>
 

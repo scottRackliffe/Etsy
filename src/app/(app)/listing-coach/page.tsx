@@ -77,6 +77,8 @@ export default function ListingCoachPage() {
     Array<{ photo_index: number; type: string; confidence: number }>
   >([]);
 
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
@@ -154,9 +156,17 @@ export default function ListingCoachPage() {
     setItemWidth(null);
     setItemHeight(null);
     setItemDimensionsUnit("in");
+    setVideoFile(null);
     setPhotoClassifications([]);
     setError(null);
   }, [itemPhotos, conditionPhotos, googlePhotos]);
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) return;
+    setVideoFile(file);
+  };
 
   const runAnalyze = async () => {
     setBusy(true);
@@ -469,6 +479,21 @@ export default function ListingCoachPage() {
             title="Condition photos (optional)"
             pasteHint="Paste condition or flaw photos here (optional)"
           />
+          <div className="rounded-xl border border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">Video (optional)</p>
+            <p className="text-xs text-[var(--ui-muted)]">MP4 or MOV · max 100 MB · 5–15 seconds</p>
+            {videoFile ? (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm text-[var(--ui-body)]">{videoFile.name}</span>
+                <Button variant="ghost" size="sm" onClick={() => setVideoFile(null)}>Remove</Button>
+              </div>
+            ) : (
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm text-[var(--ui-body)] hover:bg-[var(--ui-neutral)]">
+                Choose video
+                <input type="file" accept="video/mp4,video/quicktime" className="hidden" onChange={handleVideoSelect} />
+              </label>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setStep("welcome")}>
               Back
@@ -877,7 +902,7 @@ export default function ListingCoachPage() {
             <Button variant="secondary" onClick={() => setStep("price")}>
               Back
             </Button>
-            <Button variant="primary" onClick={() => setStep("confirm")}>
+            <Button variant="primary" disabled={!etsyWhenMade} onClick={() => setStep("confirm")}>
               Continue
             </Button>
           </div>

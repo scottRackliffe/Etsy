@@ -8,8 +8,11 @@ import { useApp } from "@/context/AppContext";
 import { useConnection } from "@/context/ConnectionContext";
 import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FormField } from "@/components/ui/FormField";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
@@ -88,6 +91,15 @@ function inventoryLabel(inventoryId: number, items: InventoryItem[]): string {
 
 function formatMoney(value: number | null | undefined, currCode = "USD"): string {
   return formatCurrency(value ?? 0, currCode);
+}
+
+function formatTimestamp(ts: string | null | undefined): string {
+  if (!ts) return "—";
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return ts;
+  }
 }
 
 export function OrderDetailPanel({
@@ -470,11 +482,7 @@ export function OrderDetailPanel({
   const isVoid = order.order_status === "void";
 
   const field = (key: keyof DraftFields, label: string, type = "text", helpText?: string) => (
-    <label className="block text-xs text-[var(--ui-muted)]">
-      <span className="inline-flex items-center">
-        {label}
-        {helpText ? <HelpTooltip text={helpText} /> : null}
-      </span>
+    <FormField label={label} helpText={helpText}>
       <input
         type={type}
         value={draft[key]}
@@ -482,10 +490,29 @@ export function OrderDetailPanel({
           setDraft((current) => (current ? { ...current, [key]: e.target.value } : current))
         }
         disabled={busy || saving || isVoid}
-        className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)] disabled:opacity-60"
+        className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
       />
-    </label>
+    </FormField>
   );
+
+  const copyFromCustomerAddress = () => {
+    if (!customer) return;
+    setDraft((c) =>
+      c
+        ? {
+            ...c,
+            ship_to_first_name: customer.first_name ?? "",
+            ship_to_last_name: customer.last_name ?? "",
+            ship_to_address_line_1: customer.address_1 ?? "",
+            ship_to_address_line_2: customer.address_2 ?? "",
+            ship_to_city: customer.city ?? "",
+            ship_to_state_province: customer.state ?? "",
+            ship_to_postal_code: customer.postal_code ?? "",
+            ship_to_country: customer.country ?? "",
+          }
+        : c
+    );
+  };
 
   const showRecovery = recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
@@ -516,18 +543,18 @@ export function OrderDetailPanel({
               label={order.source_channel === "etsy" ? "Etsy" : "Manual"}
               variant={order.source_channel === "etsy" ? "info" : "neutral"}
             />
-            <HelpTooltip text="Where this order originated — synced from Etsy or created manually." />
+            <HelpTooltip text="How this order was created: 'etsy' = synced from Etsy, 'manual' = entered by hand." />
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
           <Badge label={isPaid ? "Paid" : "Unpaid"} variant={isPaid ? "success" : "warning"} />
-          <HelpTooltip text="Whether payment has been received for this order." />
+          <HelpTooltip text="Whether the buyer has paid for this order. Orders must be paid before shipping (unless overridden)." />
           <Badge
             label={isShipped ? "Shipped" : "Not shipped"}
             variant={isShipped ? "success" : "neutral"}
           />
           <Badge label={order.order_status ?? "active"} variant={isVoid ? "error" : "neutral"} />
-          <HelpTooltip text="Order lifecycle status: active, void, or cancelled." />
+          <HelpTooltip text="Active = order is in progress or complete. Void = cancelled by seller. Cancelled = cancelled by buyer." />
         </div>
       </div>
 
@@ -547,13 +574,13 @@ export function OrderDetailPanel({
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
-        <label className="flex-1 text-xs text-[var(--ui-muted)]">
-          Link customer
+        <div className="flex-1">
+        <FormField label="Link customer">
           <select
             value={linkCustomerId}
             onChange={(e) => setLinkCustomerId(e.target.value)}
             disabled={busy || saving || isVoid}
-            className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm disabled:opacity-50"
           >
             <option value="">Select customer…</option>
             {customers.map((c) => (
@@ -564,33 +591,41 @@ export function OrderDetailPanel({
               </option>
             ))}
           </select>
-        </label>
-        <button
-          type="button"
+        </FormField>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => void linkCustomer()}
           disabled={busy || saving || !linkCustomerId || isVoid}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
         >
           Link
-        </button>
+        </Button>
       </div>
 
       <section className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <h5 className="text-sm font-semibold text-[var(--ui-title)]">Line items</h5>
           {!isVoid ? (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setAddItemOpen(true)}
               disabled={busy || saving || lineItemBusy}
-              className="rounded-lg border border-[var(--ui-border)] px-2 py-1 text-xs disabled:opacity-60"
             >
               + Add item
-            </button>
+            </Button>
           ) : null}
         </div>
         {lineItems.length === 0 ? (
-          <p className="text-xs text-[var(--ui-muted)]">No line items. Add items from inventory.</p>
+          <EmptyState
+            message="No line items. Add items from inventory."
+            primaryAction={
+              !isVoid
+                ? { label: "Add item", onClick: () => setAddItemOpen(true) }
+                : undefined
+            }
+          />
         ) : (
           <table className="w-full text-left text-xs">
             <thead>
@@ -611,14 +646,14 @@ export function OrderDetailPanel({
                   <td className="py-1">{fmtMoney(line.line_total)}</td>
                   <td className="py-1">
                     {!isVoid ? (
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => setRemoveLineTarget(line)}
                         disabled={busy || lineItemBusy}
-                        className="text-[var(--ui-red)] disabled:opacity-60"
                       >
                         Remove
-                      </button>
+                      </Button>
                     ) : null}
                   </td>
                 </tr>
@@ -639,7 +674,14 @@ export function OrderDetailPanel({
       </section>
 
       <section className="mb-4">
-        <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Ship to</h5>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h5 className="text-sm font-semibold text-[var(--ui-title)]">Ship to</h5>
+          {customer && !isVoid ? (
+            <Button variant="ghost" size="sm" onClick={copyFromCustomerAddress}>
+              Copy from customer
+            </Button>
+          ) : null}
+        </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {field("ship_to_first_name", "First name")}
           {field("ship_to_last_name", "Last name")}
@@ -672,7 +714,7 @@ export function OrderDetailPanel({
               )}
             </span>
           </p>
-          {field("shipping_total", "Shipping (buyer pays", "text", "Amount the buyer paid for shipping.")}
+          {field("shipping_total", "Shipping (buyer pays)", "text", "Amount the buyer paid for shipping.")}
           {field(
             "seller_shipping_cost",
             "Shipping cost (seller)",
@@ -682,18 +724,19 @@ export function OrderDetailPanel({
           <div>
             {field("tax_total", "Tax", "text", "Total sales tax collected on this order.")}
             {defaultTaxRate != null && !isVoid && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const subtotal = Number(order.subtotal) || 0;
                   const calc = Math.round(subtotal * defaultTaxRate) / 100;
                   setDraft((c) => (c ? { ...c, tax_total: calc.toFixed(2) } : c));
                 }}
-                className="mt-0.5 text-xs text-[var(--ui-accent)] hover:underline"
                 disabled={busy || saving}
+                className="mt-0.5"
               >
                 Auto-calc ({defaultTaxRate}%)
-              </button>
+              </Button>
             )}
           </div>
           {field("discount_total", "Discount", "text", "Discount applied to this order.")}
@@ -703,16 +746,12 @@ export function OrderDetailPanel({
       <section className="mb-4">
         <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping</h5>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="text-xs text-[var(--ui-muted)]">
-            <span className="inline-flex items-center">
-              Carrier
-              <HelpTooltip text="Carrier used to ship this order." />
-            </span>
+          <FormField label="Carrier" helpText="Carrier used to ship this order.">
             <select
               value={draft.shipper}
               onChange={(e) => setDraft((c) => (c ? { ...c, shipper: e.target.value } : c))}
               disabled={busy || saving || isVoid}
-              className="mt-0.5 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm disabled:opacity-50"
             >
               <option value="">—</option>
               {SHIPPERS.map((s) => (
@@ -721,7 +760,7 @@ export function OrderDetailPanel({
                 </option>
               ))}
             </select>
-          </label>
+          </FormField>
           {field("shipping_date", "Ship date", "date")}
           <div className="sm:col-span-2">
             {field(
@@ -741,7 +780,7 @@ export function OrderDetailPanel({
           onChange={(e) => setDraft((c) => (c ? { ...c, notes: e.target.value } : c))}
           disabled={busy || saving || isVoid}
           rows={3}
-          className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm disabled:opacity-60"
+          className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm disabled:opacity-50"
         />
       </section>
 
@@ -751,106 +790,119 @@ export function OrderDetailPanel({
         </p>
       ) : null}
 
+      {order.shipped_without_paid_override ? (
+        <p className="mb-3 inline-flex items-center gap-1 text-xs text-[var(--ui-yellow)]">
+          <Badge label="Shipped without payment" variant="warning" />
+          <HelpTooltip text="This order was shipped before payment was confirmed. An audit trail has been recorded." />
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2 border-t border-[var(--ui-border)] pt-4">
-        <button
-          type="button"
+        <Button
+          variant="accent"
           onClick={() => void saveChanges()}
-          disabled={busy || saving || isVoid}
-          className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          data-save-button
+          disabled={busy || isVoid}
+          busy={saving}
+          title="Save (⌘S)"
         >
-          {saving ? "Saving…" : "Save changes"}
-        </button>
+          Save changes
+        </Button>
         {!isPaid && !isVoid ? (
-          <button
-            type="button"
+          <Button
+            variant="accent"
+            size="sm"
             onClick={onMarkPaid}
             disabled={busy || saving}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
           >
             Mark paid
-          </button>
+          </Button>
         ) : null}
         {!isShipped && !isVoid ? (
-          <button
-            type="button"
+          <Button
+            variant="accent"
+            size="sm"
             onClick={onMarkShipped}
             disabled={busy || saving}
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
           >
             Mark shipped…
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => void printShippingLabel()}
           disabled={busy || saving || isVoid}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
         >
           Print shipping label
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => queueDocument("label")}
           disabled={busy || saving || isVoid}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
         >
           Add label to queue
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => window.open(`/api/reports/invoice/${order.id}?format=pdf`, "_blank")}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
         >
           Print invoice
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => queueDocument("invoice")}
           disabled={busy || saving || isVoid}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
         >
           Add invoice to queue
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             window.open(`/api/reports/thank-you-note/${order.id}?format=pdf`, "_blank")
           }
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
         >
           Thank-you note
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => queueDocument("thank-you")}
           disabled={busy || saving || isVoid}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
         >
           Add thank-you to queue
-        </button>
+        </Button>
         {!isVoid ? (
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            size="sm"
             onClick={onVoid}
             disabled={busy || saving || isOffline}
             title={isOffline ? "Unavailable while offline" : undefined}
-            className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
           >
             Void order
-          </button>
+          </Button>
         ) : null}
         {!isVoid && order.order_status !== "cancelled" && onCancel ? (
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            size="sm"
             onClick={onCancel}
             disabled={busy || saving || isOffline}
             title={isOffline ? "Unavailable while offline" : undefined}
-            className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
           >
             Cancel order
-          </button>
+          </Button>
         ) : null}
+      </div>
+
+      <div className="mt-4 flex items-center gap-1 text-xs text-[var(--ui-muted)]">
+        <span>Created: {formatTimestamp(order.created_at)}</span>
+        <span>·</span>
+        <span>Updated: {formatTimestamp(order.updated_at)}</span>
       </div>
 
       <div className="mt-6 border-t border-[var(--ui-border)] pt-4">
@@ -872,12 +924,12 @@ export function OrderDetailPanel({
               <p className="text-sm text-[var(--ui-muted)]">Loading inventory…</p>
             ) : (
               <>
-                <label className="mb-2 block text-sm">
-                  Inventory item
+                <div className="mb-2">
+                <FormField label="Inventory item">
                   <select
                     value={selectedInventoryId}
                     onChange={(e) => setSelectedInventoryId(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                    className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
                   >
                     <option value="">Select item…</option>
                     {pickList.map((row) => (
@@ -886,35 +938,33 @@ export function OrderDetailPanel({
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="mb-4 block text-sm">
-                  Quantity
+                </FormField>
+                </div>
+                <div className="mb-4">
+                <FormField label="Quantity">
                   <input
                     type="number"
                     min={1}
                     value={lineItemQty}
                     onChange={(e) => setLineItemQty(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
+                    className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
                   />
-                </label>
+                </FormField>
+                </div>
               </>
             )}
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setAddItemOpen(false)}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-              >
+              <Button variant="secondary" onClick={() => setAddItemOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="accent"
                 onClick={() => void addLineItem()}
-                disabled={lineItemBusy || !selectedInventoryId}
-                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                disabled={!selectedInventoryId}
+                busy={lineItemBusy}
               >
-                {lineItemBusy ? "Adding…" : "Add item"}
-              </button>
+                Add item
+              </Button>
             </div>
           </div>
         </div>

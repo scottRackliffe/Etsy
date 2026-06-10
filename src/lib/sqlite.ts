@@ -13,6 +13,8 @@ let dbInstance: Database.Database | null = null;
 let schemaReady = false;
 
 const INVENTORY_COLUMNS: Record<string, string> = {
+  // ADR-017 spec says NOT NULL, but ALTER TABLE in SQLite cannot add NOT NULL constraints.
+  // The UNIQUE index (idx_inventory_item_number) partially enforces uniqueness.
   item_number: "TEXT",
   description: "TEXT",
   purchase_cost: "REAL",
@@ -68,7 +70,7 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   item_width: "REAL",
   item_height: "REAL",
   item_dimensions_unit: "TEXT",
-  is_supply: "INTEGER",
+  is_supply: "INTEGER DEFAULT 0",
   picture_classifications: "TEXT",
   listing_title: "TEXT",
   listing_description: "TEXT",
@@ -85,7 +87,7 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   listing_export_id: "TEXT",
   listing_approved_at: "TEXT",
   listing_published_at: "TEXT",
-  is_listed: "INTEGER",
+  is_listed: "INTEGER DEFAULT 0",
   notes: "TEXT",
   created_at: "TEXT",
   updated_at: "TEXT",

@@ -52,6 +52,9 @@ type ShippingSettings = {
   default_carrier: string;
   default_origin_zip: string;
   default_weight_oz: string;
+  usps_account: string;
+  ups_account: string;
+  fedex_account: string;
 };
 
 type TaxSettings = {
@@ -137,6 +140,9 @@ export default function ConfigPage() {
     default_carrier: "USPS",
     default_origin_zip: "",
     default_weight_oz: "",
+    usps_account: "",
+    ups_account: "",
+    fedex_account: "",
   });
   const [taxSettings, setTaxSettings] = useState<TaxSettings>({ default_rate: "" });
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
@@ -334,6 +340,9 @@ export default function ConfigPage() {
         default_carrier: map.get("shipping.default_carrier") ?? "USPS",
         default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
         default_weight_oz: map.get("shipping.default_weight_oz") ?? "",
+        usps_account: map.get("shipping.usps_account") ?? "",
+        ups_account: map.get("shipping.ups_account") ?? "",
+        fedex_account: map.get("shipping.fedex_account") ?? "",
       });
       setTaxSettings({ default_rate: map.get("tax.default_rate") ?? "" });
       setDisplaySettings({
@@ -369,6 +378,9 @@ export default function ConfigPage() {
             default_carrier: map.get("shipping.default_carrier") ?? "USPS",
             default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
             default_weight_oz: map.get("shipping.default_weight_oz") ?? "",
+            usps_account: map.get("shipping.usps_account") ?? "",
+            ups_account: map.get("shipping.ups_account") ?? "",
+            fedex_account: map.get("shipping.fedex_account") ?? "",
           },
           taxSettings: { default_rate: map.get("tax.default_rate") ?? "" },
           displaySettings: {
@@ -516,6 +528,9 @@ export default function ConfigPage() {
         { key: "shipping.default_carrier", value: shippingSettings.default_carrier },
         { key: "shipping.default_origin_zip", value: shippingSettings.default_origin_zip },
         { key: "shipping.default_weight_oz", value: shippingSettings.default_weight_oz },
+        { key: "shipping.usps_account", value: shippingSettings.usps_account },
+        { key: "shipping.ups_account", value: shippingSettings.ups_account },
+        { key: "shipping.fedex_account", value: shippingSettings.fedex_account },
       ],
       "Shipping defaults saved",
       "Default carrier and package settings were updated."
@@ -1144,6 +1159,36 @@ export default function ConfigPage() {
               type="number"
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
+            <FormField label="USPS account number">
+              <input
+                value={shippingSettings.usps_account}
+                onChange={(e) =>
+                  setShippingSettings((c) => ({ ...c, usps_account: e.target.value }))
+                }
+                placeholder="USPS account number"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="UPS account number">
+              <input
+                value={shippingSettings.ups_account}
+                onChange={(e) =>
+                  setShippingSettings((c) => ({ ...c, ups_account: e.target.value }))
+                }
+                placeholder="UPS account number"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="FedEx account number">
+              <input
+                value={shippingSettings.fedex_account}
+                onChange={(e) =>
+                  setShippingSettings((c) => ({ ...c, fedex_account: e.target.value }))
+                }
+                placeholder="FedEx account number"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
             <Button
               variant="accent"
               size="lg"

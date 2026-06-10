@@ -17,6 +17,9 @@ export type ShippingSettingsSnapshot = {
   default_carrier: string;
   default_origin_zip: string;
   default_weight_oz: string;
+  usps_account: string;
+  ups_account: string;
+  fedex_account: string;
 };
 
 export type TaxSettingsSnapshot = {

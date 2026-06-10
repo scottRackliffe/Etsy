@@ -99,6 +99,23 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     requireEtsyAccessToken(await cookies());
     const id = await getCustomerId(context);
     const existing = getCustomer(id);
+
+    const { getDb } = await import("@/lib/sqlite");
+    const orderCount = getDb()
+      .prepare("SELECT COUNT(*) as count FROM orders WHERE customer_id = ?")
+      .get(id) as { count: number };
+
+    if (orderCount.count > 0) {
+      throw new ApiRouteError({
+        status: 409,
+        code: "REFERENTIAL_INTEGRITY",
+        message: "Cannot delete customer with orders",
+        userMessage: "This customer has orders and cannot be deleted. You can deactivate them instead.",
+        actions: ["Deactivate the customer instead of deleting.", "Void or reassign their orders first."],
+        canRetry: false,
+      });
+    }
+
     const deleted = deleteCustomer(id);
     if (!deleted) {
       throw new ApiRouteError({
@@ -118,7 +135,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
         ? `${(existing as { first_name?: string }).first_name ?? ""} ${(existing as { last_name?: string }).last_name ?? ""}`.trim()
         : undefined,
     });
-    return NextResponse.json({ ok: true, deleted: true });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

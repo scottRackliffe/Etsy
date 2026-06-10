@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { getValidAccessToken } from "@/lib/auth-session";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
+import { validatePublishReadiness } from "@/lib/inventory-validation";
 import { getSetting } from "@/lib/settings-store";
 import { computePreviewHash, savePublishPreview } from "@/lib/listing-review";
 
@@ -66,6 +67,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       });
     }
 
+    const publishReadinessSettings: Record<string, string> = {};
+    const returnPolicySetting = getSetting("etsy.publish.return_policy_id");
+    if (returnPolicySetting) publishReadinessSettings["etsy.publish.return_policy_id"] = returnPolicySetting;
+    const shippingProfileSetting = getSetting("etsy.publish.shipping_profile_id");
+    if (shippingProfileSetting) publishReadinessSettings["etsy.publish.shipping_profile_id"] = shippingProfileSetting;
+
+    const publishCheck = validatePublishReadiness(item, publishReadinessSettings);
+
     const shopId = parseNumberSetting("etsy.active_shop_id");
     const globalTaxonomyId = parseNumberSetting("etsy.publish.default_taxonomy_id");
     const globalShippingProfileId = parseNumberSetting("etsy.publish.shipping_profile_id");
@@ -113,7 +122,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       }
     }
 
-    const warnings: string[] = [];
+    const warnings: string[] = [...publishCheck.warnings];
+    if (!publishCheck.ready) {
+      warnings.push(...publishCheck.errors);
+    }
     if (item.listing_draft_state !== "approved") {
       warnings.push("Draft is not approved. Publish is blocked.");
     }

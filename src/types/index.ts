@@ -116,8 +116,8 @@ export type Customer = {
   is_active: number | null;
   notes: string | null;
   order_count?: number;
-  created_at: string | null;
-  updated_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CustomerAddress = {
@@ -130,9 +130,9 @@ export type CustomerAddress = {
   state: string | null;
   postal_code: string | null;
   country: string | null;
-  is_default: number | null;
-  created_at: string | null;
-  updated_at: string | null;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Order = {
@@ -164,8 +164,8 @@ export type Order = {
   grand_total: number | null;
   source_channel: string | null;
   notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
+  created_at: string;
+  updated_at: string;
   items?: OrderItem[];
 };
 
@@ -176,6 +176,21 @@ export type OrderItem = {
   quantity: number;
   unit_price: number | null;
   line_total: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Purchase = {
+  id: number;
+  inventory_id: number;
+  vendor_name: string | null;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  shipping_price: number | null;
+  reference_number: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type UiError = {

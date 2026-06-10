@@ -5,6 +5,7 @@ import { parsePositiveInt } from "@/lib/api-utils";
 import { getValidAccessToken } from "@/lib/auth-session";
 import { logActivity } from "@/lib/activity-log";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
+import { validatePublishReadiness } from "@/lib/inventory-validation";
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
 import { getLatestPublishPreview } from "@/lib/listing-review";
@@ -80,6 +81,25 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+
+    const publishSettings: Record<string, string> = {};
+    const returnPolicySetting = getSetting("etsy.publish.return_policy_id");
+    if (returnPolicySetting) publishSettings["etsy.publish.return_policy_id"] = returnPolicySetting;
+    const shippingProfileSetting = getSetting("etsy.publish.shipping_profile_id");
+    if (shippingProfileSetting) publishSettings["etsy.publish.shipping_profile_id"] = shippingProfileSetting;
+
+    const publishCheck = validatePublishReadiness(item, publishSettings);
+    if (!publishCheck.ready) {
+      throw new ApiRouteError({
+        status: 400,
+        code: "PUBLISH_NOT_READY",
+        message: "Item not ready for Etsy publish",
+        userMessage: publishCheck.errors.join(" "),
+        actions: ["Fix the listed issues and retry."],
+        canRetry: false,
+      });
+    }
+
     if (item.listing_draft_state !== "approved") {
       throw new ApiRouteError({
         status: 409,

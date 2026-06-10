@@ -19,7 +19,9 @@ export type ApiErrorCode =
   | "QUERY_TOO_SHORT"
   | "BATCH_TOO_LARGE"
   | "CONCURRENT_EDIT"
-  | "DATABASE_BUSY";
+  | "DATABASE_BUSY"
+  | "REFERENTIAL_INTEGRITY"
+  | "PUBLISH_NOT_READY";
 
 export type ApiErrorPayload = {
   ok: false;

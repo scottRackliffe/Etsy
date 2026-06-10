@@ -117,7 +117,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
       entityType: "address",
       entityId: id,
     });
-    return NextResponse.json({ ok: true, deleted: true });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

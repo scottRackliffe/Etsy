@@ -730,7 +730,7 @@ function SalesPageInner() {
           type="button"
           onClick={createOrderRecord}
           disabled={busyAction != null}
-          title="New order (Ctrl+N)"
+          title="New order (⌘N)"
           className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {busyAction === "create-order" ? "Creating..." : "Create order"}
@@ -749,7 +749,7 @@ function SalesPageInner() {
               }}
               aria-label="Search orders"
               placeholder="Search order #, name, city…"
-              title="Search (Ctrl+K)"
+              title="Search (⌘K)"
               className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
           </div>
@@ -853,6 +853,11 @@ function SalesPageInner() {
                     setPage(0);
                   },
                 }
+              : { label: "Create a manual order", onClick: () => createOrderRef.current?.focus() }
+          }
+          secondaryAction={
+            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+              ? undefined
               : shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }
                 : {
@@ -860,11 +865,6 @@ function SalesPageInner() {
                     onClick: () => router.push("/config#etsy-connection"),
                     variant: "secondary",
                   }
-          }
-          secondaryAction={
-            orderSearch.trim()
-              ? undefined
-              : { label: "Create manual order", onClick: () => createOrderRef.current?.focus() }
           }
         />
       ) : null}
