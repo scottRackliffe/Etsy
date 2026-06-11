@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trudy's Sales Manager — Vintage Shop Management</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Raleway:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --jade-green: #6b9e7d;
+      --cream: #fdf4e3;
+      --yellow: #e8c840;
+      --dark-brown: #3a2e1e;
+      --tan: #c4a96a;
+      --white: #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Raleway', sans-serif;
+      background-color: var(--cream);
+      color: var(--dark-brown);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 1.5rem 2rem;
+    }
+
+    header img {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      box-shadow: 0 4px 20px rgba(58, 46, 30, 0.15);
+      margin-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-family: 'Crimson Text', serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--dark-brown);
+      margin-bottom: 0.5rem;
+    }
+
+    header p.tagline {
+      font-size: 1.1rem;
+      color: var(--jade-green);
+      font-weight: 500;
+    }
+
+    main {
+      flex: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+
+    .section {
+      background: var(--white);
+      border: 1px solid var(--tan);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section h2 {
+      font-family: 'Crimson Text', serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--dark-brown);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--yellow);
+    }
+
+    .section p {
+      line-height: 1.7;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .feature-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--jade-green);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .feature span {
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .tech-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .badge {
+      background: var(--cream);
+      border: 1px solid var(--tan);
+      border-radius: 20px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--dark-brown);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      border-top: 1px solid var(--tan);
+      font-size: 0.8rem;
+      color: #7a6b55;
+      line-height: 1.6;
+    }
+
+    footer a {
+      color: var(--jade-green);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.8rem; }
+      header img { width: 140px; height: 140px; }
+      .features { grid-template-columns: 1fr; }
+      .section { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Trudy's Classic Treasures logo — jade green teacup on a pedestal bowl with yellow flowers">
+    <h1>Trudy's Sales Manager</h1>
+    <p class="tagline">Personal inventory &amp; sales management for vintage shops</p>
+  </header>
+
+  <main>
+    <div class="section">
+      <h2>What It Does</h2>
+      <p>
+        Trudy's Sales Manager is a personal tool built for managing a vintage and antique
+        shop. It connects to your shop via OAuth to sync orders, manage inventory,
+        create listing content, and generate business reports — all from a single local application.
+      </p>
+      <p>
+        Designed for a single shop owner, it runs on your own computer. Your data stays local
+        in a SQLite database. Nothing is shared with third parties.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">1</div>
+          <span><strong>Inventory tracking</strong> — descriptions, condition, photos, purchase costs, and listing status</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">2</div>
+          <span><strong>Order management</strong> — view and manage orders synced from your shop</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">3</div>
+          <span><strong>Listing creation</strong> — guided workflow to write titles, descriptions, and tags</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">4</div>
+          <span><strong>Photo management</strong> — up to 20 photos per item with AI-assisted classification</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">5</div>
+          <span><strong>Customer records</strong> — track buyers, addresses, and purchase history</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">6</div>
+          <span><strong>Business reports</strong> — sales, costs, profit, tax summaries as PDF and CSV</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">7</div>
+          <span><strong>Shipping labels</strong> — generate labels from order data and stored carrier info</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">8</div>
+          <span><strong>Publish to shop</strong> — push approved listings with photos directly from the app</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Technical Details</h2>
+      <p>
+        Built with Next.js and TypeScript. Runs locally on your computer. Data is stored in
+        a local SQLite database. Connects to your shop via OAuth 2.0 with PKCE for secure
+        authentication.
+      </p>
+      <div class="tech-badges">
+        <span class="badge">Next.js</span>
+        <span class="badge">TypeScript</span>
+        <span class="badge">SQLite</span>
+        <span class="badge">OAuth 2.0 PKCE</span>
+        <span class="badge">Tailwind CSS</span>
+        <span class="badge">Local-first</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Contact</h2>
+      <p>
+        This is a personal-use application for managing a single vintage shop.
+        For questions or feedback, reach out at
+        <a href="mailto:scott@trudysclassictreasures.com">scott@trudysclassictreasures.com</a>.
+      </p>
+    </div>
+  </main>
+
+  <footer>
+    <p>
+      &copy; 2026 Trudy's Classic Treasures. All rights reserved.
+    </p>
+    <p style="margin-top: 0.75rem;">
+      The term "Etsy" is a trademark of Etsy, Inc. This application uses the Etsy API
+      but is not endorsed or certified by Etsy, Inc.
+    </p>
+  </footer>
+</body>
+</html>
