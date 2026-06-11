@@ -4,10 +4,37 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 
+const SENSITIVE_KEY_PATTERNS = [
+  /^etsy_access_token/,
+  /^etsy_refresh_token/,
+  /^etsy\.oauth\./,
+  /^app\.session\./,
+  /secret/i,
+  /password/i,
+];
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_PATTERNS.some((p) => p.test(key));
+}
+
+const WIZARD_SAFE_PREFIXES = [
+  "setup.",
+  "business_",
+  "ui.",
+  "shipping.",
+  "default_",
+  "date_format",
+  "first_day_of_week",
+];
+
+function isWizardSafeKey(key: string): boolean {
+  return WIZARD_SAFE_PREFIXES.some((p) => key.startsWith(p));
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const skipAuth = request.nextUrl.searchParams.get("wizard") === "1";
-    if (!skipAuth) {
+    const isWizard = request.nextUrl.searchParams.get("wizard") === "1";
+    if (!isWizard) {
       requireEtsyAccessToken(await cookies());
     }
     const db = getDb();
@@ -16,6 +43,8 @@ export async function GET(request: NextRequest) {
       .all() as Array<{ key: string; value: string | null }>;
     const settings: Record<string, string | null> = {};
     for (const row of rows) {
+      if (isSensitiveKey(row.key)) continue;
+      if (isWizard && !isWizardSafeKey(row.key)) continue;
       settings[row.key] = row.value;
     }
     return NextResponse.json({ ok: true, settings });

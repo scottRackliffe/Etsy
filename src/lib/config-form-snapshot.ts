@@ -46,6 +46,7 @@ export type PublishConfigSnapshot = {
   imageJpegQuality: string;
   allowPartialImageUpload: string;
   imageUploadAttempts: string;
+  developerMode: string;
 };
 
 export type IconConfigSnapshot = {

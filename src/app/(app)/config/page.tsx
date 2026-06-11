@@ -794,6 +794,10 @@ export default function ConfigPage() {
           key: "etsy.publish.image_upload_attempts",
           value: publishConfig.imageUploadAttempts.trim() || "3",
         },
+        {
+          key: "etsy.developer_mode",
+          value: publishConfig.developerMode.trim() || "false",
+        },
       ];
       for (const update of updates) {
         const response = await fetch(`/api/settings/${encodeURIComponent(update.key)}`, {
@@ -1466,6 +1470,26 @@ export default function ConfigPage() {
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
+            </div>
+            <div className="mt-3 rounded border border-[var(--ui-yellow)]/30 bg-[var(--ui-yellow)]/5 p-3">
+              <label className="flex items-center gap-2 text-sm text-[var(--ui-body)]">
+                <input
+                  type="checkbox"
+                  checked={publishConfig.developerMode === "true"}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({
+                      ...c,
+                      developerMode: e.target.checked ? "true" : "false",
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-[var(--ui-border)]"
+                />
+                Developer Mode
+              </label>
+              <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                When enabled, publish creates a draft listing on Etsy without activating it.
+                Use during development and testing to avoid accidental live listings.
+              </p>
             </div>
             <Button
               variant="accent"

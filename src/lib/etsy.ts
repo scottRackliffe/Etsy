@@ -10,6 +10,45 @@ import sharp from "sharp";
 const ETSY_OAUTH_BASE = "https://www.etsy.com/oauth";
 const ETSY_API_BASE = "https://api.etsy.com/v3/application";
 const FORM_URLENCODED_UTF8 = "application/x-www-form-urlencoded; charset=utf-8";
+const MAX_RETRIES = 3;
+const BACKOFF_BASE_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function exponentialBackoff(attempt: number, retryAfterSecs?: number | null): number {
+  const backoff = BACKOFF_BASE_MS * Math.pow(2, attempt);
+  const jitter = Math.random() * 500;
+  if (retryAfterSecs && retryAfterSecs > 0) {
+    return Math.max(retryAfterSecs * 1000, backoff) + jitter;
+  }
+  return backoff + jitter;
+}
+
+let _rateLimitState = {
+  remainingToday: Infinity,
+  remainingThisSecond: Infinity,
+  limitPerDay: 0,
+  limitPerSecond: 0,
+  lastUpdated: 0,
+};
+
+function trackRateLimitHeaders(headers: Headers): void {
+  const rts = headers.get("x-remaining-this-second");
+  const rt = headers.get("x-remaining-today");
+  const lps = headers.get("x-limit-per-second");
+  const lpd = headers.get("x-limit-per-day");
+  if (rts != null) _rateLimitState.remainingThisSecond = parseInt(rts, 10) || 0;
+  if (rt != null) _rateLimitState.remainingToday = parseInt(rt, 10) || 0;
+  if (lps != null) _rateLimitState.limitPerSecond = parseInt(lps, 10) || 0;
+  if (lpd != null) _rateLimitState.limitPerDay = parseInt(lpd, 10) || 0;
+  _rateLimitState.lastUpdated = Date.now();
+}
+
+export function getEtsyRateLimitState() {
+  return { ..._rateLimitState };
+}
 
 /**
  * Build the x-api-key header value per Etsy's spec: "clientId:sharedSecret".
@@ -36,6 +75,13 @@ export function getEtsyConfig() {
   if (!clientId || !clientSecret || !redirectUri) {
     throw new Error("Missing ETSY_CLIENT_ID, ETSY_CLIENT_SECRET, or ETSY_REDIRECT_URI");
   }
+  const isDev = process.env.NODE_ENV !== "production";
+  if (!isDev && !redirectUri.startsWith("https://")) {
+    throw new Error("ETSY_REDIRECT_URI must use https:// in production");
+  }
+  if (redirectUri.endsWith("/") || redirectUri.includes("?")) {
+    throw new Error("ETSY_REDIRECT_URI must not have a trailing slash or query string");
+  }
   return { clientId, clientSecret, redirectUri };
 }
 
@@ -58,12 +104,15 @@ function base64UrlEncode(buffer: Uint8Array): string {
 
 /** Build Etsy OAuth authorization URL (PKCE) */
 export async function getEtsyAuthUrl(
-  state: string
+  state: string,
+  extraScopes?: string[]
 ): Promise<{ url: string; codeVerifier: string }> {
   const { clientId, redirectUri } = getEtsyConfig();
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await getCodeChallenge(codeVerifier);
-  const scope = "transactions_r shops_r listings_r listings_w";
+  const baseScopes = ["transactions_r", "shops_r"];
+  const allScopes = extraScopes ? [...new Set([...baseScopes, ...extraScopes])] : baseScopes;
+  const scope = allScopes.join(" ");
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
@@ -201,7 +250,7 @@ function assertBearerFormat(accessToken: string): void {
   }
 }
 
-/** Etsy API request with API key + Bearer token */
+/** Etsy API request with API key + Bearer token, rate limit tracking, and 429 retry */
 export async function etsyApi<T>(
   path: string,
   accessToken: string,
@@ -209,28 +258,42 @@ export async function etsyApi<T>(
 ): Promise<T> {
   assertBearerFormat(accessToken);
   const timeout = Number(process.env.ETSY_API_TIMEOUT_MS) || 30_000;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
 
-  try {
-    const res = await fetch(`${ETSY_API_BASE}${path}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        "x-api-key": getApiKeyHeader(),
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json; charset=utf-8",
-        ...options?.headers,
-      },
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new EtsyApiError(path, res.status, text, res.headers.get("Retry-After"));
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const res = await fetch(`${ETSY_API_BASE}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          "x-api-key": getApiKeyHeader(),
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json; charset=utf-8",
+          ...options?.headers,
+        },
+      });
+
+      trackRateLimitHeaders(res.headers);
+
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+        const waitMs = exponentialBackoff(attempt, retryAfter);
+        await sleep(waitMs);
+        continue;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new EtsyApiError(path, res.status, text, res.headers.get("Retry-After"));
+      }
+      return res.json() as Promise<T>;
+    } finally {
+      clearTimeout(timer);
     }
-    return res.json() as Promise<T>;
-  } finally {
-    clearTimeout(timer);
   }
+  throw new EtsyApiError(path, 429, "Rate limit exceeded after retries", null);
 }
 
 export async function createDraftListing(
@@ -308,20 +371,29 @@ export async function createDraftListing(
   }
   form.set("type", params.type ?? "physical");
 
-  const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings`, {
-    method: "POST",
-    headers: {
-      "x-api-key": getApiKeyHeader(),
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": FORM_URLENCODED_UTF8,
-    },
-    body: form,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy createDraftListing failed: ${res.status} ${text}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings`, {
+      method: "POST",
+      headers: {
+        "x-api-key": getApiKeyHeader(),
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": FORM_URLENCODED_UTF8,
+      },
+      body: form,
+    });
+    trackRateLimitHeaders(res.headers);
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+      await sleep(exponentialBackoff(attempt, retryAfter));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(`/shops/${params.shopId}/listings`, res.status, text, res.headers.get("Retry-After"));
+    }
+    return (await res.json()) as { listing_id: number; state?: string };
   }
-  return (await res.json()) as { listing_id: number; state?: string };
+  throw new EtsyApiError(`/shops/${params.shopId}/listings`, 429, "Rate limit exceeded after retries", null);
 }
 
 async function toUploadBlob(reference: string): Promise<{ blob: Blob; filename: string }> {
@@ -443,21 +515,29 @@ export async function uploadListingImageFromReference(
   const formData = new FormData();
   formData.append("image", optimized.blob, optimized.filename);
 
-  const res = await fetch(
-    `${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}/images`,
-    {
+  const endpoint = `/shops/${params.shopId}/listings/${params.listingId}/images`;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${ETSY_API_BASE}${endpoint}`, {
       method: "POST",
       headers: {
         "x-api-key": getApiKeyHeader(),
         Authorization: `Bearer ${accessToken}`,
       },
       body: formData,
+    });
+    trackRateLimitHeaders(res.headers);
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+      await sleep(exponentialBackoff(attempt, retryAfter));
+      continue;
     }
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy uploadListingImage failed: ${res.status} ${text}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(endpoint, res.status, text, res.headers.get("Retry-After"));
+    }
+    return;
   }
+  throw new EtsyApiError(endpoint, 429, "Rate limit exceeded after retries", null);
 }
 
 export async function updateListingDetails(
@@ -525,19 +605,30 @@ export async function updateListingDetails(
   if (params.isSupply != null) {
     form.set("is_supply", params.isSupply ? "true" : "false");
   }
-  const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}`, {
-    method: "PATCH",
-    headers: {
-      "x-api-key": getApiKeyHeader(),
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": FORM_URLENCODED_UTF8,
-    },
-    body: form,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy updateListing details failed: ${res.status} ${text}`);
+  const endpoint = `/shops/${params.shopId}/listings/${params.listingId}`;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${ETSY_API_BASE}${endpoint}`, {
+      method: "PATCH",
+      headers: {
+        "x-api-key": getApiKeyHeader(),
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": FORM_URLENCODED_UTF8,
+      },
+      body: form,
+    });
+    trackRateLimitHeaders(res.headers);
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+      await sleep(exponentialBackoff(attempt, retryAfter));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(endpoint, res.status, text, res.headers.get("Retry-After"));
+    }
+    return;
   }
+  throw new EtsyApiError(endpoint, 429, "Rate limit exceeded after retries", null);
 }
 
 export async function updateListingState(
@@ -547,19 +638,30 @@ export async function updateListingState(
   assertBearerFormat(accessToken);
   const form = new URLSearchParams();
   form.set("state", params.state);
-  const res = await fetch(`${ETSY_API_BASE}/shops/${params.shopId}/listings/${params.listingId}`, {
-    method: "PATCH",
-    headers: {
-      "x-api-key": getApiKeyHeader(),
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": FORM_URLENCODED_UTF8,
-    },
-    body: form,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Etsy updateListing state failed: ${res.status} ${text}`);
+  const endpoint = `/shops/${params.shopId}/listings/${params.listingId}`;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${ETSY_API_BASE}${endpoint}`, {
+      method: "PATCH",
+      headers: {
+        "x-api-key": getApiKeyHeader(),
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": FORM_URLENCODED_UTF8,
+      },
+      body: form,
+    });
+    trackRateLimitHeaders(res.headers);
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+      await sleep(exponentialBackoff(attempt, retryAfter));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(endpoint, res.status, text, res.headers.get("Retry-After"));
+    }
+    return;
   }
+  throw new EtsyApiError(endpoint, 429, "Rate limit exceeded after retries", null);
 }
 
 /** Get current user's shops (need user ID from /users/me first; v3 uses shop_id) */

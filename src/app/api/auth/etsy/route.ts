@@ -12,7 +12,10 @@ import { beginOauth, randomState } from "@/lib/auth-session";
 export async function GET(request: Request) {
   try {
     const state = randomState();
-    const { url, codeVerifier } = await getEtsyAuthUrl(state);
+    const reqUrl = new URL(request.url);
+    const needListings = reqUrl.searchParams.get("listings") === "1";
+    const extraScopes = needListings ? ["listings_r", "listings_w"] : undefined;
+    const { url, codeVerifier } = await getEtsyAuthUrl(state, extraScopes);
     beginOauth(state, codeVerifier);
     return NextResponse.redirect(url);
   } catch (e) {

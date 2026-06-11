@@ -194,7 +194,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         {step === 0 ? (
           <>
             <h2 className="text-xl font-semibold text-[var(--ui-title)]">
-              Welcome to Etsy Sales Manager
+              Welcome to Sales Manager
             </h2>
             <p className="mt-2 text-sm text-[var(--ui-body)]">
               Your personal tool for managing inventory, orders, customers, and Etsy listings for

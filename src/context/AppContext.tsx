@@ -29,6 +29,7 @@ type PublishConfig = {
   imageJpegQuality: string;
   allowPartialImageUpload: string;
   imageUploadAttempts: string;
+  developerMode: string;
 };
 
 type PublishHistory = {
@@ -194,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     imageJpegQuality: "82",
     allowPartialImageUpload: "false",
     imageUploadAttempts: "3",
+    developerMode: "false",
   });
   const [iconConfig, setIconConfig] = useState<IconConfig>({
     screenHeaderPath: "/icons/screen-header.png",
@@ -488,6 +490,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         imageJpegQuality,
         allowPartialImageUpload,
         imageUploadAttempts,
+        developerMode,
         screenHeaderPath,
         reportHeaderPath,
         screenHeaderSizePx,
@@ -507,6 +510,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettingValue("etsy.publish.image_jpeg_quality"),
         getSettingValue("etsy.publish.allow_partial_image_upload"),
         getSettingValue("etsy.publish.image_upload_attempts"),
+        getSettingValue("etsy.developer_mode"),
         getSettingValue("ui.icons.screen_header_path"),
         getSettingValue("ui.icons.report_header_path"),
         getSettingValue("ui.icons.screen_header_size_px"),
@@ -527,6 +531,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         imageJpegQuality: imageJpegQuality || "82",
         allowPartialImageUpload: allowPartialImageUpload || "false",
         imageUploadAttempts: imageUploadAttempts || "3",
+        developerMode: developerMode || "false",
       });
       setIconConfig({
         screenHeaderPath: screenHeaderPath || "/icons/screen-header.png",

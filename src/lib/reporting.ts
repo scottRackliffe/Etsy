@@ -1229,7 +1229,7 @@ export async function buildReportPdf(report: ReportResult): Promise<Buffer> {
       autoFirstPage: true,
       info: {
         Title: `${report.report_name} report`,
-        Author: "Etsy Sales Manager",
+        Author: "Sales Manager",
       },
     });
     const chunks: Buffer[] = [];

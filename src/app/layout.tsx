@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Etsy Sales Manager | Trudy's Classic Treasures",
-  description: "Manage your Etsy shop orders and sales",
+  title: "Trudy's Classic Treasures | Sales Manager",
+  description: "Manage your vintage shop orders, inventory, and sales",
 };
 
 export default function RootLayout({

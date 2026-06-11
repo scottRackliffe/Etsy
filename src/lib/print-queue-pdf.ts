@@ -149,7 +149,7 @@ export async function buildPrintQueuePdf(items: PrintQueueRequestItem[]): Promis
       autoFirstPage: false,
       info: {
         Title: "Print queue",
-        Author: "Etsy Sales Manager",
+        Author: "Sales Manager",
       },
     });
     const chunks: Buffer[] = [];

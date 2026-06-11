@@ -35,7 +35,7 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-[var(--ui-title)]">
-              Trudy&apos;s Etsy Sales
+              Trudy&apos;s Sales Manager
             </h1>
             <p className="text-xs text-[var(--ui-muted)]">Modern sales console</p>
           </div>

@@ -36,7 +36,7 @@ function getEncryptionKey(): Buffer {
   if (clientSecret) {
     return crypto.createHash("sha256").update(`etsy-token-key:${clientSecret}`).digest();
   }
-  return crypto.createHash("sha256").update("etsy-sales-manager-dev-key").digest();
+  return crypto.createHash("sha256").update("sales-manager-dev-key").digest();
 }
 
 function encryptToken(plaintext: string): string {

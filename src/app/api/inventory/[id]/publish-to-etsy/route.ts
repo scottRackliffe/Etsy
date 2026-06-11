@@ -341,6 +341,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    const isDeveloperMode = parseBooleanSetting("etsy.developer_mode", false);
     if (uploadedImageCount > 0 || imageIds.length > 0) {
       await updateListingDetails(token, {
         shopId: resolvedShopId,
@@ -363,23 +364,27 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         itemDimensionsUnit: item.item_dimensions_unit || undefined,
         isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
       });
-      await updateListingState(token, {
-        shopId: resolvedShopId,
-        listingId: etsyListing.listing_id,
-        state: "active",
-      });
+      if (!isDeveloperMode) {
+        await updateListingState(token, {
+          shopId: resolvedShopId,
+          listingId: etsyListing.listing_id,
+          state: "active",
+        });
+      }
     }
 
     const now = new Date().toISOString();
     const listingId = String(etsyListing.listing_id);
+    const finalStatus = isDeveloperMode ? "Draft" : "Listed";
+    const finalDraftState = isDeveloperMode ? "approved" : "published";
     getDb()
       .prepare(
         `
       UPDATE inventory
-      SET listing_draft_state = 'published',
+      SET listing_draft_state = @draft_state,
           listing_published_at = @published_at,
-          status = 'Listed',
-          is_listed = 1,
+          status = @status,
+          is_listed = @is_listed,
           date_listed = COALESCE(date_listed, @date_listed),
           etsy_listing_id = @etsy_listing_id,
           updated_at = @updated_at
@@ -388,19 +393,22 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       )
       .run({
         id,
-        published_at: now,
-        date_listed: now.slice(0, 10),
+        draft_state: finalDraftState,
+        published_at: isDeveloperMode ? null : now,
+        status: finalStatus,
+        is_listed: isDeveloperMode ? 0 : 1,
+        date_listed: isDeveloperMode ? null : now.slice(0, 10),
         etsy_listing_id: listingId,
         updated_at: now,
       });
     const updated = getInventoryById(id);
 
     logActivity({
-      action: "listing.published",
+      action: isDeveloperMode ? "listing.published_draft" : "listing.published",
       entityType: "inventory",
       entityId: id,
       entityLabel: item.item_number || item.description || `Item ${id}`,
-      detail: { etsy_listing_id: listingId },
+      detail: { etsy_listing_id: listingId, developer_mode: isDeveloperMode },
       source: "user",
     });
 
@@ -409,9 +417,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       item: updated,
       publish_result: {
         success: true,
-        status: "published",
+        status: isDeveloperMode ? "draft_on_etsy" : "published",
         listing_id: listingId,
-        etsy_state: etsyListing.state ?? null,
+        etsy_state: isDeveloperMode ? "draft" : (etsyListing.state ?? null),
+        developer_mode: isDeveloperMode,
         uploaded_image_count: uploadedImageCount,
         failed_upload_count: failedUploads.length,
         failed_uploads: failedUploads,
@@ -419,7 +428,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
           draft_create: true,
           image_uploads: failedUploads.length === 0,
           listing_text_update: true,
-          listing_activate: true,
+          listing_activate: !isDeveloperMode,
         },
       },
     });

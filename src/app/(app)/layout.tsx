@@ -273,12 +273,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             ) : null}
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
-            {!pathname.startsWith("/listing-coach") ? (
-              <div className="text-xs text-[var(--ui-muted)]">
-                The term &ldquo;Etsy&rdquo; is a trademark of Etsy, Inc. This application uses the
-                Etsy API but is not endorsed or certified by Etsy, Inc.
-              </div>
-            ) : null}
+            <div className="mt-4 py-2 text-center text-xs text-[var(--ui-muted)] border-t border-[var(--ui-border)]">
+              The term &ldquo;Etsy&rdquo; is a trademark of Etsy, Inc. This application uses the
+              Etsy API but is not endorsed or certified by Etsy, Inc.
+            </div>
           </>
         )}
       </main>

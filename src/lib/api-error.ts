@@ -21,7 +21,8 @@ export type ApiErrorCode =
   | "CONCURRENT_EDIT"
   | "DATABASE_BUSY"
   | "REFERENTIAL_INTEGRITY"
-  | "PUBLISH_NOT_READY";
+  | "PUBLISH_NOT_READY"
+  | "FORBIDDEN";
 
 export type ApiErrorPayload = {
   ok: false;

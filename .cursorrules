@@ -86,6 +86,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Listing content generation modes | `documents/adr/0023-listing-content-generation-modes.md` |
 | Listing template and AI inputs | `documents/etsy-listing-template-and-requirements.md` |
 | Etsy compliance | `documents/adr/0011-compliance-with-etsy-rules.md` + `documents/etsy-compliance.md` |
+| Etsy API acceptance and usage requirements | `documents/adr/0073-etsy-api-acceptance-and-usage-requirements.md` |
 | OAuth and token refresh | `documents/adr/0007-base-system-etsy-oauth-dashboard-receipts.md` |
 | Shipping label behavior | `documents/shipping-label-carrier-templates.md` |
 | Design decisions (23 cross-cutting decisions) | `documents/design-decisions-implementation.md` |

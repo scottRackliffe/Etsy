@@ -10,13 +10,31 @@ function normalizeKey(raw: string): string {
   return raw.trim();
 }
 
+const SENSITIVE_KEY_PATTERNS = [
+  /^etsy_access_token/,
+  /^etsy_refresh_token/,
+  /^etsy\.oauth\./,
+  /^app\.session\./,
+  /secret/i,
+  /password/i,
+];
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_PATTERNS.some((p) => p.test(key));
+}
+
 function isWizardExemptKey(key: string): boolean {
   return (
     key === "setup.completed" ||
     key === "business_name" ||
     key === "business_phone" ||
     key === "business_email" ||
-    key.startsWith("business_address_")
+    key.startsWith("business_address_") ||
+    key.startsWith("ui.") ||
+    key.startsWith("shipping.") ||
+    key === "default_shipper" ||
+    key === "date_format" ||
+    key === "first_day_of_week"
   );
 }
 
@@ -34,6 +52,17 @@ export async function GET(_request: Request, context: { params: Promise<{ key: s
         userMessage: "A setting key is required.",
         actions: ["Provide a valid key in the request URL."],
         fields: { key: ["Key is required"] },
+        canRetry: false,
+      });
+    }
+
+    if (isSensitiveKey(key)) {
+      throw new ApiRouteError({
+        status: 403,
+        code: "FORBIDDEN",
+        message: "Access denied to sensitive setting",
+        userMessage: "This setting cannot be read through the API.",
+        actions: [],
         canRetry: false,
       });
     }
@@ -77,6 +106,17 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
         userMessage: "A setting key is required.",
         actions: ["Provide a valid key in the request URL."],
         fields: { key: ["Key is required"] },
+        canRetry: false,
+      });
+    }
+
+    if (isSensitiveKey(key)) {
+      throw new ApiRouteError({
+        status: 403,
+        code: "FORBIDDEN",
+        message: "Cannot write sensitive setting via API",
+        userMessage: "This setting cannot be modified through the API.",
+        actions: [],
         canRetry: false,
       });
     }
