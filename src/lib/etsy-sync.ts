@@ -30,7 +30,7 @@ export type SyncResult = {
 const SYNC_LOCK_KEY = "sync_in_progress";
 const LAST_SYNC_KEY = "last_etsy_sync_at";
 const MAX_PAGES = 5;
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 100;
 
 // ---------------------------------------------------------------------------
 // Concurrent sync protection (ADR-019)
