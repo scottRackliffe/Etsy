@@ -2,40 +2,58 @@
  * GET /api/auth/etsy/callback
  * Etsy OAuth callback: validates state, exchanges code + code_verifier for tokens,
  * stores token/session state in SQLite and sets an opaque session cookie.
+ *
+ * Uses an HTML response (not a 3xx redirect) to set the cookie reliably across
+ * all browsers, then client-side redirects to the dashboard.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logging";
 import { exchangeCodeForToken } from "@/lib/etsy";
-import { cookies } from "next/headers";
 import {
   SESSION_COOKIE,
   clearSession,
   completeOauthSession,
   consumeOauthVerifierIfValid,
 } from "@/lib/auth-session";
+
+function htmlRedirect(url: string, cookieName?: string, cookieValue?: string, maxAge?: number) {
+  const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${url}"></head><body>Redirecting…</body></html>`;
+  const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8" };
+
+  if (cookieName && cookieValue) {
+    const parts = [
+      `${cookieName}=${cookieValue}`,
+      "Path=/",
+      "HttpOnly",
+      "SameSite=Lax",
+    ];
+    if (maxAge) parts.push(`Max-Age=${maxAge}`);
+    if (process.env.NODE_ENV === "production") parts.push("Secure");
+    headers["Set-Cookie"] = parts.join("; ");
+  }
+
+  return new NextResponse(html, { status: 200, headers });
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const cookieStore = await cookies();
-
   if (error) {
     clearSession();
-    return NextResponse.redirect(
-      new URL(`/?error=oauth_denied&detail=${encodeURIComponent(error)}`, request.url)
-    );
+    return htmlRedirect(`/?error=oauth_denied&detail=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/?error=invalid_callback", request.url));
+    return htmlRedirect("/?error=invalid_callback");
   }
 
   try {
     const codeVerifier = consumeOauthVerifierIfValid(state);
     if (!codeVerifier) {
-      return NextResponse.redirect(new URL("/?error=invalid_callback", request.url));
+      return htmlRedirect("/?error=invalid_callback");
     }
 
     const tokens = await exchangeCodeForToken(code, codeVerifier);
@@ -44,18 +62,16 @@ export async function GET(request: NextRequest) {
       request.nextUrl.origin;
 
     const sessionId = completeOauthSession(tokens);
-    cookieStore.set(SESSION_COOKIE, sessionId, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 90 * 24 * 60 * 60,
-      path: "/",
-    });
 
-    return NextResponse.redirect(new URL("/", baseUrl));
+    return htmlRedirect(
+      new URL("/", baseUrl).toString(),
+      SESSION_COOKIE,
+      sessionId,
+      90 * 24 * 60 * 60
+    );
   } catch (e) {
     logger.error("Etsy callback error", { error: e });
     clearSession();
-    return NextResponse.redirect(new URL("/?error=token_exchange_failed", request.url));
+    return htmlRedirect("/?error=token_exchange_failed");
   }
 }

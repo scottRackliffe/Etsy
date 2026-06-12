@@ -26,9 +26,11 @@ The Config page currently has three sections: AI settings, Etsy publish defaults
 ├──────────────────────────┬──────────────────────────────┤
 │ Business profile         │ Etsy connection              │
 ├──────────────────────────┼──────────────────────────────┤
-│ Shipping defaults        │ AI settings (existing)       │
+│ Shipping defaults        │ Shipping API (EasyPost)      │
 ├──────────────────────────┼──────────────────────────────┤
-│ Publish defaults         │ Display preferences          │
+│ AI settings (existing)   │ Publish defaults             │
+├──────────────────────────┼──────────────────────────────┤
+│ Display preferences      │                              │
 │ (existing, expanded)     │                              │
 ├──────────────────────────┼──────────────────────────────┤
 │ Icons and branding       │ Backup and restore           │
@@ -116,6 +118,33 @@ Also in this section (ADR-069): **Sample data** — "Load sample data" / "Remove
 | `shipping.fedex_account`      | FedEx account #             | `TextInput`               | Optional                                                                                           |
 
 Save: "Save shipping defaults" button.
+
+---
+
+### Section 3b: Shipping API — EasyPost (NEW, ADR-074)
+
+Integrated shipping label purchase via EasyPost. Appears below Shipping defaults when EasyPost API key is configured (or always shown with setup prompt).
+
+| Setting key                    | Label                       | Input type                | Notes                                                                                         |
+| ------------------------------ | --------------------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
+| `easypost.api_key_encrypted`   | EasyPost API key            | `TextInput` type="password" | Encrypted at rest (AES-256-GCM). Masked display. Never returned to browser.                  |
+| `easypost.address_validation`  | Validate addresses          | `Checkbox`                | "Validate ship-to addresses before rate shopping." Default: off.                              |
+| `easypost.label_format`        | Label format                | `SelectInput`             | Options: `PDF` (default), `PNG`.                                                              |
+| `easypost.label_size`          | Label size                  | `SelectInput`             | Options: `4x6` (thermal, default), `Letter` (8.5x11).                                        |
+| `easypost.default_weight_oz`   | Default weight (oz)         | `TextInput` type="number" | Default parcel weight for rate shopping when not set on order.                                 |
+| `easypost.default_length_in`   | Default length (in)         | `TextInput` type="number" | Default parcel length.                                                                        |
+| `easypost.default_width_in`    | Default width (in)          | `TextInput` type="number" | Default parcel width.                                                                         |
+| `easypost.default_height_in`   | Default height (in)         | `TextInput` type="number" | Default parcel height.                                                                        |
+| `easypost.preferred_carrier`   | Preferred carrier           | `SelectInput`             | Options: `Any` (default), `USPS`, `UPS`, `FedEx`, `DHL`. Used for batch label auto-selection. |
+| `easypost.preferred_service`   | Preferred service           | `TextInput`               | Optional. Service name for batch (e.g., "GroundAdvantage").                                   |
+
+**Test connection** button: calls EasyPost address verification API with a dummy address to validate the API key. Shows:
+- Success: "Connected (Free Access — Wallet Carriers)" in green.
+- Failure: error message in red with troubleshooting link.
+
+**Collapsible troubleshooting section** at bottom: common problems and solutions per ADR-074 §10.
+
+Save: "Save shipping API settings" button.
 
 ---
 

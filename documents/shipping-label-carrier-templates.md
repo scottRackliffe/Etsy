@@ -2,9 +2,14 @@
 
 This document is the **single source of truth** for the **Print shipping label** command and for **Shipping Info**.
 
-**No automated connection to any shipping service.** There is no connection—no APIs, no opening carrier websites—to USPS, UPS, FedEx, DHL, or any other carrier. The app generates and prints the label using only data stored in the system (order ship-to + Shipping Info). **Automated connections to shippers** (e.g. carrier APIs) are a **future consideration**; not in current scope.
+**Dual-mode shipping (updated 2026-06-11 per ADR-074):** The app supports two shipping label modes:
 
-**References:** design-decisions-implementation.md §1; ui-design (Sales commands, Config); ADR-018 (Notes). Storage: ADR-017 (Shipping Info).
+1. **EasyPost integrated (ADR-074):** Rate shop across carriers, purchase postage-paid labels with tracking, address validation. Requires an EasyPost API key (configured in Config → Shipping API). This is the recommended mode for regular shipments.
+2. **Legacy local labels:** Generates an HTML address label from order ship-to + stored Shipping Info (return address). No postage, no tracking, no carrier API connection. This mode remains available as a fallback for one-off situations, pre-paid postage, or manual carrier drop-off.
+
+Both modes are always available when EasyPost is configured. If EasyPost is not configured, only the legacy mode appears.
+
+**References:** ADR-074 (EasyPost integration); design-decisions-implementation.md §1; ui-design (Sales commands, Config); ADR-018 (Notes, §30). Storage: ADR-017 (Shipping Info, EasyPost columns on orders).
 
 ---
 
@@ -56,11 +61,12 @@ If any required ship-from field is missing, the label generation is blocked with
 
 | Item                                        | Decision                                                                                                 |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Automated connection to carriers?           | **None.** No APIs, no carrier websites.                                                                  |
-| Who generates the label?                    | The app, using order data + Shipping Info.                                                               |
-| Where is label data from?                   | Order (ship-to) + Shipping Info (stored in system).                                                      |
-| If Shipping Info is missing when needed?    | Do not print. Tell user Shipping Info is needed and how to navigate to it (e.g. Config → Shipping Info). |
-| Where does user add Shipping Info?          | Config → Shipping Info.                                                                                  |
-| Automated connections to shippers (future)? | Future consideration; not in current scope.                                                              |
+| Automated connection to carriers?           | **EasyPost (optional, ADR-074).** Rate shopping, label purchase, tracking, address validation via EasyPost API. |
+| Legacy (no-API) label?                      | **Always available.** HTML label from order data + Shipping Info. No postage, no tracking.                |
+| Who generates the label?                    | EasyPost mode: EasyPost API generates postage-paid label. Legacy mode: the app generates HTML label.     |
+| Where is label data from?                   | EasyPost: ship-to + business address → EasyPost API. Legacy: order (ship-to) + Shipping Info (stored).   |
+| If Shipping Info is missing when needed?    | Legacy mode: do not print, tell user to go to Config → Shipping Info. EasyPost: uses business address.   |
+| Where does user add Shipping Info?          | Config → Shipping Info (legacy). Config → Shipping API (EasyPost API key and defaults).                  |
+| EasyPost configuration?                     | Config → Shipping API: API key, default parcel, label format, address validation, preferred carrier.     |
 
 _End of shipping-label-carrier-templates.md._

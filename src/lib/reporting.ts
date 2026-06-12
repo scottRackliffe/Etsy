@@ -515,24 +515,34 @@ export function buildSingleOrderInvoice(orderId: number): ReportResult | null {
   const paymentStatus = Number(order.was_paid) === 1 ? "Paid" : "Unpaid";
   const shipStatus = order.shipping_date ? "Shipped" : "Not shipped";
 
+  const invoiceMetrics: Record<string, ReportMetricValue> = {
+    business_name: businessName,
+    invoice_number: orderNumber,
+    order_date: String(order.order_date ?? ""),
+    ship_to: formatShipTo(order),
+    subtotal: asNumber(order.subtotal),
+    discount_total: asNumber(order.discount_total),
+    shipping_total: asNumber(order.shipping_total),
+    tax_total: asNumber(order.tax_total),
+    grand_total: asNumber(order.grand_total),
+    shipper: String(order.shipper ?? ""),
+    payment_status: paymentStatus,
+    shipping_status: shipStatus,
+  };
+
+  const trackingNumber = order.tracking_number ? String(order.tracking_number) : "";
+  if (trackingNumber) {
+    invoiceMetrics.tracking_number = trackingNumber;
+  }
+  if (order.shipping_carrier_service) {
+    invoiceMetrics.shipping_carrier_service = String(order.shipping_carrier_service);
+  }
+
   return {
     report_name: `invoice-${orderNumber}`,
     generated_at: new Date().toISOString(),
     summary: `Invoice #${orderNumber} for ${formatShipTo(order) || "customer"}.`,
-    metrics: {
-      business_name: businessName,
-      invoice_number: orderNumber,
-      order_date: String(order.order_date ?? ""),
-      ship_to: formatShipTo(order),
-      subtotal: asNumber(order.subtotal),
-      discount_total: asNumber(order.discount_total),
-      shipping_total: asNumber(order.shipping_total),
-      tax_total: asNumber(order.tax_total),
-      grand_total: asNumber(order.grand_total),
-      shipper: String(order.shipper ?? ""),
-      payment_status: paymentStatus,
-      shipping_status: shipStatus,
-    },
+    metrics: invoiceMetrics,
     sections: [{ title: "Line items", rows: lineItems }],
   };
 }
@@ -551,18 +561,29 @@ export function buildSingleOrderThankYou(orderId: number): ReportResult | null {
     [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ") || "Customer";
   const orderNumber = String(order.order_number ?? orderId);
 
+  const metrics: Record<string, ReportMetricValue> = {
+    business_name: businessName,
+    customer_name: customerName,
+    order_number: orderNumber,
+    order_date: String(order.order_date ?? ""),
+    greeting: "Thank you for your order!",
+    closing: "We hope you enjoy your purchase!",
+  };
+
+  const trackingNumber = order.tracking_number ? String(order.tracking_number) : "";
+  if (trackingNumber) {
+    metrics.tracking_number = trackingNumber;
+    metrics.tracking_message = "Your package is on its way!";
+    if (order.shipping_carrier_service) {
+      metrics.shipping_carrier_service = String(order.shipping_carrier_service);
+    }
+  }
+
   return {
     report_name: `thank-you-${orderNumber}`,
     generated_at: new Date().toISOString(),
     summary: `Thank you for your order, ${customerName}!`,
-    metrics: {
-      business_name: businessName,
-      customer_name: customerName,
-      order_number: orderNumber,
-      order_date: String(order.order_date ?? ""),
-      greeting: "Thank you for your order!",
-      closing: "We hope you enjoy your purchase!",
-    },
+    metrics,
     sections: [{ title: "Items in your order", rows: lineItems }],
   };
 }

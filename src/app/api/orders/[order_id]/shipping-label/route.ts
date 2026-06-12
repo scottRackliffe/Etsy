@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import fs from "node:fs";
+import path from "node:path";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
@@ -40,6 +42,22 @@ export async function GET(
         actions: ["Refresh the Sales tab and try again."],
         canRetry: false,
       });
+    }
+
+    const format = request.nextUrl.searchParams.get("format")?.toLowerCase() ?? "";
+
+    if (order.label_url && format !== "html") {
+      const labelFilePath = path.join(process.cwd(), String(order.label_url));
+      if (fs.existsSync(labelFilePath)) {
+        const pdfBuffer = fs.readFileSync(labelFilePath);
+        return new NextResponse(pdfBuffer, {
+          status: 200,
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": `inline; filename="label-${orderId}.pdf"`,
+          },
+        });
+      }
     }
 
     const snapshot = order as {
@@ -90,14 +108,14 @@ export async function GET(
     }
 
     const html = buildShippingLabelHtml(snapshot, shipper, shippingInfo);
-    const format = request.nextUrl.searchParams.get("format")?.toLowerCase() ?? "html";
-    if (format !== "html") {
+
+    if (format && format !== "html") {
       throw new ApiRouteError({
         status: 400,
         code: "VALIDATION_ERROR",
         message: "Unsupported label format",
-        userMessage: "Shipping labels support format=html only.",
-        actions: ["Use format=html and retry."],
+        userMessage: "Shipping labels support format=html only (or use EasyPost for PDF labels).",
+        actions: ["Use format=html and retry, or purchase a label via EasyPost."],
         canRetry: true,
       });
     }

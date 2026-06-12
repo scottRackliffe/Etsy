@@ -668,11 +668,21 @@ export async function updateListingState(
 export async function getShops(
   accessToken: string
 ): Promise<{ shop_id: number; shop_name: string }[]> {
-  type Me = { user_id: string };
+  type Me = { user_id: number | string; shop_id?: number };
   const me = await etsyApi<Me>("/users/me", accessToken);
-  type Shops = { results: { shop_id: number; shop_name: string }[] };
-  const shops = await etsyApi<Shops>(`/users/${me.user_id}/shops`, accessToken);
-  return shops.results ?? [];
+  type ShopResult = { shop_id: number; shop_name: string };
+  // Etsy v3 may return a single shop object or a { results: [] } wrapper
+  const raw = await etsyApi<ShopResult | { results: ShopResult[] }>(
+    `/users/${me.user_id}/shops`,
+    accessToken
+  );
+  if (Array.isArray((raw as { results?: ShopResult[] }).results)) {
+    return (raw as { results: ShopResult[] }).results;
+  }
+  if ((raw as ShopResult).shop_id) {
+    return [raw as ShopResult];
+  }
+  return [];
 }
 
 /** Get shop receipts (orders) – paginated */

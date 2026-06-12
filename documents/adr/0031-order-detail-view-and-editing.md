@@ -101,7 +101,23 @@ On screens < `lg`, panels stack vertically.
 | --------------- | ---------- | ----------------------- | ---------------------------------------------------------- |
 | `shipper`       | Carrier    | `SelectInput`           | Options: `USPS`, `UPS`, `FedEx`, `DHL`, `Other`            |
 | `shipping_date` | Ship date  | `TextInput` type="date" |                                                            |
-| Tracking number | Tracking # | `TextInput`             | New field: `tracking_number` (requires DB column addition) |
+| Tracking number | Tracking # | `TextInput`             | `tracking_number` column (auto-set when label purchased via EasyPost). |
+| Carrier service | Service    | Read-only               | `shipping_carrier_service` — shown when a label has been purchased (e.g., "USPS Ground Advantage"). |
+| Postage paid    | Postage    | Read-only               | `shipping_rate_cents` formatted as dollars — shown when a label has been purchased. |
+
+**Label section (ADR-074):**
+
+Visible when EasyPost is configured (API key set). Contains the integrated shipping label workflow:
+
+| State | Display |
+|---|---|
+| No label purchased | `<Button variant="accent">Buy & Print Label</Button>` — opens Rate Shopping Modal (ADR-074 §4b). |
+| Label purchased, not yet shipped | Label thumbnail preview (PDF first page). `<Button variant="secondary">Print Label</Button>` + `<Button variant="ghost">Void Label</Button>`. Tracking number displayed as clickable link. Copy-to-clipboard button beside tracking number. |
+| Label purchased and shipped | Same as above but "Void Label" hidden. |
+
+Legacy label button is always available below the EasyPost section: `<Button variant="ghost">Print address label (no postage)</Button>` — generates HTML label per `shipping-label-carrier-templates.md`.
+
+If EasyPost is not configured, only the legacy button appears (no label section header).
 
 **Notes section:**
 
@@ -129,6 +145,10 @@ All use `Button` component. Destructive actions require confirmation per ADR-032
 | Print invoice   | `<Button variant="secondary">Print invoice</Button>`  | Opens `/api/reports/invoice/{id}?format=pdf` (path-based, per ADR-036)          |
 | Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you/{id}?format=pdf` (path-based, per ADR-036)        |
 | Link customer   | `<Button variant="ghost">Link customer</Button>`      | Modal with customer search/select. Sets `customer_id` via PATCH                 |
+| Buy & print label | `<Button variant="accent">Buy & Print Label</Button>` | Opens Rate Shopping Modal (ADR-074). Only shown when EasyPost configured.     |
+| Void label      | `<Button variant="ghost">Void label</Button>`          | ConfirmDialog → `POST /api/orders/[id]/shipping-refund`. Only when label exists and not shipped. |
+| Print label (EasyPost) | `<Button variant="secondary">Print Label</Button>` | Opens purchased label PDF for printing. Only when label exists.               |
+| Print address label | `<Button variant="ghost">Print address label</Button>` | Legacy HTML label (no postage). Always available.                            |
 
 ---
 
@@ -193,6 +213,8 @@ Line items are managed via nested endpoints under the order:
 
 Add `tracking_number TEXT` column to `orders` table. Migration: `ALTER TABLE orders ADD COLUMN tracking_number TEXT`.
 
+Add EasyPost columns (ADR-074): `easypost_shipment_id TEXT`, `label_url TEXT`, `label_format TEXT`, `shipping_rate_cents INTEGER`, `shipping_carrier_service TEXT`.
+
 ## Consequences
 
 - **Positive**
@@ -200,7 +222,10 @@ Add `tracking_number TEXT` column to `orders` table. Migration: `ALTER TABLE ord
   - Shipping workflow captures carrier and tracking data properly.
   - Per-order invoice and thank-you note generation accessible from order context.
   - Customer linking enables relationship tracking.
+  - EasyPost integration (ADR-074) provides one-click rate shopping and label purchase.
+  - Tracking numbers auto-populate on orders and carry through to thank-you notes and invoices (ADR-013).
 - **Negative**
-  - Requires database migration for `tracking_number`.
+  - Requires database migration for `tracking_number` and EasyPost columns.
   - Master-detail layout adds complexity to the Sales page.
   - Mark-shipped modal is a change from the current single-click pattern.
+  - Rate shopping modal adds a multi-step flow for label purchase.

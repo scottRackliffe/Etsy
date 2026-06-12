@@ -5,6 +5,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 import { getSetting, setSetting } from "@/lib/settings-store";
 import { logActivity } from "@/lib/activity-log";
+import { setEasyPostApiKey } from "@/lib/easypost";
 
 function normalizeKey(raw: string): string {
   return raw.trim();
@@ -15,6 +16,7 @@ const SENSITIVE_KEY_PATTERNS = [
   /^etsy_refresh_token/,
   /^etsy\.oauth\./,
   /^app\.session\./,
+  /^easypost\.api_key_encrypted$/,
   /secret/i,
   /password/i,
 ];
@@ -110,7 +112,7 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
       });
     }
 
-    if (isSensitiveKey(key)) {
+    if (key !== "easypost.api_key" && isSensitiveKey(key)) {
       throw new ApiRouteError({
         status: 403,
         code: "FORBIDDEN",
@@ -150,6 +152,16 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
         fields: { value: ["Must be a string"] },
         canRetry: false,
       });
+    }
+
+    if (key === "easypost.api_key") {
+      setEasyPostApiKey(body.value);
+      logActivity({
+        action: "settings.updated",
+        entityType: "setting",
+        detail: { key: "easypost.api_key_encrypted" },
+      });
+      return NextResponse.json({ ok: true, key, value: "(encrypted)" });
     }
 
     setSetting(key, body.value);

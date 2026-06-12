@@ -11,7 +11,10 @@ export async function GET() {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("etsy_session_id");
-    const hasSession = !!sessionCookie?.value;
+    const hasCookie = !!sessionCookie?.value;
+    // Single-user local app: also check if tokens exist in SQLite
+    const hasStoredSession = !!getSetting("app.session.current_id") && !!getSetting("etsy_access_token_encrypted");
+    const hasSession = hasCookie || hasStoredSession;
 
     return NextResponse.json({
       ok: true,

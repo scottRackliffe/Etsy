@@ -23,6 +23,7 @@
     "env:check": "node scripts/env-check.mjs"
   },
   "dependencies": {
+    "@easypost/api": "^8.8.0",
     "better-sqlite3": "^12.6.2",
     "next": "16.1.6",
     "openai": "^6.22.0",

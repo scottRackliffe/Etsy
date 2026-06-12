@@ -1003,6 +1003,179 @@ Form fields:
 
 - **409** duplicate `item_number` | **400** validation
 
+**B30) Shipping API — EasyPost (§30, ADR-074)**
+
+All endpoints require App auth. EasyPost API key must be configured.
+
+**B30a) `POST /api/orders/[id]/shipping-rates`**
+
+Request:
+
+```json
+{
+  "weight_oz": 12,
+  "length_in": 8,
+  "width_in": 5,
+  "height_in": 5
+}
+```
+
+All fields optional — falls back to order-level values, then `easypost.default_*` settings.
+
+200:
+
+```json
+{
+  "ok": true,
+  "shipment_id": "shp_abc123",
+  "rates": [
+    {
+      "id": "rate_xyz789",
+      "carrier": "USPS",
+      "service": "Ground Advantage",
+      "rate": "4.15",
+      "currency": "USD",
+      "delivery_days": 4,
+      "delivery_date": "2026-06-15"
+    }
+  ],
+  "address_verified": true,
+  "address_corrections": null
+}
+```
+
+- **400** `SHIPPING_NOT_CONFIGURED` | **400** `VALIDATION_ERROR` (missing ship-to) | **422** `ADDRESS_INVALID`
+
+**B30b) `POST /api/orders/[id]/shipping-buy`**
+
+Request:
+
+```json
+{
+  "shipment_id": "shp_abc123",
+  "rate_id": "rate_xyz789"
+}
+```
+
+200:
+
+```json
+{
+  "ok": true,
+  "tracking_number": "9400111899563824449661",
+  "tracking_url": "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400111899563824449661",
+  "label_url": "/api/orders/42/shipping-label",
+  "carrier": "USPS",
+  "service": "Ground Advantage",
+  "rate_cents": 415
+}
+```
+
+- Updates `orders`: `tracking_number`, `easypost_shipment_id`, `label_url`, `label_format`, `shipping_rate_cents`, `shipping_carrier_service`, `shipping_date` (if not set).
+- Logs `shipping.label_purchased` activity.
+- **402** `INSUFFICIENT_FUNDS` | **409** `LABEL_ALREADY_PURCHASED`
+
+**B30c) `POST /api/orders/[id]/shipping-refund`**
+
+No request body. Uses stored `easypost_shipment_id`.
+
+200:
+
+```json
+{
+  "ok": true,
+  "refund_status": "submitted"
+}
+```
+
+- Clears `label_url`, `label_format`, `easypost_shipment_id`, `shipping_rate_cents`, `shipping_carrier_service` on order. Keeps `tracking_number` for audit.
+- Logs `shipping.label_voided` activity.
+- **404** if no shipment on order | **409** if label already scanned by carrier
+
+**B30d) `GET /api/orders/[id]/shipping-label`**
+
+Query: `format?` — `"pdf"` | `"html"`.
+
+- If `label_url` exists: serves stored PDF/PNG (`Content-Type: application/pdf`).
+- If no `label_url` or `format=html`: falls back to legacy HTML label (`Content-Type: text/html`).
+- **400** if ship-to incomplete (legacy mode) | **404** if order not found
+
+**B30e) `POST /api/shipping/validate-address`**
+
+Request:
+
+```json
+{
+  "name": "Jane Smith",
+  "street1": "123 Main St",
+  "street2": "",
+  "city": "Austin",
+  "state": "TX",
+  "zip": "78701",
+  "country": "US"
+}
+```
+
+200:
+
+```json
+{
+  "ok": true,
+  "valid": true,
+  "original": {
+    "street1": "123 Main St",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701"
+  },
+  "verified": {
+    "street1": "123 Main Street",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701-1234"
+  },
+  "corrections": ["Street suffix expanded", "ZIP+4 added"]
+}
+```
+
+- **422** if address is not deliverable
+
+**B30f) `POST /api/shipping/batch-buy`**
+
+Request:
+
+```json
+{
+  "order_ids": [1, 2, 3],
+  "rate_preference": "cheapest",
+  "weight_oz": 12,
+  "length_in": 8,
+  "width_in": 5,
+  "height_in": 5
+}
+```
+
+- `rate_preference`: `"cheapest"` (default) or `"fastest"`
+- Parcel dimensions optional — per-order overrides or settings defaults.
+
+200:
+
+```json
+{
+  "ok": true,
+  "total": 3,
+  "succeeded": 2,
+  "failed": 1,
+  "results": [
+    { "order_id": 1, "success": true, "tracking_number": "940...", "rate_cents": 415 },
+    { "order_id": 2, "success": true, "tracking_number": "940...", "rate_cents": 870 },
+    { "order_id": 3, "success": false, "error": "Ship-to address incomplete" }
+  ]
+}
+```
+
+- Each successful order updated like B30b. Logs `shipping.batch_completed` activity.
+
 ---
 
 ## Consequences
@@ -1016,8 +1189,8 @@ Form fields:
 - File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation mode strategy (manual vs integrated AI vs portable handoff vs Listing Coach) is governed by **ADR-023** and **ADR-072**. Listing endpoints are in section 4; extensions §24–§29 cover ADR-038–072.
-- **Full extension index:** §12–§29 (ADR-027–072). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
-- **Print shipping label:** Sales UI command (no separate API required). **No automated connection to any shipping service.** App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md`. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first. See `ui-design.md` and `design-decisions-implementation.md` §1.
+- **Full extension index:** §12–§30 (ADR-027–074). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
+- **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
 
 ### Extensions (updated 2026-05-24)
 
@@ -1162,3 +1335,18 @@ Guided new-listing flow: analyze pasted photos (+ optional Google Visual Search 
 | POST   | `/api/listing-coach/complete` | App  | Create inventory, store pictures, persist listing draft            |
 
 All three accept `multipart/form-data` with `item_photos[]` (1–20), optional `condition_photos[]` (0–5), optional `google_photos[]` (0–3), optional `video` (MP4/MOV). Image validation per ADR-026. Compose and complete also accept `when_made`, `taxonomy_id`, `materials`, `dimensions` fields (ADR-072 step 4b). Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).
+
+**§30. Shipping API — EasyPost integration (ADR-074)**
+
+Rate shopping, label purchase, refund, address validation, and batch operations via EasyPost. All endpoints require App auth. EasyPost API key must be configured (settings or env var). If not configured, return 400 with code `SHIPPING_NOT_CONFIGURED`.
+
+| Method | Path                                     | Auth | Purpose                                | Request                                                       | Response / behavior                                                                   |
+| ------ | ---------------------------------------- | ---- | -------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| POST   | `/api/orders/[id]/shipping-rates`        | App  | Create EasyPost shipment, return rates | Body: `{ weight_oz?, length_in?, width_in?, height_in? }`     | 200: `{ ok, shipment_id, rates: [{ id, carrier, service, rate, currency, delivery_days, delivery_date }], address_verified, address_corrections }` |
+| POST   | `/api/orders/[id]/shipping-buy`          | App  | Buy selected rate, download label      | Body: `{ shipment_id, rate_id }`                              | 200: `{ ok, tracking_number, tracking_url, label_url, carrier, service, rate_cents }` |
+| POST   | `/api/orders/[id]/shipping-refund`       | App  | Void/refund unused label               | No body (uses stored easypost_shipment_id)                    | 200: `{ ok, refund_status }`. Clears label fields on order. |
+| GET    | `/api/orders/[id]/shipping-label`        | App  | Serve purchased label or legacy HTML   | Query: `format?` ("pdf"\|"html")                              | 200: PDF binary or HTML. Falls back to legacy HTML if no purchased label. |
+| POST   | `/api/shipping/validate-address`         | App  | Validate/normalize a ship-to address   | Body: `{ name, street1, street2?, city, state, zip, country }` | 200: `{ ok, valid, original, verified, corrections }` |
+| POST   | `/api/shipping/batch-buy`                | App  | Batch label purchase for multiple orders | Body: `{ order_ids, rate_preference, weight_oz?, length_in?, width_in?, height_in? }` | 200: `{ ok, total, succeeded, failed, results: [{ order_id, success, tracking_number?, rate_cents?, error? }] }` |
+
+Error codes: `SHIPPING_NOT_CONFIGURED` (400), `ADDRESS_INVALID` (422), `INSUFFICIENT_FUNDS` (402), `LABEL_ALREADY_PURCHASED` (409), `RATE_LIMIT` (429). Full error catalog: ADR-074 §9. Full request/response shapes: **Appendix B §B30**.

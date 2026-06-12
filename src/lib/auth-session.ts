@@ -274,7 +274,11 @@ export async function getValidAccessToken(cookieStore: CookieReader): Promise<st
   const currentSessionId = getSetting(SETTINGS_KEYS.sessionId);
   const token = readAccessToken();
 
-  if (!sessionCookie || !currentSessionId || sessionCookie !== currentSessionId || !token) {
+  // Single-user local app: if tokens exist in SQLite, accept even without cookie
+  const cookieValid = sessionCookie && currentSessionId && sessionCookie === currentSessionId;
+  const hasStoredSession = currentSessionId && token;
+
+  if (!(cookieValid || hasStoredSession) || !token) {
     throw new ApiRouteError({
       status: 401,
       code: "UNAUTHORIZED",
@@ -334,7 +338,11 @@ export function requireEtsyAccessToken(cookieStore: CookieReader): string {
   const token = readAccessToken();
   const expiresAt = readExpiresAt();
 
-  if (!sessionCookie || !currentSessionId || sessionCookie !== currentSessionId || !token) {
+  // Single-user local app: if tokens exist in SQLite, accept even without cookie
+  const cookieValid = sessionCookie && currentSessionId && sessionCookie === currentSessionId;
+  const hasStoredSession = currentSessionId && token;
+
+  if (!(cookieValid || hasStoredSession) || !token) {
     if (allowLocalWithoutEtsy()) {
       return "";
     }

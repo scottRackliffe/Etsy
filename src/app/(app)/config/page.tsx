@@ -57,6 +57,19 @@ type ShippingSettings = {
   fedex_account: string;
 };
 
+type EasyPostSettings = {
+  api_key: string;
+  address_validation: string;
+  label_format: string;
+  label_size: string;
+  default_weight_oz: string;
+  default_length_in: string;
+  default_width_in: string;
+  default_height_in: string;
+  preferred_carrier: string;
+  preferred_service: string;
+};
+
 type TaxSettings = {
   default_rate: string;
 };
@@ -145,6 +158,20 @@ export default function ConfigPage() {
     fedex_account: "",
   });
   const [taxSettings, setTaxSettings] = useState<TaxSettings>({ default_rate: "" });
+  const [easypostSettings, setEasypostSettings] = useState<EasyPostSettings>({
+    api_key: "",
+    address_validation: "off",
+    label_format: "pdf",
+    label_size: "4x6",
+    default_weight_oz: "",
+    default_length_in: "",
+    default_width_in: "",
+    default_height_in: "",
+    preferred_carrier: "",
+    preferred_service: "",
+  });
+  const [easypostConnected, setEasypostConnected] = useState<boolean | null>(null);
+  const [easypostTesting, setEasypostTesting] = useState(false);
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     date_format: "MM/DD/YYYY",
     currency_code: "USD",
@@ -345,6 +372,19 @@ export default function ConfigPage() {
         fedex_account: map.get("shipping.fedex_account") ?? "",
       });
       setTaxSettings({ default_rate: map.get("tax.default_rate") ?? "" });
+      setEasypostSettings({
+        api_key: "",
+        address_validation: map.get("easypost.address_validation") ?? "off",
+        label_format: map.get("easypost.label_format") ?? "pdf",
+        label_size: map.get("easypost.label_size") ?? "4x6",
+        default_weight_oz: map.get("easypost.default_weight_oz") ?? "",
+        default_length_in: map.get("easypost.default_length_in") ?? "",
+        default_width_in: map.get("easypost.default_width_in") ?? "",
+        default_height_in: map.get("easypost.default_height_in") ?? "",
+        preferred_carrier: map.get("easypost.preferred_carrier") ?? "",
+        preferred_service: map.get("easypost.preferred_service") ?? "",
+      });
+      setEasypostConnected(map.has("easypost.api_key_encrypted") && !!map.get("easypost.api_key_encrypted"));
       setDisplaySettings({
         date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
         currency_code: map.get("ui.currency_code") ?? "USD",
@@ -535,6 +575,57 @@ export default function ConfigPage() {
       "Shipping defaults saved",
       "Default carrier and package settings were updated."
     );
+
+  const saveEasypostSettings = async () => {
+    setExtraSettingsLoading(true);
+    try {
+      const updates: Array<{ key: string; value: string }> = [
+        { key: "easypost.address_validation", value: easypostSettings.address_validation },
+        { key: "easypost.label_format", value: easypostSettings.label_format },
+        { key: "easypost.label_size", value: easypostSettings.label_size },
+        { key: "easypost.default_weight_oz", value: easypostSettings.default_weight_oz },
+        { key: "easypost.default_length_in", value: easypostSettings.default_length_in },
+        { key: "easypost.default_width_in", value: easypostSettings.default_width_in },
+        { key: "easypost.default_height_in", value: easypostSettings.default_height_in },
+        { key: "easypost.preferred_carrier", value: easypostSettings.preferred_carrier },
+        { key: "easypost.preferred_service", value: easypostSettings.preferred_service },
+      ];
+      if (easypostSettings.api_key.trim()) {
+        updates.push({ key: "easypost.api_key", value: easypostSettings.api_key.trim() });
+      }
+      await saveSettingsKeys(
+        updates,
+        "Shipping API settings saved",
+        "EasyPost configuration updated."
+      );
+      if (easypostSettings.api_key.trim()) {
+        setEasypostSettings((c) => ({ ...c, api_key: "" }));
+        setEasypostConnected(true);
+      }
+    } catch {
+      setExtraSettingsLoading(false);
+    }
+  };
+
+  const testEasypostConnection = async () => {
+    setEasypostTesting(true);
+    try {
+      const res = await fetch("/api/shipping/test-connection", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (data.ok) {
+        setEasypostConnected(true);
+        setError({ title: "Connected", message: "EasyPost connection successful.", actions: [] });
+      } else {
+        setEasypostConnected(false);
+        setApiError("Connection failed", data.error ?? "Could not connect to EasyPost.", undefined);
+      }
+    } catch (err) {
+      setEasypostConnected(false);
+      setApiError("Connection failed", "Could not reach EasyPost.", err);
+    } finally {
+      setEasypostTesting(false);
+    }
+  };
 
   const saveTaxSettings = () =>
     void saveSettingsKeys(
@@ -1201,6 +1292,131 @@ export default function ConfigPage() {
               className="mt-3"
             >
               Save shipping defaults
+            </Button>
+          </div>
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping API (EasyPost)</h4>
+            <FormField label="API Key" helpText="Enter your EasyPost API key. It will be encrypted and stored securely.">
+              <input
+                value={easypostSettings.api_key}
+                onChange={(e) => setEasypostSettings((c) => ({ ...c, api_key: e.target.value }))}
+                placeholder={easypostConnected ? "••••••••••••(configured)" : "EZAK..."}
+                type="password"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <div className="mb-2 flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void testEasypostConnection()}
+                disabled={easypostTesting}
+                busy={easypostTesting}
+              >
+                Test connection
+              </Button>
+              {easypostConnected === true && (
+                <span className="text-xs text-[var(--ui-green)]">Connected</span>
+              )}
+              {easypostConnected === false && (
+                <span className="text-xs text-[var(--ui-red)]">Not connected</span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FormField label="Default weight (oz)">
+                <input
+                  value={easypostSettings.default_weight_oz}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, default_weight_oz: e.target.value }))}
+                  placeholder="12"
+                  type="number"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Default length (in)">
+                <input
+                  value={easypostSettings.default_length_in}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, default_length_in: e.target.value }))}
+                  placeholder="8"
+                  type="number"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Default width (in)">
+                <input
+                  value={easypostSettings.default_width_in}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, default_width_in: e.target.value }))}
+                  placeholder="5"
+                  type="number"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Default height (in)">
+                <input
+                  value={easypostSettings.default_height_in}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, default_height_in: e.target.value }))}
+                  placeholder="5"
+                  type="number"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <FormField label="Label format">
+                <select
+                  value={easypostSettings.label_format}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, label_format: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                >
+                  <option value="pdf">PDF</option>
+                  <option value="png">PNG</option>
+                </select>
+              </FormField>
+              <FormField label="Label size">
+                <select
+                  value={easypostSettings.label_size}
+                  onChange={(e) => setEasypostSettings((c) => ({ ...c, label_size: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                >
+                  <option value="4x6">4x6 (thermal)</option>
+                  <option value="letter">Letter (8.5x11)</option>
+                </select>
+              </FormField>
+            </div>
+            <label className="mt-2 flex items-center gap-2 text-sm text-[var(--ui-body)]">
+              <input
+                type="checkbox"
+                checked={easypostSettings.address_validation === "on"}
+                onChange={(e) =>
+                  setEasypostSettings((c) => ({
+                    ...c,
+                    address_validation: e.target.checked ? "on" : "off",
+                  }))
+                }
+                className="h-4 w-4 rounded border-[var(--ui-border)]"
+              />
+              Validate addresses before rate shopping
+            </label>
+            <FormField label="Preferred carrier" helpText="Used for batch operations. Leave as Any for best price.">
+              <select
+                value={easypostSettings.preferred_carrier}
+                onChange={(e) => setEasypostSettings((c) => ({ ...c, preferred_carrier: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="">Any</option>
+                <option value="USPS">USPS</option>
+                <option value="UPS">UPS</option>
+                <option value="FedEx">FedEx</option>
+                <option value="DHL">DHL</option>
+              </select>
+            </FormField>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => void saveEasypostSettings()}
+              disabled={extraSettingsLoading}
+              className="mt-3"
+            >
+              Save shipping API settings
             </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">

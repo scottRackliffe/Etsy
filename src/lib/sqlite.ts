@@ -140,6 +140,11 @@ const ORDERS_RECONCILIATION_COLUMNS: Record<string, string> = {
   ship_to_country: "TEXT",
   ship_to_postal_code: "TEXT",
   tracking_number: "TEXT",
+  easypost_shipment_id: "TEXT",
+  label_url: "TEXT",
+  label_format: "TEXT",
+  shipping_rate_cents: "INTEGER",
+  shipping_carrier_service: "TEXT",
 };
 
 const CUSTOMERS_RECONCILIATION_COLUMNS: Record<string, string> = {

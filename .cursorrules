@@ -87,6 +87,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Listing template and AI inputs | `documents/etsy-listing-template-and-requirements.md` |
 | Etsy compliance | `documents/adr/0011-compliance-with-etsy-rules.md` + `documents/etsy-compliance.md` |
 | Etsy API acceptance and usage requirements | `documents/adr/0073-etsy-api-acceptance-and-usage-requirements.md` |
+| Shipping API integration (EasyPost) | `documents/adr/0074-shipping-api-integration-easypost.md` |
 | OAuth and token refresh | `documents/adr/0007-base-system-etsy-oauth-dashboard-receipts.md` |
 | Shipping label behavior | `documents/shipping-label-carrier-templates.md` |
 | Design decisions (23 cross-cutting decisions) | `documents/design-decisions-implementation.md` |
@@ -175,6 +176,8 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-068** (Listing quality) | ADR-023 workshop, 030 inventory, 018 §24 |
 | **ADR-069** (Sample data) | ADR-044 wizard, 034 Config, `fixtures/sample-data.sql`, 018 §27 |
 | **ADR-072** (Listing Coach) | ADR-023 (4th mode), 018 §29, 024 `/listing-coach`, 030/033 pictures, 068 score, 037 activity, ui-design §5.3, Listing_Coach_Guide.md |
+| **ADR-073** (Etsy API) | ADR-025 tokens, 018 auth, 007 OAuth, 011 compliance |
+| **ADR-074** (Shipping API) | ADR-013 thank-you/invoice, 017 orders columns, 018 endpoints, 025 encryption, 027 backup, 031 order detail, 032 confirm, 034 config, 037 activity, 038 profit, 040 batch, 043 progress, shipping-label-carrier-templates.md |
 | **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
 | **ADR-071** (Design system) | ADR-028, 045, 059, 060, System_Colors.md, ui-design §1b–1d |
 
@@ -228,12 +231,19 @@ ship_to_first_name, ship_to_last_name,
 ship_to_address_line_1, ship_to_address_line_2,
 ship_to_city, ship_to_state_province, ship_to_country, ship_to_postal_code,
 subtotal, shipping_total, tax_total, discount_total, grand_total,
-source_channel, notes, created_at, updated_at
+source_channel, notes,
+easypost_shipment_id, label_url, label_format,
+shipping_rate_cents, shipping_carrier_service,
+created_at, updated_at
 ```
 - `order_status`: active | void | cancelled
 - `payment_status`: unpaid | paid | refunded
 - `source_channel`: etsy | manual
 - `tracking_number`: carrier tracking number (ADR-031)
+- `easypost_shipment_id`: EasyPost shipment ID for label/refund (ADR-074)
+- `label_url`: local path to purchased label PDF (ADR-074)
+- `shipping_rate_cents`: postage cost in cents (ADR-074)
+- `shipping_carrier_service`: carrier + service name (ADR-074)
 
 ### `order_items` table — line items per order
 ```
@@ -291,6 +301,11 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `tax.default_rate` (ADR-039), `setup.completed` (ADR-044),
 `sync.auto_interval` (ADR-057), `last_integrity_check`, `integrity_warning` (ADR-058),
 `repeat_customer_threshold` (ADR-066, optional),
+`easypost.api_key_encrypted` (ADR-074), `easypost.address_validation` (ADR-074),
+`easypost.label_format` (ADR-074), `easypost.label_size` (ADR-074),
+`easypost.default_weight_oz` (ADR-074), `easypost.default_length_in` (ADR-074),
+`easypost.default_width_in` (ADR-074), `easypost.default_height_in` (ADR-074),
+`easypost.preferred_carrier` (ADR-074), `easypost.preferred_service` (ADR-074),
 `etsy.publish.default_who_made` (ADR-017 §1b, default `someone_else`),
 `etsy.publish.default_when_made` (ADR-017 §1a),
 `etsy.publish.default_taxonomy_id` (ADR-017 §1c),

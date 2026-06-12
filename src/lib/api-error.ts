@@ -22,7 +22,11 @@ export type ApiErrorCode =
   | "DATABASE_BUSY"
   | "REFERENTIAL_INTEGRITY"
   | "PUBLISH_NOT_READY"
-  | "FORBIDDEN";
+  | "FORBIDDEN"
+  | "SHIPPING_NOT_CONFIGURED"
+  | "ADDRESS_INVALID"
+  | "INSUFFICIENT_FUNDS"
+  | "LABEL_ALREADY_PURCHASED";
 
 export type ApiErrorPayload = {
   ok: false;

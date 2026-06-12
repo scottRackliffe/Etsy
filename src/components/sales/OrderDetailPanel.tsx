@@ -22,6 +22,7 @@ import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addToPrintQueue, printQueueTypeLabel, type PrintQueueDocType } from "@/lib/print-queue";
+import { RateShoppingModal } from "@/components/sales/RateShoppingModal";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
@@ -140,6 +141,8 @@ export function OrderDetailPanel({
   } | null>(null);
   const [recoveryApplied, setRecoveryApplied] = useState(false);
   const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
+  const [rateModalOpen, setRateModalOpen] = useState(false);
+  const [voidLabelConfirm, setVoidLabelConfirm] = useState(false);
   const router = useRouter();
 
   const isDirty = useMemo(() => {
@@ -356,6 +359,24 @@ export function OrderDetailPanel({
       win.document.close();
     } catch (err) {
       onError("Could not print label", "We could not open the shipping label.", err);
+    }
+  };
+
+  const handleVoidLabel = async () => {
+    if (!orderId || !order) return;
+    try {
+      const res = await fetch(`/api/orders/${orderId}/shipping-refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as ApiErrorShape;
+        throw new Error(data.error?.user_message ?? "Could not void the label.");
+      }
+      onSuccess?.("Label voided", "The shipping label refund has been submitted.");
+      void loadOrder(orderId);
+    } catch (err) {
+      onError("Void label failed", err instanceof Error ? err.message : "Could not void the label.", err);
     }
   };
 
@@ -770,8 +791,55 @@ export function OrderDetailPanel({
               "The carrier tracking number for this shipment. Customers can use this to track their package."
             )}
           </div>
+          {order.shipping_carrier_service ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--ui-muted)]">Service:</span>
+              <span className="text-sm text-[var(--ui-body)]">{order.shipping_carrier_service}</span>
+            </div>
+          ) : null}
+          {order.shipping_rate_cents != null && order.shipping_rate_cents > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--ui-muted)]">Postage:</span>
+              <span className="text-sm text-[var(--ui-body)]">{fmtMoney(order.shipping_rate_cents / 100)}</span>
+            </div>
+          ) : null}
+          {order.tracking_number ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(order.tracking_number ?? "");
+                  onSuccess?.("Copied", "Tracking number copied to clipboard.");
+                }}
+              >
+                Copy tracking #
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
+
+      {order.label_url ? (
+        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 mt-3 mb-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-[var(--ui-muted)] mb-2">
+            Purchased Label
+          </h4>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => window.open(`/api/orders/${order.id}/shipping-label?format=pdf`, "_blank")}
+            >
+              Print Label
+            </Button>
+            <span className="text-sm text-[var(--ui-body)]">
+              {order.shipping_carrier_service ?? "Label"}
+              {order.shipping_rate_cents ? ` — ${fmtMoney(order.shipping_rate_cents / 100)}` : ""}
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       <section className="mb-4">
         <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Notes</h5>
@@ -828,12 +896,30 @@ export function OrderDetailPanel({
           </Button>
         ) : null}
         <Button
-          variant="secondary"
+          variant="accent"
+          size="sm"
+          onClick={() => setRateModalOpen(true)}
+          disabled={busy || saving || isVoid || !!order.label_url}
+        >
+          Buy &amp; Print Label
+        </Button>
+        {order.label_url && !isShipped ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setVoidLabelConfirm(true)}
+            disabled={busy || saving}
+          >
+            Void label
+          </Button>
+        ) : null}
+        <Button
+          variant="ghost"
           size="sm"
           onClick={() => void printShippingLabel()}
           disabled={busy || saving || isVoid}
         >
-          Print shipping label
+          Print address label
         </Button>
         <Button
           variant="ghost"
@@ -996,6 +1082,32 @@ export function OrderDetailPanel({
         confirmLabel="Remove"
         confirmVariant="danger"
         busy={lineItemBusy}
+      />
+
+      <ConfirmDialog
+        open={voidLabelConfirm}
+        onClose={() => setVoidLabelConfirm(false)}
+        onConfirm={() => {
+          setVoidLabelConfirm(false);
+          void handleVoidLabel();
+        }}
+        title="Void shipping label?"
+        description="The postage will be refunded to your EasyPost wallet. This cannot be undone if the carrier has already scanned the label."
+        confirmLabel="Void label"
+        confirmVariant="danger"
+      />
+
+      <RateShoppingModal
+        open={rateModalOpen}
+        orderId={orderId}
+        order={order}
+        onClose={() => setRateModalOpen(false)}
+        onLabelPurchased={() => {
+          setRateModalOpen(false);
+          if (orderId) void loadOrder(orderId);
+          onSuccess?.("Label purchased", "Your shipping label is ready to print.");
+        }}
+        onError={onError}
       />
     </div>
   );

@@ -230,6 +230,11 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 | discount_total                | REAL    | —                                           | Total discount applied to this order.                                                                                                       |
 | grand_total                   | REAL    | —                                           | Final total (subtotal + shipping + tax − discount).                                                                                         |
 | source_channel                | TEXT    | —                                           | Origin of the order: "etsy" or "manual".                                                                                                    |
+| easypost_shipment_id          | TEXT    | —                                           | EasyPost shipment ID for label/refund/tracking lookups (ADR-074).                                                                           |
+| label_url                     | TEXT    | —                                           | Local file path to purchased label PDF/PNG (ADR-074).                                                                                       |
+| label_format                  | TEXT    | —                                           | Label file format: "pdf", "png", or "html" (legacy). (ADR-074).                                                                            |
+| shipping_rate_cents           | INTEGER | —                                           | Postage cost in cents (e.g., 415 = $4.15). Used in profit/cost reports (ADR-074).                                                           |
+| shipping_carrier_service      | TEXT    | —                                           | Carrier + service name (e.g., "USPS Ground Advantage"). (ADR-074).                                                                         |
 | notes                         | TEXT    | —                                           | Optional.                                                                                                                                   |
 | created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
 | updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
@@ -371,6 +376,16 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                              | ISO 8601                                                                            |
 | integrity_warning            | Set when last integrity check failed (ADR-058)                                                               | "true" or absent                                                                    |
 | repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                                 | "2"                                                                                 |
+| easypost.api_key_encrypted       | EasyPost API key, encrypted at rest (AES-256-GCM, ADR-074)                                                  | Encrypted string                                                                    |
+| easypost.address_validation      | Validate ship-to addresses before rate shopping (ADR-074)                                                    | "on" or "off" (default "off")                                                       |
+| easypost.label_format            | Shipping label file format (ADR-074)                                                                         | "pdf" (default) or "png"                                                            |
+| easypost.label_size              | Shipping label paper size (ADR-074)                                                                          | "4x6" (default) or "letter"                                                         |
+| easypost.default_weight_oz       | Default parcel weight in ounces (ADR-074)                                                                    | Numeric string, e.g. "12"                                                           |
+| easypost.default_length_in       | Default parcel length in inches (ADR-074)                                                                    | Numeric string, e.g. "8"                                                            |
+| easypost.default_width_in        | Default parcel width in inches (ADR-074)                                                                     | Numeric string, e.g. "5"                                                            |
+| easypost.default_height_in       | Default parcel height in inches (ADR-074)                                                                    | Numeric string, e.g. "5"                                                            |
+| easypost.preferred_carrier       | Preferred carrier for batch operations (ADR-074)                                                             | Carrier name or empty                                                               |
+| easypost.preferred_service       | Preferred service level for batch operations (ADR-074)                                                       | Service name or empty                                                               |
 | etsy.active_shop_id              | Selected Etsy shop id (ADR-007)                                                                              | Shop id string                                                                      |
 | etsy.publish.default_who_made    | Global default `who_made` for Etsy listings; vintage shops should set `someone_else`                         | `someone_else`                                                                      |
 | etsy.publish.default_when_made   | Global default `when_made` for Etsy listings (fallback when per-item is null)                                | `before_2004`                                                                       |
@@ -575,6 +590,11 @@ CREATE TABLE orders (
   discount_total REAL,
   grand_total REAL,
   source_channel TEXT,
+  easypost_shipment_id TEXT,
+  label_url TEXT,
+  label_format TEXT,
+  shipping_rate_cents INTEGER,
+  shipping_carrier_service TEXT,
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
