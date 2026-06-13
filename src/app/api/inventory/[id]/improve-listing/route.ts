@@ -10,6 +10,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { logActivity } from "@/lib/activity-log";
+import { logApiCall } from "@/lib/api-usage";
 import { getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { getAiConfig } from "@/lib/ai-config";
@@ -194,21 +195,29 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
     const prompt = promptParts.join("\n");
 
-    const response = await openai.responses.create({
-      model: config.model,
-      max_output_tokens: config.tokenBudget,
-      temperature: 0.3,
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: "You are an Etsy listing improvement assistant. Return strict JSON only." }],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: prompt }],
-        },
-      ],
-    });
+    let response;
+    try {
+      response = await openai.responses.create({
+        model: config.model,
+        max_output_tokens: config.tokenBudget,
+        temperature: 0.3,
+        input: [
+          {
+            role: "system",
+            content: [{ type: "input_text", text: "You are an Etsy listing improvement assistant. Return strict JSON only." }],
+          },
+          {
+            role: "user",
+            content: [{ type: "input_text", text: prompt }],
+          },
+        ],
+      });
+      logApiCall("openai", "responses.create/improve-listing", 200);
+    } catch (aiErr) {
+      const status = aiErr instanceof OpenAI.APIError ? (aiErr.status ?? 500) : 500;
+      logApiCall("openai", "responses.create/improve-listing", status);
+      throw aiErr;
+    }
 
     const outputText = response.output_text?.trim();
     if (!outputText) {

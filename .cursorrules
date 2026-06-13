@@ -68,6 +68,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
 | Listing Coach (guided new listing) | `documents/adr/0072-listing-coach-guided-new-listing-flow.md` |
 | User guide: Listing Coach | `system/tips/Listing_Coach_Guide.md` |
+| API usage tracking (per-service monthly counts) | `documents/adr/0075-api-usage-tracking.md` |
 | Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
 | Visual design system and UI consistency | `documents/adr/0071-visual-design-system-and-ui-consistency.md` |
 | UI color tokens (hex) | `documents/System_Colors.md` (usage rules: ADR-071) |
@@ -178,6 +179,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-072** (Listing Coach) | ADR-023 (4th mode), 018 §29, 024 `/listing-coach`, 030/033 pictures, 068 score, 037 activity, ui-design §5.3, Listing_Coach_Guide.md |
 | **ADR-073** (Etsy API) | ADR-025 tokens, 018 auth, 007 OAuth, 011 compliance |
 | **ADR-074** (Shipping API) | ADR-013 thank-you/invoice, 017 orders columns, 018 endpoints, 025 encryption, 027 backup, 031 order detail, 032 confirm, 034 config, 037 activity, 038 profit, 040 batch, 043 progress, shipping-label-carrier-templates.md |
+| **ADR-075** (API usage) | ADR-017 `api_call_log` table, 018 `GET /api/usage`, 034 Config UI section, 037 retention pattern, 074 EasyPost future instrumentation |
 | **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
 | **ADR-071** (Design system) | ADR-028, 045, 059, 060, System_Colors.md, ui-design §1b–1d |
 
@@ -352,6 +354,13 @@ id, action, entity_type, entity_id, entity_label, detail_json, source, created_a
 ```
 id, report_name, report_params_json, artifact_path, artifact_json, generated_at
 ```
+
+### `api_call_log` table — external API call counter (ADR-075)
+```
+id, service, endpoint, status_code, created_at
+```
+- `service`: `etsy` | `openai` (future: `easypost`)
+- Fire-and-forget logging; one row per outbound API call
 
 ---
 

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import type { InventoryRecord } from "@/lib/inventory";
 import type { ListingGuidance } from "@/lib/listing-guidance";
 import { getAiConfig } from "@/lib/ai-config";
+import { logApiCall } from "@/lib/api-usage";
 
 export type GeneratedListing = {
   listing_title: string;
@@ -150,26 +151,34 @@ export async function generateListingFromAi(params: {
     })),
   ];
 
-  const response = await openai.responses.create({
-    model,
-    max_output_tokens: config.tokenBudget,
-    temperature: 0.2,
-    input: [
-      {
-        role: "system",
-        content: [
-          {
-            type: "input_text",
-            text: "You are an Etsy listing assistant. Produce accurate, non-misleading listing content based on provided item context and images.",
-          },
-        ],
-      },
-      {
-        role: "user",
-        content,
-      },
-    ],
-  });
+  let response;
+  try {
+    response = await openai.responses.create({
+      model,
+      max_output_tokens: config.tokenBudget,
+      temperature: 0.2,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: "You are an Etsy listing assistant. Produce accurate, non-misleading listing content based on provided item context and images.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content,
+        },
+      ],
+    });
+    logApiCall("openai", "responses.create/generate-listing", 200);
+  } catch (err) {
+    const status = err instanceof OpenAI.APIError ? (err.status ?? 500) : 500;
+    logApiCall("openai", "responses.create/generate-listing", status);
+    throw err;
+  }
 
   const outputText = response.output_text?.trim();
   if (!outputText) {

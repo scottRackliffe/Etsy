@@ -20,6 +20,7 @@ export async function GET() {
       ok: true,
       connected: hasSession,
       redirect_uri: process.env.ETSY_REDIRECT_URI ?? null,
+      connected_at: hasSession ? (getSetting("etsy_connected_at") ?? null) : null,
       token_expires_at: hasSession ? (getSetting("etsy_token_expires_at") ?? null) : null,
       last_etsy_sync_at: getSetting("last_etsy_sync_at") ?? null,
     });

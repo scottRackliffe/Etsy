@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { logApiCall } from "@/lib/api-usage";
 import { getSetting, setSetting } from "@/lib/settings-store";
 
 export type AiProvider = "openai";
@@ -129,15 +130,22 @@ export async function testAiConnection(config: AiConfig): Promise<{ ok: true; mo
     timeout: config.timeoutMs,
     maxRetries: config.retryCount,
   });
-  await client.responses.create({
-    model: config.model,
-    max_output_tokens: 20,
-    input: [
-      {
-        role: "user",
-        content: [{ type: "input_text", text: "Reply with the single word: ok" }],
-      },
-    ],
-  });
+  try {
+    await client.responses.create({
+      model: config.model,
+      max_output_tokens: 20,
+      input: [
+        {
+          role: "user",
+          content: [{ type: "input_text", text: "Reply with the single word: ok" }],
+        },
+      ],
+    });
+    logApiCall("openai", "responses.create/test-connection", 200);
+  } catch (err) {
+    const status = err instanceof OpenAI.APIError ? (err.status ?? 500) : 500;
+    logApiCall("openai", "responses.create/test-connection", status);
+    throw err;
+  }
   return { ok: true, model: config.model };
 }

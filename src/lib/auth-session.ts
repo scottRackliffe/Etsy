@@ -135,6 +135,7 @@ export function completeOauthSession(tokens: {
 }): string {
   const sessionId = crypto.randomUUID();
   setSetting(SETTINGS_KEYS.sessionId, sessionId);
+  setSetting("etsy_connected_at", new Date().toISOString());
   storeTokens(tokens);
   return sessionId;
 }

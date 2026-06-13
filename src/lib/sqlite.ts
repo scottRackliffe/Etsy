@@ -378,6 +378,16 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS api_call_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      status_code INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -421,6 +431,9 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);");
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_api_call_log_service_month ON api_call_log(service, created_at);"
   );
 }
 

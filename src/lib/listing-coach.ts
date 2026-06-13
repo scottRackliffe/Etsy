@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { ApiRouteError } from "@/lib/api-error";
 import { getAiConfig } from "@/lib/ai-config";
+import { logApiCall } from "@/lib/api-usage";
 import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidance";
 import { computeListingScore } from "@/lib/listing-score";
 import { getSetting } from "@/lib/settings-store";
@@ -227,6 +228,7 @@ async function callAiJson(params: {
         },
       ],
     });
+    logApiCall("openai", "responses.create/listing-coach", 200);
 
     const outputText = response.output_text?.trim();
     if (!outputText) {
@@ -234,15 +236,18 @@ async function callAiJson(params: {
     }
     return JSON.parse(cleanJsonResponse(outputText));
   } catch (error) {
-    if (error instanceof OpenAI.APIError && error.status === 429) {
-      throw new ApiRouteError({
-        status: 429,
-        code: "LISTING_ANALYZE_FAILED",
-        message: "AI rate limit exceeded",
-        userMessage: "The AI service is busy. Please wait a moment and try again.",
-        actions: ["Wait a minute and retry."],
-        canRetry: true,
-      });
+    if (error instanceof OpenAI.APIError) {
+      logApiCall("openai", "responses.create/listing-coach", error.status ?? 500);
+      if (error.status === 429) {
+        throw new ApiRouteError({
+          status: 429,
+          code: "LISTING_ANALYZE_FAILED",
+          message: "AI rate limit exceeded",
+          userMessage: "The AI service is busy. Please wait a moment and try again.",
+          actions: ["Wait a minute and retry."],
+          canRetry: true,
+        });
+      }
     }
     throw error;
   }

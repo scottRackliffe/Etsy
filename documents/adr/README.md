@@ -96,3 +96,4 @@ We use a standard format for all ADRs:
 | [ADR-072](0072-listing-coach-guided-new-listing-flow.md)           | Listing Coach — guided new listing (Photos paste, Google Visual Search, AI compose)     |
 | [ADR-073](0073-etsy-api-acceptance-and-usage-requirements.md)      | Etsy API acceptance and usage requirements — consolidated reference                     |
 | [ADR-074](0074-shipping-api-integration-easypost.md)               | Shipping API integration (EasyPost) — rate shopping, label purchase, tracking, address validation |
+| [ADR-075](0075-api-usage-tracking.md)                              | API usage tracking — per-service monthly call counts (Etsy, OpenAI)                     |

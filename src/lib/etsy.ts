@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { logApiCall } from "@/lib/api-usage";
 
 const ETSY_OAUTH_BASE = "https://www.etsy.com/oauth";
 const ETSY_API_BASE = "https://api.etsy.com/v3/application";
@@ -146,6 +147,7 @@ export async function exchangeCodeForToken(
       code_verifier: codeVerifier,
     }),
   });
+  logApiCall("etsy", "oauth/token/exchange", res.status);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Etsy token exchange failed: ${res.status} ${text}`);
@@ -212,6 +214,7 @@ export async function refreshAccessToken(
       }),
       signal: controller.signal,
     });
+    logApiCall("etsy", "oauth/token/refresh", res.status);
     if (!res.ok) {
       const text = await res.text();
       const retryAfterHeader = res.headers.get("retry-after");
@@ -276,6 +279,7 @@ export async function etsyApi<T>(
       });
 
       trackRateLimitHeaders(res.headers);
+      logApiCall("etsy", path, res.status);
 
       if (res.status === 429 && attempt < MAX_RETRIES) {
         const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
@@ -382,6 +386,7 @@ export async function createDraftListing(
       body: form,
     });
     trackRateLimitHeaders(res.headers);
+    logApiCall("etsy", `/shops/${params.shopId}/listings`, res.status);
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
       await sleep(exponentialBackoff(attempt, retryAfter));
@@ -526,6 +531,7 @@ export async function uploadListingImageFromReference(
       body: formData,
     });
     trackRateLimitHeaders(res.headers);
+    logApiCall("etsy", endpoint, res.status);
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
       await sleep(exponentialBackoff(attempt, retryAfter));
@@ -617,6 +623,7 @@ export async function updateListingDetails(
       body: form,
     });
     trackRateLimitHeaders(res.headers);
+    logApiCall("etsy", endpoint, res.status);
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
       await sleep(exponentialBackoff(attempt, retryAfter));
@@ -650,6 +657,7 @@ export async function updateListingState(
       body: form,
     });
     trackRateLimitHeaders(res.headers);
+    logApiCall("etsy", endpoint, res.status);
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
       await sleep(exponentialBackoff(attempt, retryAfter));

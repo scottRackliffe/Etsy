@@ -21,6 +21,7 @@ import type { ApiErrorShape, AiConfig } from "@/types";
 
 type EtsyConnectionInfo = {
   redirect_uri: string | null;
+  connected_at: string | null;
   token_expires_at: string | null;
   last_etsy_sync_at: string | null;
 };
@@ -193,6 +194,9 @@ export default function ConfigPage() {
   const [itemNumberPadding, setItemNumberPadding] = useState("4");
   const [nextItemPreview, setNextItemPreview] = useState<string | null>(null);
   const [storeCategories, setStoreCategories] = useState("");
+  const [apiUsage, setApiUsage] = useState<Array<{ service: string; month: string; call_count: number }>>([]);
+  const [apiUsageLoading, setApiUsageLoading] = useState(false);
+  const [purgeUsageConfirm, setPurgeUsageConfirm] = useState(false);
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<Map<string, string>>(new Map());
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
@@ -311,6 +315,27 @@ export default function ConfigPage() {
     void loadBackups();
   }, [loadBackups]);
 
+  const loadApiUsage = useCallback(async () => {
+    setApiUsageLoading(true);
+    try {
+      const response = await fetch("/api/usage?months=6", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        items?: Array<{ service: string; month: string; call_count: number }>;
+      };
+      setApiUsage(data.items ?? []);
+    } catch {
+      // non-critical — silently ignore
+    } finally {
+      setApiUsageLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadApiUsage();
+  }, [loadApiUsage]);
+
   const loadEtsyConnectionInfo = useCallback(async () => {
     setEtsyInfoLoading(true);
     try {
@@ -321,6 +346,7 @@ export default function ConfigPage() {
       if (!response.ok) throw data;
       setEtsyInfo({
         redirect_uri: data.redirect_uri ?? null,
+        connected_at: data.connected_at ?? null,
         token_expires_at: data.token_expires_at ?? null,
         last_etsy_sync_at: data.last_etsy_sync_at ?? null,
       });
@@ -1235,6 +1261,14 @@ export default function ConfigPage() {
                 </dd>
               </div>
               <div>
+                <dt className="text-xs text-[var(--ui-muted)]">Connected since</dt>
+                <dd className="mt-0.5 text-[var(--ui-body)]">
+                  {etsyInfoLoading
+                    ? "Loading…"
+                    : formatConnectionTimestamp(etsyInfo?.connected_at)}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-xs text-[var(--ui-muted)]">Token expires</dt>
                 <dd className="mt-0.5 text-[var(--ui-body)]">
                   {etsyInfoLoading
@@ -2054,6 +2088,98 @@ export default function ConfigPage() {
           </p>
         </div>
 
+        <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-semibold text-[var(--ui-title)]">API Usage</h4>
+              <p className="text-xs text-[var(--ui-muted)]">
+                External API calls per service per month (last 6 months).
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void loadApiUsage()}
+                disabled={apiUsageLoading}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setPurgeUsageConfirm(true)}
+                disabled={apiUsageLoading || apiUsage.length === 0}
+              >
+                Purge
+              </Button>
+            </div>
+          </div>
+          {apiUsageLoading ? (
+            <p className="text-sm text-[var(--ui-muted)]">Loading usage data…</p>
+          ) : apiUsage.length === 0 ? (
+            <p className="text-sm text-[var(--ui-muted)]">No API calls recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--ui-border)] text-left text-xs text-[var(--ui-muted)]">
+                    <th className="pb-2 pr-4">Month</th>
+                    {Array.from(new Set(apiUsage.map((r) => r.service)))
+                      .sort()
+                      .map((svc) => (
+                        <th key={svc} className="pb-2 pr-4 capitalize">
+                          {svc}
+                        </th>
+                      ))}
+                    <th className="pb-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const services = Array.from(new Set(apiUsage.map((r) => r.service))).sort();
+                    const months = Array.from(new Set(apiUsage.map((r) => r.month))).sort(
+                      (a, b) => b.localeCompare(a)
+                    );
+                    const currentMonth = new Date().toISOString().slice(0, 7);
+                    return months.map((month) => {
+                      const rowTotal = apiUsage
+                        .filter((r) => r.month === month)
+                        .reduce((sum, r) => sum + r.call_count, 0);
+                      return (
+                        <tr
+                          key={month}
+                          className={`border-b border-[var(--ui-border)] ${month === currentMonth ? "bg-[var(--ui-card-bg)]" : ""}`}
+                        >
+                          <td className="py-2 pr-4 font-mono text-[var(--ui-body)]">
+                            {month}
+                            {month === currentMonth && (
+                              <span className="ml-2 text-xs text-[var(--ui-green)]">current</span>
+                            )}
+                          </td>
+                          {services.map((svc) => {
+                            const row = apiUsage.find(
+                              (r) => r.month === month && r.service === svc
+                            );
+                            return (
+                              <td key={svc} className="py-2 pr-4 tabular-nums text-[var(--ui-body)]">
+                                {row ? row.call_count.toLocaleString() : "—"}
+                              </td>
+                            );
+                          })}
+                          <td className="py-2 font-semibold tabular-nums text-[var(--ui-title)]">
+                            {rowTotal.toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div
           id="backup-restore"
           className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
@@ -2332,6 +2458,33 @@ export default function ConfigPage() {
           title="Disconnect Etsy?"
           description="This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings."
           confirmLabel="Disconnect"
+          confirmVariant="danger"
+        />
+        <ConfirmDialog
+          open={purgeUsageConfirm}
+          onClose={() => setPurgeUsageConfirm(false)}
+          onConfirm={async () => {
+            setPurgeUsageConfirm(false);
+            try {
+              const res = await fetch("/api/usage", {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+              });
+              const data = (await res.json().catch(() => ({}))) as { deleted?: number };
+              if (!res.ok) throw data;
+              setApiUsage([]);
+              setError({
+                title: "API usage purged",
+                message: `${data.deleted ?? 0} records deleted.`,
+                actions: [],
+              });
+            } catch (err) {
+              setApiError("Purge failed", "Could not purge API usage data.", err);
+            }
+          }}
+          title="Purge API usage data?"
+          description="All API call history will be permanently deleted. This cannot be undone."
+          confirmLabel="Purge"
           confirmVariant="danger"
         />
         <ConfirmDialog
