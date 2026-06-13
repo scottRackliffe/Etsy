@@ -220,7 +220,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const next = typeof value === "function" ? value(prev) : value;
         const stamped = stampUiError(next);
         if (stamped) {
-          const isSuccess = /complete|saved|created|loaded|removed|success/i.test(stamped.title);
+          const isSuccess = /complete|saved|created|loaded|removed|success|healthy|purged|merged|improved|connected/i.test(stamped.title);
+          if (!stamped.variant) {
+            stamped.variant = isSuccess ? "success" : "info";
+          }
           const message = stamped.message
             ? `${stamped.title}: ${stamped.message}`
             : stamped.title;
@@ -244,7 +247,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
-    setError(stampUiError({ title, message, actions }));
+    setError(stampUiError({ title, message, actions, variant: "error" }));
     queueMicrotask(() => {
       addNotificationEntry({ type: "error", message: `${title}: ${message}` });
     });

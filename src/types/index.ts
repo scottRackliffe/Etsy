@@ -199,12 +199,16 @@ export type Purchase = {
   updated_at: string;
 };
 
+export type UiErrorVariant = "error" | "success" | "info";
+
 export type UiError = {
   title: string;
   message: string;
   actions: string[];
   /** ISO 8601 — when the error was recorded (shown on error cards). */
   occurredAt?: string;
+  /** Visual style: error (red), success (green), info (blue). Auto-detected from title if omitted. */
+  variant?: UiErrorVariant;
 };
 
 export type ApiErrorShape = {

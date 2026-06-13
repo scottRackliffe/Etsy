@@ -440,9 +440,7 @@ export default function ListingCoachPage() {
       </div>
 
       {error ? (
-        <div className="mb-4">
-          <ErrorPanel error={error} onDismiss={() => setError(null)} />
-        </div>
+        <ErrorPanel error={error} onDismiss={() => setError(null)} />
       ) : null}
 
       {step === "welcome" ? (
