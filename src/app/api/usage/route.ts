@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMonthlyUsage, purgeApiCallLog } from "@/lib/api-usage";
+import { getMonthlySessionHours, purgeConnectionSessions } from "@/lib/connection-session";
 import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: Request) {
@@ -9,8 +10,9 @@ export async function GET(request: Request) {
     const months = monthsParam ? Math.max(1, Math.min(24, parseInt(monthsParam, 10) || 6)) : 6;
 
     const items = getMonthlyUsage(months);
+    const sessions = getMonthlySessionHours(months);
 
-    return NextResponse.json({ ok: true, items });
+    return NextResponse.json({ ok: true, items, sessions });
   } catch {
     return NextResponse.json(
       { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to retrieve API usage data" } },
@@ -21,14 +23,15 @@ export async function GET(request: Request) {
 
 export async function DELETE() {
   try {
-    const deleted = purgeApiCallLog();
+    const deletedCalls = purgeApiCallLog();
+    const deletedSessions = purgeConnectionSessions();
     logActivity({
       action: "api_usage.purged",
       entityType: "api_call_log",
-      detail: { rows_deleted: deleted },
+      detail: { calls_deleted: deletedCalls, sessions_deleted: deletedSessions },
       source: "user",
     });
-    return NextResponse.json({ ok: true, deleted });
+    return NextResponse.json({ ok: true, deleted: deletedCalls + deletedSessions });
   } catch {
     return NextResponse.json(
       { ok: false, error: { code: "INTERNAL_ERROR", message: "Failed to purge API usage data" } },

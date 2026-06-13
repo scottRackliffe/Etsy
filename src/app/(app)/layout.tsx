@@ -21,6 +21,7 @@ import { SkipLink } from "@/components/shell/SkipLink";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useAutoEtsySync } from "@/hooks/useAutoEtsySync";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { clearErrorNotifications } from "@/lib/notifications";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useToast } from "@/hooks/useToast";
@@ -33,6 +34,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const toast = useToast();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useAutoEtsySync({ connected: shops.length > 0, shopId: selectedShopId });
+  useSessionTracking("etsy", shops.length > 0);
   const pathname = usePathname();
 
   useEffect(() => {

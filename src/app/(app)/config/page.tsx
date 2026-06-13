@@ -195,6 +195,7 @@ export default function ConfigPage() {
   const [nextItemPreview, setNextItemPreview] = useState<string | null>(null);
   const [storeCategories, setStoreCategories] = useState("");
   const [apiUsage, setApiUsage] = useState<Array<{ service: string; month: string; call_count: number }>>([]);
+  const [sessionHours, setSessionHours] = useState<Array<{ service: string; month: string; total_hours: number }>>([]);
   const [apiUsageLoading, setApiUsageLoading] = useState(false);
   const [purgeUsageConfirm, setPurgeUsageConfirm] = useState(false);
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
@@ -323,8 +324,10 @@ export default function ConfigPage() {
       });
       const data = (await response.json().catch(() => ({}))) as {
         items?: Array<{ service: string; month: string; call_count: number }>;
+        sessions?: Array<{ service: string; month: string; total_hours: number }>;
       };
       setApiUsage(data.items ?? []);
+      setSessionHours(data.sessions ?? []);
     } catch {
       // non-critical — silently ignore
     } finally {
@@ -2117,66 +2120,123 @@ export default function ConfigPage() {
           </div>
           {apiUsageLoading ? (
             <p className="text-sm text-[var(--ui-muted)]">Loading usage data…</p>
-          ) : apiUsage.length === 0 ? (
-            <p className="text-sm text-[var(--ui-muted)]">No API calls recorded yet.</p>
+          ) : apiUsage.length === 0 && sessionHours.length === 0 ? (
+            <p className="text-sm text-[var(--ui-muted)]">No API usage recorded yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--ui-border)] text-left text-xs text-[var(--ui-muted)]">
-                    <th className="pb-2 pr-4">Month</th>
-                    {Array.from(new Set(apiUsage.map((r) => r.service)))
-                      .sort()
-                      .map((svc) => (
-                        <th key={svc} className="pb-2 pr-4 capitalize">
-                          {svc}
-                        </th>
-                      ))}
-                    <th className="pb-2">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const services = Array.from(new Set(apiUsage.map((r) => r.service))).sort();
-                    const months = Array.from(new Set(apiUsage.map((r) => r.month))).sort(
-                      (a, b) => b.localeCompare(a)
-                    );
-                    const currentMonth = new Date().toISOString().slice(0, 7);
-                    return months.map((month) => {
-                      const rowTotal = apiUsage
-                        .filter((r) => r.month === month)
-                        .reduce((sum, r) => sum + r.call_count, 0);
-                      return (
-                        <tr
-                          key={month}
-                          className={`border-b border-[var(--ui-border)] ${month === currentMonth ? "bg-[var(--ui-card-bg)]" : ""}`}
-                        >
-                          <td className="py-2 pr-4 font-mono text-[var(--ui-body)]">
-                            {month}
-                            {month === currentMonth && (
-                              <span className="ml-2 text-xs text-[var(--ui-green)]">current</span>
-                            )}
-                          </td>
-                          {services.map((svc) => {
-                            const row = apiUsage.find(
-                              (r) => r.month === month && r.service === svc
-                            );
-                            return (
-                              <td key={svc} className="py-2 pr-4 tabular-nums text-[var(--ui-body)]">
-                                {row ? row.call_count.toLocaleString() : "—"}
+            <>
+              {apiUsage.length > 0 && (
+                <div className="overflow-x-auto">
+                  <p className="mb-1 text-xs font-semibold text-[var(--ui-muted)]">API Calls</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--ui-border)] text-left text-xs text-[var(--ui-muted)]">
+                        <th className="pb-2 pr-4">Month</th>
+                        {Array.from(new Set(apiUsage.map((r) => r.service)))
+                          .sort()
+                          .map((svc) => (
+                            <th key={svc} className="pb-2 pr-4 capitalize">
+                              {svc}
+                            </th>
+                          ))}
+                        <th className="pb-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const services = Array.from(new Set(apiUsage.map((r) => r.service))).sort();
+                        const months = Array.from(new Set(apiUsage.map((r) => r.month))).sort(
+                          (a, b) => b.localeCompare(a)
+                        );
+                        const currentMonth = new Date().toISOString().slice(0, 7);
+                        return months.map((month) => {
+                          const rowTotal = apiUsage
+                            .filter((r) => r.month === month)
+                            .reduce((sum, r) => sum + r.call_count, 0);
+                          return (
+                            <tr
+                              key={month}
+                              className={`border-b border-[var(--ui-border)] ${month === currentMonth ? "bg-[var(--ui-card-bg)]" : ""}`}
+                            >
+                              <td className="py-2 pr-4 font-mono text-[var(--ui-body)]">
+                                {month}
+                                {month === currentMonth && (
+                                  <span className="ml-2 text-xs text-[var(--ui-green)]">current</span>
+                                )}
                               </td>
-                            );
-                          })}
-                          <td className="py-2 font-semibold tabular-nums text-[var(--ui-title)]">
-                            {rowTotal.toLocaleString()}
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
+                              {services.map((svc) => {
+                                const row = apiUsage.find(
+                                  (r) => r.month === month && r.service === svc
+                                );
+                                return (
+                                  <td key={svc} className="py-2 pr-4 tabular-nums text-[var(--ui-body)]">
+                                    {row ? row.call_count.toLocaleString() : "—"}
+                                  </td>
+                                );
+                              })}
+                              <td className="py-2 font-semibold tabular-nums text-[var(--ui-title)]">
+                                {rowTotal.toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {sessionHours.length > 0 && (
+                <div className={`overflow-x-auto${apiUsage.length > 0 ? " mt-4 border-t border-[var(--ui-border)] pt-3" : ""}`}>
+                  <p className="mb-1 text-xs font-semibold text-[var(--ui-muted)]">Connected Hours</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--ui-border)] text-left text-xs text-[var(--ui-muted)]">
+                        <th className="pb-2 pr-4">Month</th>
+                        {Array.from(new Set(sessionHours.map((r) => r.service)))
+                          .sort()
+                          .map((svc) => (
+                            <th key={svc} className="pb-2 pr-4 capitalize">
+                              {svc} (hrs)
+                            </th>
+                          ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const services = Array.from(new Set(sessionHours.map((r) => r.service))).sort();
+                        const months = Array.from(new Set(sessionHours.map((r) => r.month))).sort(
+                          (a, b) => b.localeCompare(a)
+                        );
+                        const currentMonth = new Date().toISOString().slice(0, 7);
+                        return months.map((month) => (
+                          <tr
+                            key={month}
+                            className={`border-b border-[var(--ui-border)] ${month === currentMonth ? "bg-[var(--ui-card-bg)]" : ""}`}
+                          >
+                            <td className="py-2 pr-4 font-mono text-[var(--ui-body)]">
+                              {month}
+                              {month === currentMonth && (
+                                <span className="ml-2 text-xs text-[var(--ui-green)]">current</span>
+                              )}
+                            </td>
+                            {services.map((svc) => {
+                              const row = sessionHours.find(
+                                (r) => r.month === month && r.service === svc
+                              );
+                              return (
+                                <td key={svc} className="py-2 pr-4 tabular-nums text-[var(--ui-body)]">
+                                  {row ? row.total_hours.toLocaleString() : "—"}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -2473,6 +2533,7 @@ export default function ConfigPage() {
               const data = (await res.json().catch(() => ({}))) as { deleted?: number };
               if (!res.ok) throw data;
               setApiUsage([]);
+              setSessionHours([]);
               setError({
                 title: "API usage purged",
                 message: `${data.deleted ?? 0} records deleted.`,

@@ -4,7 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getSetting } from "@/lib/settings-store";
+import { getSetting, setSetting } from "@/lib/settings-store";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 
 export async function GET() {
@@ -12,15 +12,20 @@ export async function GET() {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("etsy_session_id");
     const hasCookie = !!sessionCookie?.value;
-    // Single-user local app: also check if tokens exist in SQLite
     const hasStoredSession = !!getSetting("app.session.current_id") && !!getSetting("etsy_access_token_encrypted");
     const hasSession = hasCookie || hasStoredSession;
+
+    let connectedAt = hasSession ? (getSetting("etsy_connected_at") ?? null) : null;
+    if (hasSession && !connectedAt) {
+      connectedAt = new Date().toISOString();
+      setSetting("etsy_connected_at", connectedAt);
+    }
 
     return NextResponse.json({
       ok: true,
       connected: hasSession,
       redirect_uri: process.env.ETSY_REDIRECT_URI ?? null,
-      connected_at: hasSession ? (getSetting("etsy_connected_at") ?? null) : null,
+      connected_at: connectedAt,
       token_expires_at: hasSession ? (getSetting("etsy_token_expires_at") ?? null) : null,
       last_etsy_sync_at: getSetting("last_etsy_sync_at") ?? null,
     });

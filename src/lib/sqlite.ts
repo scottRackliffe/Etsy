@@ -388,6 +388,17 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS connection_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      last_heartbeat TEXT NOT NULL,
+      duration_seconds INTEGER DEFAULT 0
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -434,6 +445,9 @@ function ensureCoreTables(db: Database.Database): void {
   );
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_api_call_log_service_month ON api_call_log(service, created_at);"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_connection_sessions_service ON connection_sessions(service, started_at);"
   );
 }
 
