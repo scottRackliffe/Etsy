@@ -73,6 +73,11 @@ export function TextInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
+      spellCheck={type === "text"}
+      autoComplete="off"
+      data-lpignore="true"
+      data-1p-ignore
+      data-form-type="other"
       className={`rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] placeholder-[var(--ui-muted)] focus:border-[var(--ui-accent)] focus:outline-none disabled:opacity-50 ${className ?? ""}`}
     />
   );

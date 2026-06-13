@@ -26,6 +26,8 @@ import { InventoryImportModal } from "@/components/inventory/InventoryImportModa
 import {
   ListingQualityScore,
   ListingQualityScoreBadge,
+  QualityChecklist,
+  type AiImproveStatus,
 } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { ConditionPictureGrid } from "@/components/inventory/ConditionPictureGrid";
@@ -101,6 +103,7 @@ function InventoryPageInner() {
     setPublishPreview,
     publishHistory,
     setPublishHistory,
+    publishConfig,
     aiConfig,
     busyAction,
     setBusyAction,
@@ -196,8 +199,30 @@ function InventoryPageInner() {
 
   const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
   const [newInventoryDescription, setNewInventoryDescription] = useState("");
+  const [autoItemNumber, setAutoItemNumber] = useState<string | null>(null);
+
+  const fetchNextItemNumber = useCallback(async () => {
+    try {
+      const res = await fetch("/api/inventory/next-number", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { next_number?: string };
+      if (res.ok && data.next_number) {
+        setAutoItemNumber(data.next_number);
+        setNewInventoryItemNumber(data.next_number);
+      }
+    } catch {
+      /* silent — manual entry still works */
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchNextItemNumber();
+  }, [fetchNextItemNumber]);
   const [listingMode, setListingMode] = useState<ListingMode>("manual");
   const [importPayload, setImportPayload] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
   const [exportPackage, setExportPackage] = useState<unknown | null>(null);
   const [workflowStep, setWorkflowStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -288,7 +313,26 @@ function InventoryPageInner() {
     }
   };
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [storeCategoryOptions, setStoreCategoryOptions] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/settings/${encodeURIComponent("inventory.store_categories")}`,
+          { headers: { Accept: "application/json" } }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { value?: string };
+          setStoreCategoryOptions(
+            (data.value ?? "").split(",").map((s: string) => s.trim()).filter(Boolean)
+          );
+        }
+      } catch { /* optional */ }
+    })();
+  }, []);
   const batch = useBatchSelection(inventory, listTotal);
   const {
     runBatch,
@@ -303,8 +347,9 @@ function InventoryPageInner() {
     () => ({
       search: debouncedInventorySearch.trim() || undefined,
       status: statusFilter ?? undefined,
+      store_category: categoryFilter ?? undefined,
     }),
-    [debouncedInventorySearch, statusFilter]
+    [debouncedInventorySearch, statusFilter, categoryFilter]
   );
 
   const buildInventoryBatchBody = useCallback(
@@ -401,6 +446,7 @@ function InventoryPageInner() {
     });
     if (debouncedInventorySearch.trim()) params.set("search", debouncedInventorySearch.trim());
     if (statusFilter) params.set("status", statusFilter);
+    if (categoryFilter) params.set("store_category", categoryFilter);
     if (sort) {
       params.set("sort_by", sort.key);
       params.set("sort_dir", sort.dir);
@@ -415,7 +461,7 @@ function InventoryPageInner() {
     if (!response.ok) throw data;
     if (data.items) setInventory(data.items);
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedInventorySearch, pageSize, offset, statusFilter, sort, setInventory, setTotal]);
+  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, sort, setInventory, setTotal]);
 
   useEffect(() => {
     void reloadInventory().catch((err) =>
@@ -442,6 +488,19 @@ function InventoryPageInner() {
         header: "Description",
         sortable: true,
         render: (item: InventoryItem) => (item.description ?? "").slice(0, 50) || "—",
+      },
+      {
+        key: "store_category",
+        header: "Category",
+        sortable: true,
+        render: (item: InventoryItem) =>
+          item.store_category ? (
+            <span className="inline-block rounded-full border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-2 py-0.5 text-xs">
+              {item.store_category}
+            </span>
+          ) : (
+            <span className="text-[var(--ui-muted)]">—</span>
+          ),
       },
       {
         key: "status",
@@ -490,7 +549,7 @@ function InventoryPageInner() {
         header: "Quality",
         sortable: true,
         sortKey: "listing_score",
-        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} />,
+        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} minScore={parseInt(publishConfig.minQualityScore, 10) || 80} />,
       },
     ],
     []
@@ -499,8 +558,9 @@ function InventoryPageInner() {
   const inventoryTableData = useMemo(() => {
     if (sort?.key !== "listing_score") return inventory;
     return [...inventory].sort((a, b) => {
-      const scoreA = computeListingScore(a).score;
-      const scoreB = computeListingScore(b).score;
+      const ms = parseInt(publishConfig.minQualityScore, 10) || 80;
+      const scoreA = computeListingScore(a, ms).score;
+      const scoreB = computeListingScore(b, ms).score;
       return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
     });
   }, [inventory, sort]);
@@ -701,6 +761,79 @@ function InventoryPageInner() {
     }
   };
 
+  const [aiImproveStatus, setAiImproveStatus] = useState<AiImproveStatus>(null);
+
+  const improveWithAi = async () => {
+    if (!selectedItemId || aiImproveStatus) return;
+
+    const attempt = async (retryCount: number): Promise<void> => {
+      setAiImproveStatus("analyzing");
+      await new Promise((r) => setTimeout(r, 400));
+
+      setAiImproveStatus("calling-ai");
+      try {
+        const response = await apiFetch(`/api/inventory/${selectedItemId}/improve-listing`, {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          improved?: boolean;
+          previous_score?: number;
+          new_score?: number;
+          fields_improved?: string[];
+          message?: string;
+          item?: InventoryItem;
+        };
+
+        if (response.status === 429 && retryCount < 2) {
+          const canRetry = data?.error?.can_retry !== false;
+          if (canRetry) {
+            const waitSec = 30;
+            for (let s = waitSec; s > 0; s--) {
+              setAiImproveStatus(`retry-${s}`);
+              await new Promise((r) => setTimeout(r, 1000));
+            }
+            return attempt(retryCount + 1);
+          }
+        }
+
+        if (!response.ok) throw data;
+
+        setAiImproveStatus("saving");
+        await new Promise((r) => setTimeout(r, 300));
+
+        if (data.improved && data.item) {
+          const updatedItem = data.item as InventoryItem;
+          setSelectedItem(updatedItem);
+          const updateRow = (current: InventoryItem[]) =>
+            current.map((row) => (row.id === updatedItem.id ? updatedItem : row));
+          setInventory(updateRow);
+          setGlobalInventory(updateRow);
+          setAiImproveStatus("done");
+          setError({
+            title: "Listing improved by AI",
+            message: `Score: ${data.previous_score ?? "?"} → ${data.new_score ?? "?"}. Updated: ${data.fields_improved?.join(", ") ?? "listing fields"}.`,
+            actions: [],
+          });
+        } else {
+          setAiImproveStatus("done");
+          setError({
+            title: "No changes needed",
+            message: data.message ?? "The AI found no text-based improvements to make.",
+            actions: [],
+          });
+        }
+
+        setTimeout(() => setAiImproveStatus(null), 2000);
+      } catch (err) {
+        setAiImproveStatus(null);
+        setApiError("AI improvement failed", "Something went wrong while improving this listing.", err);
+      }
+    };
+
+    await attempt(0);
+  };
+
   const exportForPortableAi = async () => {
     if (!selectedItemId) return;
     setBusyAction("export-ai");
@@ -724,20 +857,37 @@ function InventoryPageInner() {
 
   const importPortableAiDraft = async () => {
     if (!selectedItemId) return;
+    setImportError(null);
+    setImportSuccess(false);
     setBusyAction("import-ai");
     try {
-      const parsed = JSON.parse(importPayload);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(importPayload);
+      } catch {
+        setImportError("The pasted text is not valid JSON. Copy the AI's full response and try again.");
+        setBusyAction(null);
+        return;
+      }
       const response = await apiFetch(`/api/inventory/${selectedItemId}/listing-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(parsed),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        const msg = data?.error?.user_message ?? data?.error?.message ?? "Import failed.";
+        setImportError(msg);
+        return;
+      }
       await patchSelectedItem({});
+      setImportPayload("");
+      setImportSuccess(true);
       setError(null);
     } catch (err) {
-      setApiError("Could not import package", "We could not import the AI draft package.", err);
+      const apiErr = err as ApiErrorShape;
+      const msg = apiErr?.error?.user_message ?? apiErr?.error?.message ?? "Import failed — check the JSON format.";
+      setImportError(msg);
     } finally {
       setBusyAction(null);
     }
@@ -887,9 +1037,9 @@ function InventoryPageInner() {
         setGlobalInventory(addItem);
         setSelectedItemId(data.item.id);
       }
-      setNewInventoryItemNumber("");
       setNewInventoryDescription("");
       setInventoryDuplicates([]);
+      void fetchNextItemNumber();
       setError({ title: "Item created", message: "New inventory item was created successfully.", actions: [] });
     } catch (err) {
       setApiError("Could not create inventory", "We could not create the inventory item.", err);
@@ -944,7 +1094,7 @@ function InventoryPageInner() {
             ref={createItemRef}
             value={newInventoryItemNumber}
             onChange={(e) => setNewInventoryItemNumber(e.target.value)}
-            placeholder="New item number"
+            placeholder={autoItemNumber ?? "Item number"}
             className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
           />
           <input
@@ -1097,27 +1247,39 @@ function InventoryPageInner() {
           }}
           options={INVENTORY_STATUSES.map((status) => ({ value: status, label: status }))}
         />
+        {storeCategoryOptions.length > 0 && (
+          <FilterChipRow
+            label="Category"
+            value={categoryFilter}
+            onChange={(value) => {
+              setPage(0);
+              setCategoryFilter(value);
+            }}
+            options={storeCategoryOptions.map((cat) => ({ value: cat, label: cat }))}
+          />
+        )}
         {listTotal === 0 ? (
           <EmptyState
             message={
-              inventorySearch.trim() || statusFilter
+              inventorySearch.trim() || statusFilter || categoryFilter
                 ? "No items match your filters."
                 : "No items yet. Add your first inventory item to get started."
             }
             primaryAction={
-              inventorySearch.trim() || statusFilter
+              inventorySearch.trim() || statusFilter || categoryFilter
                 ? {
                     label: "Clear filters",
                     onClick: () => {
                       setInventorySearch("");
                       setStatusFilter(null);
+                      setCategoryFilter(null);
                       setPage(0);
                     },
                   }
                 : { label: "Add your first item", onClick: () => createItemRef.current?.focus() }
             }
             secondaryAction={
-              inventorySearch.trim() || statusFilter
+              inventorySearch.trim() || statusFilter || categoryFilter
                 ? undefined
                 : { label: "Import from CSV", onClick: () => setImportOpen(true) }
             }
@@ -1173,10 +1335,11 @@ function InventoryPageInner() {
       />
 
       {workshopOpen && selectedItemId ? (
-        <div id="listing-workshop-panel" className="mb-4 space-y-4">
+        <div id="listing-workshop-panel" className="mb-4">
           {canWorkListing ? (
-            <div className="space-y-4">
-              {selectedItem ? <ListingQualityScore item={selectedItem} /> : null}
+            <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1 space-y-4">
+              {selectedItem ? null : null}
               {listingRecovery && listingRecoveryLabel ? (
                 <DraftRecoveryBanner
                   savedAtLabel={listingRecoveryLabel}
@@ -1234,6 +1397,7 @@ function InventoryPageInner() {
                             listing_title_strategy: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1247,6 +1411,7 @@ function InventoryPageInner() {
                             listing_product_story: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1260,6 +1425,7 @@ function InventoryPageInner() {
                             listing_condition_clarity: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1273,6 +1439,7 @@ function InventoryPageInner() {
                             listing_attributes: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1286,6 +1453,7 @@ function InventoryPageInner() {
                             listing_pricing_shipping_notes: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1299,6 +1467,7 @@ function InventoryPageInner() {
                             listing_quality_checklist: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-24 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1309,6 +1478,7 @@ function InventoryPageInner() {
                         onChange={(e) =>
                           setSelectedItem({ ...selectedItem, listing_title: e.target.value })
                         }
+                        spellCheck
                         className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm"
                       />
                     </FormField>
@@ -1345,6 +1515,7 @@ function InventoryPageInner() {
                             listing_description: e.target.value,
                           })
                         }
+                        spellCheck
                         className="min-h-28 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-sm lg:col-span-2"
                       />
                     </FormField>
@@ -1423,6 +1594,10 @@ function InventoryPageInner() {
                       <li>Copy the AI&apos;s JSON response and paste it into the import box</li>
                       <li>Click <strong>Import AI draft</strong> to save</li>
                     </ol>
+                    <p className="mt-2 text-[var(--ui-yellow)]">
+                      Required fields in the AI response: <strong>listing_title</strong>,{" "}
+                      <strong>listing_description</strong>, and <strong>listing_tags</strong>.
+                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -1452,11 +1627,93 @@ function InventoryPageInner() {
                   <textarea
                     placeholder="Paste AI output JSON here for import"
                     value={importPayload}
-                    onChange={(e) => setImportPayload(e.target.value)}
+                    onChange={(e) => {
+                      setImportPayload(e.target.value);
+                      setImportError(null);
+                      setImportSuccess(false);
+                    }}
                     className="min-h-40 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
                   />
+                  {importError ? (
+                    <p className="text-sm text-[var(--ui-red)]">{importError}</p>
+                  ) : null}
+                  {importSuccess ? (
+                    <p className="text-sm text-[var(--ui-green)]">Draft imported successfully.</p>
+                  ) : null}
                 </div>
               )}
+
+              {listingMode !== "manual" && selectedItem && (selectedItem.listing_title || selectedItem.listing_description || selectedItem.listing_tags) ? (
+                <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+                  <p className="text-xs font-semibold text-[var(--ui-title)]">Etsy Listing Details</p>
+                  {selectedItem.listing_title ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Title</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_title}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_tags ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Tags</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_tags}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_category_path ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Category path</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_category_path}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.category_tags ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Category tags</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.category_tags}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_description ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Description</p>
+                      <p className="whitespace-pre-wrap text-sm text-[var(--ui-body)]">{selectedItem.listing_description}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_title_strategy ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Title strategy</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_title_strategy}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_product_story ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Product story</p>
+                      <p className="whitespace-pre-wrap text-sm text-[var(--ui-body)]">{selectedItem.listing_product_story}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_condition_clarity ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Condition clarity</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_condition_clarity}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_attributes ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Attributes</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_attributes}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_pricing_shipping_notes ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Pricing &amp; shipping notes</p>
+                      <p className="text-sm text-[var(--ui-body)]">{selectedItem.listing_pricing_shipping_notes}</p>
+                    </div>
+                  ) : null}
+                  {selectedItem.listing_quality_checklist ? (
+                    <div>
+                      <p className="text-[10px] font-medium text-[var(--ui-muted)]">Quality checklist</p>
+                      <p className="whitespace-pre-wrap text-sm text-[var(--ui-body)]">{selectedItem.listing_quality_checklist}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <FormField label="Draft state" helpText="Listing drafts progress through stages: draft → generated/imported → approved → published. Only approved drafts can be published to Etsy.">
                 <input
@@ -1604,6 +1861,18 @@ function InventoryPageInner() {
                   </>
                 )}
               </div>
+            </div>
+            {selectedItem ? (
+              <div className="hidden w-[240px] shrink-0 self-start lg:block">
+                <QualityChecklist
+                  item={selectedItem}
+                  minScore={parseInt(publishConfig.minQualityScore, 10) || 80}
+                  onImproveWithAi={improveWithAi}
+                  aiStatus={aiImproveStatus}
+                  aiConfigured={aiConfig?.apiKeyConfigured ?? false}
+                />
+              </div>
+            ) : null}
             </div>
           ) : (
             <p className="text-sm text-[var(--ui-muted)]">Loading listing workshop…</p>

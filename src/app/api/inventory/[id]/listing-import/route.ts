@@ -64,13 +64,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     return NextResponse.json({ ok: true, item: updated });
   } catch (error) {
+    const detail = error instanceof Error ? error.message : "";
     return errorResponse(
       fromUnknownError(error, {
         code: "VALIDATION_ERROR",
         message: "Failed to import listing package",
-        userMessage: "We could not import the AI draft package.",
-        actions: ["Check the package schema and item id, then retry."],
-        canRetry: false,
+        userMessage: detail || "We could not import the AI draft package.",
+        actions: ["Make sure the AI response includes listing_title, listing_description, and listing_tags as JSON."],
+        canRetry: true,
       })
     );
   }

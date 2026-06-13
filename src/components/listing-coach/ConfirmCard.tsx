@@ -34,6 +34,7 @@ export function ConfirmCard({
             value={answer || suggestedAnswer}
             onChange={(e) => onAnswerChange(e.target.value)}
             rows={3}
+            spellCheck
             className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
           />
           <Button variant="primary" size="sm" onClick={() => setEditing(false)}>

@@ -123,6 +123,7 @@ export default function ConfigPage() {
 
   const [aiApiKeyDraft, setAiApiKeyDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [aiFieldErrors, setAiFieldErrors] = useState<Record<string, string>>({});
   const [etsyInfo, setEtsyInfo] = useState<EtsyConnectionInfo | null>(null);
   const [etsyInfoLoading, setEtsyInfoLoading] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
@@ -188,6 +189,10 @@ export default function ConfigPage() {
   const [autoSyncInterval, setAutoSyncInterval] = useState<AutoSyncInterval>("off");
   const [repeatCustomerThreshold, setRepeatCustomerThreshold] = useState("2");
   const [activityRetentionDays, setActivityRetentionDays] = useState("365");
+  const [itemNumberPrefix, setItemNumberPrefix] = useState("ITEM");
+  const [itemNumberPadding, setItemNumberPadding] = useState("4");
+  const [nextItemPreview, setNextItemPreview] = useState<string | null>(null);
+  const [storeCategories, setStoreCategories] = useState("");
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<Map<string, string>>(new Map());
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
@@ -401,6 +406,9 @@ export default function ConfigPage() {
       setAutoSyncInterval(parseAutoSyncInterval(map.get("sync.auto_interval")));
       setRepeatCustomerThreshold(map.get("repeat_customer_threshold") ?? "2");
       setActivityRetentionDays(map.get("activity_log.retention_days") ?? "365");
+      setItemNumberPrefix(map.get("inventory.number_prefix") || "ITEM");
+      setItemNumberPadding(map.get("inventory.number_padding") || "4");
+      setStoreCategories(map.get("inventory.store_categories") ?? "");
       setConfigBaseline(
         buildConfigFormSnapshot({
           businessProfile: {
@@ -648,6 +656,53 @@ export default function ConfigPage() {
       "Date format, currency, page size, timezone, repeat threshold, and retention were updated."
     );
 
+  const loadNextItemPreview = useCallback(async () => {
+    try {
+      const res = await fetch("/api/inventory/next-number", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { next_number?: string };
+      if (res.ok) setNextItemPreview(data.next_number ?? null);
+    } catch {
+      setNextItemPreview(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNextItemPreview();
+  }, [loadNextItemPreview]);
+
+  const saveItemNumberSettings = async () => {
+    const prefix = itemNumberPrefix.trim() || "ITEM";
+    const pad = Math.max(2, Math.min(6, parseInt(itemNumberPadding, 10) || 4));
+    setItemNumberPrefix(prefix);
+    setItemNumberPadding(String(pad));
+    await saveSettingsKeys(
+      [
+        { key: "inventory.number_prefix", value: prefix },
+        { key: "inventory.number_padding", value: String(pad) },
+      ],
+      "Item numbering saved",
+      `New items will be numbered like ${prefix}-${"0".repeat(pad - 1)}1.`
+    );
+    void loadNextItemPreview();
+  };
+
+  const saveStoreCategories = () => {
+    const cleaned = storeCategories
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(",");
+    void saveSettingsKeys(
+      [{ key: "inventory.store_categories", value: cleaned }],
+      "Store categories saved",
+      cleaned
+        ? `${cleaned.split(",").length} categories available for inventory items.`
+        : "Store categories cleared."
+    );
+  };
+
   useEffect(() => {
     void (async () => {
       try {
@@ -796,7 +851,37 @@ export default function ConfigPage() {
     }
   };
 
+  const validateAiSettings = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    const model = (aiConfig?.model ?? "").trim();
+    if (!model) errs.model = "Model is required.";
+
+    if (!aiConfig?.apiKeyConfigured && !aiApiKeyDraft.trim()) {
+      errs.apiKey = "API key is required.";
+    } else if (aiApiKeyDraft && !aiApiKeyDraft.trim().startsWith("sk-")) {
+      errs.apiKey = "API key should start with \"sk-\".";
+    }
+
+    const timeoutSec = Math.round((aiConfig?.timeoutMs ?? 30000) / 1000);
+    if (timeoutSec < 5) errs.timeout = "Minimum 5 seconds.";
+    else if (timeoutSec > 120) errs.timeout = "Maximum 120 seconds.";
+
+    const retries = aiConfig?.retryCount ?? 1;
+    if (retries < 1) errs.retries = "At least 1 retry.";
+    else if (retries > 5) errs.retries = "Maximum 5 retries.";
+
+    const tokens = aiConfig?.tokenBudget ?? 2000;
+    if (tokens < 100) errs.tokens = "Minimum 100 tokens.";
+    else if (tokens > 16000) errs.tokens = "Maximum 16,000 tokens.";
+
+    return errs;
+  };
+
   const saveAiSettings = async () => {
+    const errs = validateAiSettings();
+    setAiFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setSaving(true);
     try {
       const response = await fetch("/api/settings/ai", {
@@ -819,6 +904,7 @@ export default function ConfigPage() {
       if (data.config) setAiConfig(data.config);
       setAiApiKeyDraft("");
       setError(null);
+      setAiFieldErrors({});
       markConfigClean();
     } catch (err) {
       setApiError("Could not save AI settings", "We could not save AI settings.", err);
@@ -888,6 +974,10 @@ export default function ConfigPage() {
         {
           key: "etsy.developer_mode",
           value: publishConfig.developerMode.trim() || "false",
+        },
+        {
+          key: "listing.min_quality_score",
+          value: publishConfig.minQualityScore.trim() || "80",
         },
       ];
       for (const update of updates) {
@@ -1442,6 +1532,91 @@ export default function ConfigPage() {
             </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Item numbering</h4>
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Auto-generate item numbers when creating new inventory. Format: PREFIX-0001.
+            </p>
+            <FormField label="Prefix" helpText="Letters or short code prepended to the sequence number.">
+              <input
+                value={itemNumberPrefix}
+                onChange={(e) => setItemNumberPrefix(e.target.value.replace(/[^A-Za-z0-9_-]/g, "").toUpperCase())}
+                placeholder="ITEM"
+                maxLength={10}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Padding digits" helpText="Number of digits (2-6). E.g. 4 → 0001, 6 → 000001.">
+              <input
+                type="number"
+                min={2}
+                max={6}
+                value={itemNumberPadding}
+                onChange={(e) => setItemNumberPadding(e.target.value)}
+                onBlur={() => {
+                  const n = parseInt(itemNumberPadding, 10);
+                  if (!Number.isFinite(n) || n < 2) setItemNumberPadding("2");
+                  else if (n > 6) setItemNumberPadding("6");
+                }}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <div className="mt-2 rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2">
+              <p className="text-xs text-[var(--ui-muted)]">Preview</p>
+              <p className="mt-0.5 font-mono text-sm text-[var(--ui-title)]">
+                {(() => {
+                  const prefix = itemNumberPrefix.trim() || "ITEM";
+                  const pad = Math.max(2, Math.min(6, parseInt(itemNumberPadding, 10) || 4));
+                  return `${prefix}-${"0".repeat(pad - 1)}1`;
+                })()}
+              </p>
+              {nextItemPreview && (
+                <p className="mt-1 text-xs text-[var(--ui-green)]">
+                  Next item will be: <strong>{nextItemPreview}</strong>
+                </p>
+              )}
+            </div>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => void saveItemNumberSettings()}
+              disabled={extraSettingsLoading}
+              className="mt-3"
+            >
+              Save item numbering
+            </Button>
+          </div>
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Store categories</h4>
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Your internal categories for grouping inventory and reporting.
+              One category per line. These appear as a dropdown on each item.
+            </p>
+            <FormField label="Categories" helpText="One per line. New categories can also be added from the inventory detail panel.">
+              <textarea
+                value={storeCategories.replace(/,/g, "\n")}
+                onChange={(e) => setStoreCategories(e.target.value.replace(/\n/g, ","))}
+                placeholder={"Glassware\nJewelry\nKitchen\nArt\nFurniture\nTextiles"}
+                rows={6}
+                spellCheck
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            {storeCategories.trim() && (
+              <p className="mt-1 text-xs text-[var(--ui-muted)]">
+                {storeCategories.split(",").filter((s) => s.trim()).length} categories defined
+              </p>
+            )}
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={saveStoreCategories}
+              disabled={extraSettingsLoading}
+              className="mt-3"
+            >
+              Save store categories
+            </Button>
+          </div>
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">
               Display preferences
             </h4>
@@ -1547,36 +1722,105 @@ export default function ConfigPage() {
             <p className="mb-2 text-xs text-[var(--ui-muted)]">
               Required for <strong>Listing Coach</strong> and Generate in app listing content.
             </p>
-            <input
-              value={aiConfig?.model ?? ""}
-              onChange={(e) =>
-                setAiConfig((current) => ({
-                  provider: current?.provider ?? "openai",
-                  model: e.target.value,
-                  baseUrl: current?.baseUrl ?? null,
-                  timeoutMs: current?.timeoutMs ?? 30000,
-                  retryCount: current?.retryCount ?? 1,
-                  tokenBudget: current?.tokenBudget ?? 2000,
-                  apiKeyConfigured: current?.apiKeyConfigured ?? false,
-                }))
-              }
-              placeholder="Model"
-              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-            />
-            <div className="mt-2">
+            <FormField label="Model" helpText="OpenAI model name (e.g. gpt-4.1-mini)" required error={aiFieldErrors.model}>
+              <input
+                value={aiConfig?.model ?? ""}
+                onChange={(e) => {
+                  setAiFieldErrors((prev) => { const { model: _, ...rest } = prev; return rest; });
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: e.target.value,
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                placeholder="gpt-4.1-mini"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="API key" helpText="Your OpenAI API key (stored encrypted)" required error={aiFieldErrors.apiKey}>
               <input
                 value={aiApiKeyDraft}
-                onChange={(e) => setAiApiKeyDraft(e.target.value)}
-                placeholder={aiConfig?.apiKeyConfigured ? "••••••••  (saved — enter new key to replace)" : "API key"}
+                onChange={(e) => {
+                  setAiFieldErrors((prev) => { const { apiKey: _, ...rest } = prev; return rest; });
+                  setAiApiKeyDraft(e.target.value);
+                }}
+                placeholder={aiConfig?.apiKeyConfigured ? "••••••••  (saved — enter new key to replace)" : "sk-..."}
                 type="password"
                 autoComplete="off"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
-              {aiConfig?.apiKeyConfigured && !aiApiKeyDraft && (
+              {aiConfig?.apiKeyConfigured && !aiApiKeyDraft && !aiFieldErrors.apiKey && (
                 <p className="mt-1 text-xs text-[var(--ui-green)]">API key is configured.</p>
               )}
+            </FormField>
+            <div className="grid grid-cols-3 gap-2">
+              <FormField label="Timeout (sec)" helpText="5–120 seconds" error={aiFieldErrors.timeout}>
+                <input
+                  type="number"
+                  min={5}
+                  max={120}
+                  value={Math.round((aiConfig?.timeoutMs ?? 30000) / 1000)}
+                  onChange={(e) => {
+                    setAiFieldErrors((prev) => { const { timeout: _, ...rest } = prev; return rest; });
+                    const raw = parseInt(e.target.value, 10);
+                    if (Number.isNaN(raw)) return;
+                    setAiConfig((c) => c ? { ...c, timeoutMs: raw * 1000 } : c);
+                  }}
+                  onBlur={() => {
+                    const secs = Math.round((aiConfig?.timeoutMs ?? 30000) / 1000);
+                    const clamped = Math.max(5, Math.min(120, secs));
+                    if (clamped !== secs) setAiConfig((c) => c ? { ...c, timeoutMs: clamped * 1000 } : c);
+                  }}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Retries" helpText="1–5 attempts" error={aiFieldErrors.retries}>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={aiConfig?.retryCount ?? 1}
+                  onChange={(e) => {
+                    setAiFieldErrors((prev) => { const { retries: _, ...rest } = prev; return rest; });
+                    const raw = parseInt(e.target.value, 10);
+                    if (Number.isNaN(raw)) return;
+                    setAiConfig((c) => c ? { ...c, retryCount: raw } : c);
+                  }}
+                  onBlur={() => {
+                    const n = aiConfig?.retryCount ?? 1;
+                    const clamped = Math.max(1, Math.min(5, n));
+                    if (clamped !== n) setAiConfig((c) => c ? { ...c, retryCount: clamped } : c);
+                  }}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Max tokens" helpText="100–16,000" error={aiFieldErrors.tokens}>
+                <input
+                  type="number"
+                  min={100}
+                  max={16000}
+                  step={100}
+                  value={aiConfig?.tokenBudget ?? 2000}
+                  onChange={(e) => {
+                    setAiFieldErrors((prev) => { const { tokens: _, ...rest } = prev; return rest; });
+                    const raw = parseInt(e.target.value, 10);
+                    if (Number.isNaN(raw)) return;
+                    setAiConfig((c) => c ? { ...c, tokenBudget: raw } : c);
+                  }}
+                  onBlur={() => {
+                    const n = aiConfig?.tokenBudget ?? 2000;
+                    const clamped = Math.max(100, Math.min(16000, n));
+                    if (clamped !== n) setAiConfig((c) => c ? { ...c, tokenBudget: clamped } : c);
+                  }}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
             </div>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <Button variant="accent" size="lg" onClick={saveAiSettings} busy={saving}>
                 Save AI settings
               </Button>
@@ -1594,7 +1838,7 @@ export default function ConfigPage() {
               Per-item overrides on inventory records take precedence at publish time.
             </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <FormField label="Default Taxonomy ID" helpText="Etsy category ID for your listings">
+              <FormField label="Default Taxonomy ID" helpText="Etsy category ID for your listings" required>
                 <input
                   value={publishConfig.taxonomyId}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, taxonomyId: e.target.value }))}
@@ -1603,7 +1847,7 @@ export default function ConfigPage() {
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
-              <FormField label="Shipping profile ID" helpText="From Etsy shop settings">
+              <FormField label="Shipping profile ID" helpText="From Etsy shop settings" required>
                 <input
                   value={publishConfig.shippingProfileId}
                   onChange={(e) =>
@@ -1614,7 +1858,7 @@ export default function ConfigPage() {
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
-              <FormField label="Return policy ID" helpText="From Etsy shop settings">
+              <FormField label="Return policy ID" helpText="From Etsy shop settings" required>
                 <input
                   value={publishConfig.returnPolicyId}
                   onChange={(e) =>
@@ -1625,7 +1869,7 @@ export default function ConfigPage() {
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
-              <FormField label="Who made">
+              <FormField label="Who made" required>
                 <select
                   value={publishConfig.whoMade || "someone_else"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whoMade: e.target.value }))}
@@ -1636,7 +1880,7 @@ export default function ConfigPage() {
                   <option value="collective">A member of my shop</option>
                 </select>
               </FormField>
-              <FormField label="When made">
+              <FormField label="When made" required>
                 <select
                   value={publishConfig.whenMade || "2010_2019"}
                   onChange={(e) => setPublishConfig((c) => ({ ...c, whenMade: e.target.value }))}
@@ -1684,6 +1928,25 @@ export default function ConfigPage() {
                   min="1"
                   max="100"
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <div className="mt-3">
+              <FormField
+                label="Minimum listing quality score"
+                helpText="Listings must reach this score before they can be approved for publishing to Etsy. Set 0 to disable the gate."
+                required
+              >
+                <input
+                  value={publishConfig.minQualityScore}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, minQualityScore: e.target.value }))
+                  }
+                  placeholder="80"
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="w-full max-w-[8rem] rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
             </div>

@@ -86,11 +86,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       onSuccess: (result) => {
         const synced = result.synced ?? 0;
         const skipped = result.skipped_already_imported ?? 0;
-        setError({
-          title: "Etsy sync complete",
-          message: `Synced ${synced} orders${skipped > 0 ? ` (${skipped} already imported)` : ""}.`,
-          actions: ["Open Sales to review imported orders."],
-        });
+        const msg = synced > 0
+          ? `Synced ${synced} order${synced !== 1 ? "s" : ""}${skipped > 0 ? ` (${skipped} already imported)` : ""}.`
+          : "Etsy sync complete — no new orders to import.";
+        toast.showToast(msg, synced > 0 ? "success" : "info");
       },
       onCancelled: (result) => {
         const processed = result.synced ?? 0;
@@ -198,7 +197,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   useKeyboardShortcuts(shortcuts);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]">
+    <div
+      data-lpignore="true"
+      data-1p-ignore
+      data-form-type="other"
+      className="min-h-screen bg-[radial-gradient(70rem_45rem_at_10%_-10%,rgba(47,128,237,0.20),transparent_60%),radial-gradient(70rem_45rem_at_120%_10%,rgba(0,204,102,0.12),transparent_60%),var(--ui-background)] text-[var(--ui-body)]"
+    >
       <SkipLink />
       {setupChecked && showSetup ? <SetupWizard onDone={() => setShowSetup(false)} /> : null}
       <AppHeader onOpenSearch={() => setSearchOpen(true)} />

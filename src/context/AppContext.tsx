@@ -30,6 +30,7 @@ type PublishConfig = {
   allowPartialImageUpload: string;
   imageUploadAttempts: string;
   developerMode: string;
+  minQualityScore: string;
 };
 
 type PublishHistory = {
@@ -185,6 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [publishConfig, setPublishConfig] = useState<PublishConfig>({
     taxonomyId: "",
     shippingProfileId: "",
+    minQualityScore: "80",
     returnPolicyId: "",
     readinessStateId: "",
     imageIds: "",
@@ -491,6 +493,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         allowPartialImageUpload,
         imageUploadAttempts,
         developerMode,
+        minQualityScore,
         screenHeaderPath,
         reportHeaderPath,
         screenHeaderSizePx,
@@ -511,6 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettingValue("etsy.publish.allow_partial_image_upload"),
         getSettingValue("etsy.publish.image_upload_attempts"),
         getSettingValue("etsy.developer_mode"),
+        getSettingValue("listing.min_quality_score"),
         getSettingValue("ui.icons.screen_header_path"),
         getSettingValue("ui.icons.report_header_path"),
         getSettingValue("ui.icons.screen_header_size_px"),
@@ -532,6 +536,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         allowPartialImageUpload: allowPartialImageUpload || "false",
         imageUploadAttempts: imageUploadAttempts || "3",
         developerMode: developerMode || "false",
+        minQualityScore: minQualityScore || "80",
       });
       setIconConfig({
         screenHeaderPath: screenHeaderPath || "/icons/screen-header.png",

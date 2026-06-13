@@ -13,6 +13,7 @@ import {
 } from "@/lib/activity-display";
 import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useEtsySync } from "@/hooks/useEtsySync";
+import { useToast } from "@/hooks/useToast";
 
 export function ActivityFeed({
   onViewAll,
@@ -21,8 +22,9 @@ export function ActivityFeed({
   onViewAll?: () => void;
   onSyncComplete?: () => void;
 }) {
-  const { shops, selectedShopId, setBusyAction, setApiError, setError: showAppMessage } = useApp();
+  const { shops, selectedShopId, setBusyAction, setApiError } = useApp();
   const { modal: syncModal, runSync } = useEtsySync();
+  const toast = useToast();
   const router = useRouter();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,14 +62,16 @@ export function ActivityFeed({
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     void runSync(selectedShopId, {
-      onSuccess: async () => {
+      onSuccess: async (result) => {
         await load();
         onSyncComplete?.();
-        showAppMessage({
-          title: "Etsy sync complete",
-          message: "Orders were synchronized from Etsy.",
-          actions: ["Activity will update as you work in the app."],
-        });
+        const synced = result.synced ?? 0;
+        toast.showToast(
+          synced > 0
+            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} from Etsy.`
+            : "Etsy sync complete — no new orders to import.",
+          synced > 0 ? "success" : "info"
+        );
       },
       onError: (err) => {
         setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);

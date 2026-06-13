@@ -85,6 +85,7 @@ type DraftFields = {
   shipping_cost: string;
   sale_revenue: string;
   category_tags: string;
+  store_category: string;
   date_purchased: string;
   date_listed: string;
   date_of_sale: string;
@@ -131,6 +132,7 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
     shipping_cost: item.shipping_cost != null ? String(item.shipping_cost) : "",
     sale_revenue: item.sale_revenue != null ? String(item.sale_revenue) : "",
     category_tags: item.category_tags ?? "",
+    store_category: item.store_category ?? "",
     date_purchased: item.date_purchased ?? "",
     date_listed: item.date_listed ?? "",
     date_of_sale: item.date_of_sale ?? "",
@@ -184,6 +186,43 @@ export function InventoryDetailPanel({
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const [draft, setDraft] = useState<DraftFields | null>(null);
   const [saving, setSaving] = useState(false);
+  const [storeCategoryList, setStoreCategoryList] = useState<string[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/settings/${encodeURIComponent("inventory.store_categories")}`,
+          { headers: { Accept: "application/json" } }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { value?: string };
+          setStoreCategoryList(
+            (data.value ?? "").split(",").map((s) => s.trim()).filter(Boolean)
+          );
+        }
+      } catch { /* categories optional */ }
+    })();
+  }, []);
+
+  const addNewCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    const updated = [...storeCategoryList, name];
+    setStoreCategoryList(updated);
+    setDraft((c) => (c ? { ...c, store_category: name } : c));
+    setAddingCategory(false);
+    setNewCategoryName("");
+    try {
+      await fetch(`/api/settings/${encodeURIComponent("inventory.store_categories")}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ value: updated.join(",") }),
+      });
+    } catch { /* best-effort save */ }
+  };
   const [vendorPurchases, setVendorPurchases] = useState<VendorPurchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [addBuyOpen, setAddBuyOpen] = useState(false);
@@ -287,6 +326,7 @@ export function InventoryDetailPanel({
         shipping_cost: draft.shipping_cost === "" ? null : Number(draft.shipping_cost),
         sale_revenue: draft.sale_revenue === "" ? null : Number(draft.sale_revenue),
         category_tags: draft.category_tags.trim() || null,
+        store_category: draft.store_category.trim() || null,
         date_purchased: draft.date_purchased || null,
         date_listed: draft.date_listed || null,
         date_of_sale: draft.date_of_sale || null,
@@ -465,6 +505,9 @@ export function InventoryDetailPanel({
         />
       </div>
 
+      <p className="mb-2 text-xs text-[var(--ui-muted)]">
+        <span className="text-[var(--ui-red)]">*</span> Required field
+      </p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
@@ -484,11 +527,12 @@ export function InventoryDetailPanel({
               onChange={(e) => setDraft((c) => ({ ...c!, description: e.target.value }))}
               rows={3}
               disabled={busy || saving}
+              spellCheck
               className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)]"
             />
           </FormField>
           <div className="grid grid-cols-2 gap-2">
-            <FormField label="Status" helpText="Current inventory status of this item.">
+            <FormField label="Status" helpText="Current inventory status of this item." required>
               <SelectInput
                 value={draft.status}
                 onChange={(v) => setDraft((c) => ({ ...c!, status: v }))}
@@ -560,6 +604,51 @@ export function InventoryDetailPanel({
                 disabled={busy || saving}
                 className={inputClass}
               />
+            </FormField>
+            <FormField
+              label="Store category"
+              helpText="Your internal category for grouping and reporting."
+            >
+              {addingCategory ? (
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); void addNewCategory(); }
+                      if (e.key === "Escape") { setAddingCategory(false); setNewCategoryName(""); }
+                    }}
+                    placeholder="New category name"
+                    className="flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)]"
+                  />
+                  <Button variant="accent" size="sm" onClick={() => void addNewCategory()} disabled={!newCategoryName.trim()}>
+                    Add
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setAddingCategory(false); setNewCategoryName(""); }}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <select
+                  value={draft.store_category}
+                  onChange={(e) => {
+                    if (e.target.value === "__add_new__") {
+                      setAddingCategory(true);
+                    } else {
+                      setDraft((c) => ({ ...c!, store_category: e.target.value }));
+                    }
+                  }}
+                  disabled={busy || saving}
+                  className={inputClass}
+                >
+                  <option value="">— No category —</option>
+                  {storeCategoryList.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="__add_new__">+ Add new category...</option>
+                </select>
+              )}
             </FormField>
           </div>
           {(showProfitability || (item.total_cost != null && item.total_cost > 0)) && (
@@ -654,6 +743,7 @@ export function InventoryDetailPanel({
               onChange={(e) => setDraft((c) => ({ ...c!, condition_notes: e.target.value }))}
               rows={2}
               disabled={busy || saving}
+              spellCheck
               className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
             />
           </FormField>
@@ -663,6 +753,7 @@ export function InventoryDetailPanel({
               onChange={(e) => setDraft((c) => ({ ...c!, notes: e.target.value }))}
               rows={2}
               disabled={busy || saving}
+              spellCheck
               className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
             />
           </FormField>
@@ -929,6 +1020,7 @@ export function InventoryDetailPanel({
                 value={buyForm.notes}
                 onChange={(e) => setBuyForm((c) => ({ ...c, notes: e.target.value }))}
                 rows={2}
+                spellCheck
                 className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
               />
             </FormField>

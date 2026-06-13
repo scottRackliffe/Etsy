@@ -12,12 +12,15 @@ import {
   createCoachPhoto,
   revokeCoachPhotos,
   SHOT_LABELS,
+  SHOT_DESCRIPTIONS,
+  SHOT_SLOT_ORDER,
   type AnalyzeResponse,
   type CoachPhoto,
   type CoachStep,
   type ComposeResponse,
   type ConfirmAnswer,
 } from "@/components/listing-coach/types";
+import type { SlotGuidance } from "@/components/listing-coach/PhotoPasteZone";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
@@ -25,6 +28,11 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/hooks/useToast";
 import { createUiError } from "@/lib/ui-error";
 import type { AiConfig, ApiErrorShape, UiError } from "@/types";
+
+const ITEM_PHOTO_GUIDANCE: SlotGuidance[] = SHOT_SLOT_ORDER.map((type) => ({
+  label: SHOT_LABELS[type] ?? type,
+  description: SHOT_DESCRIPTIONS[type] ?? "",
+}));
 
 function parseApiError(data: ApiErrorShape, fallback: string): UiError {
   return createUiError({
@@ -471,6 +479,7 @@ export default function ListingCoachPage() {
             maxPhotos={20}
             title="Item photos"
             pasteHint="Click here, then press ⌘V to paste photos from Photos (up to 20)"
+            slotGuidance={ITEM_PHOTO_GUIDANCE}
           />
           <PhotoPasteZone
             photos={conditionPhotos}
@@ -478,10 +487,14 @@ export default function ListingCoachPage() {
             maxPhotos={5}
             title="Condition photos (optional)"
             pasteHint="Paste condition or flaw photos here (optional)"
+            emptyHint="Close-ups of any crazing, chips, scratches, repairs, or wear. Honest documentation builds buyer trust and reduces returns. Up to 5 images."
           />
           <div className="rounded-xl border border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <p className="text-sm font-semibold text-[var(--ui-title)]">Video (optional)</p>
             <p className="text-xs text-[var(--ui-muted)]">MP4 or MOV · max 100 MB · 5–15 seconds</p>
+            <p className="mt-1 text-xs text-[var(--ui-body)]">
+              Slowly rotate the item or pan the camera side-to-side. Keep the background neutral and the lighting soft. Silent is fine — Etsy prioritizes listings with video in search results.
+            </p>
             {videoFile ? (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-sm text-[var(--ui-body)]">{videoFile.name}</span>
@@ -793,7 +806,7 @@ export default function ListingCoachPage() {
             </select>
           </label>
           <label className="block text-sm text-[var(--ui-body)]">
-            Etsy category/taxonomy ID
+            Etsy category/taxonomy ID <span className="text-[var(--ui-red)]">*</span>
             <input
               type="number"
               min="1"
@@ -1012,7 +1025,7 @@ export default function ListingCoachPage() {
             />
           </label>
           <label className="block text-sm text-[var(--ui-body)]">
-            Internal description
+            Internal description <span className="text-[var(--ui-red)]">*</span>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -1020,7 +1033,7 @@ export default function ListingCoachPage() {
             />
           </label>
           <label className="block text-sm text-[var(--ui-body)]">
-            Condition
+            Condition <span className="text-[var(--ui-red)]">*</span>
             <select
               value={conditionCode}
               onChange={(e) => setConditionCode(e.target.value)}

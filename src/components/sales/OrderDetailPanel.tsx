@@ -502,8 +502,8 @@ export function OrderDetailPanel({
   const isShipped = Boolean(order.shipping_date);
   const isVoid = order.order_status === "void";
 
-  const field = (key: keyof DraftFields, label: string, type = "text", helpText?: string) => (
-    <FormField label={label} helpText={helpText}>
+  const field = (key: keyof DraftFields, label: string, type = "text", helpText?: string, required?: boolean) => (
+    <FormField label={label} helpText={helpText} required={required}>
       <input
         type={type}
         value={draft[key]}
@@ -694,6 +694,10 @@ export function OrderDetailPanel({
         )}
       </section>
 
+      <p className="mb-2 text-xs text-[var(--ui-muted)]">
+        <span className="text-[var(--ui-red)]">*</span> Required field
+      </p>
+
       <section className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <h5 className="text-sm font-semibold text-[var(--ui-title)]">Ship to</h5>
@@ -704,14 +708,14 @@ export function OrderDetailPanel({
           ) : null}
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {field("ship_to_first_name", "First name")}
-          {field("ship_to_last_name", "Last name")}
-          <div className="sm:col-span-2">{field("ship_to_address_line_1", "Address line 1")}</div>
+          {field("ship_to_first_name", "First name", "text", undefined, true)}
+          {field("ship_to_last_name", "Last name", "text", undefined, true)}
+          <div className="sm:col-span-2">{field("ship_to_address_line_1", "Address line 1", "text", undefined, true)}</div>
           <div className="sm:col-span-2">{field("ship_to_address_line_2", "Address line 2")}</div>
-          {field("ship_to_city", "City")}
-          {field("ship_to_state_province", "State / Province")}
-          {field("ship_to_postal_code", "Postal code")}
-          {field("ship_to_country", "Country")}
+          {field("ship_to_city", "City", "text", undefined, true)}
+          {field("ship_to_state_province", "State / Province", "text", undefined, true)}
+          {field("ship_to_postal_code", "Postal code", "text", undefined, true)}
+          {field("ship_to_country", "Country", "text", undefined, true)}
         </div>
       </section>
 
@@ -848,6 +852,7 @@ export function OrderDetailPanel({
           onChange={(e) => setDraft((c) => (c ? { ...c, notes: e.target.value } : c))}
           disabled={busy || saving || isVoid}
           rows={3}
+          spellCheck
           className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm disabled:opacity-50"
         />
       </section>

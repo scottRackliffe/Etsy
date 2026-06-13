@@ -144,9 +144,9 @@ function scoreTagsFilled(count: number): number {
   return 0;
 }
 
-function gradeForScore(score: number): ListingScoreGrade {
-  if (score >= 80) return "green";
-  if (score >= 60) return "yellow";
+function gradeForScore(score: number, minScore = 80): ListingScoreGrade {
+  if (score >= 90) return "green";
+  if (score >= minScore) return "yellow";
   return "red";
 }
 
@@ -277,7 +277,7 @@ function countMaterialsEntries(input: ListingScoreInput): number {
   }
 }
 
-export function computeListingScore(input: ListingScoreInput): ListingScoreResult {
+export function computeListingScore(input: ListingScoreInput, minScore = 80): ListingScoreResult {
   const title = input.listing_title?.trim() ?? "";
   const description = input.listing_description?.trim() ?? "";
   const pictureCount = countPictures(input);
@@ -309,7 +309,7 @@ export function computeListingScore(input: ListingScoreInput): ListingScoreResul
 
   return {
     score,
-    grade: gradeForScore(score),
+    grade: gradeForScore(score, minScore),
     tips: buildTips(input, breakdown),
     breakdown,
   };

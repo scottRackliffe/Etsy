@@ -26,8 +26,14 @@ export type JobRecord = {
   cancelled: boolean;
 };
 
-const jobs = new Map<string, JobRecord>();
 const CLEANUP_MS = 5 * 60 * 1000;
+
+// Persist across Next.js HMR in development
+const globalJobs = globalThis as typeof globalThis & { __jobStore?: Map<string, JobRecord> };
+if (!globalJobs.__jobStore) {
+  globalJobs.__jobStore = new Map<string, JobRecord>();
+}
+const jobs = globalJobs.__jobStore;
 
 function randomJobId(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";

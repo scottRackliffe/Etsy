@@ -50,6 +50,7 @@ export type InventoryItem = {
   etsy_return_policy_id: number | null;
   quantity: number | null;
   category_tags: string | null;
+  store_category: string | null;
   materials: string | null;
   item_weight: number | null;
   item_weight_unit: string | null;
@@ -213,6 +214,7 @@ export type ApiErrorShape = {
     message?: string;
     user_message?: string;
     actions?: string[];
+    can_retry?: boolean;
   };
   fields?: Record<string, string[]>;
 };

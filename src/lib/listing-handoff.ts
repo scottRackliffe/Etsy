@@ -126,11 +126,11 @@ export function validateAndNormalizeListingImport(
 } {
   const data = (payload ?? {}) as Record<string, unknown>;
   const schemaVersion = typeof data.schema_version === "string" ? data.schema_version : "";
-  const importItemId = Number(data.item_id);
-  if (schemaVersion !== LISTING_HANDOFF_SCHEMA_VERSION) {
+  const importItemId = data.item_id != null ? Number(data.item_id) : null;
+  if (schemaVersion && schemaVersion !== LISTING_HANDOFF_SCHEMA_VERSION) {
     throw new Error("Import schema_version does not match supported version");
   }
-  if (importItemId !== itemId) {
+  if (importItemId != null && importItemId !== itemId) {
     throw new Error("Import item_id does not match selected inventory item");
   }
 

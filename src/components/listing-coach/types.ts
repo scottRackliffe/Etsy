@@ -133,3 +133,30 @@ export const SHOT_LABELS: Record<string, string> = {
   measurement: "Measurement / ruler",
   extra: "Extra / supplemental",
 };
+
+export const SHOT_DESCRIPTIONS: Record<string, string> = {
+  hero: "Straight-on shot showing the entire item (or set). Clean, bright, and centered — this is the first photo buyers see.",
+  angle: "A 45-degree view that shows depth and dimension. Soft shadows help the item look three-dimensional.",
+  detail: "Zoom in on the pattern, texture, transfer print, or edges. Show the craftsmanship up close.",
+  backstamp: "Clear photo of the maker's mark, label, or stamp on the bottom. Essential for vintage — builds buyer trust.",
+  scale: "Include a ruler, your hand, or a familiar object next to the item so buyers understand the size.",
+  imperfection: "Honestly document any crazing, chips, scratches, or utensil marks. Buyers appreciate transparency — fewer returns.",
+  underside: "Bottom or underside view showing authenticity and structure.",
+  grouping: "All pieces in a set arranged together symmetrically. Shows the complete value of what's included.",
+  lifestyle: "Item staged in context — on a kitchen table, shelf, or with simple props like greenery or a napkin. Optional but boosts sales.",
+  measurement: "A ruler or tape measure placed directly against the item for exact dimensions.",
+  extra: "Any additional view that doesn't fit the categories above.",
+};
+
+export const SHOT_SLOT_ORDER: string[] = [
+  "hero",
+  "angle",
+  "detail",
+  "backstamp",
+  "scale",
+  "imperfection",
+  "underside",
+  "grouping",
+  "lifestyle",
+  "measurement",
+];

@@ -63,6 +63,7 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   etsy_return_policy_id: "INTEGER",
   quantity: "INTEGER",
   category_tags: "TEXT",
+  store_category: "TEXT",
   materials: "TEXT",
   item_weight: "REAL",
   item_weight_unit: "TEXT",

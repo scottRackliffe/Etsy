@@ -91,13 +91,15 @@ export default function DashboardPage() {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     void runSync(selectedShopId, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         setActivityLogKey((k) => k + 1);
-        setError({
-          title: "Etsy sync complete",
-          message: "Latest Etsy receipts were synchronized.",
-          actions: ["Review recent orders below or open the Sales tab."],
-        });
+        const synced = result.synced ?? 0;
+        toast.showToast(
+          synced > 0
+            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} from Etsy.`
+            : "Etsy sync complete — no new orders to import.",
+          synced > 0 ? "success" : "info"
+        );
       },
       onCancelled: (result) => {
         const n = result.synced ?? 0;

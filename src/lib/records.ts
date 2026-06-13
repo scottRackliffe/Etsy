@@ -50,6 +50,7 @@ export type InventoryListOptions = {
   offset: number;
   search?: string;
   status?: string;
+  store_category?: string;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 };
@@ -57,6 +58,7 @@ export type InventoryListOptions = {
 const INVENTORY_SORT: Record<string, string> = {
   item_number: "item_number",
   description: "description",
+  store_category: "store_category",
   status: "status",
   updated_at: "COALESCE(updated_at, created_at, '')",
   created_at: "created_at",
@@ -74,8 +76,12 @@ export function listInventory(options: InventoryListOptions) {
     where += " AND status = @status";
     params.status = options.status.trim();
   }
+  if (options.store_category?.trim()) {
+    where += " AND store_category = @store_category";
+    params.store_category = options.store_category.trim();
+  }
   where += buildSearchClause(
-    ["item_number", "description", "listing_title", "category_tags", "notes"],
+    ["item_number", "description", "listing_title", "category_tags", "store_category", "notes"],
     options.search,
     params
   );

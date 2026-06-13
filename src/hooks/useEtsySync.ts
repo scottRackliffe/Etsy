@@ -81,11 +81,21 @@ export function useEtsySync() {
           onProgress: (progress) => applyJobProgressToModal(setModal, progress),
           onComplete: (job: JobPollResult) => {
             const result = (job.result ?? {}) as EtsySyncSummary;
-            setModal((m) => ({ ...m, statusText: "Complete" }));
-            window.setTimeout(() => {
-              close();
-              options?.onSuccess?.(result);
-            }, 2000);
+            const synced = result.synced ?? 0;
+            const skipped = result.skipped_already_imported ?? 0;
+            const msg = synced > 0
+              ? `Synced ${synced} order${synced !== 1 ? "s" : ""}${skipped > 0 ? ` (${skipped} already imported)` : ""}.`
+              : "No new orders to import.";
+            setModal((m) => ({
+              ...m,
+              statusText: msg,
+              completed: true,
+              onCancel: undefined,
+              onClose: () => {
+                close();
+                options?.onSuccess?.(result);
+              },
+            }));
           },
           onCancelled: (job: JobPollResult) => {
             const result = (job.result ?? {}) as EtsySyncSummary;

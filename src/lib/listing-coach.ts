@@ -3,6 +3,7 @@ import { ApiRouteError } from "@/lib/api-error";
 import { getAiConfig } from "@/lib/ai-config";
 import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidance";
 import { computeListingScore } from "@/lib/listing-score";
+import { getSetting } from "@/lib/settings-store";
 import type { CoachPhotoFile } from "@/lib/listing-coach-multipart";
 import {
   cleanJsonResponse,
@@ -429,6 +430,8 @@ export async function composeListingCoach(params: {
   for (let i = 1; i <= 20; i++) {
     pictureSlots[`picture_${i}`] = i <= pictureCount ? "set" : null;
   }
+  const minScoreStr = getSetting("listing.min_quality_score");
+  const minScoreVal = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
   const scoreResult = computeListingScore({
     listing_title: parsed.listing_title.trim(),
     listing_description: parsed.listing_description.trim(),
@@ -436,7 +439,7 @@ export async function composeListingCoach(params: {
     condition_code: params.suggestedConditionCode ?? "Good",
     sale_revenue: params.price.sale_revenue ?? null,
     ...pictureSlots,
-  });
+  }, minScoreVal);
 
   return {
     listing_title: parsed.listing_title.trim(),

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       offset,
       search: parseOptionalString(params, "search"),
       status: parseOptionalString(params, "status"),
+      store_category: parseOptionalString(params, "store_category"),
       sortBy: parseOptionalString(params, "sort_by"),
       sortDir: (parseOptionalString(params, "sort_dir") as "asc" | "desc" | undefined) ?? undefined,
     });

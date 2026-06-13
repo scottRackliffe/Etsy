@@ -23,6 +23,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { useEtsySync } from "@/hooks/useEtsySync";
+import { useToast } from "@/hooks/useToast";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { apiFetch } from "@/lib/api-fetch";
 import { addNotificationEntry } from "@/lib/notifications";
@@ -79,6 +80,7 @@ function SalesPageInner() {
     progressCurrent,
   } = useBatchOperation();
   const { modal: syncModal, runSync } = useEtsySync();
+  const toast = useToast();
   const [printQueueOpen, setPrintQueueOpen] = useState(false);
   const [printQueueType, setPrintQueueType] = useState<PrintQueueDocType>("invoice");
   const [shipModalOpen, setShipModalOpen] = useState(false);
@@ -362,13 +364,15 @@ function SalesPageInner() {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     void runSync(selectedShopId, {
-      onSuccess: async () => {
+      onSuccess: async (result) => {
         await reloadOrders();
-        setError({
-          title: "Etsy sync complete",
-          message: "Latest Etsy receipts were synchronized.",
-          actions: ["Open Dashboard or Sales to review synced orders."],
-        });
+        const synced = result.synced ?? 0;
+        toast.showToast(
+          synced > 0
+            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} from Etsy.`
+            : "Etsy sync complete — no new orders to import.",
+          synced > 0 ? "success" : "info"
+        );
       },
       onError: (err) => {
         setApiError("Could not sync Etsy orders", "We could not sync Etsy receipts.", err);

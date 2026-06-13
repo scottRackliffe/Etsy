@@ -102,6 +102,20 @@ body {
   white-space: normal;
 }
 
+/* Block password manager injected UI (LastPass, 1Password, Dashlane, etc.) */
+div[id^="__lp"],
+div[data-lastpass-icon-root],
+div[data-lastpass-root],
+[data-lastpass-icon-root] > * {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

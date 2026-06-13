@@ -74,7 +74,8 @@ One row per inventory item. Source: ADR-002.
 | etsy_shipping_profile_id       | INTEGER | —                         | Per-item override for shipping profile. Null = use global default.                                              |
 | etsy_return_policy_id          | INTEGER | —                         | Per-item override for return policy. Null = use global default.                                                  |
 | quantity                       | INTEGER | —                         | Default 1.                                                                                                      |
-| category_tags                  | TEXT    | —                         | Optional; category or tags.                                                                                     |
+| category_tags                  | TEXT    | —                         | Optional; comma-separated Etsy-facing category tags.                                                            |
+| store_category                 | TEXT    | —                         | User-defined internal store category for reporting/grouping. Single value from `inventory.store_categories`.     |
 | materials                      | TEXT    | —                         | JSON array of material strings (e.g. `["ceramic","glaze"]`). Sent to Etsy as `materials[]`.                     |
 | item_weight                    | REAL    | —                         | Item weight for shipping calculation. Null if unknown.                                                          |
 | item_weight_unit               | TEXT    | —                         | Weight unit: `oz`, `lb`, `g`, `kg`. Default `oz` when weight provided.                                          |
@@ -376,6 +377,9 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | last_integrity_check         | Last SQLite integrity check timestamp (ADR-058)                                                              | ISO 8601                                                                            |
 | integrity_warning            | Set when last integrity check failed (ADR-058)                                                               | "true" or absent                                                                    |
 | repeat_customer_threshold    | Min orders for repeat badge; v1 default 2 if unset (ADR-066)                                                 | "2"                                                                                 |
+| inventory.number_prefix      | Prefix for auto-generated item numbers                                                                       | "ITEM" (default)                                                                    |
+| inventory.number_padding     | Zero-padding width for item number sequence (2–6)                                                            | "4" (default)                                                                       |
+| inventory.store_categories   | Comma-separated list of user-defined store categories for inventory grouping/reporting                        | e.g. "Glassware,Jewelry,Kitchen"                                                    |
 | easypost.api_key_encrypted       | EasyPost API key, encrypted at rest (AES-256-GCM, ADR-074)                                                  | Encrypted string                                                                    |
 | easypost.address_validation      | Validate ship-to addresses before rate shopping (ADR-074)                                                    | "on" or "off" (default "off")                                                       |
 | easypost.label_format            | Shipping label file format (ADR-074)                                                                         | "pdf" (default) or "png"                                                            |
@@ -483,6 +487,7 @@ CREATE TABLE inventory (
   etsy_return_policy_id INTEGER,
   quantity INTEGER,
   category_tags TEXT,
+  store_category TEXT,
   materials TEXT,
   item_weight REAL,
   item_weight_unit TEXT,

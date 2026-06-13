@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getDb } from "@/lib/sqlite";
+import { computeListingScore, type ListingScoreInput } from "@/lib/listing-score";
 
 export type OutstandingItem = {
   type: string;
@@ -212,6 +213,37 @@ function queryOutstandingItems(): OutstandingItem[] {
       target_tab: "sales",
       record_id: o.id,
       date: o.order_date,
+    });
+  }
+
+  // Type 9: Listings with quality score below 90 (improveable)
+  const minScoreRaw = db.prepare("SELECT value FROM settings WHERE key = ?").get("listing.min_quality_score") as { value: string } | undefined;
+  const configuredMin = minScoreRaw?.value != null ? parseInt(minScoreRaw.value, 10) : 80;
+  const listingCandidates = db
+    .prepare(
+      `SELECT *
+       FROM inventory
+       WHERE listing_draft_state IN ('draft','generated','imported','approved','published')
+         AND listing_title IS NOT NULL AND listing_title <> ''`
+    )
+    .all() as Array<ListingScoreInput & { id: number; item_number: string | null; description: string | null; created_at: string | null }>;
+
+  for (const row of listingCandidates) {
+    const scoreResult = computeListingScore(row, configuredMin);
+    if (scoreResult.score >= 90) continue;
+    const desc = row.description
+      ? row.description.length > 40
+        ? row.description.slice(0, 40) + "…"
+        : row.description
+      : "";
+    const belowMin = configuredMin > 0 && scoreResult.score < configuredMin;
+    items.push({
+      type: "low_quality_score",
+      type_label: belowMin ? "Below minimum score" : "Quality improveable",
+      label: `Item ${row.item_number ?? `#${row.id}`}${desc ? ` – ${desc}` : ""} – quality score ${scoreResult.score}/100${belowMin ? ` (minimum: ${configuredMin})` : ""}`,
+      target_tab: "inventory",
+      record_id: row.id,
+      date: row.created_at ?? null,
     });
   }
 

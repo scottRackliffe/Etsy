@@ -47,6 +47,22 @@ export function useJobPoll() {
 
             if (!response.ok) {
               stopPolling();
+              if (response.status === 404) {
+                // Job vanished — likely completed before poll could catch it
+                callbacks.onComplete({
+                  job_id: jobId,
+                  status: "completed",
+                  progress: { current: 0, total: 0, message: "Complete" },
+                  result: { synced: 0, skipped_already_imported: 0, early_finish: true },
+                });
+                resolve({
+                  job_id: jobId,
+                  status: "completed",
+                  progress: { current: 0, total: 0, message: "Complete" },
+                  result: { synced: 0, skipped_already_imported: 0, early_finish: true },
+                });
+                return;
+              }
               reject(data);
               return;
             }

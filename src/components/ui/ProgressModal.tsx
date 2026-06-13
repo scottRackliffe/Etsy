@@ -11,6 +11,7 @@ export type ProgressModalState = {
   mode: "indeterminate" | "determinate";
   current?: number;
   total?: number;
+  completed?: boolean;
   error?: string | null;
   userMessage?: string;
   onRetry?: () => void;
@@ -26,6 +27,7 @@ export function ProgressModal({
   mode,
   current = 0,
   total = 0,
+  completed,
   error,
   userMessage,
   onRetry,
@@ -33,7 +35,7 @@ export function ProgressModal({
   onCancel,
   cancelDisabled = false,
 }: ProgressModalState) {
-  const elapsed = useElapsedSeconds(open && !error);
+  const elapsed = useElapsedSeconds(open && !error && !completed);
   const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
 
   if (!open) return null;
@@ -43,7 +45,7 @@ export function ProgressModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-busy={!error}
+      aria-busy={!error && !completed}
       aria-labelledby="progress-modal-title"
     >
       <div className="w-full max-w-md rounded-xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-6 shadow-2xl">
@@ -65,6 +67,16 @@ export function ProgressModal({
                   Close
                 </Button>
               ) : null}
+            </div>
+          </div>
+        ) : completed ? (
+          <div className="mt-4">
+            <p className="text-sm text-[var(--ui-green)]">{statusText}</p>
+            <p className="mt-2 text-xs text-[var(--ui-muted)]">Elapsed: {formatElapsed(elapsed)}</p>
+            <div className="mt-6 flex justify-center">
+              <Button variant="accent" onClick={onClose}>
+                OK
+              </Button>
             </div>
           </div>
         ) : (

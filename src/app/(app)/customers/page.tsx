@@ -26,6 +26,7 @@ import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEtsySync } from "@/hooks/useEtsySync";
+import { useToast } from "@/hooks/useToast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
@@ -112,6 +113,7 @@ function CustomersPageInner() {
   const { setFormDirty } = useUnsavedChanges();
   const { patchWithUndo } = useUndoRedo();
   const { modal: syncModal, runSync } = useEtsySync();
+  const toast = useToast();
 
   useEffect(() => {
     setFormDirty(customerDetailDirty);
@@ -603,13 +605,15 @@ function CustomersPageInner() {
     if (!selectedShopId) return;
     setBusyAction("sync-etsy");
     void runSync(selectedShopId, {
-      onSuccess: async () => {
+      onSuccess: async (result) => {
         await reloadCustomers();
-        setError({
-          title: "Etsy sync complete",
-          message: "Customers and orders were updated from Etsy.",
-          actions: ["Refresh the Customers tab to review new records."],
-        });
+        const synced = result.synced ?? 0;
+        toast.showToast(
+          synced > 0
+            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} — customers updated.`
+            : "Etsy sync complete — no new orders to import.",
+          synced > 0 ? "success" : "info"
+        );
       },
       onError: (err) => {
         setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
@@ -813,6 +817,7 @@ function CustomersPageInner() {
                   placeholder="Add a pinned note for this customer…"
                   rows={2}
                   maxLength={2000}
+                  spellCheck
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
                 />
               </FormField>
@@ -838,6 +843,7 @@ function CustomersPageInner() {
                   placeholder="Add a note about this customer…"
                   rows={4}
                   maxLength={2000}
+                  spellCheck
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm"
                 />
                 <select
@@ -916,27 +922,33 @@ function CustomersPageInner() {
         </div>
         <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <p className="text-sm font-semibold">Add customer</p>
-          <input
-            value={newCustomerFirstName}
-            onChange={(e) => setNewCustomerFirstName(e.target.value)}
-            placeholder="First name"
-            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-          />
-          <input
-            value={newCustomerLastName}
-            onChange={(e) => setNewCustomerLastName(e.target.value)}
-            onBlur={() => void checkCustomerDuplicate()}
-            placeholder="Last name"
-            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-          />
-          <input
-            ref={createEmailRef}
-            value={newCustomerEmail}
-            onChange={(e) => setNewCustomerEmail(e.target.value)}
-            onBlur={() => void checkCustomerDuplicate()}
-            placeholder="Email"
-            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-          />
+          <FormField label="First name" required>
+            <input
+              value={newCustomerFirstName}
+              onChange={(e) => setNewCustomerFirstName(e.target.value)}
+              placeholder="First name"
+              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Last name" required>
+            <input
+              value={newCustomerLastName}
+              onChange={(e) => setNewCustomerLastName(e.target.value)}
+              onBlur={() => void checkCustomerDuplicate()}
+              placeholder="Last name"
+              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Email">
+            <input
+              ref={createEmailRef}
+              value={newCustomerEmail}
+              onChange={(e) => setNewCustomerEmail(e.target.value)}
+              onBlur={() => void checkCustomerDuplicate()}
+              placeholder="Email"
+              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </FormField>
           {customerDuplicates.length > 0 ? (
             <DuplicateWarning
               message="A similar customer may already exist."

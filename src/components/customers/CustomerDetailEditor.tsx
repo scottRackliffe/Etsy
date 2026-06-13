@@ -5,6 +5,7 @@ import { customerToDetailDraft, type CustomerDetailDraft } from "@/lib/customer-
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
+import { FormField } from "@/components/ui/FormField";
 import type { Customer } from "@/types";
 
 type CustomerDetailEditorProps = {
@@ -65,46 +66,56 @@ export function CustomerDetailEditor({
 
   return (
     <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-      <input
-        value={draft.first_name}
-        onChange={(e) => update("first_name", e.target.value)}
-        onBlur={() => void saveField("first_name")}
-        placeholder="First name"
-        disabled={busy}
-        className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-      />
-      <input
-        value={draft.last_name}
-        onChange={(e) => update("last_name", e.target.value)}
-        onBlur={() => void saveField("last_name")}
-        placeholder="Last name"
-        disabled={busy}
-        className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-      />
-      <input
-        value={draft.phone}
-        onChange={(e) => update("phone", e.target.value)}
-        onBlur={() => void saveField("phone")}
-        placeholder="Phone"
-        disabled={busy}
-        className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-      />
-      <input
-        value={draft.address_1}
-        onChange={(e) => update("address_1", e.target.value)}
-        onBlur={() => void saveField("address_1")}
-        placeholder="Address"
-        disabled={busy}
-        className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-      />
-      <input
-        value={draft.postal_code}
-        onChange={(e) => update("postal_code", e.target.value)}
-        onBlur={() => void saveField("postal_code")}
-        placeholder="Postal code"
-        disabled={busy}
-        className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-      />
+      <FormField label="First name" required>
+        <input
+          value={draft.first_name}
+          onChange={(e) => update("first_name", e.target.value)}
+          onBlur={() => void saveField("first_name")}
+          placeholder="First name"
+          disabled={busy}
+          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Last name" required>
+        <input
+          value={draft.last_name}
+          onChange={(e) => update("last_name", e.target.value)}
+          onBlur={() => void saveField("last_name")}
+          placeholder="Last name"
+          disabled={busy}
+          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Phone">
+        <input
+          value={draft.phone}
+          onChange={(e) => update("phone", e.target.value)}
+          onBlur={() => void saveField("phone")}
+          placeholder="Phone"
+          disabled={busy}
+          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Address">
+        <input
+          value={draft.address_1}
+          onChange={(e) => update("address_1", e.target.value)}
+          onBlur={() => void saveField("address_1")}
+          placeholder="Address"
+          disabled={busy}
+          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Postal code">
+        <input
+          value={draft.postal_code}
+          onChange={(e) => update("postal_code", e.target.value)}
+          onBlur={() => void saveField("postal_code")}
+          placeholder="Postal code"
+          disabled={busy}
+          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+      </FormField>
     </div>
   );
 }

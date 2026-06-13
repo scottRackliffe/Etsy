@@ -47,10 +47,9 @@ export function ToastContainer({
           <button
             type="button"
             onClick={() => onDismiss(t.id)}
-            className="ml-2 opacity-60 hover:opacity-100"
-            aria-label="Dismiss"
+            className="rounded border border-current/30 px-2 py-1 text-xs font-semibold opacity-90 hover:opacity-100"
           >
-            &times;
+            OK
           </button>
         </div>
       ))}

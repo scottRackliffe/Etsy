@@ -29,9 +29,12 @@ export function getAiConfig(): AiConfig | null {
   const model = (getSetting("ai.model") ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL).trim();
   const apiKey = (getSetting("ai.api_key") ?? process.env.OPENAI_API_KEY ?? "").trim();
   const baseUrl = (getSetting("ai.base_url") ?? process.env.OPENAI_BASE_URL ?? "").trim() || null;
-  const timeoutMs = parseIntSetting(getSetting("ai.timeout_ms"), DEFAULT_TIMEOUT_MS);
-  const retryCount = parseIntSetting(getSetting("ai.retry_count"), DEFAULT_RETRY_COUNT);
-  const tokenBudget = parseIntSetting(getSetting("ai.token_budget"), DEFAULT_TOKEN_BUDGET);
+  const rawTimeoutMs = parseIntSetting(getSetting("ai.timeout_ms"), DEFAULT_TIMEOUT_MS);
+  const timeoutMs = rawTimeoutMs < 5000 ? DEFAULT_TIMEOUT_MS : rawTimeoutMs;
+  const rawRetryCount = parseIntSetting(getSetting("ai.retry_count"), DEFAULT_RETRY_COUNT);
+  const retryCount = Math.max(1, rawRetryCount);
+  const rawTokenBudget = parseIntSetting(getSetting("ai.token_budget"), DEFAULT_TOKEN_BUDGET);
+  const tokenBudget = rawTokenBudget < 100 ? DEFAULT_TOKEN_BUDGET : rawTokenBudget;
 
   if (!apiKey) {
     return null;
@@ -98,7 +101,7 @@ export function saveAiConfig(input: {
     if (!Number.isFinite(input.timeoutMs)) {
       throw new Error("timeoutMs must be a number");
     }
-    setSetting("ai.timeout_ms", String(Math.max(1000, Math.floor(input.timeoutMs))));
+    setSetting("ai.timeout_ms", String(Math.max(5000, Math.floor(input.timeoutMs))));
   }
   if (input.retryCount !== undefined) {
     if (!Number.isFinite(input.retryCount)) {
@@ -110,7 +113,8 @@ export function saveAiConfig(input: {
     if (!Number.isFinite(input.tokenBudget)) {
       throw new Error("tokenBudget must be a number");
     }
-    setSetting("ai.token_budget", String(Math.max(1, Math.floor(input.tokenBudget))));
+    const clamped = Math.max(100, Math.floor(input.tokenBudget));
+    setSetting("ai.token_budget", String(clamped));
   }
   setSetting("ai.provider", provider);
 }

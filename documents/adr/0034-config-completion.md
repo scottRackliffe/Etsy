@@ -30,8 +30,10 @@ The Config page currently has three sections: AI settings, Etsy publish defaults
 ├──────────────────────────┼──────────────────────────────┤
 │ AI settings (existing)   │ Publish defaults             │
 ├──────────────────────────┼──────────────────────────────┤
-│ Display preferences      │                              │
-│ (existing, expanded)     │                              │
+│ Tax settings             │ Item numbering               │
+├──────────────────────────┼──────────────────────────────┤
+│ Store categories         │ Display preferences          │
+│                          │ (existing, expanded)         │
 ├──────────────────────────┼──────────────────────────────┤
 │ Icons and branding       │ Backup and restore           │
 │ (existing)               │                              │
