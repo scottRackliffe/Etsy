@@ -39,15 +39,15 @@ export async function GET(request: NextRequest) {
     }
     const db = getDb();
     const rows = db
-      .prepare("SELECT key, value FROM settings ORDER BY key")
-      .all() as Array<{ key: string; value: string | null }>;
-    const settings: Record<string, string | null> = {};
+      .prepare("SELECT key, value, updated_at FROM settings ORDER BY key")
+      .all() as Array<{ key: string; value: string | null; updated_at: string }>;
+    const items: Array<{ key: string; value: string | null; updated_at: string }> = [];
     for (const row of rows) {
       if (isSensitiveKey(row.key)) continue;
       if (isWizard && !isWizardSafeKey(row.key)) continue;
-      settings[row.key] = row.value;
+      items.push(row);
     }
-    return NextResponse.json({ ok: true, settings });
+    return NextResponse.json({ ok: true, items });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {
