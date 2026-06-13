@@ -8,8 +8,9 @@ export function getSetting(key: string): string | null {
   return row?.value ?? null;
 }
 
-export function setSetting(key: string, value: string): void {
+export function setSetting(key: string, value: string): string {
   const db = getDb();
+  const updated_at = new Date().toISOString();
   db.prepare(
     `
       INSERT INTO settings(key, value, updated_at)
@@ -17,11 +18,8 @@ export function setSetting(key: string, value: string): void {
       ON CONFLICT(key)
       DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
     `
-  ).run({
-    key,
-    value,
-    updated_at: new Date().toISOString(),
-  });
+  ).run({ key, value, updated_at });
+  return updated_at;
 }
 
 export function deleteSetting(key: string): void {

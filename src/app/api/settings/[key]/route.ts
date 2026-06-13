@@ -164,14 +164,14 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
       return NextResponse.json({ ok: true, key, value: "(encrypted)" });
     }
 
-    setSetting(key, body.value);
+    const updated_at = setSetting(key, body.value);
     const isSensitive = /key|token|secret/i.test(key);
     logActivity({
       action: "settings.updated",
       entityType: "setting",
       detail: isSensitive ? { key } : { key, value: body.value },
     });
-    return NextResponse.json({ ok: true, key, value: body.value });
+    return NextResponse.json({ ok: true, key, value: body.value, updated_at });
   } catch (error) {
     return errorResponse(
       fromUnknownError(error, {

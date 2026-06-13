@@ -464,6 +464,7 @@ export default function ConfigPage() {
   const saveBusinessProfile = async () => {
     setBusinessLoading(true);
     try {
+      const serverTimestamps = new Map<string, string>();
       for (const key of BUSINESS_KEYS) {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -477,13 +478,13 @@ export default function ConfigPage() {
           headers,
           body: JSON.stringify({ value: businessProfile[key] }),
         });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { updated_at?: string };
         if (!response.ok) throw data;
+        if (data.updated_at) serverTimestamps.set(key, data.updated_at);
       }
       setSettingsUpdatedAt((prev) => {
         const next = new Map(prev);
-        const now = new Date().toISOString();
-        for (const key of BUSINESS_KEYS) next.set(key, now);
+        for (const [k, v] of serverTimestamps) next.set(k, v);
         return next;
       });
       setError({
@@ -539,6 +540,7 @@ export default function ConfigPage() {
   ) => {
     setExtraSettingsLoading(true);
     try {
+      const serverTimestamps = new Map<string, string>();
       for (const update of updates) {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -552,13 +554,13 @@ export default function ConfigPage() {
           headers,
           body: JSON.stringify({ value: update.value }),
         });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { updated_at?: string };
         if (!response.ok) throw data;
+        if (data.updated_at) serverTimestamps.set(update.key, data.updated_at);
       }
       setSettingsUpdatedAt((prev) => {
         const next = new Map(prev);
-        const now = new Date().toISOString();
-        for (const update of updates) next.set(update.key, now);
+        for (const [k, v] of serverTimestamps) next.set(k, v);
         return next;
       });
       setError({ title: successTitle, message: successMessage, actions: ["Settings saved."] });
@@ -1027,6 +1029,7 @@ export default function ConfigPage() {
           value: iconConfig.reportHeaderWidthPx.trim() || "220",
         },
       ];
+      const iconTimestamps = new Map<string, string>();
       for (const update of updates) {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -1040,13 +1043,13 @@ export default function ConfigPage() {
           headers,
           body: JSON.stringify({ value: update.value }),
         });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { updated_at?: string };
         if (!response.ok) throw data;
+        if (data.updated_at) iconTimestamps.set(update.key, data.updated_at);
       }
       setSettingsUpdatedAt((prev) => {
         const next = new Map(prev);
-        const now = new Date().toISOString();
-        for (const update of updates) next.set(update.key, now);
+        for (const [k, v] of iconTimestamps) next.set(k, v);
         return next;
       });
       setError({
