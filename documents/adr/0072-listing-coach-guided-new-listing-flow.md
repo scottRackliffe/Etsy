@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted (revised 2026-06-14: 4-step flow, accuracy measures, auto-video)
+Accepted (revised 2026-06-15: 2-phase flow with AI refinement)
 
 ## Date
 
-2026-05-24 (revised 2026-06-14)
+2026-05-24 (revised 2026-06-14, 2026-06-15)
 
 ## Context
 
@@ -644,3 +644,122 @@ After save, the system generates an Etsy-compliant slideshow video from uploaded
 - `src/app/api/listing-coach/analyze/route.ts` — now calls `researchAndCompose` instead of `analyzeListingCoach`
 - `src/components/listing-coach/types.ts` — added `ResearchResponse`, `FieldEvidence`, `Citation`, `ComplianceCheck`, `EvidenceBadge` types; updated `CoachStep` to 4-step enum
 - `src/app/(app)/listing-coach/page.tsx` — complete rewrite to 4-step flow with evidence UI and auto-video
+
+---
+
+## Revision: 2026-06-15 — Two-phase flow with AI refinement
+
+### Summary of changes
+
+The 4-step flow has been further consolidated into a **2-phase flow** based on operator feedback. The core insight: there are two distinct operations — (1) logging the purchase, and (2) the AI taking over to produce and refine the listing.
+
+| New phase | Old steps replaced | What happens |
+|---|---|---|
+| Phase 1: Log the Purchase | Step 1 (Input) | Photos + purchase details (price, date, condition, vendor, store category) |
+| Phase 2: Unified Form | Steps 2-4 (Research + Review + Save) | Single editable form showing ALL fields (internal + Etsy) with AI refinement |
+
+### Phase 1 input fields
+
+Phase 1 collects all purchase-related data upfront so the AI has full context:
+
+- Photos (item + condition) with **drag-and-drop reordering** (grab and move; Hero badge on first photo; x button to remove)
+- Item description, date purchased, purchase price
+- Condition code + condition notes
+- Store category (with add-new)
+- **Size & weight** — weight (oz/lb/g/kg) + L/W/H dimensions (in/cm)
+- **Where I bought this** — vendor name, vendor shipping cost, reference #, purchase notes
+- Optional: Google Visual Search screenshots or research text
+
+### `CoachStep` enum change
+
+```
+Old: "welcome" | "input" | "research" | "review" | "save"
+New: "welcome" | "input" | "form"
+```
+
+### Unified editable form (Phase 2)
+
+After the AI research completes, ALL fields populate a single scrollable editable form organized in 8 sections:
+
+1. **Identity & Financials** — item number, description, identification (with evidence badge), status, quantity, sale price (AI-recommended), purchase cost, shipping cost inbound, dates, category tags
+2. **Condition** — condition code, condition notes (AI-enhanced to Etsy best practices)
+3. **Etsy Listing** — listing title (with character count), description, tags (with chip preview), category path, taxonomy ID, era, materials, is supply
+4. **Weight & Dimensions** — weight + unit, L/W/H + unit
+5. **Listing Workshop** — all 6 internal strategy fields (title strategy, product story, condition clarity, attributes, pricing notes, quality checklist)
+6. **Where I Bought This** — vendor name, vendor shipping, reference #, purchase notes; creates a `purchases` record on save
+7. **Internal Notes** — private notes (not sent to Etsy)
+8. **Photos & Quality** — photo classifications, quality score, citations, compliance issues
+
+Listing content fields (title, description, tags, and all workshop fields) are now directly editable in the form instead of being read-only in a separate review step.
+
+### AI refinement (new capability)
+
+Two modes for iterative improvement without re-running the full research:
+
+**Per-field "Fix" button:**
+- Small "Fix" button next to every AI-generated field
+- Click opens an inline text input: "What should the AI change?"
+- Calls `POST /api/listing-coach/refine` with `mode: "field"`, field name, current value, and listing context
+- AI returns corrected value for just that field
+
+**Global "Fix it" box:**
+- Textarea at the bottom of the form: "Tell the AI what's missing or needs improvement"
+- Calls `POST /api/listing-coach/refine` with `mode: "global"` and full field context
+- AI returns only the fields it changed; merged into form state
+- Operator can iterate as many times as needed before saving
+
+### New API endpoint: `POST /api/listing-coach/refine`
+
+```
+Request:
+{
+  mode: "field" | "global",
+  field_name?: string,        // for field mode
+  current_value?: string,     // for field mode
+  instruction: string,        // what the AI should change
+  context: {                  // current listing state
+    identification, listing_title, listing_description, listing_tags,
+    listing_category_path, listing_condition_clarity, listing_product_story,
+    listing_attributes, listing_pricing_shipping_notes, listing_title_strategy,
+    listing_quality_checklist, condition_code, condition_notes, materials, sale_price
+  }
+}
+
+Response:
+{
+  ok: true,
+  fields: { "<field_name>": "<new_value>", ... }
+}
+```
+
+Auth: App (session cookie). No web search needed — uses listing context only. Lightweight AI call (~4000 token budget, 60s timeout).
+
+### All inventory detail fields now saved from coach
+
+The complete route now saves every field from the inventory detail panel:
+
+| Category | Fields added in this revision |
+|---|---|
+| Financials | `quantity`, `shipping_cost` (inbound) |
+| Categories | `category_tags` |
+| Internal | `notes` (internal notes) |
+| Etsy | `is_supply` |
+| Vendor | Creates `purchases` record with `vendor_name`, `shipping_price`, `reference_number`, `notes` |
+
+### Vendor purchase editing
+
+The inventory detail panel (`InventoryDetailPanel.tsx`) now supports editing existing vendor purchases via an Edit button and modal that calls `PATCH /api/purchases/:id`.
+
+### New files
+
+- `src/app/api/listing-coach/refine/route.ts` — AI refinement endpoint
+
+### Modified files
+
+- `src/lib/listing-coach.ts` — added `refineListing()` function with per-field and global modes, `RefineListingInput`/`RefineListingResult` types
+- `src/lib/listing-coach-complete.ts` — added `quantity`, `shippingCostInbound`, `categoryTags`, `internalNotes`, `isSupply`, vendor purchase fields; creates `purchases` record
+- `src/app/api/listing-coach/complete/route.ts` — parses all new fields from form data
+- `src/components/listing-coach/types.ts` — `CoachStep` reduced to `"welcome" | "input" | "form"`
+- `src/components/inventory/InventoryDetailPanel.tsx` — added vendor purchase edit capability
+- `src/components/listing-coach/PhotoPasteZone.tsx` — replaced arrow-button reordering with native drag-and-drop; added Hero badge, position numbers, and x-to-remove
+- `src/app/(app)/listing-coach/page.tsx` — complete rewrite to 2-phase flow with unified editable form and AI refinement; Phase 1 includes size/weight and vendor fields

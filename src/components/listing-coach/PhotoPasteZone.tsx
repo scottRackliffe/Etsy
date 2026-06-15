@@ -26,6 +26,11 @@ type PhotoPasteZoneProps = {
   slotGuidance?: SlotGuidance[];
 };
 
+type DragState = {
+  dragIndex: number;
+  overIndex: number;
+} | null;
+
 function validateFile(file: File): string | null {
   if (!file.type.startsWith("image/")) {
     return "File must be an image.";
@@ -48,6 +53,7 @@ export function PhotoPasteZone({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
   const [rejectMessage, setRejectMessage] = useState<string | null>(null);
+  const [drag, setDrag] = useState<DragState>(null);
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
@@ -106,14 +112,6 @@ export function PhotoPasteZone({
     const removed = photos.find((p) => p.id === id);
     if (removed) URL.revokeObjectURL(removed.previewUrl);
     onChange(photos.filter((p) => p.id !== id));
-  };
-
-  const movePhoto = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= photos.length) return;
-    const next = [...photos];
-    [next[index], next[target]] = [next[target], next[index]];
-    onChange(next);
   };
 
   const clearAll = () => {
@@ -204,46 +202,72 @@ export function PhotoPasteZone({
 
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {photos.map((photo, index) => (
-            <div
-              key={photo.id}
-              className="relative overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.previewUrl}
-                alt={`Photo ${index + 1}`}
-                className="aspect-square w-full object-cover"
-              />
-              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1">
+          {photos.map((photo, index) => {
+            const isDragged = drag?.dragIndex === index;
+            const isOver = drag !== null && drag.overIndex === index && drag.dragIndex !== index;
+            return (
+              <div
+                key={photo.id}
+                draggable
+                onDragStart={(e) => {
+                  setDrag({ dragIndex: index, overIndex: index });
+                  e.dataTransfer.effectAllowed = "move";
+                  if (e.currentTarget instanceof HTMLElement) {
+                    e.dataTransfer.setDragImage(e.currentTarget, 50, 50);
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (drag && drag.overIndex !== index) {
+                    setDrag({ ...drag, overIndex: index });
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drag && drag.dragIndex !== index) {
+                    const next = [...photos];
+                    const [moved] = next.splice(drag.dragIndex, 1);
+                    next.splice(index, 0, moved);
+                    onChange(next);
+                  }
+                  setDrag(null);
+                }}
+                onDragEnd={() => setDrag(null)}
+                className={`relative overflow-hidden rounded-lg border-2 bg-[var(--ui-card-bg)] transition-all cursor-grab active:cursor-grabbing ${
+                  isDragged
+                    ? "opacity-40 border-[var(--ui-accent)]"
+                    : isOver
+                    ? "border-[var(--ui-accent)] scale-105"
+                    : "border-[var(--ui-border)]"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.previewUrl}
+                  alt={`Photo ${index + 1}`}
+                  className="aspect-square w-full object-cover pointer-events-none"
+                />
+                <div className="absolute top-1.5 left-1.5">
+                  <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                    index === 0
+                      ? "bg-[var(--ui-accent)] text-white"
+                      : "bg-black/60 text-white/90"
+                  }`}>
+                    {index === 0 ? "Hero" : index + 1}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  disabled={index === 0}
-                  onClick={() => movePhoto(index, -1)}
-                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
-                  aria-label="Move left"
+                  onClick={(e) => { e.stopPropagation(); removePhoto(photo.id); }}
+                  className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] text-white hover:bg-[var(--ui-red)] transition-colors"
+                  aria-label={`Remove photo ${index + 1}`}
                 >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removePhoto(photo.id)}
-                  className="rounded px-1 text-[10px] text-[var(--ui-red)]"
-                >
-                  Remove
-                </button>
-                <button
-                  type="button"
-                  disabled={index === photos.length - 1}
-                  onClick={() => movePhoto(index, 1)}
-                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
-                  aria-label="Move right"
-                >
-                  →
+                  &times;
                 </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
     </div>

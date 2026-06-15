@@ -1004,6 +1004,53 @@ Form fields:
 
 - **409** duplicate `item_number` | **400** validation
 
+**B29d) `POST /api/listing-coach/refine`**
+
+Per-field or global AI refinement of listing content. JSON request (not multipart). No web search — uses listing context only. Lightweight AI call.
+
+Request:
+
+```json
+{
+  "mode": "field",
+  "field_name": "listing_description",
+  "current_value": "A gorgeous vintage plate...",
+  "instruction": "Add detail about the gold trim on the rim",
+  "context": {
+    "identification": "Homer Laughlin Fiesta Dinner Plate",
+    "listing_title": "Vintage Homer Laughlin Fiesta Ware...",
+    "listing_description": "...",
+    "listing_tags": "...",
+    "listing_category_path": "Home & Living > Kitchen...",
+    "listing_condition_clarity": "...",
+    "listing_product_story": "...",
+    "listing_attributes": "...",
+    "listing_pricing_shipping_notes": "...",
+    "listing_title_strategy": "...",
+    "listing_quality_checklist": "...",
+    "condition_code": "Excellent",
+    "condition_notes": "...",
+    "materials": "ceramic, glaze",
+    "sale_price": 45
+  }
+}
+```
+
+200:
+
+```json
+{
+  "ok": true,
+  "fields": {
+    "listing_description": "A gorgeous vintage plate with delicate gold trim..."
+  }
+}
+```
+
+For global mode, set `mode: "global"` and omit `field_name`/`current_value`. The AI returns only fields it changed.
+
+Valid field names: `listing_title`, `listing_description`, `listing_tags`, `listing_category_path`, `listing_title_strategy`, `listing_product_story`, `listing_condition_clarity`, `listing_attributes`, `listing_pricing_shipping_notes`, `listing_quality_checklist`, `condition_notes`, `identification`, `sale_price`.
+
 **B30) Shipping API — EasyPost (§30, ADR-074)**
 
 All endpoints require App auth. EasyPost API key must be configured.
@@ -1331,11 +1378,12 @@ Guided new-listing flow: analyze pasted photos (+ optional Google Visual Search 
 
 | Method | Path                          | Auth | Purpose                                                            |
 | ------ | ----------------------------- | ---- | ------------------------------------------------------------------ |
-| POST   | `/api/listing-coach/analyze`  | App  | Photo review, identification, price suggestion, confirm-card seeds |
-| POST   | `/api/listing-coach/compose`  | App  | Final listing + template fields from confirms + images             |
+| POST   | `/api/listing-coach/analyze`  | App  | Combined research + compose: photo review, identification, pricing, full listing |
+| POST   | `/api/listing-coach/compose`  | App  | Legacy: Final listing + template fields from confirms + images             |
 | POST   | `/api/listing-coach/complete` | App  | Create inventory, store pictures, persist listing draft            |
+| POST   | `/api/listing-coach/refine`   | App  | Per-field or global AI refinement of listing content               |
 
-All three accept `multipart/form-data` with `item_photos[]` (1–20), optional `condition_photos[]` (0–5), optional `google_photos[]` (0–3), optional `video` (MP4/MOV). Image validation per ADR-026. Compose and complete also accept `when_made`, `taxonomy_id`, `materials`, `dimensions` fields (ADR-072 step 4b). Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).
+Analyze and complete accept `multipart/form-data` with `item_photos[]` (1–20), optional `condition_photos[]` (0–5), optional `google_photos[]` (0–3), optional `video` (MP4/MOV). Image validation per ADR-026. Complete also accepts `when_made`, `taxonomy_id`, `materials`, `dimensions`, `quantity`, `shipping_cost_inbound`, `category_tags`, `internal_notes`, `is_supply`, `vendor_name`, `vendor_shipping_price`, `vendor_reference_number`, `vendor_notes` fields (ADR-072). Refine accepts JSON: `{ mode, field_name?, current_value?, instruction, context }` — returns `{ ok, fields }`. Errors: 400 validation, 503 when AI not configured (`AI_NOT_CONFIGURED`).
 
 **§30. Shipping API — EasyPost integration (ADR-074)**
 

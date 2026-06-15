@@ -455,7 +455,7 @@ Four modes — always respect all four:
 1. **Manual** — guided form with sections: title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
 2. **Integrated AI** — app sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
 3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft
-4. **Listing Coach** (ADR-072) — 8-step guided wizard for new listings; uses Integrated AI for composition
+4. **Listing Coach** (ADR-072) — 2-phase flow for new listings: log purchase + unified AI-populated editable form with per-field and global refinement
 
 State machine: `draft → generated|imported → approved → published`
 Only `approved` drafts can be published to Etsy.
@@ -589,7 +589,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Undo/redo (ADR-067): UndoRedoContext, undo/redo stacks, Cmd+Z/Shift+Z, toast with undo action
 - Listing quality score (ADR-068): scoring rubric, tips, circular badge, sortable column
 - Sample/demo data (ADR-069): fixture SQL, load/remove API, wizard integration, Config UI
-- Listing Coach (ADR-072): 8-step guided wizard, photo paste, Google paste, AI compose, activity log
+- Listing Coach (ADR-072): 2-phase flow (log purchase + unified editable form), photo paste, Google paste, AI compose with refinement, activity log
 
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint

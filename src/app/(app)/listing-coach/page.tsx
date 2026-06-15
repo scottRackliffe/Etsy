@@ -414,6 +414,9 @@ export default function ListingCoachPage() {
 
       if (data.suggested_when_made?.value) setEtsyWhenMade(data.suggested_when_made.value);
       if (data.suggested_taxonomy_id) setEtsyTaxonomyId(data.suggested_taxonomy_id);
+      if (!data.listing_category_path && data.suggested_taxonomy_path) {
+        setListingCategoryPath(data.suggested_taxonomy_path);
+      }
       if (data.suggested_materials?.length) {
         setMaterialsText(data.suggested_materials.map((m) => m.value).join(", "));
       }
@@ -845,6 +848,62 @@ export default function ListingCoachPage() {
             </label>
           </div>
 
+          {/* Weight & Dimensions */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">Size &amp; weight (optional)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Weight
+                <div className="mt-1 flex gap-2">
+                  <input type="number" min="0" step="0.1" value={itemWeight ?? ""} onChange={(e) => setItemWeight(e.target.value === "" ? null : Number(e.target.value))} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]" placeholder="e.g. 12" />
+                  <select value={itemWeightUnit} onChange={(e) => setItemWeightUnit(e.target.value)} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 text-sm text-[var(--ui-body)]">
+                    <option value="oz">oz</option>
+                    <option value="lb">lb</option>
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
+              </label>
+              <div className="space-y-2">
+                <span className="block text-sm text-[var(--ui-body)]">Dimensions ({itemDimensionsUnit})</span>
+                <div className="flex gap-2">
+                  <input type="number" min="0" step="0.1" value={itemLength ?? ""} onChange={(e) => setItemLength(e.target.value === "" ? null : Number(e.target.value))} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]" placeholder="L" />
+                  <input type="number" min="0" step="0.1" value={itemWidth ?? ""} onChange={(e) => setItemWidth(e.target.value === "" ? null : Number(e.target.value))} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]" placeholder="W" />
+                  <input type="number" min="0" step="0.1" value={itemHeight ?? ""} onChange={(e) => setItemHeight(e.target.value === "" ? null : Number(e.target.value))} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]" placeholder="H" />
+                  <select value={itemDimensionsUnit} onChange={(e) => setItemDimensionsUnit(e.target.value)} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 text-sm text-[var(--ui-body)]">
+                    <option value="in">in</option>
+                    <option value="cm">cm</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Where I Bought This */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this (optional)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Vendor / source
+                <input value={vendorName} onChange={(e) => setVendorName(e.target.value)} className={inputClass} placeholder="e.g. Goodwill, estate sale, eBay" spellCheck />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Vendor shipping cost ($)
+                <input type="number" min="0" step="0.01" value={vendorShippingPrice ?? ""} onChange={(e) => setVendorShippingPrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="Shipping you paid to receive it" />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Reference # (optional)
+                <input value={vendorReferenceNumber} onChange={(e) => setVendorReferenceNumber(e.target.value)} className={inputClass} placeholder="Receipt #, order #, etc." />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Purchase notes (optional)
+                <input value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} className={inputClass} placeholder="Any notes about this purchase" spellCheck />
+              </label>
+            </div>
+          </div>
+
           {/* Collapsible: Add my own research */}
           <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)]">
             <button
@@ -1023,19 +1082,16 @@ export default function ListingCoachPage() {
               ))}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-[var(--ui-body)]">
-                Etsy category path
-                <input value={listingCategoryPath} onChange={(e) => setListingCategoryPath(e.target.value)} className={inputClass} />
-              </label>
-              <label className="block text-sm text-[var(--ui-body)]">
-                Etsy taxonomy ID
-                <input type="number" min="1" value={etsyTaxonomyId ?? ""} onChange={(e) => setEtsyTaxonomyId(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="e.g. 1229" />
-                {researchResult.suggested_taxonomy_path ? (
-                  <span className="text-xs text-[var(--ui-muted)]">{researchResult.suggested_taxonomy_path}</span>
-                ) : null}
-              </label>
-            </div>
+            <label className="block text-sm text-[var(--ui-body)]">
+              Etsy category
+              <input value={listingCategoryPath} onChange={(e) => setListingCategoryPath(e.target.value)} className={inputClass} placeholder='e.g. Home & Living > Kitchen & Dining > Dinnerware' />
+              {researchResult?.suggested_taxonomy_path && !listingCategoryPath ? (
+                <button type="button" onClick={() => setListingCategoryPath(researchResult.suggested_taxonomy_path!)} className="mt-1 text-xs text-[var(--ui-accent)] hover:underline">
+                  Use AI suggestion: {researchResult.suggested_taxonomy_path}
+                </button>
+              ) : null}
+            </label>
+            <input type="hidden" value={etsyTaxonomyId ?? ""} />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-[var(--ui-body)]">

@@ -180,10 +180,9 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 **Recommended — Listing Coach (ADR-072):**
 
 1. **Inventory** tab → **Add new listing with Listing Coach** → `/listing-coach`.
-2. Paste item photos from macOS **Photos** (⌘C in Photos, ⌘V in coach). Optional: paste **Google Visual Search** screenshot after Search with Google on the best photo.
-3. Review AI photo checklist, identification, and suggested price; confirm short answers (mostly **Yes** on suggested text).
-4. Review composed **title**, **description**, and **tags**; enter **item number** → **Save to inventory**.
-5. Approve draft and publish when ready (§5.4). User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
+2. **Phase 1 (Log the purchase):** Paste item photos from macOS **Photos** (⌘C in Photos, ⌘V in coach). Enter purchase details (description, date, price, condition, store category). Click **Research and compose listing**.
+3. **Phase 2 (Unified form):** AI fills all internal and Etsy fields in a single editable form. Review, edit directly, or use **per-field Fix** buttons and **global Fix** to refine AI output. Enter **item number** → **Save to inventory**.
+4. Approve draft and publish when ready (§5.4). User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
 
 **Quick add (unchanged):**
 
