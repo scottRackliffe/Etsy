@@ -10,6 +10,13 @@ export type CoachMultipartPhotos = {
   itemPhotos: CoachPhotoFile[];
   conditionPhotos: CoachPhotoFile[];
   googlePhotos: CoachPhotoFile[];
+  googleText: string;
+  datePurchased?: string;
+  purchasePrice?: number;
+  conditionCode?: string;
+  conditionNotes?: string;
+  description?: string;
+  storeCategory?: string;
 };
 
 const ITEM_PHOTO_KEYS = new Set(["item_photos[]", "item_photos"]);
@@ -100,7 +107,57 @@ export async function parseCoachMultipartPhotos(formData: FormData): Promise<Coa
     }
   }
 
-  return { itemPhotos, conditionPhotos, googlePhotos };
+  const googleTextRaw = formData.get("google_text");
+  const googleText = typeof googleTextRaw === "string" ? googleTextRaw.trim() : "";
+
+  const datePurchasedRaw = formData.get("date_purchased");
+  const datePurchased =
+    typeof datePurchasedRaw === "string" && datePurchasedRaw.trim()
+      ? datePurchasedRaw.trim()
+      : undefined;
+
+  const purchasePriceRaw = formData.get("purchase_price");
+  const purchasePrice =
+    purchasePriceRaw != null && purchasePriceRaw !== ""
+      ? Number(purchasePriceRaw)
+      : undefined;
+
+  const conditionCodeRaw = formData.get("condition_code");
+  const conditionCode =
+    typeof conditionCodeRaw === "string" && conditionCodeRaw.trim()
+      ? conditionCodeRaw.trim()
+      : undefined;
+
+  const conditionNotesRaw = formData.get("condition_notes");
+  const conditionNotes =
+    typeof conditionNotesRaw === "string" && conditionNotesRaw.trim()
+      ? conditionNotesRaw.trim()
+      : undefined;
+
+  const descriptionRaw = formData.get("item_description");
+  const description =
+    typeof descriptionRaw === "string" && descriptionRaw.trim()
+      ? descriptionRaw.trim()
+      : undefined;
+
+  const storeCategoryRaw = formData.get("store_category");
+  const storeCategory =
+    typeof storeCategoryRaw === "string" && storeCategoryRaw.trim()
+      ? storeCategoryRaw.trim()
+      : undefined;
+
+  return {
+    itemPhotos,
+    conditionPhotos,
+    googlePhotos,
+    googleText,
+    datePurchased,
+    purchasePrice: purchasePrice != null && Number.isFinite(purchasePrice) ? purchasePrice : undefined,
+    conditionCode,
+    conditionNotes,
+    description,
+    storeCategory,
+  };
 }
 
 export function parseCoachJsonField<T>(

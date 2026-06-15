@@ -42,6 +42,58 @@ export type SuggestedDimensions = {
   dimensions_unit?: string;
 };
 
+export type EvidenceSource = "photo" | "web_search" | "operator_input" | "unverified";
+
+export type FieldEvidence = {
+  value: string;
+  evidence: EvidenceSource;
+  confidence: "high" | "medium" | "low";
+  source_detail?: string;
+};
+
+export type Citation = {
+  claim: string;
+  source: string;
+  url?: string;
+};
+
+export type ComplianceCheck = {
+  condition_accurately_disclosed: boolean;
+  no_misleading_claims: boolean;
+  vintage_categorization_correct: boolean;
+  keywords_match_item: boolean;
+  issues: string[];
+};
+
+export type ResearchResponse = {
+  ok: true;
+  photo_review: PhotoReview;
+  suggested_identification: FieldEvidence;
+  suggested_condition_code: string;
+  price: PriceSuggestion;
+  suggested_when_made?: FieldEvidence;
+  suggested_taxonomy_id?: number;
+  suggested_taxonomy_path?: string;
+  suggested_materials?: FieldEvidence[];
+  suggested_dimensions?: SuggestedDimensions;
+  citations: Citation[];
+  compliance_check: ComplianceCheck;
+  listing_title: string;
+  listing_description: string;
+  listing_tags: string;
+  listing_category_path: string | null;
+  listing_title_strategy: string;
+  listing_product_story: string;
+  listing_condition_clarity: string;
+  listing_attributes: string;
+  listing_pricing_shipping_notes: string;
+  listing_quality_checklist: string;
+  quality_score: {
+    score: number;
+    hints: string[];
+  };
+};
+
 export type AnalyzeResponse = {
   ok: true;
   photo_review: PhotoReview;
@@ -80,13 +132,9 @@ export type ComposeResponse = {
 
 export type CoachStep =
   | "welcome"
-  | "photos"
-  | "google"
-  | "analyze"
-  | "price"
-  | "era_category"
-  | "confirm"
-  | "compose"
+  | "input"
+  | "research"
+  | "review"
   | "save";
 
 export function appendCoachPhotos(

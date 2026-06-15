@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { analyzeListingCoach } from "@/lib/listing-coach";
+import { researchAndCompose } from "@/lib/listing-coach";
 import { parseCoachMultipartPhotos } from "@/lib/listing-coach-multipart";
 
 export async function POST(request: Request) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const photos = await parseCoachMultipartPhotos(formData);
-    const result = await analyzeListingCoach(photos);
+    const result = await researchAndCompose(photos);
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

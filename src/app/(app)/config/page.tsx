@@ -147,6 +147,9 @@ export default function ConfigPage() {
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [logoVersion, setLogoVersion] = useState(0);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [reportHeaderPath, setReportHeaderPath] = useState<string | null>(null);
+  const [reportHeaderVersion, setReportHeaderVersion] = useState(0);
+  const [reportHeaderUploading, setReportHeaderUploading] = useState(false);
   const [sampleDataBusy, setSampleDataBusy] = useState(false);
   const [sampleDataLoaded, setSampleDataLoaded] = useState<boolean | null>(null);
   const [loadSampleConfirm, setLoadSampleConfirm] = useState(false);
@@ -397,6 +400,8 @@ export default function ConfigPage() {
       });
       const rawLogo = map.get("business_logo_path") ?? "";
       setLogoPath(rawLogo || null);
+      const rawReportHeader = map.get("report_header_logo_path") ?? "";
+      setReportHeaderPath(rawReportHeader || null);
       setShippingSettings({
         default_carrier: map.get("shipping.default_carrier") ?? "USPS",
         default_origin_zip: map.get("shipping.default_origin_zip") ?? "",
@@ -559,6 +564,39 @@ export default function ConfigPage() {
       setApiError("Could not remove logo", "We could not remove the business logo.", err);
     } finally {
       setLogoUploading(false);
+    }
+  };
+
+  const uploadReportHeader = async (file: File) => {
+    setReportHeaderUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/settings/report-header", { method: "POST", body });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; path?: string } & ApiErrorShape;
+      if (!res.ok) throw data;
+      setReportHeaderPath(data.path ?? null);
+      setReportHeaderVersion((v) => v + 1);
+    } catch (err) {
+      setApiError("Report header upload failed", "We could not save the report header.", err);
+    } finally {
+      setReportHeaderUploading(false);
+    }
+  };
+
+  const removeReportHeader = async () => {
+    setReportHeaderUploading(true);
+    try {
+      const res = await fetch("/api/settings/report-header", { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const data = (await res.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setReportHeaderPath(null);
+    } catch (err) {
+      setApiError("Could not remove report header", "We could not remove the report header.", err);
+    } finally {
+      setReportHeaderUploading(false);
     }
   };
 
@@ -1103,45 +1141,85 @@ export default function ConfigPage() {
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Business profile</h4>
             <p className="mb-3 text-xs text-[var(--ui-muted)]">
-              Used on invoices, thank-you notes, and report headers.
+              Upload your business images for printed documents.
             </p>
-            <div className="mb-4 flex items-center gap-4">
-              {logoPath ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/uploads/${logoPath.replace(/^uploads\//, "")}?v=${logoVersion}`}
-                    alt="Business logo"
-                    className="h-20 w-20 rounded-lg border border-[var(--ui-border)] object-contain bg-[var(--ui-card-bg)]"
-                  />
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={removeLogo}
-                    busy={logoUploading}
-                  >
-                    Remove logo
-                  </Button>
-                </>
-              ) : (
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-4 py-3 text-sm text-[var(--ui-muted)] hover:border-[var(--ui-accent)]">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  {logoUploading ? "Uploading…" : "Upload logo"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={logoUploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void uploadLogo(f);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              )}
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs font-medium text-[var(--ui-body)]">
+                  Print logo <span className="font-normal text-[var(--ui-muted)]">— envelopes, thank-you notes, invoices</span>
+                </p>
+                <div className="flex items-center gap-3">
+                  {logoPath ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/uploads/${logoPath.replace(/^uploads\//, "")}?v=${logoVersion}`}
+                        alt="Print logo"
+                        className="h-20 w-20 rounded-lg border border-[var(--ui-border)] object-contain bg-[var(--ui-card-bg)]"
+                      />
+                      <Button variant="danger" size="sm" onClick={removeLogo} busy={logoUploading}>
+                        Remove
+                      </Button>
+                    </>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-4 py-3 text-sm text-[var(--ui-muted)] hover:border-[var(--ui-accent)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {logoUploading ? "Uploading…" : "Upload print logo"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={logoUploading}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void uploadLogo(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-[var(--ui-body)]">
+                  Report header <span className="font-normal text-[var(--ui-muted)]">— top of PDF reports</span>
+                </p>
+                <div className="flex items-center gap-3">
+                  {reportHeaderPath ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/uploads/${reportHeaderPath.replace(/^uploads\//, "")}?v=${reportHeaderVersion}`}
+                        alt="Report header"
+                        className="h-16 w-auto max-w-[240px] rounded-lg border border-[var(--ui-border)] object-contain bg-[var(--ui-card-bg)]"
+                      />
+                      <Button variant="danger" size="sm" onClick={removeReportHeader} busy={reportHeaderUploading}>
+                        Remove
+                      </Button>
+                    </>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-4 py-3 text-sm text-[var(--ui-muted)] hover:border-[var(--ui-accent)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {reportHeaderUploading ? "Uploading…" : "Upload report header"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={reportHeaderUploading}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void uploadReportHeader(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <input

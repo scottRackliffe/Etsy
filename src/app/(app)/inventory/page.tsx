@@ -459,9 +459,15 @@ function InventoryPageInner() {
       pagination?: PaginationInfo;
     };
     if (!response.ok) throw data;
-    if (data.items) setInventory(data.items);
+    if (data.items) {
+      setInventory(data.items);
+      if (selectedItemId != null && !data.items.some((row) => row.id === selectedItemId)) {
+        setSelectedItemId(data.items[0]?.id ?? null);
+        setSelectedItem(data.items[0] ?? null);
+      }
+    }
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, sort, setInventory, setTotal]);
+  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, sort, setInventory, setTotal, selectedItemId, setSelectedItemId, setSelectedItem]);
 
   useEffect(() => {
     void reloadInventory().catch((err) =>

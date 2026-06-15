@@ -219,9 +219,14 @@ function CustomersPageInner() {
       pagination?: PaginationInfo;
     };
     if (!response.ok) throw data;
-    if (data.items) setCustomers(data.items);
+    if (data.items) {
+      setCustomers(data.items);
+      if (selectedCustomerId != null && !data.items.some((row) => row.id === selectedCustomerId)) {
+        setSelectedCustomerId(data.items[0]?.id ?? null);
+      }
+    }
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedCustomerSearch, pageSize, offset, activeFilter, sort, setCustomers, setTotal]);
+  }, [debouncedCustomerSearch, pageSize, offset, activeFilter, sort, setCustomers, setTotal, selectedCustomerId, setSelectedCustomerId]);
 
   useEffect(() => {
     void reloadCustomers().catch((err) =>

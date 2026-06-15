@@ -1,12 +1,12 @@
-# ADR-072: Listing Coach — guided new-listing flow (photos, Google Visual Search, AI compose)
+# ADR-072: Listing Coach — guided new-listing flow (photos, AI research, compose, video)
 
 ## Status
 
-Accepted
+Accepted (revised 2026-06-14: 4-step flow, accuracy measures, auto-video)
 
 ## Date
 
-2026-05-24
+2026-05-24 (revised 2026-06-14)
 
 ## Context
 
@@ -51,16 +51,18 @@ User-facing name: **Listing Coach** (never “ADR-072” in UI).
 | Google Visual Search | **Manual external step** — operator runs Search with Google in Photos; **pastes screenshot** into coach. No Google API integration in v1. |
 | Live sold comps      | **Not scraped** — price guidance uses AI reading of pasted Google results + vision; not automated Etsy/eBay comp APIs                     |
 
-### Wizard steps (exact order)
+### Wizard steps — REVISED 2026-06-14 (4-step flow)
+
+The original 8-step wizard has been consolidated into a **4-step flow** to reduce friction. The AI now performs deep web-based research AND composes the listing in a single call, eliminating the need for the operator to do separate Google searches or answer confirm cards.
 
 Each step is one screen. Primary actions use ADR-071 button variants. Back navigation allowed until final save.
 
 **Step 0 — Welcome**
 
-- Copy: explain three things: paste photos, optional Google screenshot, confirm a few answers — app writes the listing.
+- Copy: explain three things: add photos and basic details, AI researches and writes the listing, review and save.
 - Button: **Start**
 
-**Step 1 — Item photos (paste zone)**
+**Step 1 — Input (photos + basic details)** *(replaces old Steps 1-2)*
 
 - Large focused paste target: “Click here, then press ⌘V to paste photos from Photos.”
 - Also: **Choose files…** (file picker backup) and drag-and-drop (ADR-033 limits: JPEG/PNG/WebP/GIF, max 15 MB each, max **20 item photos** + 5 condition photos per session). Etsy allows up to 20 photos per listing — encourage using all slots for maximum search visibility and buyer confidence.
@@ -587,3 +589,58 @@ On `/listing-coach`:
 - **post-v1:** Server-side coach session cache to avoid image re-upload; optional deep link from Photos share extension; automated comp lookup only if compliant API available.
 - **Impacted ADRs:** 018 (§29), 023, 024, 030, 033, 037, 068, 070, 071; [ui-design.md](../ui-design.md) §5.3; [etsy-listing-template-and-requirements.md](../etsy-listing-template-and-requirements.md) §7.
 - **Implementation scope (phases, hold context, acceptance test):** [LISTING_COACH_SCOPE.md](../LISTING_COACH_SCOPE.md).
+
+---
+
+## Revision: 2026-06-14 — 4-step flow, AI accuracy, auto-video
+
+### Summary of changes
+
+The original 8-step wizard has been consolidated into a **4-step flow**:
+
+| New step | Old steps replaced | What happens |
+|---|---|---|
+| Step 1: Input | Steps 1-2 | Photos + basic details + collapsible research in one screen |
+| Step 2: Research | Steps 3-6 | Combined `researchAndCompose` AI call with web search, evidence tags, citations |
+| Step 3: Review | Step 6 preview | Read-only listing preview with quality score |
+| Step 4: Save | Step 7 | Save to inventory + auto-generate video |
+
+### AI accuracy measures
+
+Four measures baked into the system prompt and output schema:
+
+1. **Evidence tagging** — `photo`, `web_search`, `operator_input`, or `unverified` on every factual field
+2. **Confidence gating** — `high`, `medium`, or `low` on every factual field; low = "Needs verification"
+3. **Web search citations** — `citations[]` array with claim, source, and URL
+4. **Etsy compliance self-check** — `compliance_check` object verifying condition disclosure, no misleading claims, correct categorization, keyword accuracy
+
+### Automatic video generation
+
+After save, the system generates an Etsy-compliant slideshow video from uploaded photos:
+
+- Uses `ffmpeg-static` (bundled binary) via Node `child_process`
+- 1080x1080 square MP4, H.264, 8 seconds, no audio
+- Photos sequenced by AI classification: hero, detail, backstamp/markings, defects
+- Ken Burns zoom/pan effect with crossfade transitions
+- Stored at `uploads/inventory/<item_id>/video/listing-video.mp4`
+- API: `POST /api/listing-coach/video`
+
+### New types added to `listing-coach.ts`
+
+- `EvidenceSource`: `"photo" | "web_search" | "operator_input" | "unverified"`
+- `FieldEvidence`: `{ value, evidence, confidence, source_detail? }`
+- `Citation`: `{ claim, source, url? }`
+- `ComplianceCheck`: `{ condition_accurately_disclosed, no_misleading_claims, vintage_categorization_correct, keywords_match_item, issues[] }`
+
+### New files
+
+- `src/lib/video-generator.ts` — ffmpeg-based video generation
+- `src/app/api/listing-coach/video/route.ts` — video generation API endpoint
+
+### Modified files
+
+- `src/lib/listing-coach.ts` — added `researchAndCompose()`, accuracy types, comprehensive prompt
+- `src/lib/listing-coach-multipart.ts` — added `datePurchased`, `purchasePrice`, `conditionCode`, `conditionNotes`, `description`, `storeCategory` fields
+- `src/app/api/listing-coach/analyze/route.ts` — now calls `researchAndCompose` instead of `analyzeListingCoach`
+- `src/components/listing-coach/types.ts` — added `ResearchResponse`, `FieldEvidence`, `Citation`, `ComplianceCheck`, `EvidenceBadge` types; updated `CoachStep` to 4-step enum
+- `src/app/(app)/listing-coach/page.tsx` — complete rewrite to 4-step flow with evidence UI and auto-video

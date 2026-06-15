@@ -8,7 +8,7 @@ import {
   type CoachPhoto,
 } from "@/components/listing-coach/types";
 
-const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const FILE_PICKER_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/tiff,image/heic,image/heif";
 const MAX_BYTES = 15 * 1024 * 1024;
 
 export type SlotGuidance = {
@@ -27,8 +27,8 @@ type PhotoPasteZoneProps = {
 };
 
 function validateFile(file: File): string | null {
-  if (!ACCEPT.split(",").includes(file.type)) {
-    return "File must be JPEG, PNG, WebP, or GIF.";
+  if (!file.type.startsWith("image/")) {
+    return "File must be an image.";
   }
   if (file.size > MAX_BYTES) {
     return "Each image must be 15 MB or smaller.";
@@ -136,25 +136,30 @@ export function PhotoPasteZone({
         ) : null}
       </div>
 
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         ref={zoneRef}
         tabIndex={0}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button, input")) return;
+          zoneRef.current?.focus();
+        }}
         onPaste={handlePaste}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
         onDrop={(e) => {
           e.preventDefault();
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
-        className="min-h-[200px] rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
+        className="min-h-[200px] cursor-pointer rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
       >
         <p className="text-sm font-medium text-[var(--ui-title)]">{pasteHint}</p>
         <p className="mt-1 text-xs text-[var(--ui-muted)]">
-          {emptyHint ?? `Up to ${maxPhotos} images · JPEG, PNG, WebP, GIF · max 15 MB each`}
+          {emptyHint ?? `Up to ${maxPhotos} images · max 15 MB each`}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => zoneRef.current?.focus()}>
-            Click to paste (⌘V)
-          </Button>
           <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
             Choose files…
           </Button>
@@ -162,7 +167,7 @@ export function PhotoPasteZone({
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPT}
+          accept={FILE_PICKER_ACCEPT}
           multiple
           className="hidden"
           onChange={(e) => {

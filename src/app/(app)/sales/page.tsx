@@ -275,7 +275,12 @@ function SalesPageInner() {
         pagination?: PaginationInfo;
       };
       if (!response.ok) throw data;
-      if (data.items) setOrders(data.items);
+      if (data.items) {
+        setOrders(data.items);
+        if (selectedOrderId != null && !data.items.some((row) => row.id === selectedOrderId)) {
+          setSelectedOrderId(data.items[0]?.id ?? null);
+        }
+      }
       if (data.pagination) setTotal(data.pagination.total);
     },
     [
@@ -288,6 +293,8 @@ function SalesPageInner() {
       sort,
       setOrders,
       setTotal,
+      selectedOrderId,
+      setSelectedOrderId,
     ]
   );
 

@@ -28,7 +28,8 @@ export type ApiErrorCode =
   | "SHIPPING_NOT_CONFIGURED"
   | "ADDRESS_INVALID"
   | "INSUFFICIENT_FUNDS"
-  | "LABEL_ALREADY_PURCHASED";
+  | "LABEL_ALREADY_PURCHASED"
+  | "VIDEO_GENERATION_FAILED";
 
 export type ApiErrorPayload = {
   ok: false;

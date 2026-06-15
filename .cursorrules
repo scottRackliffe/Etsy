@@ -292,7 +292,7 @@ notes, created_at, updated_at
 Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `etsy_access_token_encrypted`, `etsy_refresh_token_encrypted`, `etsy_token_expires_at`,
 `app.session.current_id`, `panel_layout`, `default_shipper`,
-`business_name`, `business_logo_path`, `business_address_*`,
+`business_name`, `business_logo_path`, `report_header_logo_path`, `business_address_*`,
 `pictures_matter_url`, `tutorial_system_folder_path`,
 `last_etsy_sync_at`, `default_picture_directory`, `thumbnail_size`,
 `outstanding_sort_*`, `date_format`, `first_day_of_week`,
