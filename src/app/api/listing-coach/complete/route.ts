@@ -110,6 +110,75 @@ export async function POST(request: Request) {
       const parsed = Number(saleRevenueRaw);
       saleRevenue = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     }
+    const purchaseCostRaw = formData.get("purchase_cost");
+    let purchaseCost: number | null | undefined;
+    if (purchaseCostRaw === "" || purchaseCostRaw == null) {
+      purchaseCost = null;
+    } else {
+      const parsedCost = Number(purchaseCostRaw);
+      purchaseCost = Number.isFinite(parsedCost) && parsedCost >= 0 ? parsedCost : null;
+    }
+    const datePurchasedRaw = formData.get("date_purchased");
+    const datePurchased =
+      typeof datePurchasedRaw === "string" && datePurchasedRaw.trim()
+        ? datePurchasedRaw.trim()
+        : undefined;
+    const storeCategoryRaw = formData.get("store_category");
+    const storeCategorySave =
+      typeof storeCategoryRaw === "string" && storeCategoryRaw.trim()
+        ? storeCategoryRaw.trim()
+        : undefined;
+    const shippingCostInboundRaw = formData.get("shipping_cost_inbound");
+    let shippingCostInbound: number | null | undefined;
+    if (shippingCostInboundRaw === "" || shippingCostInboundRaw == null) {
+      shippingCostInbound = null;
+    } else {
+      const parsedShip = Number(shippingCostInboundRaw);
+      shippingCostInbound = Number.isFinite(parsedShip) && parsedShip >= 0 ? parsedShip : null;
+    }
+    const quantityRaw = formData.get("quantity");
+    const quantity =
+      quantityRaw != null && quantityRaw !== "" ? Math.max(1, Math.floor(Number(quantityRaw))) : 1;
+    const categoryTagsRaw = formData.get("category_tags");
+    const categoryTags =
+      typeof categoryTagsRaw === "string" && categoryTagsRaw.trim()
+        ? categoryTagsRaw.trim()
+        : undefined;
+    const conditionNotesRaw = formData.get("condition_notes");
+    const conditionNotesSave =
+      typeof conditionNotesRaw === "string" && conditionNotesRaw.trim()
+        ? conditionNotesRaw.trim()
+        : undefined;
+    const internalNotesRaw = formData.get("internal_notes");
+    const internalNotes =
+      typeof internalNotesRaw === "string" && internalNotesRaw.trim()
+        ? internalNotesRaw.trim()
+        : undefined;
+
+    const vendorNameRaw = formData.get("vendor_name");
+    const vendorName =
+      typeof vendorNameRaw === "string" && vendorNameRaw.trim()
+        ? vendorNameRaw.trim()
+        : undefined;
+    const vendorShippingPriceRaw = formData.get("vendor_shipping_price");
+    let vendorShippingPrice: number | null | undefined;
+    if (vendorShippingPriceRaw === "" || vendorShippingPriceRaw == null) {
+      vendorShippingPrice = null;
+    } else {
+      const parsedVShip = Number(vendorShippingPriceRaw);
+      vendorShippingPrice = Number.isFinite(parsedVShip) && parsedVShip >= 0 ? parsedVShip : null;
+    }
+    const vendorReferenceNumberRaw = formData.get("vendor_reference_number");
+    const vendorReferenceNumber =
+      typeof vendorReferenceNumberRaw === "string" && vendorReferenceNumberRaw.trim()
+        ? vendorReferenceNumberRaw.trim()
+        : undefined;
+    const vendorNotesRaw = formData.get("vendor_notes");
+    const vendorNotes =
+      typeof vendorNotesRaw === "string" && vendorNotesRaw.trim()
+        ? vendorNotesRaw.trim()
+        : undefined;
+
     const priceConfidenceRaw = formData.get("price_confidence");
     const priceConfidence =
       typeof priceConfidenceRaw === "string" && priceConfidenceRaw.trim()
@@ -131,6 +200,9 @@ export async function POST(request: Request) {
       typeof materialsRaw === "string" && materialsRaw.trim()
         ? materialsRaw.trim()
         : undefined;
+    const isSupplyRaw = formData.get("is_supply");
+    const isSupply = isSupplyRaw === "true" || isSupplyRaw === "1";
+
     const itemWeightRaw = formData.get("item_weight");
     const itemWeight =
       itemWeightRaw != null && itemWeightRaw !== "" ? Number(itemWeightRaw) : undefined;
@@ -164,7 +236,15 @@ export async function POST(request: Request) {
       description,
       status,
       conditionCode,
+      quantity,
       saleRevenue,
+      purchaseCost,
+      shippingCostInbound,
+      datePurchased,
+      storeCategory: storeCategorySave,
+      categoryTags,
+      conditionNotes: conditionNotesSave,
+      internalNotes,
       compose,
       itemPhotos: photos.itemPhotos,
       conditionPhotos: photos.conditionPhotos,
@@ -173,6 +253,7 @@ export async function POST(request: Request) {
       etsyWhenMade,
       etsyTaxonomyId: etsyTaxonomyId != null && Number.isFinite(etsyTaxonomyId) ? etsyTaxonomyId : undefined,
       materials,
+      isSupply,
       itemWeight: itemWeight != null && Number.isFinite(itemWeight) ? itemWeight : undefined,
       itemWeightUnit,
       itemLength: itemLength != null && Number.isFinite(itemLength) ? itemLength : undefined,
@@ -180,6 +261,10 @@ export async function POST(request: Request) {
       itemHeight: itemHeight != null && Number.isFinite(itemHeight) ? itemHeight : undefined,
       itemDimensionsUnit,
       pictureClassifications,
+      vendorName,
+      vendorShippingPrice,
+      vendorReferenceNumber,
+      vendorNotes,
     });
 
     return NextResponse.json(

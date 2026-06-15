@@ -204,61 +204,46 @@ export function PhotoPasteZone({
 
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {photos.map((photo, index) => {
-            const guide = slotGuidance?.[index];
-            return (
-              <div
-                key={photo.id}
-                className="relative overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.previewUrl}
-                  alt={`Photo ${index + 1}`}
-                  className="aspect-square w-full object-cover"
-                />
-                {guide ? (
-                  <span
-                    className="absolute left-1 top-1 flex items-center gap-1 rounded bg-[var(--ui-accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                    title={guide.description}
-                  >
-                    {guide.label}
-                    <svg viewBox="0 0 16 16" className="inline-block h-3 w-3 opacity-70" fill="currentColor">
-                      <circle cx="8" cy="8" r="7.5" fill="none" stroke="currentColor" strokeWidth="1" />
-                      <text x="8" y="12" textAnchor="middle" fontSize="10" fontWeight="bold">?</text>
-                    </svg>
-                  </span>
-                ) : null}
-                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1">
-                  <button
-                    type="button"
-                    disabled={index === 0}
-                    onClick={() => movePhoto(index, -1)}
-                    className="rounded px-1 text-[10px] text-white disabled:opacity-40"
-                    aria-label="Move left"
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(photo.id)}
-                    className="rounded px-1 text-[10px] text-[var(--ui-red)]"
-                  >
-                    Remove
-                  </button>
-                  <button
-                    type="button"
-                    disabled={index === photos.length - 1}
-                    onClick={() => movePhoto(index, 1)}
-                    className="rounded px-1 text-[10px] text-white disabled:opacity-40"
-                    aria-label="Move right"
-                  >
-                    →
-                  </button>
-                </div>
+          {photos.map((photo, index) => (
+            <div
+              key={photo.id}
+              className="relative overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.previewUrl}
+                alt={`Photo ${index + 1}`}
+                className="aspect-square w-full object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => movePhoto(index, -1)}
+                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
+                  aria-label="Move left"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removePhoto(photo.id)}
+                  className="rounded px-1 text-[10px] text-[var(--ui-red)]"
+                >
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  disabled={index === photos.length - 1}
+                  onClick={() => movePhoto(index, 1)}
+                  className="rounded px-1 text-[10px] text-white disabled:opacity-40"
+                  aria-label="Move right"
+                >
+                  →
+                </button>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       ) : null}
     </div>

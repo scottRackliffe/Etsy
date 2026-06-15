@@ -236,6 +236,15 @@ export function InventoryDetailPanel({
   });
   const [buyBusy, setBuyBusy] = useState(false);
   const [deleteBuyTarget, setDeleteBuyTarget] = useState<VendorPurchase | null>(null);
+  const [editBuyTarget, setEditBuyTarget] = useState<VendorPurchase | null>(null);
+  const [editBuyForm, setEditBuyForm] = useState({
+    vendor_name: "",
+    purchase_date: "",
+    purchase_price: "",
+    shipping_price: "",
+    reference_number: "",
+    notes: "",
+  });
   const [recoveryApplied, setRecoveryApplied] = useState(false);
 
   useEffect(() => {
@@ -419,6 +428,48 @@ export function InventoryDetailPanel({
       onSuccess("Vendor purchase added", "Where-you-bought record was saved.");
     } catch (err) {
       onError("Could not add vendor purchase", "We could not save the vendor purchase.", err);
+    } finally {
+      setBuyBusy(false);
+    }
+  };
+
+  const openEditBuy = (row: VendorPurchase) => {
+    setEditBuyTarget(row);
+    setEditBuyForm({
+      vendor_name: row.vendor_name ?? "",
+      purchase_date: row.purchase_date ?? "",
+      purchase_price: row.purchase_price != null ? String(row.purchase_price) : "",
+      shipping_price: row.shipping_price != null ? String(row.shipping_price) : "",
+      reference_number: row.reference_number ?? "",
+      notes: row.notes ?? "",
+    });
+  };
+
+  const saveVendorBuy = async () => {
+    if (!editBuyTarget || !item) return;
+    setBuyBusy(true);
+    try {
+      const response = await fetch(`/api/purchases/${editBuyTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          vendor_name: editBuyForm.vendor_name.trim() || null,
+          purchase_date: editBuyForm.purchase_date || null,
+          purchase_price: editBuyForm.purchase_price === "" ? null : Number(editBuyForm.purchase_price),
+          shipping_price: editBuyForm.shipping_price === "" ? null : Number(editBuyForm.shipping_price),
+          reference_number: editBuyForm.reference_number.trim() || null,
+          notes: editBuyForm.notes.trim() || null,
+        }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setEditBuyTarget(null);
+      await loadVendorPurchases(item.id);
+      onSuccess("Vendor purchase updated", "The vendor purchase record was saved.");
+    } catch (err) {
+      onError("Could not update vendor purchase", "We could not save the changes.", err);
     } finally {
       setBuyBusy(false);
     }
@@ -928,14 +979,24 @@ export function InventoryDetailPanel({
                     <td className="py-1 pr-2">{row.reference_number ?? "—"}</td>
                     <td className="py-1 pr-2">{row.notes ?? "—"}</td>
                     <td className="py-1">
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setDeleteBuyTarget(row)}
-                        disabled={buyBusy}
-                      >
-                        Delete
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditBuy(row)}
+                          disabled={buyBusy}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setDeleteBuyTarget(row)}
+                          disabled={buyBusy}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1035,6 +1096,82 @@ export function InventoryDetailPanel({
                 busy={buyBusy}
               >
                 Add buy
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editBuyTarget ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5">
+            <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
+              Edit vendor purchase
+            </h4>
+            <FormField label="Vendor name">
+              <TextInput
+                value={editBuyForm.vendor_name}
+                onChange={(v) => setEditBuyForm((c) => ({ ...c, vendor_name: v }))}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Purchase date">
+              <input
+                type="date"
+                value={editBuyForm.purchase_date}
+                onChange={(e) => setEditBuyForm((c) => ({ ...c, purchase_date: e.target.value }))}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <FormField label="Purchase price">
+                <TextInput
+                  type="number"
+                  value={editBuyForm.purchase_price}
+                  onChange={(v) => setEditBuyForm((c) => ({ ...c, purchase_price: v }))}
+                  className={inputClass}
+                />
+              </FormField>
+              <FormField label="Shipping">
+                <TextInput
+                  type="number"
+                  value={editBuyForm.shipping_price}
+                  onChange={(v) => setEditBuyForm((c) => ({ ...c, shipping_price: v }))}
+                  className={inputClass}
+                />
+              </FormField>
+            </div>
+            <FormField label="Reference #">
+              <TextInput
+                value={editBuyForm.reference_number}
+                onChange={(v) => setEditBuyForm((c) => ({ ...c, reference_number: v }))}
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Notes">
+              <textarea
+                value={editBuyForm.notes}
+                onChange={(e) => setEditBuyForm((c) => ({ ...c, notes: e.target.value }))}
+                rows={2}
+                spellCheck
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setEditBuyTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="accent"
+                onClick={() => void saveVendorBuy()}
+                disabled={!editBuyForm.vendor_name.trim()}
+                busy={buyBusy}
+              >
+                Save changes
               </Button>
             </div>
           </div>

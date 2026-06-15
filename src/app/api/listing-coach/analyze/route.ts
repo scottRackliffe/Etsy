@@ -27,11 +27,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     return errorResponse(
       fromUnknownError(error, {
         code: "LISTING_ANALYZE_FAILED",
-        message: "Failed to analyze listing coach photos",
-        userMessage: "We could not analyze your photos right now.",
+        message: `Failed to analyze listing coach photos: ${detail}`,
+        userMessage: `We could not analyze your photos right now. (${detail})`,
         actions: [
           "Try again in a moment.",
           "Verify AI configuration in Config if this keeps failing.",

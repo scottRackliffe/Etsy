@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleResultsPasteZone } from "@/components/listing-coach/GoogleResultsPasteZone";
-import { ListingPreview } from "@/components/listing-coach/ListingPreview";
 import { PhotoPasteZone } from "@/components/listing-coach/PhotoPasteZone";
 import {
   appendCoachPhotos,
@@ -64,6 +63,103 @@ function EvidenceBadge({ evidence }: { evidence: FieldEvidence }) {
   );
 }
 
+/* ---------- Per-field "Fix" button ---------- */
+
+function FieldFixButton({
+  fieldName,
+  currentValue,
+  context,
+  onFixed,
+}: {
+  fieldName: string;
+  currentValue: string;
+  context: Record<string, unknown>;
+  onFixed: (newValue: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!instruction.trim()) return;
+    setBusy(true);
+    try {
+      const resp = await fetch("/api/listing-coach/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "field",
+          field_name: fieldName,
+          current_value: currentValue,
+          instruction: instruction.trim(),
+          context,
+        }),
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Record<string, string>;
+      };
+      if (data.ok && data.fields?.[fieldName]) {
+        onFixed(data.fields[fieldName]);
+        setOpen(false);
+        setInstruction("");
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--ui-accent)] hover:bg-[var(--ui-accent)]/10"
+        title="Ask AI to fix this field"
+      >
+        Fix
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex gap-1">
+      <input
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); void submit(); }
+          if (e.key === "Escape") { setOpen(false); setInstruction(""); }
+        }}
+        className="flex-1 rounded border border-[var(--ui-accent)]/40 bg-[var(--ui-card-bg)] px-2 py-1 text-xs"
+        placeholder="What should the AI change?"
+        autoFocus
+        spellCheck
+      />
+      <Button variant="primary" size="sm" onClick={() => void submit()} busy={busy} disabled={!instruction.trim()}>
+        Fix
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => { setOpen(false); setInstruction(""); }}>
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
+/* ---------- Section header ---------- */
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+      {title}
+    </p>
+  );
+}
+
+/* ---------- Main component ---------- */
+
 export default function ListingCoachPage() {
   const router = useRouter();
   const toast = useToast();
@@ -75,20 +171,25 @@ export default function ListingCoachPage() {
   const [googleText, setGoogleText] = useState("");
   const [showResearch, setShowResearch] = useState(false);
 
+  // Phase 1: Purchase / acquisition inputs
   const [datePurchased, setDatePurchased] = useState("");
   const [purchasePrice, setPurchasePrice] = useState<number | null>(null);
   const [conditionCode, setConditionCode] = useState("Good");
   const [conditionNotes, setConditionNotes] = useState("");
   const [itemDescription, setItemDescription] = useState("");
   const [storeCategory, setStoreCategory] = useState("");
+  const [storeCategoryList, setStoreCategoryList] = useState<string[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
+  // Phase 2: AI-populated (editable on form)
   const [researchResult, setResearchResult] = useState<ResearchResponse | null>(null);
   const [identification, setIdentification] = useState("");
   const [saleRevenue, setSaleRevenue] = useState<number | null>(null);
-
   const [etsyWhenMade, setEtsyWhenMade] = useState("");
   const [etsyTaxonomyId, setEtsyTaxonomyId] = useState<number | null>(null);
   const [materialsText, setMaterialsText] = useState("");
+  const [isSupply, setIsSupply] = useState(false);
   const [itemWeight, setItemWeight] = useState<number | null>(null);
   const [itemWeightUnit, setItemWeightUnit] = useState("oz");
   const [itemLength, setItemLength] = useState<number | null>(null);
@@ -99,17 +200,42 @@ export default function ListingCoachPage() {
     Array<{ photo_index: number; type: string; confidence: number }>
   >([]);
 
+  // Listing content (editable)
+  const [listingTitle, setListingTitle] = useState("");
+  const [listingDescription, setListingDescription] = useState("");
+  const [listingTags, setListingTags] = useState("");
+  const [listingCategoryPath, setListingCategoryPath] = useState("");
+  const [listingTitleStrategy, setListingTitleStrategy] = useState("");
+  const [listingProductStory, setListingProductStory] = useState("");
+  const [listingConditionClarity, setListingConditionClarity] = useState("");
+  const [listingAttributes, setListingAttributes] = useState("");
+  const [listingPricingShippingNotes, setListingPricingShippingNotes] = useState("");
+  const [listingQualityChecklist, setListingQualityChecklist] = useState("");
+
+  // Save fields
   const [itemNumber, setItemNumber] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"In stock" | "Draft">("In stock");
+  const [quantity, setQuantity] = useState(1);
+  const [shippingCostInbound, setShippingCostInbound] = useState<number | null>(null);
+  const [categoryTags, setCategoryTags] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [vendorName, setVendorName] = useState("");
+  const [vendorShippingPrice, setVendorShippingPrice] = useState<number | null>(null);
+  const [vendorReferenceNumber, setVendorReferenceNumber] = useState("");
+  const [vendorNotes, setVendorNotes] = useState("");
 
+  // Video
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoPath, setVideoPath] = useState<string | null>(null);
 
+  // UI state
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [startOverOpen, setStartOverOpen] = useState(false);
+  const [globalFeedback, setGlobalFeedback] = useState("");
+  const [refining, setRefining] = useState(false);
 
   useEffect(() => {
     void fetch("/api/settings/ai", { headers: { Accept: "application/json" } })
@@ -118,6 +244,16 @@ export default function ListingCoachPage() {
         setAiConfigured(Boolean(data.config?.apiKeyConfigured));
       })
       .catch(() => setAiConfigured(false));
+    void fetch(`/api/settings/${encodeURIComponent("inventory.store_categories")}`, {
+      headers: { Accept: "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { value?: string } | null) => {
+        if (data?.value) {
+          setStoreCategoryList(data.value.split(",").map((s) => s.trim()).filter(Boolean));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -171,12 +307,23 @@ export default function ListingCoachPage() {
     setConditionNotes("");
     setItemDescription("");
     setStoreCategory("");
+    setAddingCategory(false);
+    setNewCategoryName("");
     setResearchResult(null);
     setIdentification("");
     setSaleRevenue(null);
     setEtsyWhenMade("");
     setEtsyTaxonomyId(null);
     setMaterialsText("");
+    setIsSupply(false);
+    setQuantity(1);
+    setShippingCostInbound(null);
+    setCategoryTags("");
+    setInternalNotes("");
+    setVendorName("");
+    setVendorShippingPrice(null);
+    setVendorReferenceNumber("");
+    setVendorNotes("");
     setItemWeight(null);
     setItemWeightUnit("oz");
     setItemLength(null);
@@ -187,11 +334,40 @@ export default function ListingCoachPage() {
     setItemNumber("");
     setDescription("");
     setStatus("In stock");
+    setListingTitle("");
+    setListingDescription("");
+    setListingTags("");
+    setListingCategoryPath("");
+    setListingTitleStrategy("");
+    setListingProductStory("");
+    setListingConditionClarity("");
+    setListingAttributes("");
+    setListingPricingShippingNotes("");
+    setListingQualityChecklist("");
     setVideoGenerating(false);
     setVideoPath(null);
     setError(null);
+    setGlobalFeedback("");
   }, [itemPhotos, conditionPhotos, googlePhotos]);
 
+  const addNewCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    const updated = [...storeCategoryList, name];
+    setStoreCategoryList(updated);
+    setStoreCategory(name);
+    setAddingCategory(false);
+    setNewCategoryName("");
+    try {
+      await fetch(`/api/settings/${encodeURIComponent("inventory.store_categories")}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ value: updated.join(",") }),
+      });
+    } catch { /* best-effort save */ }
+  };
+
+  /* ------ AI Research ------ */
   const runResearch = async () => {
     setBusy(true);
     setError(null);
@@ -220,6 +396,9 @@ export default function ListingCoachPage() {
       setResearchResult(data);
       setIdentification(data.suggested_identification.value);
       setConditionCode(data.suggested_condition_code);
+      if (data.suggested_condition_code && conditionNotes.trim()) {
+        setConditionNotes(conditionNotes);
+      }
 
       if (data.price.confidence !== "low" && data.price.suggested_list_price != null) {
         setSaleRevenue(data.price.suggested_list_price);
@@ -253,7 +432,20 @@ export default function ListingCoachPage() {
       if (!description.trim()) {
         setDescription(data.suggested_identification.value || data.listing_title.slice(0, 200));
       }
-      setStep("research");
+
+      // Populate editable listing fields
+      setListingTitle(data.listing_title);
+      setListingDescription(data.listing_description);
+      setListingTags(data.listing_tags);
+      setListingCategoryPath(data.listing_category_path ?? "");
+      setListingTitleStrategy(data.listing_title_strategy);
+      setListingProductStory(data.listing_product_story);
+      setListingConditionClarity(data.listing_condition_clarity);
+      setListingAttributes(data.listing_attributes);
+      setListingPricingShippingNotes(data.listing_pricing_shipping_notes);
+      setListingQualityChecklist(data.listing_quality_checklist);
+
+      setStep("form");
     } catch {
       setError(
         createUiError({
@@ -268,6 +460,81 @@ export default function ListingCoachPage() {
     }
   };
 
+  /* ------ Build refine context ------ */
+  const buildRefineContext = useCallback(() => ({
+    identification,
+    listing_title: listingTitle,
+    listing_description: listingDescription,
+    listing_tags: listingTags,
+    listing_category_path: listingCategoryPath || null,
+    listing_condition_clarity: listingConditionClarity,
+    listing_product_story: listingProductStory,
+    listing_attributes: listingAttributes,
+    listing_pricing_shipping_notes: listingPricingShippingNotes,
+    listing_title_strategy: listingTitleStrategy,
+    listing_quality_checklist: listingQualityChecklist,
+    condition_code: conditionCode,
+    condition_notes: conditionNotes,
+    materials: materialsText,
+    sale_price: saleRevenue,
+  }), [
+    identification, listingTitle, listingDescription, listingTags, listingCategoryPath,
+    listingConditionClarity, listingProductStory, listingAttributes,
+    listingPricingShippingNotes, listingTitleStrategy, listingQualityChecklist,
+    conditionCode, conditionNotes, materialsText, saleRevenue,
+  ]);
+
+  /* ------ Global refine ------ */
+  const runGlobalRefine = async () => {
+    if (!globalFeedback.trim()) return;
+    setRefining(true);
+    try {
+      const resp = await fetch("/api/listing-coach/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "global",
+          instruction: globalFeedback.trim(),
+          context: buildRefineContext(),
+        }),
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Record<string, string>;
+      };
+      if (data.ok && data.fields) {
+        applyRefinedFields(data.fields);
+        setGlobalFeedback("");
+        toast.showToast("AI updated the listing based on your feedback.", "success");
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setRefining(false);
+    }
+  };
+
+  const applyRefinedFields = (fields: Record<string, string>) => {
+    for (const [key, value] of Object.entries(fields)) {
+      switch (key) {
+        case "listing_title": setListingTitle(value); break;
+        case "listing_description": setListingDescription(value); break;
+        case "listing_tags": setListingTags(value); break;
+        case "listing_category_path": setListingCategoryPath(value); break;
+        case "listing_title_strategy": setListingTitleStrategy(value); break;
+        case "listing_product_story": setListingProductStory(value); break;
+        case "listing_condition_clarity": setListingConditionClarity(value); break;
+        case "listing_attributes": setListingAttributes(value); break;
+        case "listing_pricing_shipping_notes": setListingPricingShippingNotes(value); break;
+        case "listing_quality_checklist": setListingQualityChecklist(value); break;
+        case "condition_notes": setConditionNotes(value); break;
+        case "identification": setIdentification(value); break;
+        case "sale_price": setSaleRevenue(Number(value) || null); break;
+      }
+    }
+  };
+
+  /* ------ Save to inventory ------ */
   const runComplete = async () => {
     if (!researchResult || !itemNumber.trim()) return;
     setBusy(true);
@@ -281,22 +548,26 @@ export default function ListingCoachPage() {
       formData.append("status", status);
       formData.append("condition_code", conditionCode);
       if (saleRevenue != null) formData.append("sale_revenue", String(saleRevenue));
+      if (purchasePrice != null) formData.append("purchase_cost", String(purchasePrice));
+      if (datePurchased.trim()) formData.append("date_purchased", datePurchased.trim());
+      if (storeCategory.trim()) formData.append("store_category", storeCategory.trim());
+      if (conditionNotes.trim()) formData.append("condition_notes", conditionNotes.trim());
       if (researchResult.price.confidence) {
         formData.append("price_confidence", researchResult.price.confidence);
       }
 
       const composePayload: ComposeResponse = {
         ok: true,
-        listing_title: researchResult.listing_title,
-        listing_description: researchResult.listing_description,
-        listing_tags: researchResult.listing_tags,
-        listing_category_path: researchResult.listing_category_path,
-        listing_title_strategy: researchResult.listing_title_strategy,
-        listing_product_story: researchResult.listing_product_story,
-        listing_condition_clarity: researchResult.listing_condition_clarity,
-        listing_attributes: researchResult.listing_attributes,
-        listing_pricing_shipping_notes: researchResult.listing_pricing_shipping_notes,
-        listing_quality_checklist: researchResult.listing_quality_checklist,
+        listing_title: listingTitle,
+        listing_description: listingDescription,
+        listing_tags: listingTags,
+        listing_category_path: listingCategoryPath || null,
+        listing_title_strategy: listingTitleStrategy,
+        listing_product_story: listingProductStory,
+        listing_condition_clarity: listingConditionClarity,
+        listing_attributes: listingAttributes,
+        listing_pricing_shipping_notes: listingPricingShippingNotes,
+        listing_quality_checklist: listingQualityChecklist,
         quality_score: researchResult.quality_score,
       };
       formData.append("compose", JSON.stringify(composePayload));
@@ -306,11 +577,18 @@ export default function ListingCoachPage() {
       if (materialsText.trim()) {
         formData.append(
           "materials",
-          JSON.stringify(
-            materialsText.split(",").map((m) => m.trim()).filter(Boolean)
-          )
+          JSON.stringify(materialsText.split(",").map((m) => m.trim()).filter(Boolean))
         );
       }
+      formData.append("is_supply", isSupply ? "true" : "false");
+      formData.append("quantity", String(quantity));
+      if (shippingCostInbound != null) formData.append("shipping_cost_inbound", String(shippingCostInbound));
+      if (categoryTags.trim()) formData.append("category_tags", categoryTags.trim());
+      if (internalNotes.trim()) formData.append("internal_notes", internalNotes.trim());
+      if (vendorName.trim()) formData.append("vendor_name", vendorName.trim());
+      if (vendorShippingPrice != null) formData.append("vendor_shipping_price", String(vendorShippingPrice));
+      if (vendorReferenceNumber.trim()) formData.append("vendor_reference_number", vendorReferenceNumber.trim());
+      if (vendorNotes.trim()) formData.append("vendor_notes", vendorNotes.trim());
       if (itemWeight != null) {
         formData.append("item_weight", String(itemWeight));
         formData.append("item_weight_unit", itemWeightUnit);
@@ -380,37 +658,37 @@ export default function ListingCoachPage() {
 
   const stepTitle = useMemo(() => {
     switch (step) {
-      case "welcome":
-        return "Listing Coach";
-      case "input":
-        return "Photos and item details";
-      case "research":
-        return "AI research results";
-      case "review":
-        return "Review your listing";
-      case "save":
-        return "Save to inventory";
-      default:
-        return "Listing Coach";
+      case "welcome": return "Listing Coach";
+      case "input": return "Log the purchase";
+      case "form": return "Your listing";
+      default: return "Listing Coach";
     }
   }, [step]);
 
   const stepNumber = useMemo(() => {
-    const steps: CoachStep[] = ["input", "research", "review", "save"];
+    const steps: CoachStep[] = ["input", "form"];
     const idx = steps.indexOf(step);
     return idx >= 0 ? idx + 1 : 0;
   }, [step]);
 
+  const inputClass = "mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2";
+
+  const refineCtx = buildRefineContext();
+
   return (
-    <section className="mx-auto max-w-3xl rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
+    <section className="mx-auto max-w-4xl rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
-            Listing Coach{stepNumber > 0 ? ` — Step ${stepNumber} of 4` : ""}
+            Listing Coach{stepNumber > 0 ? ` — Step ${stepNumber} of 2` : ""}
           </p>
           <h1 className="text-2xl font-semibold text-[var(--ui-title)]">{stepTitle}</h1>
           <p className="mt-1 text-sm text-[var(--ui-muted)]">
-            Add photos and basic details — AI does the research and writes your listing.
+            {step === "input"
+              ? "Enter what you bought — photos, price, condition. AI does the rest."
+              : step === "form"
+                ? "Review and edit everything. Use Fix buttons to ask AI for changes."
+                : "Add photos and basic details — AI does the research and writes your listing."}
           </p>
         </div>
         <Link
@@ -423,7 +701,7 @@ export default function ListingCoachPage() {
 
       {error ? <ErrorPanel error={error} onDismiss={() => setError(null)} /> : null}
 
-      {/* STEP 0: Welcome */}
+      {/* WELCOME */}
       {step === "welcome" ? (
         <div className="space-y-4">
           {aiConfigured === false ? (
@@ -438,7 +716,7 @@ export default function ListingCoachPage() {
             <li>Add your item photos — turntable shots, markings, and defects.</li>
             <li>Enter basic details: what it is, when you bought it, condition.</li>
             <li>AI researches the item, finds comparable prices, and writes the listing.</li>
-            <li>Review, adjust, and save — a video is generated automatically from your photos.</li>
+            <li>Review, edit, and use Fix buttons to refine — then save.</li>
           </ul>
           <Button
             variant="primary"
@@ -451,7 +729,7 @@ export default function ListingCoachPage() {
         </div>
       ) : null}
 
-      {/* STEP 1: Input — Photos + Basic Details */}
+      {/* PHASE 1: LOG THE PURCHASE */}
       {step === "input" ? (
         <div className="space-y-6">
           <PhotoPasteZone
@@ -459,7 +737,7 @@ export default function ListingCoachPage() {
             onChange={setItemPhotos}
             maxPhotos={20}
             title="Item photos"
-            pasteHint="Click here, then press ⌘V to paste photos (up to 20)"
+            pasteHint="Click here, then press Cmd+V to paste photos (up to 20)"
             slotGuidance={ITEM_PHOTO_GUIDANCE}
           />
           <PhotoPasteZone
@@ -478,9 +756,9 @@ export default function ListingCoachPage() {
               <input
                 value={itemDescription}
                 onChange={(e) => setItemDescription(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                placeholder='e.g. "Homer Laughlin fiesta ware dinner plate, yellow"'
-                spellCheck={true}
+                className={inputClass}
+                placeholder='"Homer Laughlin fiesta ware dinner plate, yellow"'
+                spellCheck
               />
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -490,7 +768,7 @@ export default function ListingCoachPage() {
                   type="date"
                   value={datePurchased}
                   onChange={(e) => setDatePurchased(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  className={inputClass}
                 />
               </label>
               <label className="block text-sm text-[var(--ui-body)]">
@@ -500,10 +778,8 @@ export default function ListingCoachPage() {
                   min="0"
                   step="0.01"
                   value={purchasePrice ?? ""}
-                  onChange={(e) =>
-                    setPurchasePrice(e.target.value === "" ? null : Number(e.target.value))
-                  }
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                  onChange={(e) => setPurchasePrice(e.target.value === "" ? null : Number(e.target.value))}
+                  className={inputClass}
                   placeholder="What you paid"
                 />
               </label>
@@ -511,11 +787,7 @@ export default function ListingCoachPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-[var(--ui-body)]">
                 Condition
-                <select
-                  value={conditionCode}
-                  onChange={(e) => setConditionCode(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                >
+                <select value={conditionCode} onChange={(e) => setConditionCode(e.target.value)} className={inputClass}>
                   <option value="Mint/Near Mint">Mint/Near Mint</option>
                   <option value="Excellent">Excellent</option>
                   <option value="Very Good">Very Good</option>
@@ -525,13 +797,39 @@ export default function ListingCoachPage() {
               </label>
               <label className="block text-sm text-[var(--ui-body)]">
                 Store category
-                <input
-                  value={storeCategory}
-                  onChange={(e) => setStoreCategory(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                  placeholder="e.g. Dinnerware, Figurines"
-                  spellCheck={true}
-                />
+                {addingCategory ? (
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); void addNewCategory(); }
+                        if (e.key === "Escape") { setAddingCategory(false); setNewCategoryName(""); }
+                      }}
+                      className="flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                      placeholder="New category name"
+                      autoFocus
+                      spellCheck
+                    />
+                    <Button variant="primary" size="sm" onClick={() => void addNewCategory()}>Add</Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setAddingCategory(false); setNewCategoryName(""); }}>Cancel</Button>
+                  </div>
+                ) : (
+                  <select
+                    value={storeCategory}
+                    onChange={(e) => {
+                      if (e.target.value === "__add_new__") setAddingCategory(true);
+                      else setStoreCategory(e.target.value);
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">-- Select category --</option>
+                    {storeCategoryList.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="__add_new__">+ Add new category...</option>
+                  </select>
+                )}
               </label>
             </div>
             <label className="block text-sm text-[var(--ui-body)]">
@@ -540,9 +838,9 @@ export default function ListingCoachPage() {
                 value={conditionNotes}
                 onChange={(e) => setConditionNotes(e.target.value)}
                 rows={2}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
+                className={inputClass}
                 placeholder="Any specific flaws, repairs, or notable characteristics"
-                spellCheck={true}
+                spellCheck
               />
             </label>
           </div>
@@ -561,7 +859,7 @@ export default function ListingCoachPage() {
               <div className="border-t border-[var(--ui-border)] px-4 pb-4 pt-3">
                 <p className="mb-3 text-xs text-[var(--ui-muted)]">
                   If the AI struggles to identify your item, paste Google Visual Search screenshots or
-                  research text here. The AI will use your research as additional context.
+                  research text here.
                 </p>
                 <GoogleResultsPasteZone
                   photos={googlePhotos}
@@ -574,20 +872,13 @@ export default function ListingCoachPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setStep("welcome")}>
-              Back
-            </Button>
-            <Button variant="ghost" onClick={() => setStartOverOpen(true)}>
-              Start over
-            </Button>
+            <Button variant="secondary" onClick={() => setStep("welcome")}>Back</Button>
+            <Button variant="ghost" onClick={() => setStartOverOpen(true)}>Start over</Button>
             <Button
               variant="primary"
               disabled={itemPhotos.length === 0}
               busy={busy}
-              onClick={() => {
-                setStep("research");
-                void runResearch();
-              }}
+              onClick={() => { setStep("form"); void runResearch(); }}
             >
               Research and compose listing
             </Button>
@@ -595,357 +886,385 @@ export default function ListingCoachPage() {
         </div>
       ) : null}
 
-      {/* STEP 2: Research Results */}
-      {step === "research" && busy ? (
+      {/* LOADING: AI researching */}
+      {step === "form" && busy && !researchResult ? (
         <div className="flex flex-col items-center gap-3 py-12">
           <LoadingSpinner />
-          <p className="text-sm text-[var(--ui-muted)]">
-            Researching your item with AI and web search...
-          </p>
-          <p className="text-xs text-[var(--ui-muted)]">
-            This may take 30-60 seconds for deep research.
-          </p>
+          <p className="text-sm text-[var(--ui-muted)]">Researching your item with AI and web search...</p>
+          <p className="text-xs text-[var(--ui-muted)]">This may take 30-60 seconds for deep research.</p>
         </div>
       ) : null}
 
-      {step === "research" && !busy && researchResult ? (
+      {/* PHASE 2: UNIFIED EDITABLE FORM */}
+      {step === "form" && researchResult ? (
         <div className="space-y-6">
-          {/* Identification */}
-          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-[var(--ui-title)]">Identification</p>
-              <EvidenceBadge evidence={researchResult.suggested_identification} />
-            </div>
-            <input
-              value={identification}
-              onChange={(e) => setIdentification(e.target.value)}
-              className={`mt-2 w-full rounded-lg border p-2 text-sm ${
-                researchResult.suggested_identification.evidence === "unverified"
-                  ? "border-[var(--ui-yellow)]"
-                  : "border-[var(--ui-border)]"
-              } bg-[var(--ui-card-bg)]`}
-            />
-            {researchResult.suggested_identification.source_detail ? (
-              <p className="mt-1 text-xs text-[var(--ui-muted)]">
-                {researchResult.suggested_identification.source_detail}
-              </p>
-            ) : null}
-          </div>
 
-          {/* Photo review */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-              <p className="text-sm font-semibold text-[var(--ui-title)]">Photos present</p>
-              <ul className="mt-2 list-disc pl-5 text-sm text-[var(--ui-body)]">
-                {researchResult.photo_review.present_shots.length > 0 ? (
-                  [...new Set(researchResult.photo_review.present_shots)].map((shot) => (
-                    <li key={shot}>{SHOT_LABELS[shot] ?? shot}</li>
-                  ))
-                ) : (
-                  <li>None detected yet</li>
-                )}
-              </ul>
-            </div>
-            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-              <p className="text-sm font-semibold text-[var(--ui-title)]">Suggested additions</p>
-              <ul className="mt-2 list-disc pl-5 text-sm text-[var(--ui-body)]">
-                {researchResult.photo_review.missing_shots.length > 0 ? (
-                  [...new Set(researchResult.photo_review.missing_shots)].map((shot) => (
-                    <li key={shot}>{SHOT_LABELS[shot] ?? shot}</li>
-                  ))
-                ) : (
-                  <li>Looks complete</li>
-                )}
-              </ul>
-            </div>
-          </div>
-
-          {researchResult.photo_review.advisories.length > 0 ? (
-            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--ui-yellow)]">
-              {researchResult.photo_review.advisories.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          ) : null}
-
-          {/* Photo classifications */}
-          {photoClassifications.length > 0 ? (
-            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-              <p className="text-sm font-semibold text-[var(--ui-title)]">Photo classifications</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {photoClassifications.map((pc, idx) => (
-                  <div
-                    key={pc.photo_index}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
-                  >
-                    <span className="shrink-0 text-[var(--ui-muted)]">#{pc.photo_index + 1}</span>
-                    <select
-                      value={pc.type}
-                      onChange={(e) => {
-                        const updated = [...photoClassifications];
-                        updated[idx] = { ...pc, type: e.target.value, confidence: 1 };
-                        setPhotoClassifications(updated);
-                      }}
-                      className="flex-1 rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-1 text-xs"
-                    >
-                      <option value={pc.type}>{SHOT_LABELS[pc.type] ?? pc.type}</option>
-                      {[
-                        "hero", "angle", "detail", "backstamp", "scale",
-                        "imperfection", "underside", "grouping", "lifestyle",
-                        "measurement", "extra",
-                      ]
-                        .filter((t) => t !== pc.type)
-                        .map((t) => (
-                          <option key={t} value={t}>
-                            {SHOT_LABELS[t] ?? t}
-                          </option>
-                        ))}
-                    </select>
-                    {pc.confidence < 0.7 ? (
-                      <span className="text-xs text-[var(--ui-yellow)]" title="Low confidence">
-                        ?
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Price */}
-          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-sm font-semibold text-[var(--ui-title)]">Price research</p>
-            {researchResult.price.suggested_list_price != null ? (
-              <p className="mt-1 text-lg font-bold text-[var(--ui-green)]">
-                ${researchResult.price.suggested_list_price.toFixed(2)}
-                {researchResult.price.suggested_price_low != null &&
-                researchResult.price.suggested_price_high != null
-                  ? ` (range $${researchResult.price.suggested_price_low}–$${researchResult.price.suggested_price_high})`
-                  : ""}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-[var(--ui-body)]">
-                Could not determine a confident price.
-              </p>
-            )}
-            {researchResult.price.rationale ? (
-              <p className="mt-1 text-xs text-[var(--ui-muted)]">
-                {researchResult.price.rationale}
-              </p>
-            ) : null}
-            <label className="mt-3 block text-sm text-[var(--ui-body)]">
-              Your list price
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={saleRevenue ?? ""}
-                onChange={(e) =>
-                  setSaleRevenue(e.target.value === "" ? null : Number(e.target.value))
-                }
-                className="mt-1 w-full max-w-xs rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                placeholder="Set your price"
-              />
-            </label>
-          </div>
-
-          {/* Era and materials */}
-          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
-            <p className="text-sm font-semibold text-[var(--ui-title)]">Era, category and materials</p>
-            <div className="grid gap-3 sm:grid-cols-2">
+          {/* Section 1: Identity & Financials */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <SectionHeader title="Identity & Financials" />
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-[var(--ui-body)]">
-                When was it made?
-                {researchResult.suggested_when_made ? (
-                  <EvidenceBadge evidence={researchResult.suggested_when_made} />
-                ) : null}
-                <select
-                  value={etsyWhenMade}
-                  onChange={(e) => setEtsyWhenMade(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                >
-                  <option value="">Select era...</option>
-                  {[
-                    "made_to_order", "2020_2026", "2010_2019", "2004_2009", "2000_2003",
-                    "1990s", "1980s", "1970s", "1960s", "1950s", "1940s", "1930s",
-                    "1920s", "1910s", "1900s", "1800s", "1700s", "before_1700",
-                  ].map((era) => (
-                    <option key={era} value={era}>
-                      {era.replace(/_/g, " ")}
-                    </option>
-                  ))}
+                Item number <span className="text-[var(--ui-red)]">*</span>
+                <input value={itemNumber} onChange={(e) => setItemNumber(e.target.value)} className={inputClass} placeholder="e.g. TCT-2026-042" />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Internal description <span className="text-[var(--ui-red)]">*</span>
+                <input value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Identification
+                <EvidenceBadge evidence={researchResult.suggested_identification} />
+              </label>
+              <FieldFixButton fieldName="identification" currentValue={identification} context={refineCtx} onFixed={setIdentification} />
+            </div>
+            <input value={identification} onChange={(e) => setIdentification(e.target.value)} className={inputClass} />
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Status
+                <select value={status} onChange={(e) => setStatus(e.target.value as "In stock" | "Draft")} className={inputClass}>
+                  <option value="In stock">In stock</option>
+                  <option value="Draft">Draft</option>
                 </select>
               </label>
               <label className="block text-sm text-[var(--ui-body)]">
+                Quantity
+                <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.floor(Number(e.target.value) || 1)))} className={inputClass} />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Store category
+                <input value={storeCategory} onChange={(e) => setStoreCategory(e.target.value)} className={inputClass} />
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Sale price ($)
+                <FieldFixButton fieldName="sale_price" currentValue={saleRevenue != null ? String(saleRevenue) : ""} context={refineCtx} onFixed={(v) => setSaleRevenue(Number(v) || null)} />
+                <input type="number" min="0" step="0.01" value={saleRevenue ?? ""} onChange={(e) => setSaleRevenue(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="Recommended by AI" />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Purchase cost ($)
+                <input type="number" min="0" step="0.01" value={purchasePrice ?? ""} onChange={(e) => setPurchasePrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Shipping cost (inbound)
+                <input type="number" min="0" step="0.01" value={shippingCostInbound ?? ""} onChange={(e) => setShippingCostInbound(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} />
+              </label>
+            </div>
+
+            {researchResult.price.rationale ? (
+              <p className="text-xs text-[var(--ui-muted)]">
+                AI pricing rationale: {researchResult.price.rationale}
+              </p>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Date purchased
+                <input type="date" value={datePurchased} onChange={(e) => setDatePurchased(e.target.value)} className={inputClass} />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Category / tags
+                <input value={categoryTags} onChange={(e) => setCategoryTags(e.target.value)} className={inputClass} placeholder="e.g. vintage, collectible, pottery" />
+              </label>
+            </div>
+          </div>
+
+          {/* Section 2: Condition */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
+            <SectionHeader title="Condition" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Condition code
+                <select value={conditionCode} onChange={(e) => setConditionCode(e.target.value)} className={inputClass}>
+                  <option value="Mint/Near Mint">Mint/Near Mint</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Very Good">Very Good</option>
+                  <option value="Good">Good</option>
+                  <option value="Fair/As-Is">Fair/As-Is</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--ui-body)]">Condition notes</label>
+              <FieldFixButton fieldName="condition_notes" currentValue={conditionNotes} context={refineCtx} onFixed={setConditionNotes} />
+            </div>
+            <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} rows={3} className={inputClass} spellCheck placeholder="AI-enhanced condition notes" />
+          </div>
+
+          {/* Section 3: Etsy Listing */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <SectionHeader title="Etsy Listing" />
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--ui-body)]">Listing title (max 140 chars)</label>
+              <FieldFixButton fieldName="listing_title" currentValue={listingTitle} context={refineCtx} onFixed={setListingTitle} />
+            </div>
+            <input value={listingTitle} onChange={(e) => setListingTitle(e.target.value)} maxLength={140} className={inputClass} />
+            <p className="text-xs text-[var(--ui-muted)]">{listingTitle.length}/140 characters</p>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--ui-body)]">Listing description</label>
+              <FieldFixButton fieldName="listing_description" currentValue={listingDescription} context={refineCtx} onFixed={setListingDescription} />
+            </div>
+            <textarea value={listingDescription} onChange={(e) => setListingDescription(e.target.value)} rows={8} className={inputClass} spellCheck />
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--ui-body)]">Listing tags (13 max, comma-separated)</label>
+              <FieldFixButton fieldName="listing_tags" currentValue={listingTags} context={refineCtx} onFixed={setListingTags} />
+            </div>
+            <input value={listingTags} onChange={(e) => setListingTags(e.target.value)} className={inputClass} />
+            <div className="flex flex-wrap gap-1">
+              {listingTags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
+                <span key={tag} className="rounded-full border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-0.5 text-xs text-[var(--ui-body)]">{tag}</span>
+              ))}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Etsy category path
+                <input value={listingCategoryPath} onChange={(e) => setListingCategoryPath(e.target.value)} className={inputClass} />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
                 Etsy taxonomy ID
-                <input
-                  type="number"
-                  min="1"
-                  value={etsyTaxonomyId ?? ""}
-                  onChange={(e) =>
-                    setEtsyTaxonomyId(e.target.value === "" ? null : Number(e.target.value))
-                  }
-                  className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                  placeholder="e.g. 1229"
-                />
+                <input type="number" min="1" value={etsyTaxonomyId ?? ""} onChange={(e) => setEtsyTaxonomyId(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="e.g. 1229" />
                 {researchResult.suggested_taxonomy_path ? (
-                  <span className="text-xs text-[var(--ui-muted)]">
-                    {researchResult.suggested_taxonomy_path}
-                  </span>
+                  <span className="text-xs text-[var(--ui-muted)]">{researchResult.suggested_taxonomy_path}</span>
                 ) : null}
               </label>
             </div>
-            <label className="block text-sm text-[var(--ui-body)]">
-              Materials (comma-separated)
-              {researchResult.suggested_materials?.some((m) => m.evidence === "unverified") ? (
-                <span className="ml-2 text-xs text-[var(--ui-yellow)]">Some need verification</span>
-              ) : null}
-              <input
-                value={materialsText}
-                onChange={(e) => setMaterialsText(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-                placeholder="e.g. ceramic, glaze, gold trim"
-              />
-            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                When was it made?
+                {researchResult.suggested_when_made ? <EvidenceBadge evidence={researchResult.suggested_when_made} /> : null}
+                <select value={etsyWhenMade} onChange={(e) => setEtsyWhenMade(e.target.value)} className={inputClass}>
+                  <option value="">Select era...</option>
+                  {["made_to_order","2020_2026","2010_2019","2004_2009","2000_2003","1990s","1980s","1970s","1960s","1950s","1940s","1930s","1920s","1910s","1900s","1800s","1700s","before_1700"].map((era) => (
+                    <option key={era} value={era}>{era.replace(/_/g, " ")}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-start gap-4">
+                <label className="block flex-1 text-sm text-[var(--ui-body)]">
+                  Materials (comma-separated)
+                  <input value={materialsText} onChange={(e) => setMaterialsText(e.target.value)} className={inputClass} placeholder="e.g. ceramic, glaze, gold trim" />
+                </label>
+                <label className="mt-6 flex items-center gap-2 text-sm text-[var(--ui-body)] whitespace-nowrap cursor-pointer">
+                  <input type="checkbox" checked={isSupply} onChange={(e) => setIsSupply(e.target.checked)} className="h-4 w-4 rounded border-[var(--ui-border)] bg-[var(--ui-card-bg)]" />
+                  Is supply
+                </label>
+              </div>
+            </div>
           </div>
 
-          {/* Citations */}
-          {researchResult.citations.length > 0 ? (
-            <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-              <p className="text-sm font-semibold text-[var(--ui-title)]">
-                Research citations ({researchResult.citations.length})
-              </p>
-              <ul className="mt-2 space-y-1">
-                {researchResult.citations.map((c, i) => (
-                  <li key={i} className="text-xs text-[var(--ui-body)]">
-                    <span className="font-medium">{c.claim}</span>
-                    <span className="text-[var(--ui-muted)]"> — {c.source}</span>
-                    {c.url ? (
-                      <a
-                        href={c.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-1 text-[var(--ui-accent)] underline"
+          {/* Section 4: Weight & Dimensions */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
+            <SectionHeader title="Weight & Dimensions" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Weight
+                <div className="mt-1 flex gap-2">
+                  <input type="number" min="0" step="0.1" value={itemWeight ?? ""} onChange={(e) => setItemWeight(e.target.value === "" ? null : Number(e.target.value))} className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2" placeholder="e.g. 12" />
+                  <select value={itemWeightUnit} onChange={(e) => setItemWeightUnit(e.target.value)} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2">
+                    <option value="oz">oz</option>
+                    <option value="lb">lb</option>
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Length
+                <input type="number" min="0" step="0.1" value={itemLength ?? ""} onChange={(e) => setItemLength(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="L" />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Width
+                <input type="number" min="0" step="0.1" value={itemWidth ?? ""} onChange={(e) => setItemWidth(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="W" />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Height
+                <input type="number" min="0" step="0.1" value={itemHeight ?? ""} onChange={(e) => setItemHeight(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="H" />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Dimensions unit
+                <select value={itemDimensionsUnit} onChange={(e) => setItemDimensionsUnit(e.target.value)} className={inputClass}>
+                  <option value="in">inches</option>
+                  <option value="ft">feet</option>
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          {/* Section 5: Listing Workshop (internal AI fields) */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
+            <SectionHeader title="Listing Workshop (internal — not sent to Etsy)" />
+            {([
+              ["listing_title_strategy", "Title Strategy", listingTitleStrategy, setListingTitleStrategy],
+              ["listing_product_story", "Product Story", listingProductStory, setListingProductStory],
+              ["listing_condition_clarity", "Condition Clarity", listingConditionClarity, setListingConditionClarity],
+              ["listing_attributes", "Attributes", listingAttributes, setListingAttributes],
+              ["listing_pricing_shipping_notes", "Pricing/Shipping Notes", listingPricingShippingNotes, setListingPricingShippingNotes],
+              ["listing_quality_checklist", "Quality Checklist", listingQualityChecklist, setListingQualityChecklist],
+            ] as [string, string, string, (v: string) => void][]).map(([fieldKey, label, value, setter]) => (
+              <div key={fieldKey}>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-[var(--ui-body)]">{label}</label>
+                  <FieldFixButton fieldName={fieldKey} currentValue={value} context={refineCtx} onFixed={setter} />
+                </div>
+                <textarea value={value} onChange={(e) => setter(e.target.value)} rows={2} className={inputClass} spellCheck />
+              </div>
+            ))}
+          </div>
+
+          {/* Section 6: Where I bought this */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
+            <SectionHeader title="Where I Bought This" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Vendor name
+                <input value={vendorName} onChange={(e) => setVendorName(e.target.value)} className={inputClass} placeholder="e.g. Goodwill, estate sale" />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Vendor shipping cost
+                <input type="number" min="0" step="0.01" value={vendorShippingPrice ?? ""} onChange={(e) => setVendorShippingPrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Reference number
+                <input value={vendorReferenceNumber} onChange={(e) => setVendorReferenceNumber(e.target.value)} className={inputClass} placeholder="Receipt #, lot #, etc." />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Purchase notes
+                <input value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} className={inputClass} placeholder="Notes about the purchase" />
+              </label>
+            </div>
+          </div>
+
+          {/* Section 7: Internal notes */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
+            <SectionHeader title="Internal Notes" />
+            <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} className={inputClass} placeholder="Private notes (not sent to Etsy)" spellCheck />
+          </div>
+
+          {/* Section 8: Photos & Quality */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <SectionHeader title="Photos & Quality" />
+
+            {/* Photo classifications */}
+            {photoClassifications.length > 0 ? (
+              <div>
+                <p className="text-sm text-[var(--ui-body)]">Photo classifications</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {photoClassifications.map((pc, idx) => (
+                    <div key={pc.photo_index} className="flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm">
+                      <span className="shrink-0 text-[var(--ui-muted)]">#{pc.photo_index + 1}</span>
+                      <select
+                        value={pc.type}
+                        onChange={(e) => {
+                          const updated = [...photoClassifications];
+                          updated[idx] = { ...pc, type: e.target.value, confidence: 1 };
+                          setPhotoClassifications(updated);
+                        }}
+                        className="flex-1 rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-1 text-xs"
                       >
-                        link
-                      </a>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+                        <option value={pc.type}>{SHOT_LABELS[pc.type] ?? pc.type}</option>
+                        {["hero","angle","detail","backstamp","scale","imperfection","underside","grouping","lifestyle","measurement","extra"]
+                          .filter((t) => t !== pc.type)
+                          .map((t) => <option key={t} value={t}>{SHOT_LABELS[t] ?? t}</option>)}
+                      </select>
+                      {pc.confidence < 0.7 ? <span className="text-xs text-[var(--ui-yellow)]" title="Low confidence">?</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
-          {/* Compliance check */}
-          {researchResult.compliance_check.issues.length > 0 ? (
-            <div className="rounded-xl border border-[var(--ui-red)]/40 bg-[var(--ui-red)]/10 px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--ui-red)]">Compliance issues</p>
-              <ul className="mt-1 list-disc pl-5 text-sm text-[var(--ui-body)]">
-                {researchResult.compliance_check.issues.map((issue, i) => (
-                  <li key={i}>{issue}</li>
-                ))}
-              </ul>
+            {/* Quality score */}
+            <div className="flex flex-wrap items-start gap-4">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
+                style={{
+                  backgroundColor: `color-mix(in srgb, ${researchResult.quality_score.score >= 80 ? "var(--ui-green)" : researchResult.quality_score.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)"} 25%, transparent)`,
+                  border: `2px solid ${researchResult.quality_score.score >= 80 ? "var(--ui-green)" : researchResult.quality_score.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)"}`,
+                }}
+              >
+                {researchResult.quality_score.score}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[var(--ui-title)]">Listing quality score</p>
+                {researchResult.quality_score.hints.length > 0 ? (
+                  <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
+                    {researchResult.quality_score.hints.map((hint) => <li key={hint}>{hint}</li>)}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-xs text-[var(--ui-muted)]">Looking good!</p>
+                )}
+              </div>
             </div>
-          ) : null}
 
-          <div className="flex flex-wrap gap-2">
+            {/* Citations */}
+            {researchResult.citations.length > 0 ? (
+              <div>
+                <p className="text-sm text-[var(--ui-body)]">Research citations ({researchResult.citations.length})</p>
+                <ul className="mt-2 space-y-1">
+                  {researchResult.citations.map((c, i) => (
+                    <li key={i} className="text-xs text-[var(--ui-body)]">
+                      <span className="font-medium">{c.claim}</span>
+                      <span className="text-[var(--ui-muted)]"> — {c.source}</span>
+                      {c.url ? (
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="ml-1 text-[var(--ui-accent)] underline">link</a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {/* Compliance */}
+            {researchResult.compliance_check.issues.length > 0 ? (
+              <div className="rounded-lg border border-[var(--ui-red)]/40 bg-[var(--ui-red)]/10 px-4 py-3">
+                <p className="text-sm font-semibold text-[var(--ui-red)]">Compliance issues</p>
+                <ul className="mt-1 list-disc pl-5 text-sm text-[var(--ui-body)]">
+                  {researchResult.compliance_check.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Global refinement */}
+          <div className="rounded-xl border border-[var(--ui-accent)]/30 bg-[var(--ui-accent)]/5 p-4 space-y-3">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">
+              Tell the AI what to fix or improve
+            </p>
+            <textarea
+              value={globalFeedback}
+              onChange={(e) => setGlobalFeedback(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-[var(--ui-accent)]/30 bg-[var(--ui-card-bg)] p-2 text-sm"
+              placeholder='e.g. "Add detail about the gold trim" or "Make the description shorter"'
+              spellCheck
+            />
             <Button
-              variant="secondary"
-              onClick={() => {
-                setResearchResult(null);
-                setStep("input");
-              }}
+              variant="primary"
+              busy={refining}
+              disabled={!globalFeedback.trim()}
+              onClick={() => void runGlobalRefine()}
             >
-              Back to edit
-            </Button>
-            <Button variant="ghost" onClick={() => setStartOverOpen(true)}>
-              Start over
-            </Button>
-            <Button variant="primary" onClick={() => setStep("review")}>
-              Review listing
+              Fix it
             </Button>
           </div>
-        </div>
-      ) : null}
 
-      {/* STEP 3: Review */}
-      {step === "review" && researchResult ? (
-        <div className="space-y-6">
-          <ListingPreview
-            compose={{
-              ok: true,
-              listing_title: researchResult.listing_title,
-              listing_description: researchResult.listing_description,
-              listing_tags: researchResult.listing_tags,
-              listing_category_path: researchResult.listing_category_path,
-              listing_title_strategy: researchResult.listing_title_strategy,
-              listing_product_story: researchResult.listing_product_story,
-              listing_condition_clarity: researchResult.listing_condition_clarity,
-              listing_attributes: researchResult.listing_attributes,
-              listing_pricing_shipping_notes: researchResult.listing_pricing_shipping_notes,
-              listing_quality_checklist: researchResult.listing_quality_checklist,
-              quality_score: researchResult.quality_score,
-            }}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setStep("research")}>
-              Back to research
-            </Button>
-            <Button variant="ghost" onClick={() => setStartOverOpen(true)}>
-              Start over
-            </Button>
-            <Button variant="primary" onClick={() => setStep("save")}>
-              Save to inventory
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* STEP 4: Save */}
-      {step === "save" && researchResult ? (
-        <div className="space-y-4">
-          <label className="block text-sm text-[var(--ui-body)]">
-            Item number <span className="text-[var(--ui-red)]">*</span>
-            <input
-              value={itemNumber}
-              onChange={(e) => setItemNumber(e.target.value)}
-              className="mt-1 w-full max-w-md rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-              placeholder="e.g. TCT-2026-042"
-            />
-          </label>
-          <label className="block text-sm text-[var(--ui-body)]">
-            Internal description <span className="text-[var(--ui-red)]">*</span>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-            />
-          </label>
-          <label className="block text-sm text-[var(--ui-body)]">
-            Condition
-            <select
-              value={conditionCode}
-              onChange={(e) => setConditionCode(e.target.value)}
-              className="mt-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-            >
-              <option value="Mint/Near Mint">Mint/Near Mint</option>
-              <option value="Excellent">Excellent</option>
-              <option value="Very Good">Very Good</option>
-              <option value="Good">Good</option>
-              <option value="Fair/As-Is">Fair/As-Is</option>
-            </select>
-          </label>
-          <label className="block text-sm text-[var(--ui-body)]">
-            Status
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "In stock" | "Draft")}
-              className="mt-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2"
-            >
-              <option value="In stock">In stock</option>
-              <option value="Draft">Draft</option>
-            </select>
-          </label>
-
+          {/* Video status */}
           {videoGenerating ? (
             <div className="flex items-center gap-2 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-4 py-3">
               <LoadingSpinner />
@@ -957,9 +1276,13 @@ export default function ListingCoachPage() {
             </div>
           ) : null}
 
+          {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setStep("review")}>
-              Back
+            <Button variant="secondary" onClick={() => { setResearchResult(null); setStep("input"); }}>
+              Back to edit inputs
+            </Button>
+            <Button variant="ghost" onClick={() => setStartOverOpen(true)}>
+              Start over
             </Button>
             <Button
               variant="primary"
@@ -976,10 +1299,7 @@ export default function ListingCoachPage() {
       <ConfirmDialog
         open={startOverOpen}
         onClose={() => setStartOverOpen(false)}
-        onConfirm={() => {
-          resetSession();
-          setStartOverOpen(false);
-        }}
+        onConfirm={() => { resetSession(); setStartOverOpen(false); }}
         title="Start over?"
         description="This clears all photos, answers, and the composed listing from this session."
         confirmLabel="Start over"

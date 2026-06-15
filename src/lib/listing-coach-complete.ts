@@ -4,7 +4,7 @@ import type { ComposeListingCoachResult } from "@/lib/listing-coach";
 import type { CoachPhotoFile } from "@/lib/listing-coach-multipart";
 import { prepareInventoryPayload } from "@/lib/inventory-validation";
 import { generateThumbnail, processAndStorePicture } from "@/lib/picture-storage";
-import { createInventory } from "@/lib/records";
+import { createInventory, createPurchase } from "@/lib/records";
 import { getDb } from "@/lib/sqlite";
 
 const CONDITION_CODES = new Set(["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"]);
@@ -14,7 +14,15 @@ export type CompleteListingCoachInput = {
   description?: string;
   status?: string;
   conditionCode?: string;
+  quantity?: number;
   saleRevenue?: number | null;
+  purchaseCost?: number | null;
+  shippingCostInbound?: number | null;
+  datePurchased?: string;
+  storeCategory?: string;
+  categoryTags?: string;
+  conditionNotes?: string;
+  internalNotes?: string;
   compose: ComposeListingCoachResult;
   itemPhotos: CoachPhotoFile[];
   conditionPhotos: CoachPhotoFile[];
@@ -23,6 +31,7 @@ export type CompleteListingCoachInput = {
   etsyWhenMade?: string;
   etsyTaxonomyId?: number;
   materials?: string;
+  isSupply?: boolean;
   itemWeight?: number;
   itemWeightUnit?: string;
   itemLength?: number;
@@ -30,6 +39,10 @@ export type CompleteListingCoachInput = {
   itemHeight?: number;
   itemDimensionsUnit?: string;
   pictureClassifications?: string;
+  vendorName?: string;
+  vendorShippingPrice?: number | null;
+  vendorReferenceNumber?: string;
+  vendorNotes?: string;
 };
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -65,7 +78,16 @@ export async function completeListingCoach(
         description: input.description?.trim() || input.compose.listing_title.slice(0, 200),
         status: input.status ?? "In stock",
         condition_code: conditionCode,
+        quantity: input.quantity ?? 1,
         sale_revenue: input.saleRevenue ?? null,
+        purchase_cost: input.purchaseCost ?? null,
+        shipping_cost: input.shippingCostInbound ?? null,
+        date_purchased: input.datePurchased || null,
+        store_category: input.storeCategory || null,
+        category_tags: input.categoryTags || null,
+        condition_notes: input.conditionNotes || null,
+        has_condition_issue: input.conditionNotes ? 1 : 0,
+        notes: input.internalNotes || null,
         listing_title: input.compose.listing_title,
         listing_description: input.compose.listing_description,
         listing_tags: input.compose.listing_tags,
@@ -82,6 +104,7 @@ export async function completeListingCoach(
         ...(input.etsyWhenMade ? { etsy_when_made: input.etsyWhenMade } : {}),
         ...(input.etsyTaxonomyId ? { etsy_taxonomy_id: input.etsyTaxonomyId } : {}),
         ...(input.materials ? { materials: input.materials } : {}),
+        is_supply: input.isSupply ? 1 : 0,
         ...(input.itemWeight != null ? { item_weight: input.itemWeight } : {}),
         ...(input.itemWeightUnit ? { item_weight_unit: input.itemWeightUnit } : {}),
         ...(input.itemLength != null ? { item_length: input.itemLength } : {}),
@@ -156,6 +179,18 @@ export async function completeListingCoach(
   }
 
   await generateThumbnail(itemId);
+
+  if (input.vendorName?.trim()) {
+    createPurchase({
+      inventory_id: itemId,
+      vendor_name: input.vendorName.trim(),
+      purchase_date: input.datePurchased || null,
+      purchase_price: input.purchaseCost ?? null,
+      shipping_price: input.vendorShippingPrice ?? null,
+      reference_number: input.vendorReferenceNumber || null,
+      notes: input.vendorNotes || null,
+    });
+  }
 
   logActivity({
     action: "listing.coach_complete",

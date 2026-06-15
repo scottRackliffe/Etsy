@@ -179,12 +179,12 @@ function requireAiConfigOrThrow(): NonNullable<ReturnType<typeof getAiConfig>> {
   return config;
 }
 
-function getOpenAiClient(): OpenAI {
+function getOpenAiClient(timeoutMs?: number): OpenAI {
   const config = requireAiConfigOrThrow();
   return new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl ?? undefined,
-    timeout: Math.max(config.timeoutMs, 60000),
+    timeout: timeoutMs ?? Math.max(config.timeoutMs, 60000),
     maxRetries: config.retryCount,
   });
 }
@@ -267,9 +267,10 @@ async function callAiJson(params: {
   webSearch?: boolean;
   highRes?: boolean;
   tokenBudget?: number;
+  timeoutMs?: number;
 }): Promise<unknown> {
   const config = requireAiConfigOrThrow();
-  const openai = getOpenAiClient();
+  const openai = getOpenAiClient(params.timeoutMs);
 
   const detail = params.highRes ? "high" as const : "auto" as const;
   const content: Array<
@@ -283,12 +284,13 @@ async function callAiJson(params: {
 
   const maxTokens = Math.max(params.tokenBudget ?? config.tokenBudget, 4000);
 
-  try {
-    const response = await openai.responses.create({
+  const makeRequest = async (useTools: boolean) => {
+    const requestTools = useTools ? tools : [];
+    return openai.responses.create({
       model: config.model,
       max_output_tokens: maxTokens,
       temperature: 0.2,
-      ...(tools.length > 0 ? { tools } : {}),
+      ...(requestTools.length > 0 ? { tools: requestTools } : {}),
       input: [
         {
           role: "system",
@@ -300,6 +302,20 @@ async function callAiJson(params: {
         },
       ],
     });
+  };
+
+  try {
+    let response;
+    try {
+      response = await makeRequest(tools.length > 0);
+    } catch (firstError) {
+      if (tools.length > 0 && firstError instanceof OpenAI.APIError && (firstError.status === 400 || firstError.status === 422)) {
+        logApiCall("openai", "responses.create/listing-coach", firstError.status);
+        response = await makeRequest(false);
+      } else {
+        throw firstError;
+      }
+    }
     logApiCall("openai", "responses.create/listing-coach", 200);
 
     const outputText = response.output_text?.trim();
@@ -587,11 +603,19 @@ EVIDENCE RULES:
 - "operator_input" evidence: Only use for information the seller provided (description, date purchased, purchase price, condition notes).
 - "unverified" evidence: Use for anything you infer but cannot confirm. The seller will be asked to verify these fields.
 
+WRITING VOICE — CRITICAL:
+- Write ALL listing content (title, description, story) in the SELLER'S OWN VOICE — first person, warm, personal.
+- The seller is Trudy, a passionate vintage collector. Write as if SHE is describing the item directly to the buyer.
+- NEVER use third-person phrases like "seller states", "the seller reports", "according to the seller".
+- NEVER use phrases like "please message me" — instead say "message me" or "feel free to ask".
+- Use natural, friendly language: "I found this gorgeous piece at..." not "This item was acquired by the seller..."
+- The tone should be knowledgeable, enthusiastic, and trustworthy — like a friend who knows antiques.
+
 ETSY LISTING BEST PRACTICES:
 - Title: Front-load the most important keywords. Include maker, item type, era, and distinguishing features. Max 140 characters.
-- Description: Tell the item's story. Lead with what it IS, then condition, then measurements, then shipping info.
+- Description: Tell the item's story in the seller's voice. Lead with what it IS, then condition, then measurements, then shipping info.
 - Tags: Up to 13 unique tags. Use multi-word phrases that buyers actually search for. No single generic words.
-- Condition: Be brutally honest. Disclose every flaw. Buyers respect transparency and it reduces returns.
+- Condition: Be brutally honest. Disclose every flaw. Buyers respect transparency and it reduces returns. But say "I noticed..." not "seller states..."
 - Photos: Reference specific photos in the description (e.g., "as shown in photo 3").
 
 Return strict JSON only.`;
@@ -793,6 +817,7 @@ export async function researchAndCompose(
     webSearch: true,
     highRes: true,
     tokenBudget: 8000,
+    timeoutMs: 180_000,
   })) as Record<string, unknown>;
 
   const photoReview: PhotoReview = normalizePhotoReview(parsed.photo_review);
@@ -856,6 +881,7 @@ export async function researchAndCompose(
   const minScoreStr = getSetting("listing.min_quality_score");
   const minScoreVal = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
   const condCode = params.conditionCode ?? normalizeConditionCode(parsed.suggested_condition_code);
+  const categoryPath = typeof parsed.listing_category_path === "string" ? parsed.listing_category_path.trim() : "";
   const scoreResult = computeListingScore(
     {
       listing_title: parsed.listing_title.trim(),
@@ -863,6 +889,8 @@ export async function researchAndCompose(
       listing_tags: listingTags,
       condition_code: condCode,
       sale_revenue: null,
+      category_tags: categoryPath || params.storeCategory || null,
+      item_number: "(pending)",
       ...pictureSlots,
     },
     minScoreVal
@@ -910,4 +938,132 @@ export async function researchAndCompose(
     listing_quality_checklist: stringField("listing_quality_checklist"),
     quality_score: { score: scoreResult.score, hints: scoreResult.tips },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Refine: per-field or global AI refinement
+// ---------------------------------------------------------------------------
+
+export type RefineListingInput = {
+  mode: "field" | "global";
+  fieldName?: string;
+  currentValue?: string;
+  instruction: string;
+  context: {
+    identification: string;
+    listing_title: string;
+    listing_description: string;
+    listing_tags: string;
+    listing_category_path: string | null;
+    listing_condition_clarity: string;
+    listing_product_story: string;
+    listing_attributes: string;
+    listing_pricing_shipping_notes: string;
+    listing_title_strategy: string;
+    listing_quality_checklist: string;
+    condition_code: string;
+    condition_notes: string;
+    materials: string;
+    sale_price: number | null;
+  };
+};
+
+export type RefineListingResult = {
+  fields: Record<string, string>;
+};
+
+const REFINE_FIELD_PROMPT = `You are an Etsy listing editor for vintage/antique items.
+The seller wants to improve a SPECIFIC FIELD of their listing.
+
+RULES:
+1. ONLY return the corrected value for the requested field.
+2. Follow all Etsy listing best practices.
+3. Write in the seller's first-person voice (warm, knowledgeable, personal — the seller is Trudy, a passionate vintage collector).
+4. NEVER guess facts. If the instruction asks for something you cannot verify, say so.
+5. Return ONLY valid JSON: { "fields": { "<field_name>": "<new_value>" } }`;
+
+const REFINE_GLOBAL_PROMPT = `You are an Etsy listing editor for vintage/antique items.
+The seller has reviewed the AI-generated listing and wants improvements.
+
+RULES:
+1. Read the seller's feedback carefully.
+2. Only change fields that are directly affected by the feedback. Leave everything else unchanged.
+3. Write in the seller's first-person voice (warm, knowledgeable, personal — the seller is Trudy, a passionate vintage collector).
+4. NEVER guess facts. If the feedback asks for something you cannot verify, say so.
+5. Follow all Etsy listing best practices.
+6. Return ONLY valid JSON: { "fields": { "<field_name>": "<new_value>", ... } }
+   Only include fields you actually changed. Valid field names:
+   listing_title, listing_description, listing_tags, listing_category_path,
+   listing_title_strategy, listing_product_story, listing_condition_clarity,
+   listing_attributes, listing_pricing_shipping_notes, listing_quality_checklist,
+   condition_notes, identification, sale_price`;
+
+export async function refineListing(
+  input: RefineListingInput
+): Promise<RefineListingResult> {
+  const isField = input.mode === "field" && input.fieldName;
+
+  const systemPrompt = isField ? REFINE_FIELD_PROMPT : REFINE_GLOBAL_PROMPT;
+
+  const contextLines = [
+    `Current listing context:`,
+    `- Identification: ${input.context.identification}`,
+    `- Condition: ${input.context.condition_code}`,
+    `- Condition notes: ${input.context.condition_notes}`,
+    `- Materials: ${input.context.materials}`,
+    `- Sale price: ${input.context.sale_price ?? "not set"}`,
+    `- Title: ${input.context.listing_title}`,
+    `- Tags: ${input.context.listing_tags}`,
+    `- Category: ${input.context.listing_category_path ?? "not set"}`,
+    `- Description (first 500 chars): ${input.context.listing_description.slice(0, 500)}`,
+  ];
+
+  let userText: string;
+  if (isField) {
+    userText = [
+      ...contextLines,
+      "",
+      `FIELD TO FIX: ${input.fieldName}`,
+      `CURRENT VALUE: ${input.currentValue ?? ""}`,
+      `SELLER'S INSTRUCTION: ${input.instruction}`,
+      "",
+      `Return JSON: { "fields": { "${input.fieldName}": "<corrected value>" } }`,
+    ].join("\n");
+  } else {
+    userText = [
+      ...contextLines,
+      `- Title strategy: ${input.context.listing_title_strategy}`,
+      `- Product story: ${input.context.listing_product_story}`,
+      `- Condition clarity: ${input.context.listing_condition_clarity}`,
+      `- Attributes: ${input.context.listing_attributes}`,
+      `- Pricing/shipping notes: ${input.context.listing_pricing_shipping_notes}`,
+      `- Quality checklist: ${input.context.listing_quality_checklist}`,
+      "",
+      `SELLER'S FEEDBACK: ${input.instruction}`,
+      "",
+      `Return JSON with ONLY the fields you changed.`,
+    ].join("\n");
+  }
+
+  const parsed = (await callAiJson({
+    system: systemPrompt,
+    userText,
+    images: [],
+    webSearch: false,
+    tokenBudget: 4000,
+    timeoutMs: 60_000,
+  })) as Record<string, unknown>;
+
+  const fields: Record<string, string> = {};
+  if (parsed.fields && typeof parsed.fields === "object") {
+    for (const [k, v] of Object.entries(parsed.fields as Record<string, unknown>)) {
+      if (typeof v === "string") {
+        fields[k] = v;
+      } else if (typeof v === "number") {
+        fields[k] = String(v);
+      }
+    }
+  }
+
+  return { fields };
 }

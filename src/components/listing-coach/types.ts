@@ -133,9 +133,7 @@ export type ComposeResponse = {
 export type CoachStep =
   | "welcome"
   | "input"
-  | "research"
-  | "review"
-  | "save";
+  | "form";
 
 export function appendCoachPhotos(
   formData: FormData,
