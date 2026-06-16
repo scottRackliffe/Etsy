@@ -21,10 +21,10 @@ const BUILTIN_ARTICLES: Article[] = [
     body: "Create items on the Inventory tab, upload pictures, set condition and costs in the detail panel, then open the listing workshop when you are ready to draft content.",
   },
   {
-    id: "listing-coach",
-    category: "Listing workshop",
-    title: "Listing Coach — paste photos, get a listing",
-    body: "Inventory → Add with Listing Coach. Paste item photos from Mac Photos (⌘V), optionally add a Google Visual Search screenshot, confirm a few short answers, and save a composed title, description, and tags. Requires AI configured in Config. See Listing_Coach_Guide in the tips list below.",
+    id: "add-new-item",
+    category: "Inventory",
+    title: "Add New Item — photos in, listing out",
+    body: "Inventory → Add New Item. Log where you bought it, paste item photos (⌘V), enter details, and AI handles the research, listing, and quality scoring. Review, fix, re-score, and repeat until it's ready. Requires AI configured in Config.",
   },
   {
     id: "listing",

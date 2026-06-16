@@ -88,7 +88,10 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
           items?: HistoryOrder[];
           pagination?: { has_more?: boolean; offset?: number };
         };
-        if (!response.ok) throw data;
+        if (!response.ok) {
+          if (response.status === 404) return;
+          throw data;
+        }
         setSummary(data.summary ?? null);
         setOrders((current) => (append ? [...current, ...(data.items ?? [])] : (data.items ?? [])));
         setHasMore(Boolean(data.pagination?.has_more));

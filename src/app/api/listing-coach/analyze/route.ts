@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         code: "VALIDATION_ERROR",
         message: "Expected multipart form data",
         userMessage: "Photo upload format was invalid.",
-        actions: ["Retry from the Listing Coach photo step."],
+        actions: ["Retry from the photo step."],
         canRetry: false,
       });
     }

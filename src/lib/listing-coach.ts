@@ -168,7 +168,7 @@ function requireAiConfigOrThrow(): NonNullable<ReturnType<typeof getAiConfig>> {
       status: 503,
       code: "AI_NOT_CONFIGURED",
       message: "Integrated AI is not configured",
-      userMessage: "Listing Coach needs AI configured in Config before it can analyze photos.",
+      userMessage: "AI needs to be configured in Config before analyzing photos.",
       actions: [
         "Open Config → AI settings and add your API key.",
         "Use Test connection to verify.",

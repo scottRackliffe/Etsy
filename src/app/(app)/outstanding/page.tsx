@@ -6,6 +6,7 @@ import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 
 type OutstandingItem = {
@@ -103,16 +104,9 @@ export default function OutstandingPage() {
             </span>
           )}
         </h2>
-        <button
-          type="button"
-          onClick={() => {
-            setLoading(true);
-            fetchItems();
-          }}
-          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-1.5 text-xs text-[var(--ui-body)] hover:bg-[var(--ui-border)]"
-        >
+        <Button variant="secondary" size="sm" onClick={() => { setLoading(true); fetchItems(); }}>
           Refresh
-        </button>
+        </Button>
       </div>
 
       {error && (

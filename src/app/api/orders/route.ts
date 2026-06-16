@@ -6,6 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validation";
 import { createOrder, listOrders } from "@/lib/records";
 import { logActivity } from "@/lib/activity-log";
+import { getDb } from "@/lib/sqlite";
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,6 +86,49 @@ export async function POST(request: Request) {
       }
       throw err;
     }
+    // Auto-fill ship-to from customer if not provided
+    const customerId = typeof payload.customer_id === "number" ? payload.customer_id : null;
+    const shipToAddressId = typeof body.ship_to_address_id === "number" ? body.ship_to_address_id : null;
+    delete payload.ship_to_address_id;
+
+    if (customerId && !payload.ship_to_first_name) {
+      const db = getDb();
+      const cust = db.prepare(
+        `SELECT first_name, last_name, address_1, address_2, city, state, postal_code, country
+         FROM customers WHERE id = ?`
+      ).get(customerId) as Record<string, string | null> | undefined;
+
+      let shipTo: Record<string, string | null> | undefined;
+      if (shipToAddressId) {
+        // User picked a specific ship-to address
+        shipTo = db.prepare(
+          `SELECT first_line, second_line, city, state, postal_code, country
+           FROM addresses WHERE id = ? AND customer_id = ?`
+        ).get(shipToAddressId, customerId) as Record<string, string | null> | undefined;
+      }
+
+      if (shipTo) {
+        payload.ship_to_first_name = cust?.first_name ?? null;
+        payload.ship_to_last_name = cust?.last_name ?? null;
+        payload.ship_to_address_line_1 = shipTo.first_line ?? null;
+        payload.ship_to_address_line_2 = shipTo.second_line ?? null;
+        payload.ship_to_city = shipTo.city ?? null;
+        payload.ship_to_state_province = shipTo.state ?? null;
+        payload.ship_to_postal_code = shipTo.postal_code ?? null;
+        payload.ship_to_country = shipTo.country ?? null;
+      } else if (cust) {
+        // Fall back to customer's main billing address
+        payload.ship_to_first_name = cust.first_name ?? null;
+        payload.ship_to_last_name = cust.last_name ?? null;
+        payload.ship_to_address_line_1 = cust.address_1 ?? null;
+        payload.ship_to_address_line_2 = cust.address_2 ?? null;
+        payload.ship_to_city = cust.city ?? null;
+        payload.ship_to_state_province = cust.state ?? null;
+        payload.ship_to_postal_code = cust.postal_code ?? null;
+        payload.ship_to_country = cust.country ?? null;
+      }
+    }
+
     const order = createOrder(payload);
     logActivity({
       action: "order.created",

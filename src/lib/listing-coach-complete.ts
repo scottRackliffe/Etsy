@@ -1,3 +1,5 @@
+import path from "path";
+import { promises as fsp } from "fs";
 import { logActivity } from "@/lib/activity-log";
 import { ApiRouteError } from "@/lib/api-error";
 import type { ComposeListingCoachResult } from "@/lib/listing-coach";
@@ -43,6 +45,11 @@ export type CompleteListingCoachInput = {
   vendorShippingPrice?: number | null;
   vendorReferenceNumber?: string;
   vendorNotes?: string;
+  receiptPhotoBuffer?: Buffer;
+  receiptPhotoExt?: string;
+  receiptDescription?: string;
+  selectedReceiptItemId?: number;
+  extraReceiptItems?: Array<{ description: string; cost: number | null }>;
 };
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -87,6 +94,7 @@ export async function completeListingCoach(
         category_tags: input.categoryTags || null,
         condition_notes: input.conditionNotes || null,
         has_condition_issue: input.conditionNotes ? 1 : 0,
+        receipt_description: input.receiptDescription || null,
         notes: input.internalNotes || null,
         listing_title: input.compose.listing_title,
         listing_description: input.compose.listing_description,
@@ -181,6 +189,16 @@ export async function completeListingCoach(
   await generateThumbnail(itemId);
 
   if (input.vendorName?.trim()) {
+    let receiptImagePath: string | null = null;
+    if (input.receiptPhotoBuffer) {
+      const uploadsRoot = process.env.UPLOADS_PATH || path.join(process.cwd(), "uploads");
+      const receiptDir = path.join(uploadsRoot, "inventory", String(itemId), "receipts");
+      await fsp.mkdir(receiptDir, { recursive: true });
+      const ext = input.receiptPhotoExt || "jpg";
+      const receiptFile = path.join(receiptDir, `receipt.${ext}`);
+      await fsp.writeFile(receiptFile, input.receiptPhotoBuffer);
+      receiptImagePath = `uploads/inventory/${itemId}/receipts/receipt.${ext}`;
+    }
     createPurchase({
       inventory_id: itemId,
       vendor_name: input.vendorName.trim(),
@@ -189,7 +207,47 @@ export async function completeListingCoach(
       shipping_price: input.vendorShippingPrice ?? null,
       reference_number: input.vendorReferenceNumber || null,
       notes: input.vendorNotes || null,
+      ...(receiptImagePath ? { receipt_image: receiptImagePath } : {}),
     });
+
+    if (input.selectedReceiptItemId) {
+      db.prepare("UPDATE receipt_items SET inventory_id = ? WHERE id = ?").run(
+        itemId,
+        input.selectedReceiptItemId
+      );
+    } else {
+      const receiptNow = new Date().toISOString();
+      const currentItem = { description: input.description?.trim() || "Item", cost: input.purchaseCost ?? null };
+      const extras = (input.extraReceiptItems ?? []).filter((e) => e.description.trim());
+      if (extras.length > 0) {
+        const receiptResult = db
+          .prepare(
+            `INSERT INTO receipts (vendor_name, purchase_date, receipt_image, shipping_price, reference_number, notes, created_at, updated_at)
+             VALUES (@vendor_name, @purchase_date, @receipt_image, @shipping_price, @reference_number, @notes, @created_at, @updated_at)`
+          )
+          .run({
+            vendor_name: input.vendorName.trim(),
+            purchase_date: input.datePurchased || null,
+            receipt_image: receiptImagePath,
+            shipping_price: input.vendorShippingPrice ?? null,
+            reference_number: input.vendorReferenceNumber || null,
+            notes: input.vendorNotes || null,
+            created_at: receiptNow,
+            updated_at: receiptNow,
+          });
+        const receiptId = Number(receiptResult.lastInsertRowid);
+
+        db.prepare(
+          `INSERT INTO receipt_items (receipt_id, description, cost, inventory_id, created_at) VALUES (?, ?, ?, ?, ?)`
+        ).run(receiptId, currentItem.description, currentItem.cost, itemId, receiptNow);
+
+        for (const extra of extras) {
+          db.prepare(
+            `INSERT INTO receipt_items (receipt_id, description, cost, inventory_id, created_at) VALUES (?, ?, ?, ?, ?)`
+          ).run(receiptId, extra.description.trim(), extra.cost, null, receiptNow);
+        }
+      }
+    }
   }
 
   logActivity({

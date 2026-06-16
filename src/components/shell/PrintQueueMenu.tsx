@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { addNotificationEntry } from "@/lib/notifications";
@@ -223,30 +224,15 @@ export function PrintQueueMenu() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={busy || count === 0}
-                  onClick={printAll}
-                  className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
+                <Button variant="accent" onClick={printAll} disabled={busy || count === 0}>
                   Print all
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || selected.size === 0}
-                  onClick={printSelected}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-                >
+                </Button>
+                <Button variant="secondary" onClick={printSelected} disabled={busy || selected.size === 0}>
                   Print selected
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setClearOpen(true)}
-                  className="rounded-lg border border-[var(--ui-red)]/40 px-3 py-2 text-sm text-[var(--ui-red)] disabled:opacity-60"
-                >
+                </Button>
+                <Button variant="danger" onClick={() => setClearOpen(true)} disabled={busy}>
                   Clear queue
-                </button>
+                </Button>
               </div>
             </>
           )}

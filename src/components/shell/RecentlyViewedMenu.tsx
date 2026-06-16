@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { useRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import {
@@ -125,16 +126,9 @@ export function RecentlyViewedMenu() {
             </div>
           )}
           {hasEntries ? (
-            <button
-              type="button"
-              onClick={() => {
-                clearRecentlyViewed();
-                setOpen(false);
-              }}
-              className="mt-3 w-full text-left text-xs text-[var(--ui-muted)] underline underline-offset-2 hover:text-[var(--ui-body)]"
-            >
+            <Button variant="ghost" size="sm" onClick={() => { clearRecentlyViewed(); setOpen(false); }} className="mt-3 w-full">
               Clear history
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : null}

@@ -28,6 +28,8 @@ import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useToast } from "@/hooks/useToast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useZipLookup } from "@/hooks/useZipLookup";
+import { formatPhone } from "@/hooks/usePhoneFormat";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { usePagination } from "@/hooks/usePagination";
 import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
@@ -86,13 +88,21 @@ function CustomersPageInner() {
   const [newCustomerFirstName, setNewCustomerFirstName] = useState("");
   const [newCustomerLastName, setNewCustomerLastName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [copySourceCustomer, setCopySourceCustomer] = useState<Customer | null>(null);
+  const [copySourceAddresses, setCopySourceAddresses] = useState<CustomerAddress[]>([]);
   const [customerDuplicates, setCustomerDuplicates] = useState<
     Array<{ id: number; first_name: string | null; last_name: string | null; email: string | null; match_type: "name" | "email" | "both" }>
   >([]);
   const [newAddressFirstLine, setNewAddressFirstLine] = useState("");
+  const [newAddressSecondLine, setNewAddressSecondLine] = useState("");
   const [newAddressCity, setNewAddressCity] = useState("");
+  const [newAddressState, setNewAddressState] = useState("");
   const [newAddressPostalCode, setNewAddressPostalCode] = useState("");
   const [newAddressCountry, setNewAddressCountry] = useState("US");
+  const zipLookup = useZipLookup();
+  const prevShipToPostalRef = useRef("");
+  const [shipToZipWarning, setShipToZipWarning] = useState<string | null>(null);
   const [deleteAddressTarget, setDeleteAddressTarget] = useState<CustomerAddress | null>(null);
   const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -103,6 +113,7 @@ function CustomersPageInner() {
   const [pinnedNoteSaving, setPinnedNoteSaving] = useState(false);
   const [noteTypeFilter, setNoteTypeFilter] = useState<string | null>(null);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [singleDeleteOpen, setSingleDeleteOpen] = useState(false);
   const [customerDetailDirty, setCustomerDetailDirty] = useState(false);
   const [pendingCustomerId, setPendingCustomerId] = useState<number | null>(null);
   const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
@@ -447,6 +458,15 @@ function CustomersPageInner() {
           first_name: newCustomerFirstName.trim(),
           last_name: newCustomerLastName.trim(),
           email: newCustomerEmail.trim(),
+          ...(newCustomerPhone.trim() ? { phone: newCustomerPhone.trim() } : {}),
+          ...(copySourceCustomer ? {
+            address_1: copySourceCustomer.address_1,
+            address_2: copySourceCustomer.address_2,
+            city: copySourceCustomer.city,
+            state: copySourceCustomer.state,
+            postal_code: copySourceCustomer.postal_code,
+            country: copySourceCustomer.country,
+          } : {}),
         }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
@@ -454,16 +474,40 @@ function CustomersPageInner() {
       };
       if (!response.ok) throw data;
       if (data.customer) {
+        const newId = data.customer.id;
         setCustomers((current) =>
-          [data.customer!, ...current.filter((row) => row.id !== data.customer!.id)].sort(
+          [data.customer!, ...current.filter((row) => row.id !== newId)].sort(
             (a, b) => b.id - a.id
           )
         );
-        setSelectedCustomerId(data.customer.id);
+        if (copySourceAddresses.length > 0) {
+          for (const addr of copySourceAddresses) {
+            try {
+              await apiFetch(`/api/customers/${newId}/addresses`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                  first_line: addr.first_line,
+                  second_line: addr.second_line,
+                  city: addr.city,
+                  state: addr.state,
+                  postal_code: addr.postal_code,
+                  country: addr.country,
+                  label: addr.label,
+                  is_default: addr.is_default,
+                }),
+              });
+            } catch { /* best effort */ }
+          }
+        }
+        setSelectedCustomerId(newId);
       }
       setNewCustomerEmail("");
+      setNewCustomerPhone("");
       setNewCustomerFirstName("");
       setNewCustomerLastName("");
+      setCopySourceCustomer(null);
+      setCopySourceAddresses([]);
       setCustomerDuplicates([]);
       setError(null);
     } catch (err) {
@@ -482,7 +526,9 @@ function CustomersPageInner() {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           first_line: newAddressFirstLine.trim(),
+          second_line: newAddressSecondLine.trim() || null,
           city: newAddressCity.trim() || null,
+          state: newAddressState.trim() || null,
           postal_code: newAddressPostalCode.trim() || null,
           country: newAddressCountry.trim() || "US",
         }),
@@ -493,15 +539,11 @@ function CustomersPageInner() {
       if (!response.ok) throw data;
       if (data.item) {
         setCustomerAddresses((current) => [data.item!, ...current]);
-        await updateSelectedCustomer({
-          address_1: data.item.first_line ?? null,
-          city: data.item.city ?? null,
-          postal_code: data.item.postal_code ?? null,
-          state: data.item.state ?? null,
-        });
       }
       setNewAddressFirstLine("");
+      setNewAddressSecondLine("");
       setNewAddressCity("");
+      setNewAddressState("");
       setNewAddressPostalCode("");
       setError(null);
     } catch (err) {
@@ -573,6 +615,30 @@ function CustomersPageInner() {
       setError(null);
     } catch (err) {
       setApiError("Could not delete note", "We could not delete that note.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const deleteSingleCustomer = async () => {
+    const idToDelete = selectedCustomerId;
+    if (!idToDelete) return;
+    setBusyAction("delete-customer");
+    try {
+      const response = await apiFetch(`/api/customers/${idToDelete}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setSelectedCustomerId(null);
+      setCustomers((current) => current.filter((c) => c.id !== idToDelete));
+      setSingleDeleteOpen(false);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not delete customer", "We could not delete the customer. They may have existing orders.", err);
     } finally {
       setBusyAction(null);
     }
@@ -737,6 +803,32 @@ function CustomersPageInner() {
                   .join(" ") || `Customer ${selectedCustomer.id}`}
               </p>
               <RepeatCustomerBadge orderCount={selectedCustomer.order_count} />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCopySourceCustomer(selectedCustomer);
+                  setCopySourceAddresses([...customerAddresses]);
+                  setNewCustomerFirstName("");
+                  setNewCustomerLastName("");
+                  setNewCustomerEmail(selectedCustomer.email ?? "");
+                  setNewCustomerPhone(selectedCustomer.phone ?? "");
+                  setCustomerDuplicates([]);
+                  const el = document.querySelector<HTMLInputElement>("[aria-label='First name']");
+                  el?.focus();
+                }}
+                title="Copy address and email to create a related customer (e.g. spouse)"
+              >
+                Copy as new
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setSingleDeleteOpen(true)}
+                disabled={busyAction != null}
+              >
+                Delete customer
+              </Button>
             </div>
           )}
           {selectedCustomer && (
@@ -749,34 +841,99 @@ function CustomersPageInner() {
           )}
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
-              <p className="mb-2 text-sm font-semibold">Addresses</p>
+              <p className="mb-2 text-sm font-semibold">Ship-to addresses</p>
               <div className="space-y-2">
                 {customerAddresses.map((address) => (
                   <div
                     key={address.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--ui-border)] px-2 py-1.5 text-xs"
+                    className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs ${
+                      address.is_default ? "border-[var(--ui-accent)]" : "border-[var(--ui-border)]"
+                    }`}
                   >
-                    <span>
-                      {address.first_line ?? "-"}, {address.city ?? "-"}{" "}
-                      {address.postal_code ?? "-"} {address.country ?? "-"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteAddressTarget(address)}
-                      disabled={busyAction != null}
-                      className="rounded border border-[var(--ui-border)] px-2 py-1"
-                    >
+                    <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                      <input
+                        type="radio"
+                        name="default-ship-to"
+                        checked={Boolean(address.is_default)}
+                        onChange={async () => {
+                          try {
+                            const res = await apiFetch(`/api/addresses/${address.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json", Accept: "application/json" },
+                              body: JSON.stringify({ is_default: true }),
+                            });
+                            if (res.ok) {
+                              setCustomerAddresses((current) =>
+                                current.map((a) => ({
+                                  ...a,
+                                  is_default: a.id === address.id ? 1 : 0,
+                                }))
+                              );
+                            }
+                          } catch { /* ignore */ }
+                        }}
+                        className="accent-[var(--ui-accent)]"
+                      />
+                      <span className="truncate">
+                        {address.first_line ?? "-"}
+                        {address.second_line ? `, ${address.second_line}` : ""}
+                        , {address.city ?? "-"}{address.state ? `, ${address.state}` : ""}{" "}
+                        {address.postal_code ?? "-"} {address.country ?? "-"}
+                      </span>
+                      {address.is_default ? (
+                        <span className="shrink-0 rounded bg-[var(--ui-accent)]/20 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--ui-accent)]">
+                          Default
+                        </span>
+                      ) : null}
+                    </label>
+                    <Button variant="danger" size="sm" onClick={() => setDeleteAddressTarget(address)} disabled={busyAction != null}>
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4">
+              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                 <input
                   value={newAddressFirstLine}
                   onChange={(e) => setNewAddressFirstLine(e.target.value)}
-                  placeholder="Address line"
-                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs md:col-span-2"
+                  placeholder="Address line 1"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
+                <input
+                  value={newAddressSecondLine}
+                  onChange={(e) => setNewAddressSecondLine(e.target.value)}
+                  placeholder="Address line 2 (apt, suite, etc.)"
+                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
+              </div>
+              <div className="mt-2 grid grid-cols-[auto_auto_1fr_auto] gap-2">
+                <input
+                  value={newAddressCountry}
+                  onChange={(e) => setNewAddressCountry(e.target.value.toUpperCase())}
+                  placeholder="US"
+                  maxLength={2}
+                  className="w-14 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                />
+                <input
+                  value={newAddressPostalCode}
+                  onChange={(e) => { setNewAddressPostalCode(e.target.value); if (shipToZipWarning) setShipToZipWarning(null); }}
+                  onBlur={async () => {
+                    const zip = newAddressPostalCode.trim();
+                    if (zip.length < 3) { setShipToZipWarning(null); return; }
+                    const zipChanged = zip !== prevShipToPostalRef.current.trim();
+                    prevShipToPostalRef.current = zip;
+                    if (!zipChanged && newAddressCity && newAddressState) return;
+                    const result = await zipLookup(zip, newAddressCountry || "US");
+                    if (!result.valid) {
+                      setShipToZipWarning(`"${zip}" doesn't appear to be a valid postal code.`);
+                    } else {
+                      setShipToZipWarning(null);
+                    }
+                    if (result.city && (zipChanged || !newAddressCity)) setNewAddressCity(result.city);
+                    if (result.state && (zipChanged || !newAddressState)) setNewAddressState(result.state);
+                  }}
+                  placeholder="ZIP"
+                  className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
                 />
                 <input
                   value={newAddressCity}
@@ -785,34 +942,29 @@ function CustomersPageInner() {
                   className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
                 />
                 <input
-                  value={newAddressPostalCode}
-                  onChange={(e) => setNewAddressPostalCode(e.target.value)}
-                  placeholder="Postal"
-                  className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
+                  value={newAddressState}
+                  onChange={(e) => setNewAddressState(e.target.value.toUpperCase().slice(0, 2))}
+                  placeholder="ST"
+                  maxLength={2}
+                  className="w-14 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
                 />
               </div>
+              {shipToZipWarning && (
+                <p className="mt-1 text-xs text-[var(--ui-red)]" role="alert">{shipToZipWarning}</p>
+              )}
               <div className="mt-2 flex items-center gap-2">
-                <input
-                  value={newAddressCountry}
-                  onChange={(e) => setNewAddressCountry(e.target.value)}
-                  placeholder="Country"
-                  className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={createCustomerAddress}
-                  disabled={busyAction != null || !newAddressFirstLine.trim()}
-                  className="rounded-lg border border-[var(--ui-border)] px-2.5 py-1.5 text-xs disabled:opacity-60"
-                >
-                  {busyAction === "create-address" ? "Adding..." : "Add address"}
-                </button>
+                <Button variant="secondary" size="sm" onClick={createCustomerAddress} busy={busyAction === "create-address"} disabled={!newAddressFirstLine.trim()}>
+                  Add address
+                </Button>
               </div>
             </div>
           )}
-          <CustomerOrderHistory
-            customerId={selectedCustomerId}
-            onError={(title, message, err) => setApiError(title, message, err)}
-          />
+          {selectedCustomerId && (
+            <CustomerOrderHistory
+              customerId={selectedCustomerId}
+              onError={(title, message, err) => setApiError(title, message, err)}
+            />
+          )}
           {selectedCustomer && (
             <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
               <FormField label="Pinned note" helpText="A quick note visible at the top of this customer's record.">
@@ -863,14 +1015,9 @@ function CustomersPageInner() {
                   ))}
                 </select>
               </div>
-              <button
-                type="button"
-                onClick={addCustomerNote}
-                disabled={busyAction != null || !newNoteText.trim()}
-                className="mb-3 rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-              >
-                {busyAction === "add-note" ? "Saving…" : "Add note"}
-              </button>
+              <Button variant="accent" size="sm" onClick={addCustomerNote} busy={busyAction === "add-note"} disabled={!newNoteText.trim()} className="mb-3">
+                Add note
+              </Button>
               <FilterChipRow
                 label="Type"
                 value={noteTypeFilter}
@@ -901,14 +1048,9 @@ function CustomersPageInner() {
                             <span>{new Date(note.created_at).toLocaleString()}</span>
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteNoteTarget(note)}
-                          disabled={busyAction != null}
-                          className="shrink-0 rounded border border-[var(--ui-border)] px-2 py-0.5"
-                        >
+                        <Button variant="danger" size="sm" onClick={() => setDeleteNoteTarget(note)} disabled={busyAction != null}>
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </li>
                   ))}
@@ -927,6 +1069,11 @@ function CustomersPageInner() {
         </div>
         <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <p className="text-sm font-semibold">Add customer</p>
+          {copySourceCustomer && (
+            <p className="text-xs text-[var(--ui-accent)]">
+              Copying address from {[copySourceCustomer.first_name, copySourceCustomer.last_name].filter(Boolean).join(" ")}
+            </p>
+          )}
           <FormField label="First name" required>
             <input
               value={newCustomerFirstName}
@@ -944,13 +1091,22 @@ function CustomersPageInner() {
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
           </FormField>
-          <FormField label="Email">
+          <FormField label="Email" required>
             <input
               ref={createEmailRef}
               value={newCustomerEmail}
               onChange={(e) => setNewCustomerEmail(e.target.value)}
               onBlur={() => void checkCustomerDuplicate()}
               placeholder="Email"
+              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Phone">
+            <input
+              value={newCustomerPhone}
+              onChange={(e) => setNewCustomerPhone(e.target.value)}
+              onBlur={() => setNewCustomerPhone(formatPhone(newCustomerPhone, "US"))}
+              placeholder="Phone"
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
             />
           </FormField>
@@ -969,15 +1125,25 @@ function CustomersPageInner() {
               onDismiss={() => setCustomerDuplicates([])}
             />
           ) : null}
-          <button
-            type="button"
-            onClick={createCustomerRecord}
-            disabled={busyAction != null}
-            title="New customer (Ctrl+N)"
-            className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {busyAction === "create-customer" ? "Creating..." : "Create customer"}
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="accent" size="lg" onClick={createCustomerRecord} busy={busyAction === "create-customer"} title="New customer (Ctrl+N)">
+              Create customer
+            </Button>
+            {(newCustomerFirstName || newCustomerLastName || newCustomerEmail || newCustomerPhone || copySourceCustomer) && (
+              <Button variant="secondary" onClick={() => {
+                  setNewCustomerFirstName("");
+                  setNewCustomerLastName("");
+                  setNewCustomerEmail("");
+                  setNewCustomerPhone("");
+                  setCopySourceCustomer(null);
+                  setCopySourceAddresses([]);
+                  setCustomerDuplicates([]);
+                  setError(null);
+                }}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       {listTotal === 0 ? (
@@ -1021,6 +1187,21 @@ function CustomersPageInner() {
         total={progressTotal}
       />
       <ProgressModal {...syncModal} />
+      <ConfirmDialog
+        open={singleDeleteOpen}
+        onClose={() => setSingleDeleteOpen(false)}
+        onConfirm={() => void deleteSingleCustomer()}
+        title="Delete customer?"
+        description="This customer will be permanently removed. Customers with existing orders cannot be deleted."
+        affectedLabel={
+          selectedCustomer
+            ? [selectedCustomer.first_name, selectedCustomer.last_name].filter(Boolean).join(" ")
+            : undefined
+        }
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        busy={busyAction === "delete-customer"}
+      />
       <ConfirmDialog
         open={batchDeleteOpen}
         onClose={() => setBatchDeleteOpen(false)}

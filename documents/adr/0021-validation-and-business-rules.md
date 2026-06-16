@@ -74,6 +74,10 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 | postal_code | Required. Non-empty after trim.                   | “Postal code is required.”    |
 | label       | Optional.                                         | —                             |
 
+**Postal code lookup (non-blocking):** On blur, the UI calls `GET /api/zip-lookup?zip=&country=` (proxied to Zippopotam.us). If a match is found, city and state are auto-filled (only when empty, or when the postal code itself changes). If no match is found, a red warning is shown under the field: `"{zip}" doesn't appear to be a valid postal code for {country}.` The warning is non-blocking — the user can still save. The warning clears when the user types a new value.
+
+**Phone number formatting:** On blur, phone numbers are formatted using `libphonenumber-js` based on the customer's country code. The formatted value replaces the raw input (e.g. `2125551234` → `(212) 555-1234` for US).
+
 ---
 
 ### 5. Order (ADR-003, ADR-004, ADR-017)

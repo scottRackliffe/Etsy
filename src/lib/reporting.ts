@@ -706,6 +706,149 @@ function buildProfitByItemReport(params?: ReportParams): ReportResult {
   };
 }
 
+function buildVendorProfitabilityReport(params?: ReportParams): ReportResult {
+  const db = getDb();
+  const from = params?.from_date ?? yearStartDate();
+  const to = params?.to_date ?? isoDateOnly(new Date());
+  const dateLabel = describeDateRange(from, to);
+
+  const vendorRows = db
+    .prepare(
+      `
+      SELECT
+        COALESCE(p.vendor_name, '(No vendor)') AS vendor_name,
+        COUNT(DISTINCT i.id) AS item_count,
+        SUM(CASE WHEN i.status = 'Sold' THEN 1 ELSE 0 END) AS sold_count,
+        SUM(CASE WHEN i.status IN ('In stock', 'Listed', 'Reserved') THEN 1 ELSE 0 END) AS unsold_count,
+        ROUND(SUM(COALESCE(p.purchase_price, 0)), 2) AS total_purchase_cost,
+        ROUND(SUM(COALESCE(p.shipping_price, 0)), 2) AS total_vendor_shipping,
+        ROUND(SUM(COALESCE(p.purchase_price, 0) + COALESCE(p.shipping_price, 0)), 2) AS total_invested,
+        ROUND(SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END), 2) AS total_revenue,
+        ROUND(
+          SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END) -
+          SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(p.purchase_price, 0) + COALESCE(p.shipping_price, 0) ELSE 0 END),
+          2
+        ) AS total_profit,
+        CASE
+          WHEN SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END) = 0 THEN NULL
+          ELSE ROUND(
+            (SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END) -
+             SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(p.purchase_price, 0) + COALESCE(p.shipping_price, 0) ELSE 0 END))
+            * 100.0 /
+            SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END),
+            1
+          )
+        END AS margin_pct,
+        CASE
+          WHEN SUM(CASE WHEN i.status = 'Sold' THEN 1 ELSE 0 END) = 0 THEN NULL
+          ELSE ROUND(
+            (SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(i.sale_revenue, 0) ELSE 0 END) -
+             SUM(CASE WHEN i.status = 'Sold' THEN COALESCE(p.purchase_price, 0) + COALESCE(p.shipping_price, 0) ELSE 0 END))
+            * 1.0 /
+            SUM(CASE WHEN i.status = 'Sold' THEN 1 ELSE 0 END),
+            2
+          )
+        END AS avg_profit_per_item
+      FROM purchases p
+      JOIN inventory i ON i.id = p.inventory_id
+      WHERE p.purchase_date IS NULL
+         OR (p.purchase_date >= @from AND p.purchase_date <= @to)
+      GROUP BY COALESCE(p.vendor_name, '(No vendor)')
+      ORDER BY total_profit DESC
+    `
+    )
+    .all({ from, to }) as Array<{
+    vendor_name: string;
+    item_count: number;
+    sold_count: number;
+    unsold_count: number;
+    total_purchase_cost: number;
+    total_vendor_shipping: number;
+    total_invested: number;
+    total_revenue: number;
+    total_profit: number;
+    margin_pct: number | null;
+    avg_profit_per_item: number | null;
+  }>;
+
+  const itemDetailRows = db
+    .prepare(
+      `
+      SELECT
+        COALESCE(p.vendor_name, '(No vendor)') AS vendor_name,
+        i.item_number,
+        i.description,
+        i.status,
+        ROUND(COALESCE(p.purchase_price, 0), 2) AS purchase_price,
+        ROUND(COALESCE(p.shipping_price, 0), 2) AS vendor_shipping,
+        ROUND(COALESCE(i.sale_revenue, 0), 2) AS sale_revenue,
+        CASE WHEN i.status = 'Sold'
+          THEN ROUND(COALESCE(i.sale_revenue, 0) - COALESCE(p.purchase_price, 0) - COALESCE(p.shipping_price, 0), 2)
+          ELSE NULL
+        END AS profit
+      FROM purchases p
+      JOIN inventory i ON i.id = p.inventory_id
+      WHERE p.purchase_date IS NULL
+         OR (p.purchase_date >= @from AND p.purchase_date <= @to)
+      ORDER BY COALESCE(p.vendor_name, '(No vendor)'), i.item_number
+    `
+    )
+    .all({ from, to }) as Array<{
+    vendor_name: string;
+    item_number: string;
+    description: string;
+    status: string;
+    purchase_price: number;
+    vendor_shipping: number;
+    sale_revenue: number;
+    profit: number | null;
+  }>;
+
+  const grandTotals = vendorRows.reduce(
+    (acc, r) => {
+      acc.items += r.item_count;
+      acc.sold += r.sold_count;
+      acc.invested += r.total_invested;
+      acc.revenue += r.total_revenue;
+      acc.profit += r.total_profit;
+      return acc;
+    },
+    { items: 0, sold: 0, invested: 0, revenue: 0, profit: 0 }
+  );
+
+  return {
+    report_name: "vendor-profitability",
+    generated_at: new Date().toISOString(),
+    summary:
+      vendorRows.length === 0
+        ? "No vendor purchase records found."
+        : `Vendor profitability — ${dateLabel}. ${vendorRows.length} vendor${vendorRows.length === 1 ? "" : "s"}, ${grandTotals.items} items.`,
+    metrics: {
+      date_range: dateLabel,
+      vendor_count: vendorRows.length,
+      total_items: grandTotals.items,
+      total_sold: grandTotals.sold,
+      total_invested: Number(grandTotals.invested.toFixed(2)),
+      total_revenue: Number(grandTotals.revenue.toFixed(2)),
+      total_profit: Number(grandTotals.profit.toFixed(2)),
+      overall_margin_pct:
+        grandTotals.revenue > 0
+          ? Number(((grandTotals.profit / grandTotals.revenue) * 100).toFixed(1))
+          : 0,
+    },
+    sections: [
+      {
+        title: "By vendor (ranked by profit)",
+        rows: vendorRows as unknown as Array<Record<string, ReportMetricValue>>,
+      },
+      {
+        title: "Item detail by vendor",
+        rows: itemDetailRows as unknown as Array<Record<string, ReportMetricValue>>,
+      },
+    ],
+  };
+}
+
 function buildSalesTaxSummaryReport(params?: ReportParams): ReportResult {
   const db = getDb();
   const from = params?.from_date ?? yearStartDate();
@@ -1176,6 +1319,7 @@ export function buildReport(reportName: string, params?: ReportParams): ReportRe
   if (reportName === "invoice") return buildInvoiceReport();
   if (reportName === "thank-you-note") return buildThankYouReport();
   if (reportName === "profit-by-item") return buildProfitByItemReport(params);
+  if (reportName === "vendor-profitability") return buildVendorProfitabilityReport(params);
   if (reportName === "sales-tax-summary") return buildSalesTaxSummaryReport(params);
   if (reportName === "inventory-aging") return buildInventoryAgingReport(params);
   if (reportName === "accounting-export") return buildAccountingExportReport(params);

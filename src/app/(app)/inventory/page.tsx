@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -16,6 +16,7 @@ import { ProgressModal } from "@/components/ui/ProgressModal";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
 import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import {
@@ -47,7 +48,6 @@ import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
 import { Badge } from "@/components/ui/Badge";
-import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
 import { computeListingScore } from "@/lib/listing-score";
 import { patchHeaders } from "@/lib/patch-json";
@@ -197,28 +197,6 @@ function InventoryPageInner() {
     }
   }, [selectedItem]);
 
-  const [newInventoryItemNumber, setNewInventoryItemNumber] = useState("");
-  const [newInventoryDescription, setNewInventoryDescription] = useState("");
-  const [autoItemNumber, setAutoItemNumber] = useState<string | null>(null);
-
-  const fetchNextItemNumber = useCallback(async () => {
-    try {
-      const res = await fetch("/api/inventory/next-number", {
-        headers: { Accept: "application/json" },
-      });
-      const data = (await res.json().catch(() => ({}))) as { next_number?: string };
-      if (res.ok && data.next_number) {
-        setAutoItemNumber(data.next_number);
-        setNewInventoryItemNumber(data.next_number);
-      }
-    } catch {
-      /* silent — manual entry still works */
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchNextItemNumber();
-  }, [fetchNextItemNumber]);
   const [listingMode, setListingMode] = useState<ListingMode>("manual");
   const [importPayload, setImportPayload] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -226,6 +204,16 @@ function InventoryPageInner() {
   const [exportPackage, setExportPackage] = useState<unknown | null>(null);
   const [workflowStep, setWorkflowStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [receiptsOpen, setReceiptsOpen] = useState(false);
+  type ReceiptRow = { id: number; vendor_name: string; purchase_date: string | null; reference_number: string | null; total_items: number; unassigned_items: number };
+  const [receipts, setReceipts] = useState<ReceiptRow[]>([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
+  const [receiptOcrBusy, setReceiptOcrBusy] = useState(false);
+  const [receiptSaving, setReceiptSaving] = useState(false);
+  type ReceiptDraft = { vendor_name: string; purchase_date: string | null; reference_number: string | null; items: Array<{ description: string; cost: number | null }>; notes: string | null };
+  const [newReceiptDraft, setNewReceiptDraft] = useState<ReceiptDraft | null>(null);
+  const [newReceiptPhoto, setNewReceiptPhoto] = useState<File | null>(null);
+  const [newReceiptPreview, setNewReceiptPreview] = useState<string | null>(null);
   const [rejectDraftOpen, setRejectDraftOpen] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
@@ -233,7 +221,6 @@ function InventoryPageInner() {
   const [batchRetireOpen, setBatchRetireOpen] = useState(false);
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
   const [inventorySearch, setInventorySearch] = useState("");
-  const createItemRef = useRef<HTMLInputElement>(null);
   const [detailDirty, setDetailDirty] = useState(false);
   const listingBaselineKey = selectedItem ? `${selectedItemId}:${selectedItem.updated_at}` : "";
   const [listingBaselineSyncKey, setListingBaselineSyncKey] = useState("");
@@ -271,9 +258,6 @@ function InventoryPageInner() {
     enabled: workshopOpen && selectedItemId != null,
   });
   const [importOpen, setImportOpen] = useState(false);
-  const [inventoryDuplicates, setInventoryDuplicates] = useState<
-    Array<{ id: number; item_number: string | null; description: string | null }>
-  >([]);
   const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
 
@@ -288,30 +272,11 @@ function InventoryPageInner() {
   ]);
 
   useEffect(() => {
-    const handler = () => createItemRef.current?.focus();
+    const handler = () => router.push("/listing-coach");
     window.addEventListener("esm-new-record", handler);
     return () => window.removeEventListener("esm-new-record", handler);
-  }, []);
+  }, [router]);
 
-  const checkInventoryDuplicate = async () => {
-    const desc = newInventoryDescription.trim();
-    if (desc.length < 5) {
-      setInventoryDuplicates([]);
-      return;
-    }
-    try {
-      const response = await fetch(
-        `/api/inventory/check-duplicate?description=${encodeURIComponent(desc)}`,
-        { headers: { Accept: "application/json" } }
-      );
-      const data = (await response.json().catch(() => ({}))) as {
-        duplicates?: Array<{ id: number; item_number: string | null; description: string | null }>;
-      };
-      if (response.ok) setInventoryDuplicates(data.duplicates ?? []);
-    } catch {
-      setInventoryDuplicates([]);
-    }
-  };
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [storeCategoryOptions, setStoreCategoryOptions] = useState<string[]>([]);
@@ -333,6 +298,112 @@ function InventoryPageInner() {
       } catch { /* optional */ }
     })();
   }, []);
+  useEffect(() => {
+    if (!receiptsOpen) return;
+    setReceiptsLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/receipts", { headers: { Accept: "application/json" } });
+        if (res.ok) {
+          const data = (await res.json()) as { ok: boolean; receipts: ReceiptRow[] };
+          setReceipts(data.receipts ?? []);
+        }
+      } catch { /* silent */ }
+      setReceiptsLoading(false);
+    })();
+  }, [receiptsOpen]);
+
+  const reloadReceipts = async () => {
+    try {
+      const res = await fetch("/api/receipts", { headers: { Accept: "application/json" } });
+      if (res.ok) {
+        const data = (await res.json()) as { ok: boolean; receipts: ReceiptRow[] };
+        setReceipts(data.receipts ?? []);
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleReceiptPhotoUpload = async (file: File) => {
+    setReceiptOcrBusy(true);
+    setNewReceiptPhoto(file);
+    setNewReceiptPreview(URL.createObjectURL(file));
+    try {
+      const formData = new FormData();
+      formData.append("receipt_photo", file);
+      const res = await fetch("/api/receipts/ocr", { method: "POST", body: formData });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        ocr?: { vendor_name: string; purchase_date: string | null; reference_number: string | null; items: Array<{ description: string; cost: number | null }>; notes: string | null };
+        error?: { userMessage?: string };
+      };
+      if (data.ok && data.ocr) {
+        setNewReceiptDraft({
+          vendor_name: data.ocr.vendor_name,
+          purchase_date: data.ocr.purchase_date,
+          reference_number: data.ocr.reference_number,
+          items: data.ocr.items.length > 0 ? data.ocr.items : [{ description: "", cost: null }],
+          notes: data.ocr.notes,
+        });
+      } else {
+        setError({
+          title: "Could not read receipt",
+          message: data.error?.userMessage ?? "Try a clearer photo.",
+          actions: ["Take a clearer photo and try again."],
+        });
+        setNewReceiptPreview(null);
+        setNewReceiptPhoto(null);
+      }
+    } catch {
+      setError({ title: "OCR failed", message: "Could not process the receipt photo.", actions: ["Try again."] });
+      setNewReceiptPreview(null);
+      setNewReceiptPhoto(null);
+    }
+    setReceiptOcrBusy(false);
+  };
+
+  const saveNewReceipt = async () => {
+    if (!newReceiptDraft || !newReceiptDraft.vendor_name.trim()) return;
+    setReceiptSaving(true);
+    try {
+      const res = await fetch("/api/receipts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendor_name: newReceiptDraft.vendor_name.trim(),
+          purchase_date: newReceiptDraft.purchase_date,
+          reference_number: newReceiptDraft.reference_number,
+          notes: newReceiptDraft.notes,
+          items: newReceiptDraft.items.filter((i) => i.description.trim()),
+        }),
+      });
+      if (res.ok) {
+        setNewReceiptDraft(null);
+        if (newReceiptPreview) URL.revokeObjectURL(newReceiptPreview);
+        setNewReceiptPreview(null);
+        setNewReceiptPhoto(null);
+        void reloadReceipts();
+        setError({ title: "Receipt saved", message: "The receipt and its items have been saved.", actions: [] });
+      }
+    } catch {
+      setError({ title: "Save failed", message: "Could not save the receipt.", actions: ["Try again."] });
+    }
+    setReceiptSaving(false);
+  };
+
+  const deleteReceipt = async (id: number) => {
+    try {
+      const res = await fetch(`/api/receipts/${id}`, { method: "DELETE" });
+      if (res.ok || res.status === 204) {
+        setReceipts((prev) => prev.filter((r) => r.id !== id));
+      } else {
+        const data = (await res.json().catch(() => ({}))) as { error?: { userMessage?: string } };
+        setError({ title: "Cannot delete", message: data.error?.userMessage ?? "Could not delete receipt.", actions: [] });
+      }
+    } catch {
+      setError({ title: "Delete failed", message: "Could not delete receipt.", actions: ["Try again."] });
+    }
+  };
+
   const batch = useBatchSelection(inventory, listTotal);
   const {
     runBatch,
@@ -1010,50 +1081,6 @@ function InventoryPageInner() {
     }
   };
 
-  const createInventoryRecord = async () => {
-    if (!newInventoryItemNumber.trim()) {
-      setError({
-        title: "Item number required",
-        message: "Provide an item number before creating inventory.",
-        actions: ["Enter an item number and try again."],
-      });
-      return;
-    }
-    setBusyAction("create-inventory");
-    try {
-      const response = await apiFetch("/api/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          item_number: newInventoryItemNumber.trim(),
-          description: newInventoryDescription.trim(),
-          status: "Draft",
-        }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        item?: InventoryItem;
-      };
-      if (!response.ok) throw data;
-      if (data.item) {
-        const addItem = (current: InventoryItem[]) => [
-          data.item!,
-          ...current.filter((row) => row.id !== data.item!.id),
-        ];
-        setInventory(addItem);
-        setGlobalInventory(addItem);
-        setSelectedItemId(data.item.id);
-      }
-      setNewInventoryDescription("");
-      setInventoryDuplicates([]);
-      void fetchNextItemNumber();
-      setError({ title: "Item created", message: "New inventory item was created successfully.", actions: [] });
-    } catch (err) {
-      setApiError("Could not create inventory", "We could not create the inventory item.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
   const deleteSelectedInventory = async () => {
     if (!selectedItemId) return;
     setBusyAction("delete-inventory");
@@ -1085,56 +1112,45 @@ function InventoryPageInner() {
 
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Inventory</h3>
-          <p className="text-sm text-[var(--ui-muted)]">
-            Item details, pictures, and listing workshop for the selected record.
-          </p>
-        </div>
+      {/* View toggle: Items vs Receipts */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setReceiptsOpen(false)}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            !receiptsOpen
+              ? "bg-[var(--ui-accent)] text-white"
+              : "border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-[var(--ui-body)] hover:bg-[var(--ui-neutral-hover)]"
+          }`}
+        >
+          Items
+        </button>
+        <button
+          type="button"
+          onClick={() => setReceiptsOpen(true)}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            receiptsOpen
+              ? "bg-[var(--ui-accent)] text-white"
+              : "border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-[var(--ui-body)] hover:bg-[var(--ui-neutral-hover)]"
+          }`}
+        >
+          Receipts
+        </button>
       </div>
 
-      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-          <input
-            ref={createItemRef}
-            value={newInventoryItemNumber}
-            onChange={(e) => setNewInventoryItemNumber(e.target.value)}
-            placeholder={autoItemNumber ?? "Item number"}
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-          />
-          <input
-            value={newInventoryDescription}
-            onChange={(e) => setNewInventoryDescription(e.target.value)}
-            onBlur={() => void checkInventoryDuplicate()}
-            placeholder="New item description"
-            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
-          />
-          <div className="flex flex-wrap gap-2">
+      {/* Items toolbar — only when Items view is active */}
+      {!receiptsOpen ? (
+        <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/listing-coach"
-              className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-black hover:opacity-90"
+              className="rounded-lg bg-[var(--ui-green)] px-4 py-2 text-sm font-semibold text-black hover:opacity-90"
             >
-              Add with Listing Coach
+              Add New Item
             </Link>
-            <button
-              type="button"
-              onClick={createInventoryRecord}
-              disabled={busyAction != null}
-              title="New item (⌘N)"
-              className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {busyAction === "create-inventory" ? "Creating..." : "Add item"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDeleteConfirmOpen(true)}
-              disabled={busyAction != null || !selectedItemId || isOffline}
-              title={isOffline ? "Unavailable while offline" : "Delete selected item"}
-              className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-            >
+            <Button variant="danger" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId || isOffline} title={isOffline ? "Unavailable while offline" : "Delete selected item"}>
               Delete selected
-            </button>
+            </Button>
             <Button
               variant="primary"
               size="sm"
@@ -1154,25 +1170,211 @@ function InventoryPageInner() {
               {workshopOpen ? "Hide workshop" : "Listing workshop"}
             </Button>
           </div>
+          {selectedItemId ? (
+            <p className="mt-2 text-xs text-[var(--ui-muted)]">
+              Selected: <strong className="text-[var(--ui-body)]">{selectedItem?.item_number ?? `#${selectedItemId}`}</strong>
+              {selectedItem?.listing_title ? ` — ${selectedItem.listing_title}` : ""}
+            </p>
+          ) : null}
         </div>
-        {selectedItemId ? (
-          <p className="mt-2 text-xs text-[var(--ui-muted)]">
-            Selected: <strong className="text-[var(--ui-body)]">{selectedItem?.item_number ?? `#${selectedItemId}`}</strong>
-            {selectedItem?.listing_title ? ` — ${selectedItem.listing_title}` : ""}
-          </p>
-        ) : null}
-        {inventoryDuplicates.length > 0 ? (
-          <DuplicateWarning
-            message="Similar items found. Continue creating?"
-            links={inventoryDuplicates.map((row) => ({
-              href: `/inventory?itemId=${row.id}`,
-              label: `${row.item_number ?? `#${row.id}`} — ${(row.description ?? "").slice(0, 40)}`,
-            }))}
-            onDismiss={() => setInventoryDuplicates([])}
-          />
-        ) : null}
-      </div>
+      ) : null}
 
+      {/* ============ RECEIPTS VIEW ============ */}
+      {receiptsOpen ? (
+        <div className="space-y-4">
+          {/* Add New Receipt toolbar */}
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="rounded-lg bg-[var(--ui-green)] px-4 py-2 text-sm font-semibold text-black hover:opacity-90 cursor-pointer">
+                Scan Receipt
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleReceiptPhotoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <Button variant="secondary" size="lg" onClick={() => setNewReceiptDraft({
+                  vendor_name: "",
+                  purchase_date: new Date().toISOString().slice(0, 10),
+                  reference_number: null,
+                  items: [{ description: "", cost: null }],
+                  notes: null,
+                })}>
+                Manual Entry
+              </Button>
+              <p className="text-xs text-[var(--ui-muted)]">
+                Scan a receipt photo or enter details by hand.
+              </p>
+            </div>
+          </div>
+
+          {/* OCR processing */}
+          {receiptOcrBusy ? (
+            <div className="flex items-center gap-3 rounded-lg border border-[var(--ui-accent)]/30 bg-[var(--ui-accent)]/5 p-4">
+              <LoadingSpinner />
+              <span className="text-sm text-[var(--ui-body)]">Reading receipt...</span>
+            </div>
+          ) : null}
+
+          {/* New receipt form (after OCR) */}
+          {newReceiptDraft ? (
+            <div className="rounded-lg border border-[var(--ui-green)]/40 bg-[var(--ui-green)]/5 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-[var(--ui-title)]">New Receipt — Review & Save</h4>
+                <Button variant="ghost" size="sm" onClick={() => setNewReceiptDraft(null)}>Cancel</Button>
+              </div>
+              {newReceiptPreview ? (
+                <div className="flex gap-3 items-start">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={newReceiptPreview} alt="Receipt" className="h-32 w-auto rounded-lg border border-[var(--ui-border)] object-contain" />
+                </div>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block text-sm text-[var(--ui-body)]">
+                  Vendor / store
+                  <input
+                    value={newReceiptDraft.vendor_name}
+                    onChange={(e) => setNewReceiptDraft({ ...newReceiptDraft, vendor_name: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  />
+                </label>
+                <label className="block text-sm text-[var(--ui-body)]">
+                  Date
+                  <input
+                    type="date"
+                    value={newReceiptDraft.purchase_date ?? ""}
+                    onChange={(e) => setNewReceiptDraft({ ...newReceiptDraft, purchase_date: e.target.value || null })}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  />
+                </label>
+                <label className="block text-sm text-[var(--ui-body)]">
+                  Reference #
+                  <input
+                    value={newReceiptDraft.reference_number ?? ""}
+                    onChange={(e) => setNewReceiptDraft({ ...newReceiptDraft, reference_number: e.target.value || null })}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-[var(--ui-body)]">Items ({newReceiptDraft.items.length})</span>
+                  <Button variant="ghost" size="sm" onClick={() => setNewReceiptDraft({ ...newReceiptDraft, items: [...newReceiptDraft.items, { description: "", cost: null }] })}>+ Add item</Button>
+                </div>
+                <div className="space-y-2">
+                  {newReceiptDraft.items.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        value={item.description}
+                        onChange={(e) => {
+                          const next = [...newReceiptDraft.items];
+                          next[idx] = { ...item, description: e.target.value };
+                          setNewReceiptDraft({ ...newReceiptDraft, items: next });
+                        }}
+                        className="flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                        placeholder="Item description"
+                      />
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={item.cost ?? ""}
+                        onChange={(e) => {
+                          const next = [...newReceiptDraft.items];
+                          next[idx] = { ...item, cost: e.target.value === "" ? null : Number(e.target.value) };
+                          setNewReceiptDraft({ ...newReceiptDraft, items: next });
+                        }}
+                        className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                        placeholder="Cost"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewReceiptDraft({ ...newReceiptDraft, items: newReceiptDraft.items.filter((_, i) => i !== idx) })}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--ui-muted)] hover:text-[var(--ui-red)]"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {newReceiptDraft.notes ? (
+                <label className="block text-sm text-[var(--ui-body)]">
+                  Notes
+                  <input
+                    value={newReceiptDraft.notes ?? ""}
+                    onChange={(e) => setNewReceiptDraft({ ...newReceiptDraft, notes: e.target.value || null })}
+                    className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                  />
+                </label>
+              ) : null}
+              <div className="flex gap-2">
+                <Button variant="primary" busy={receiptSaving} disabled={!newReceiptDraft.vendor_name.trim()} onClick={() => void saveNewReceipt()}>
+                  Save Receipt
+                </Button>
+                <Button variant="ghost" onClick={() => { setNewReceiptDraft(null); setNewReceiptPreview(null); setNewReceiptPhoto(null); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Existing receipts list */}
+          {receiptsLoading ? (
+            <p className="text-sm text-[var(--ui-muted)] p-4">Loading receipts...</p>
+          ) : receipts.length === 0 && !newReceiptDraft ? (
+            <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-8 text-center">
+              <p className="text-sm text-[var(--ui-muted)]">No receipts yet. Upload a receipt photo to get started.</p>
+            </div>
+          ) : receipts.length > 0 ? (
+            <div className="overflow-x-auto rounded-lg border border-[var(--ui-border)]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs text-[var(--ui-muted)]">
+                    <th className="px-3 py-2 text-left font-medium">Vendor</th>
+                    <th className="px-3 py-2 text-left font-medium">Date</th>
+                    <th className="px-3 py-2 text-left font-medium">Reference</th>
+                    <th className="px-3 py-2 text-center font-medium">Items</th>
+                    <th className="px-3 py-2 text-center font-medium">Unprocessed</th>
+                    <th className="px-3 py-2 text-center font-medium w-20">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipts.map((rx) => (
+                    <tr key={rx.id} className="border-b border-[var(--ui-border)] last:border-b-0 hover:bg-[var(--ui-card-bg)]/50">
+                      <td className="px-3 py-2 text-[var(--ui-body)] font-medium">{rx.vendor_name}</td>
+                      <td className="px-3 py-2 text-[var(--ui-body)]">{rx.purchase_date ?? "—"}</td>
+                      <td className="px-3 py-2 text-[var(--ui-body)]">{rx.reference_number ?? "—"}</td>
+                      <td className="px-3 py-2 text-center text-[var(--ui-body)]">{rx.total_items}</td>
+                      <td className="px-3 py-2 text-center">
+                        {rx.unassigned_items > 0 ? (
+                          <span className="rounded-full bg-[var(--ui-yellow)]/20 px-2 py-0.5 text-xs font-medium text-[var(--ui-yellow)]">
+                            {rx.unassigned_items}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--ui-green)]">All done</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Button variant="danger" size="sm" onClick={() => void deleteReceipt(rx.id)} disabled={rx.unassigned_items < rx.total_items} title={rx.unassigned_items < rx.total_items ? "Cannot delete — has linked items" : "Delete receipt"}>
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* ============ ITEMS VIEW ============ */}
+      {!receiptsOpen ? (
+        <>
       {batch.selectionCount > 0 ? (
         <BatchActionsBar
           selectionLabel={
@@ -1235,14 +1437,9 @@ function InventoryPageInner() {
             title="Search (⌘K)"
             className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
           />
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            title="Import CSV (⌘⇧I)"
-            className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-sm"
-          >
+          <Button variant="secondary" onClick={() => setImportOpen(true)} title="Import CSV (⌘⇧I)">
             Import CSV
-          </button>
+          </Button>
         </div>
         <FilterChipRow
           label="Status"
@@ -1282,7 +1479,7 @@ function InventoryPageInner() {
                       setPage(0);
                     },
                   }
-                : { label: "Add your first item", onClick: () => createItemRef.current?.focus() }
+                : { label: "Add your first item", onClick: () => router.push("/listing-coach") }
             }
             secondaryAction={
               inventorySearch.trim() || statusFilter || categoryFilter
@@ -1526,14 +1723,9 @@ function InventoryPageInner() {
                       />
                     </FormField>
                     <div className="lg:col-span-2">
-                      <button
-                        type="button"
-                        onClick={saveManualListing}
-                        disabled={busyAction != null}
-                        className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {busyAction === "save-manual" ? "Saving..." : "Save manual draft"}
-                      </button>
+                      <Button variant="accent" size="lg" onClick={saveManualListing} busy={busyAction === "save-manual"}>
+                        Save manual draft
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1577,14 +1769,9 @@ function InventoryPageInner() {
                       <strong>{aiConfig?.model ?? "gpt-4.1-mini"}</strong>
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={generateIntegrated}
-                    disabled={busyAction != null || !aiConfig?.apiKeyConfigured}
-                    className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  >
-                    {busyAction === "generate-ai" ? "Generating..." : "Generate listing in app"}
-                  </button>
+                  <Button variant="accent" size="lg" onClick={generateIntegrated} busy={busyAction === "generate-ai"} disabled={!aiConfig?.apiKeyConfigured}>
+                    Generate listing in app
+                  </Button>
                 </div>
               )}
 
@@ -1606,22 +1793,12 @@ function InventoryPageInner() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={exportForPortableAi}
-                      disabled={busyAction != null}
-                      className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-                    >
-                      {busyAction === "export-ai" ? "Exporting..." : "Export package"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={importPortableAiDraft}
-                      disabled={busyAction != null || importPayload.trim().length === 0}
-                      className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {busyAction === "import-ai" ? "Importing..." : "Import AI draft"}
-                    </button>
+                    <Button variant="secondary" onClick={exportForPortableAi} busy={busyAction === "export-ai"}>
+                      Export package
+                    </Button>
+                    <Button variant="accent" onClick={importPortableAiDraft} busy={busyAction === "import-ai"} disabled={importPayload.trim().length === 0}>
+                      Import AI draft
+                    </Button>
                   </div>
                   {exportPackage != null && (
                     <textarea
@@ -1730,54 +1907,24 @@ function InventoryPageInner() {
               </FormField>
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={reviewPublishPayload}
-                  disabled={busyAction != null}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-                >
-                  {busyAction === "review-publish" ? "Reviewing..." : "Review"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWorkflowStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))}
-                  disabled={busyAction != null || workflowStep === 0}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-                >
+                <Button variant="secondary" onClick={reviewPublishPayload} busy={busyAction === "review-publish"}>
+                  Review
+                </Button>
+                <Button variant="secondary" onClick={() => setWorkflowStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))} disabled={busyAction != null || workflowStep === 0}>
                   Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWorkflowStep((s) => (s < 2 ? ((s + 1) as 0 | 1 | 2) : s))}
-                  disabled={busyAction != null || workflowStep === 2}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-                >
+                </Button>
+                <Button variant="secondary" onClick={() => setWorkflowStep((s) => (s < 2 ? ((s + 1) as 0 | 1 | 2) : s))} disabled={busyAction != null || workflowStep === 2}>
                   Continue
-                </button>
-                <button
-                  type="button"
-                  onClick={approveDraft}
-                  disabled={busyAction != null}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-                >
-                  {busyAction === "approve-draft" ? "Approving..." : "Approve draft"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRejectDraftOpen(true)}
-                  disabled={busyAction != null}
-                  className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-                >
-                  {busyAction === "reject-draft" ? "Rejecting..." : "Reject"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPublishConfirmOpen(true)}
-                  disabled={busyAction != null || !canPublish || workflowStep < 2}
-                  className="rounded-lg bg-[var(--ui-green)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {busyAction === "publish-draft" ? "Publishing..." : "Publish to Etsy"}
-                </button>
+                </Button>
+                <Button variant="accent" onClick={approveDraft} busy={busyAction === "approve-draft"}>
+                  Approve draft
+                </Button>
+                <Button variant="danger" onClick={() => setRejectDraftOpen(true)} busy={busyAction === "reject-draft"}>
+                  Reject
+                </Button>
+                <Button variant="primary" onClick={() => setPublishConfirmOpen(true)} busy={busyAction === "publish-draft"} disabled={!canPublish || workflowStep < 2}>
+                  Publish to Etsy
+                </Button>
               </div>
               {!canPublish && (
                 <p className="text-xs text-[var(--ui-yellow)]">
@@ -1820,9 +1967,7 @@ function InventoryPageInner() {
               <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold">Publish audit</p>
-                  <button
-                    type="button"
-                    onClick={async () => {
+                  <Button variant="secondary" size="sm" busy={busyAction === "refresh-history"} onClick={async () => {
                       setBusyAction("refresh-history");
                       try {
                         await loadPublishHistory();
@@ -1836,12 +1981,9 @@ function InventoryPageInner() {
                       } finally {
                         setBusyAction(null);
                       }
-                    }}
-                    disabled={busyAction != null}
-                    className="rounded-lg border border-[var(--ui-border)] px-3 py-1.5 text-xs"
-                  >
-                    {busyAction === "refresh-history" ? "Refreshing..." : "Refresh"}
-                  </button>
+                    }}>
+                    Refresh
+                  </Button>
                 </div>
                 {!publishHistory ? (
                   <p className="mt-2 text-xs text-[var(--ui-muted)]">No audit data loaded yet.</p>
@@ -1931,21 +2073,12 @@ function InventoryPageInner() {
               ))}
             </select>
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setBatchStatusOpen(false)}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-              >
+              <Button variant="secondary" onClick={() => setBatchStatusOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void batchChangeStatus(batchStatusValue)}
-                disabled={busyAction != null}
-                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              >
+              </Button>
+              <Button variant="accent" onClick={() => void batchChangeStatus(batchStatusValue)} disabled={busyAction != null}>
                 Apply
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -2043,6 +2176,8 @@ function InventoryPageInner() {
         confirmVariant="danger"
         busy={busyAction === "delete-inventory"}
       />
+        </>
+      ) : null}
     </section>
   );
 }

@@ -248,6 +248,25 @@ export function PictureGrid({
     ? pictureDisplayUrl(slots.find((s) => s.slot === previewSlot)?.path ?? null)
     : null;
 
+  const uploadMultipleFiles = useCallback(
+    (files: FileList | File[]) => {
+      if (!inventoryId) return;
+      const incoming = Array.from(files);
+      if (incoming.length === 0) return;
+      const emptySlots = slots.filter((s) => !s.path).map((s) => s.slot);
+      if (emptySlots.length === 0) {
+        onError("No empty slots", "All 20 picture slots are full.");
+        return;
+      }
+      incoming.forEach((file, i) => {
+        if (i < emptySlots.length) {
+          void uploadFile(emptySlots[i], file);
+        }
+      });
+    },
+    [inventoryId, slots, uploadFile, onError]
+  );
+
   return (
     <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -287,6 +306,39 @@ export function PictureGrid({
           }
         }}
       />
+
+      {/* Drop zone for multiple files at once */}
+      <div
+        onDragOver={(e) => {
+          if (disabled || !inventoryId) return;
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (disabled || !inventoryId) return;
+          if (e.dataTransfer.types.includes("application/x-picture-slot")) return;
+          if (e.dataTransfer.files?.length) {
+            uploadMultipleFiles(e.dataTransfer.files);
+          }
+        }}
+        onClick={() => {
+          if (!disabled && inventoryId) {
+            const empty = slots.find((s) => !s.path);
+            if (empty) {
+              setUploadSlot(empty.slot);
+              fileInputRef.current?.click();
+            }
+          }
+        }}
+        className="mb-3 flex cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-4 py-4 text-center transition-colors hover:border-[var(--ui-accent)]/50"
+      >
+        <p className="text-xs text-[var(--ui-muted)]">
+          Drop photos here to add multiple at once · or click to browse
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
         {slots.map(({ slot, path }) => {

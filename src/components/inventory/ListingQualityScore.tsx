@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   computeListingScore,
   listingScoreGradeColor,
@@ -156,13 +157,9 @@ export function ListingQualityScore({
           <ScoreBreakdownPanel breakdown={score.breakdown} score={score.score} />
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="text-xs text-[var(--ui-accent)] hover:underline"
-        >
+        <Button variant="ghost" size="sm" onClick={() => setExpanded(true)}>
           Show full breakdown
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -352,13 +349,9 @@ export function ListingQualityScoreBadge({ item, minScore = 80 }: { item: Listin
                 </span>
                 <span className="text-sm font-semibold text-[var(--ui-title)]">Listing Quality</span>
               </div>
-              <button
-                type="button"
-                onClick={close}
-                className="rounded px-2 py-1 text-xs text-[var(--ui-muted)] hover:text-[var(--ui-title)]"
-              >
+              <Button variant="ghost" size="sm" onClick={close}>
                 Close
-              </button>
+              </Button>
             </div>
             <ScoreBreakdownPanel breakdown={result.breakdown} score={result.score} />
             {result.tips.length > 0 ? (

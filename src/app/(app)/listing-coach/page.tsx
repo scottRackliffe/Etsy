@@ -25,6 +25,7 @@ import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/hooks/useToast";
 import { createUiError } from "@/lib/ui-error";
+import { computeListingScore, type ListingScoreResult } from "@/lib/listing-score";
 import type { AiConfig, ApiErrorShape, UiError } from "@/types";
 
 const ITEM_PHOTO_GUIDANCE: SlotGuidance[] = SHOT_SLOT_ORDER.map((type) => ({
@@ -224,10 +225,27 @@ export default function ListingCoachPage() {
   const [vendorShippingPrice, setVendorShippingPrice] = useState<number | null>(null);
   const [vendorReferenceNumber, setVendorReferenceNumber] = useState("");
   const [vendorNotes, setVendorNotes] = useState("");
+  const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [vendorList, setVendorList] = useState<string[]>([]);
+  const [vendorSuggestions, setVendorSuggestions] = useState<string[]>([]);
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+
+  // Receipts
+  type ReceiptSummary = { id: number; vendor_name: string; purchase_date: string | null; reference_number: string | null; total_items: number; unassigned_items: number; receipt_image: string | null; shipping_price: number | null; notes: string | null };
+  type ReceiptItem = { id: number; receipt_id: number; description: string; cost: number | null; inventory_id: number | null; item_number?: string | null };
+  const [vendorReceipts, setVendorReceipts] = useState<ReceiptSummary[]>([]);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+  const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
+  const [selectedReceiptItemId, setSelectedReceiptItemId] = useState<number | null>(null);
+  const [showReceiptPicker, setShowReceiptPicker] = useState(false);
+  const [extraReceiptItems, setExtraReceiptItems] = useState<Array<{ description: string; cost: string }>>([]);
+  const [receiptItemDescription, setReceiptItemDescription] = useState("");
 
   // Video
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoPath, setVideoPath] = useState<string | null>(null);
+  const [liveScore, setLiveScore] = useState<ListingScoreResult | null>(null);
 
   // UI state
   const [busy, setBusy] = useState(false);
@@ -254,10 +272,17 @@ export default function ListingCoachPage() {
         }
       })
       .catch(() => {});
+    void fetch("/api/purchases/vendors", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { vendors?: string[] } | null) => {
+        if (data?.vendors) setVendorList(data.vendors);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     return () => {
+      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
       revokeCoachPhotos([...itemPhotos, ...conditionPhotos, ...googlePhotos]);
     };
   }, [itemPhotos, conditionPhotos, googlePhotos]);
@@ -310,6 +335,7 @@ export default function ListingCoachPage() {
     setAddingCategory(false);
     setNewCategoryName("");
     setResearchResult(null);
+    setLiveScore(null);
     setIdentification("");
     setSaleRevenue(null);
     setEtsyWhenMade("");
@@ -324,6 +350,16 @@ export default function ListingCoachPage() {
     setVendorShippingPrice(null);
     setVendorReferenceNumber("");
     setVendorNotes("");
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    setReceiptPhoto(null);
+    setReceiptPreview(null);
+    setVendorReceipts([]);
+    setSelectedReceiptId(null);
+    setReceiptItems([]);
+    setSelectedReceiptItemId(null);
+    setShowReceiptPicker(false);
+    setExtraReceiptItems([]);
+    setReceiptItemDescription("");
     setItemWeight(null);
     setItemWeightUnit("oz");
     setItemLength(null);
@@ -366,6 +402,36 @@ export default function ListingCoachPage() {
       });
     } catch { /* best-effort save */ }
   };
+
+  const fetchReceiptsForVendor = useCallback(async (vendor: string) => {
+    if (!vendor.trim()) { setVendorReceipts([]); return; }
+    try {
+      const r = await fetch(`/api/receipts?vendor_name=${encodeURIComponent(vendor.trim())}`, { headers: { Accept: "application/json" } });
+      if (!r.ok) return;
+      const data = await r.json() as { receipts?: ReceiptSummary[] };
+      setVendorReceipts(data.receipts?.filter((rx) => rx.unassigned_items > 0) ?? []);
+    } catch { setVendorReceipts([]); }
+  }, []);
+
+  const loadReceiptItems = useCallback(async (receiptId: number) => {
+    try {
+      const r = await fetch(`/api/receipts/${receiptId}`, { headers: { Accept: "application/json" } });
+      if (!r.ok) return;
+      const data = await r.json() as { receipt: ReceiptSummary; items: ReceiptItem[] };
+      setReceiptItems(data.items);
+      setSelectedReceiptId(receiptId);
+      if (data.receipt.reference_number) setVendorReferenceNumber(data.receipt.reference_number);
+      if (data.receipt.shipping_price != null) setVendorShippingPrice(data.receipt.shipping_price);
+      if (data.receipt.notes) setVendorNotes(data.receipt.notes);
+    } catch { /* ignore */ }
+  }, []);
+
+  const pickReceiptItem = useCallback((item: ReceiptItem) => {
+    setSelectedReceiptItemId(item.id);
+    if (item.cost != null) setPurchasePrice(item.cost);
+    if (item.description) setReceiptItemDescription(item.description);
+    setShowReceiptPicker(false);
+  }, []);
 
   /* ------ AI Research ------ */
   const runResearch = async () => {
@@ -509,6 +575,7 @@ export default function ListingCoachPage() {
         applyRefinedFields(data.fields);
         setGlobalFeedback("");
         toast.showToast("AI updated the listing based on your feedback.", "success");
+        setTimeout(() => recomputeScore(), 100);
       }
     } catch {
       /* silent */
@@ -592,6 +659,17 @@ export default function ListingCoachPage() {
       if (vendorShippingPrice != null) formData.append("vendor_shipping_price", String(vendorShippingPrice));
       if (vendorReferenceNumber.trim()) formData.append("vendor_reference_number", vendorReferenceNumber.trim());
       if (vendorNotes.trim()) formData.append("vendor_notes", vendorNotes.trim());
+      if (receiptPhoto) formData.append("receipt_photo", receiptPhoto);
+      if (receiptItemDescription.trim()) formData.append("receipt_description", receiptItemDescription.trim());
+      if (selectedReceiptItemId != null) formData.append("selected_receipt_item_id", String(selectedReceiptItemId));
+      if (extraReceiptItems.length > 0) {
+        const validExtras = extraReceiptItems
+          .filter((e) => e.description.trim())
+          .map((e) => ({ description: e.description.trim(), cost: e.cost ? Number(e.cost) : null }));
+        if (validExtras.length > 0) {
+          formData.append("extra_receipt_items", JSON.stringify(validExtras));
+        }
+      }
       if (itemWeight != null) {
         formData.append("item_weight", String(itemWeight));
         formData.append("item_weight_unit", itemWeightUnit);
@@ -661,10 +739,10 @@ export default function ListingCoachPage() {
 
   const stepTitle = useMemo(() => {
     switch (step) {
-      case "welcome": return "Listing Coach";
+      case "welcome": return "Add New Item";
       case "input": return "Log the purchase";
-      case "form": return "Your listing";
-      default: return "Listing Coach";
+      case "form": return "Review & finalize";
+      default: return "Add New Item";
     }
   }, [step]);
 
@@ -673,6 +751,36 @@ export default function ListingCoachPage() {
     const idx = steps.indexOf(step);
     return idx >= 0 ? idx + 1 : 0;
   }, [step]);
+
+  useEffect(() => {
+    if (step === "form" && researchResult) recomputeScore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const recomputeScore = useCallback(() => {
+    const picMap: Record<string, string | null> = {};
+    itemPhotos.forEach((p, i) => { picMap[`picture_${i + 1}`] = p.previewUrl; });
+    const result = computeListingScore({
+      listing_title: listingTitle,
+      listing_description: listingDescription,
+      listing_tags: listingTags,
+      category_tags: categoryTags,
+      condition_code: conditionCode,
+      condition_notes: conditionNotes,
+      sale_revenue: saleRevenue,
+      item_number: itemNumber,
+      item_weight: itemWeight,
+      item_length: itemLength,
+      materials: materialsText ? JSON.stringify(materialsText.split(",").map((s: string) => s.trim()).filter(Boolean)) : null,
+      ...picMap,
+    });
+    setLiveScore(result);
+    return result;
+  }, [
+    listingTitle, listingDescription, listingTags, categoryTags,
+    conditionCode, conditionNotes, saleRevenue, itemNumber,
+    itemWeight, itemLength, materialsText, itemPhotos,
+  ]);
 
   const inputClass = "mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2";
 
@@ -683,22 +791,22 @@ export default function ListingCoachPage() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
-            Listing Coach{stepNumber > 0 ? ` — Step ${stepNumber} of 2` : ""}
+            Inventory{stepNumber > 0 ? ` — Step ${stepNumber} of 2` : ""}
           </p>
           <h1 className="text-2xl font-semibold text-[var(--ui-title)]">{stepTitle}</h1>
           <p className="mt-1 text-sm text-[var(--ui-muted)]">
             {step === "input"
-              ? "Enter what you bought — photos, price, condition. AI does the rest."
+              ? "Log the purchase, add photos, and enter details. AI does the rest."
               : step === "form"
-                ? "Review and edit everything. Use Fix buttons to ask AI for changes."
-                : "Add photos and basic details — AI does the research and writes your listing."}
+                ? "Review and edit everything. Fix, re-score, and repeat until it's ready."
+                : "Enter your item details — AI handles the research, listing, and quality check."}
           </p>
         </div>
         <Link
           href="/inventory"
           className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm text-[var(--ui-body)] hover:bg-[var(--ui-neutral-hover)]"
         >
-          Exit to Inventory
+          Back to Inventory
         </Link>
       </div>
 
@@ -709,17 +817,18 @@ export default function ListingCoachPage() {
         <div className="space-y-4">
           {aiConfigured === false ? (
             <div className="rounded-xl border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 px-4 py-3 text-sm text-[var(--ui-body)]">
-              Listing Coach needs AI set up first.{" "}
+              AI needs to be configured before adding items.{" "}
               <Link href="/config" className="font-semibold text-[var(--ui-accent)] underline">
                 Open Config
               </Link>
             </div>
           ) : null}
           <ul className="list-disc space-y-2 pl-5 text-sm text-[var(--ui-body)]">
-            <li>Add your item photos — turntable shots, markings, and defects.</li>
-            <li>Enter basic details: what it is, when you bought it, condition.</li>
-            <li>AI researches the item, finds comparable prices, and writes the listing.</li>
-            <li>Review, edit, and use Fix buttons to refine — then save.</li>
+            <li>Log where you bought it — vendor, receipt, and purchase details.</li>
+            <li>Add item photos — turntable shots, markings, and defects.</li>
+            <li>Enter item details: description, condition, size, and weight.</li>
+            <li>AI researches the item, writes the listing, and scores it for quality.</li>
+            <li>Review, fix (manually or ask AI), re-score — repeat until you are satisfied.</li>
           </ul>
           <Button
             variant="primary"
@@ -735,11 +844,264 @@ export default function ListingCoachPage() {
       {/* PHASE 1: LOG THE PURCHASE */}
       {step === "input" ? (
         <div className="space-y-6">
+          {/* Section 1: Where I Bought This (receipt first) */}
+          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this (optional)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="relative block text-sm text-[var(--ui-body)]">
+                <span className="block mb-1">Vendor / source</span>
+                <input
+                  value={vendorName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setVendorName(val);
+                    setSelectedReceiptId(null);
+                    setReceiptItems([]);
+                    setSelectedReceiptItemId(null);
+                    setShowReceiptPicker(false);
+                    if (val.trim().length > 0) {
+                      const lower = val.toLowerCase();
+                      setVendorSuggestions(vendorList.filter((v) => v.toLowerCase().includes(lower)));
+                      setShowVendorSuggestions(true);
+                    } else {
+                      setShowVendorSuggestions(false);
+                      setVendorReceipts([]);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (vendorName.trim().length > 0) {
+                      const lower = vendorName.toLowerCase();
+                      setVendorSuggestions(vendorList.filter((v) => v.toLowerCase().includes(lower)));
+                      setShowVendorSuggestions(true);
+                    } else if (vendorList.length > 0) {
+                      setVendorSuggestions(vendorList);
+                      setShowVendorSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setShowVendorSuggestions(false), 150)}
+                  className={inputClass}
+                  placeholder="e.g. Goodwill, estate sale, eBay"
+                  spellCheck
+                  autoComplete="off"
+                />
+                {showVendorSuggestions && vendorSuggestions.length > 0 ? (
+                  <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-lg">
+                    {vendorSuggestions.map((v) => (
+                      <li key={v}>
+                        <button
+                          type="button"
+                          className="w-full px-3 py-1.5 text-left text-sm text-[var(--ui-body)] hover:bg-[var(--ui-accent)]/20"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setVendorName(v);
+                            setShowVendorSuggestions(false);
+                            void fetchReceiptsForVendor(v);
+                          }}
+                        >
+                          {v}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Vendor shipping cost ($)
+                <input type="number" min="0" step="0.01" value={vendorShippingPrice ?? ""} onChange={(e) => setVendorShippingPrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="Shipping you paid to receive it" />
+              </label>
+            </div>
+
+            {/* Receipt picker */}
+            {vendorReceipts.length > 0 && !selectedReceiptId ? (
+              <div className="rounded-lg border border-[var(--ui-accent)]/40 bg-[var(--ui-accent)]/5 p-3 space-y-2">
+                <p className="text-sm font-medium text-[var(--ui-accent)]">
+                  This vendor has {vendorReceipts.length} receipt{vendorReceipts.length > 1 ? "s" : ""} with unprocessed items
+                </p>
+                <div className="space-y-1">
+                  {vendorReceipts.map((rx) => (
+                    <button
+                      key={rx.id}
+                      type="button"
+                      onClick={() => void loadReceiptItems(rx.id)}
+                      className="flex w-full items-center justify-between rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-left text-sm hover:border-[var(--ui-accent)] transition-colors"
+                    >
+                      <span className="text-[var(--ui-body)]">
+                        {rx.purchase_date ?? "No date"}{rx.reference_number ? ` — ${rx.reference_number}` : ""}
+                      </span>
+                      <span className="text-xs text-[var(--ui-muted)]">
+                        {rx.unassigned_items} item{rx.unassigned_items !== 1 ? "s" : ""} remaining
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setVendorReceipts([])}>
+                  Skip — this is a new receipt
+                </Button>
+              </div>
+            ) : null}
+
+            {/* Receipt items table */}
+            {selectedReceiptId && receiptItems.length > 0 ? (
+              <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] overflow-hidden">
+                <div className="flex items-center justify-between border-b border-[var(--ui-border)] px-3 py-2">
+                  <p className="text-sm font-medium text-[var(--ui-title)]">Items on this receipt</p>
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedReceiptId(null); setReceiptItems([]); setSelectedReceiptItemId(null); }}>
+                    Use a different receipt
+                  </Button>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--ui-border)] text-xs text-[var(--ui-muted)]">
+                      <th className="px-3 py-1.5 text-left font-medium">Description</th>
+                      <th className="px-3 py-1.5 text-right font-medium">Cost</th>
+                      <th className="px-3 py-1.5 text-center font-medium w-24">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptItems.map((ri) => {
+                      const assigned = ri.inventory_id != null;
+                      const picked = ri.id === selectedReceiptItemId;
+                      return (
+                        <tr
+                          key={ri.id}
+                          className={`border-b border-[var(--ui-border)] last:border-b-0 ${
+                            picked ? "bg-[var(--ui-accent)]/10" : assigned ? "opacity-50" : ""
+                          }`}
+                        >
+                          <td className={`px-3 py-2 text-[var(--ui-body)] ${assigned ? "line-through" : ""}`}>
+                            {ri.description}
+                          </td>
+                          <td className={`px-3 py-2 text-right text-[var(--ui-body)] ${assigned ? "line-through" : ""}`}>
+                            {ri.cost != null ? `$${ri.cost.toFixed(2)}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {picked ? (
+                              <span className="text-xs font-medium text-[var(--ui-green)]">Selected</span>
+                            ) : assigned ? (
+                              <span className="text-xs text-[var(--ui-muted)]">Listed ({ri.item_number ?? `#${ri.inventory_id}`})</span>
+                            ) : (
+                              <Button variant="accent" size="sm" onClick={() => pickReceiptItem(ri)}>
+                                Pick
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-[var(--ui-body)]">
+                Reference # (optional)
+                <input value={vendorReferenceNumber} onChange={(e) => setVendorReferenceNumber(e.target.value)} className={inputClass} placeholder="Receipt #, order #, etc." />
+              </label>
+              <label className="block text-sm text-[var(--ui-body)]">
+                Purchase notes (optional)
+                <input value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} className={inputClass} placeholder="Any notes about this purchase" spellCheck />
+              </label>
+            </div>
+            <div>
+              <span className="block text-sm text-[var(--ui-body)] mb-1">Receipt photo (optional)</span>
+              <div className="flex items-start gap-3">
+                {receiptPreview ? (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={receiptPreview} alt="Receipt" className="h-24 w-24 rounded-lg border border-[var(--ui-border)] object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { if (receiptPreview) URL.revokeObjectURL(receiptPreview); setReceiptPhoto(null); setReceiptPreview(null); }}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--ui-red)] text-[10px] text-white"
+                      aria-label="Remove receipt photo"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] text-center hover:border-[var(--ui-accent)] transition-colors">
+                    <span className="text-lg text-[var(--ui-muted)]">+</span>
+                    <span className="text-[10px] text-[var(--ui-muted)]">Add photo</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setReceiptPhoto(file);
+                          setReceiptPreview(URL.createObjectURL(file));
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-[var(--ui-muted)] mt-2">Snap a photo of the receipt for your records. Not sent to Etsy.</p>
+              </div>
+            </div>
+
+            {/* Other items on this receipt */}
+            {!selectedReceiptId ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[var(--ui-body)]">Other items on this receipt (optional)</span>
+                  <Button variant="ghost" size="sm" onClick={() => setExtraReceiptItems([...extraReceiptItems, { description: "", cost: "" }])}>
+                    + Add item
+                  </Button>
+                </div>
+                {extraReceiptItems.length > 0 ? (
+                  <p className="text-xs text-[var(--ui-muted)]">
+                    List other items you bought on the same receipt. You can process them later when you add each item.
+                  </p>
+                ) : null}
+                {extraReceiptItems.map((ei, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input
+                      value={ei.description}
+                      onChange={(e) => {
+                        const next = [...extraReceiptItems];
+                        next[idx] = { ...next[idx], description: e.target.value };
+                        setExtraReceiptItems(next);
+                      }}
+                      className="flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                      placeholder="Item description"
+                      spellCheck
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={ei.cost}
+                      onChange={(e) => {
+                        const next = [...extraReceiptItems];
+                        next[idx] = { ...next[idx], cost: e.target.value };
+                        setExtraReceiptItems(next);
+                      }}
+                      className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)]"
+                      placeholder="Cost"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setExtraReceiptItems(extraReceiptItems.filter((_, i) => i !== idx))}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--ui-muted)] hover:text-[var(--ui-red)] transition-colors"
+                      aria-label="Remove item"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Section 2: Item photos */}
           <PhotoPasteZone
             photos={itemPhotos}
             onChange={setItemPhotos}
             maxPhotos={20}
-            title="Item photos"
+            title="Item photos (required)"
             pasteHint="Click here, then press Cmd+V to paste photos (up to 20)"
             slotGuidance={ITEM_PHOTO_GUIDANCE}
           />
@@ -752,10 +1114,17 @@ export default function ListingCoachPage() {
             emptyHint="Close-ups of any crazing, chips, scratches, repairs, or wear. Up to 5 images."
           />
 
+          {/* Section 3: Item details */}
           <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
             <p className="text-sm font-semibold text-[var(--ui-title)]">Item details</p>
+            {receiptItemDescription ? (
+              <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2">
+                <span className="text-xs font-medium text-[var(--ui-muted)]">Receipt says:</span>
+                <span className="ml-2 text-sm text-[var(--ui-body)]">{receiptItemDescription}</span>
+              </div>
+            ) : null}
             <label className="block text-sm text-[var(--ui-body)]">
-              What is this item? (brief description)
+              What is this item? (your description)
               <input
                 value={itemDescription}
                 onChange={(e) => setItemDescription(e.target.value)}
@@ -876,31 +1245,6 @@ export default function ListingCoachPage() {
                   </select>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Where I Bought This */}
-          <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
-            <p className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this (optional)</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-[var(--ui-body)]">
-                Vendor / source
-                <input value={vendorName} onChange={(e) => setVendorName(e.target.value)} className={inputClass} placeholder="e.g. Goodwill, estate sale, eBay" spellCheck />
-              </label>
-              <label className="block text-sm text-[var(--ui-body)]">
-                Vendor shipping cost ($)
-                <input type="number" min="0" step="0.01" value={vendorShippingPrice ?? ""} onChange={(e) => setVendorShippingPrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} placeholder="Shipping you paid to receive it" />
-              </label>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-[var(--ui-body)]">
-                Reference # (optional)
-                <input value={vendorReferenceNumber} onChange={(e) => setVendorReferenceNumber(e.target.value)} className={inputClass} placeholder="Receipt #, order #, etc." />
-              </label>
-              <label className="block text-sm text-[var(--ui-body)]">
-                Purchase notes (optional)
-                <input value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} className={inputClass} placeholder="Any notes about this purchase" spellCheck />
-              </label>
             </div>
           </div>
 
@@ -1086,9 +1430,9 @@ export default function ListingCoachPage() {
               Etsy category
               <input value={listingCategoryPath} onChange={(e) => setListingCategoryPath(e.target.value)} className={inputClass} placeholder='e.g. Home & Living > Kitchen & Dining > Dinnerware' />
               {researchResult?.suggested_taxonomy_path && !listingCategoryPath ? (
-                <button type="button" onClick={() => setListingCategoryPath(researchResult.suggested_taxonomy_path!)} className="mt-1 text-xs text-[var(--ui-accent)] hover:underline">
+                <Button variant="ghost" size="sm" onClick={() => setListingCategoryPath(researchResult.suggested_taxonomy_path!)} className="mt-1">
                   Use AI suggestion: {researchResult.suggested_taxonomy_path}
-                </button>
+                </Button>
               ) : null}
             </label>
             <input type="hidden" value={etsyTaxonomyId ?? ""} />
@@ -1245,28 +1589,48 @@ export default function ListingCoachPage() {
               </div>
             ) : null}
 
-            {/* Quality score */}
-            <div className="flex flex-wrap items-start gap-4">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
-                style={{
-                  backgroundColor: `color-mix(in srgb, ${researchResult.quality_score.score >= 80 ? "var(--ui-green)" : researchResult.quality_score.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)"} 25%, transparent)`,
-                  border: `2px solid ${researchResult.quality_score.score >= 80 ? "var(--ui-green)" : researchResult.quality_score.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)"}`,
-                }}
-              >
-                {researchResult.quality_score.score}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[var(--ui-title)]">Listing quality score</p>
-                {researchResult.quality_score.hints.length > 0 ? (
-                  <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
-                    {researchResult.quality_score.hints.map((hint) => <li key={hint}>{hint}</li>)}
-                  </ul>
-                ) : (
-                  <p className="mt-1 text-xs text-[var(--ui-muted)]">Looking good!</p>
-                )}
-              </div>
-            </div>
+            {/* Quality score — live */}
+            {(() => {
+              const qs = liveScore ?? { score: researchResult.quality_score.score, grade: researchResult.quality_score.score >= 80 ? "green" as const : researchResult.quality_score.score >= 60 ? "yellow" as const : "red" as const, tips: researchResult.quality_score.hints, breakdown: {} };
+              const color = qs.score >= 80 ? "var(--ui-green)" : qs.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)";
+              return (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-[var(--ui-title)]"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`,
+                        border: `2px solid ${color}`,
+                      }}
+                    >
+                      {qs.score}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[var(--ui-title)]">Listing quality score</p>
+                      {qs.tips.length > 0 ? (
+                        <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
+                          {qs.tips.map((hint) => <li key={hint}>{hint}</li>)}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-[var(--ui-green)]">Score is excellent — ready to list!</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={recomputeScore}
+                    >
+                      Re-score
+                    </Button>
+                  </div>
+                  {qs.score < 100 ? (
+                    <p className="text-xs text-[var(--ui-muted)]">
+                      Fix the items above (manually or use the AI fix box below), then click Re-score.
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })()}
 
             {/* Citations */}
             {researchResult.citations.length > 0 ? (
@@ -1334,7 +1698,7 @@ export default function ListingCoachPage() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => { setResearchResult(null); setStep("input"); }}>
+            <Button variant="secondary" onClick={() => { setResearchResult(null); setLiveScore(null); setStep("input"); }}>
               Back to edit inputs
             </Button>
             <Button variant="ghost" onClick={() => setStartOverOpen(true)}>

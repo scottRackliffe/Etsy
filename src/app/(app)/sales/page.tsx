@@ -62,6 +62,9 @@ function SalesPageInner() {
 
   const [newOrderNumber, setNewOrderNumber] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
+  const [newOrderCustomerId, setNewOrderCustomerId] = useState<number | null>(null);
+  const [newOrderAddresses, setNewOrderAddresses] = useState<Array<{ id: number; label: string; summary: string }>>([]);
+  const [newOrderShipToId, setNewOrderShipToId] = useState<string>("billing");
   const [orderSearch, setOrderSearch] = useState("");
   const debouncedOrderSearch = useDebouncedValue(orderSearch, 300);
   useListSearchFromUrl(setOrderSearch, () => setPage(0));
@@ -305,6 +308,48 @@ function SalesPageInner() {
   }, [reloadOrders, setApiError]);
 
   useEffect(() => {
+    if (!newOrderCustomerId) {
+      setNewOrderAddresses([]);
+      setNewOrderShipToId("billing");
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/customers/${newOrderCustomerId}/addresses`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: number; label?: string; first_line?: string; city?: string; state?: string; postal_code?: string }> };
+        if (res.ok && data.items && data.items.length > 0) {
+          setNewOrderAddresses(data.items.map((a) => ({
+            id: a.id,
+            label: a.label || `Address ${a.id}`,
+            summary: [a.first_line, a.city, a.state, a.postal_code].filter(Boolean).join(", "),
+          })));
+        } else {
+          setNewOrderAddresses([]);
+        }
+        setNewOrderShipToId("billing");
+      } catch {
+        setNewOrderAddresses([]);
+      }
+    })();
+  }, [newOrderCustomerId]);
+
+  const fetchNextOrderNumber = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orders/next-number", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { next_number?: string };
+      if (res.ok && data.next_number) setNewOrderNumber(data.next_number);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    void fetchNextOrderNumber();
+  }, [fetchNextOrderNumber]);
+
+  useEffect(() => {
     const handler = () => createOrderRef.current?.focus();
     window.addEventListener("esm-new-record", handler);
     return () => window.removeEventListener("esm-new-record", handler);
@@ -423,6 +468,8 @@ function SalesPageInner() {
           order_status: "active",
           source_channel: "manual",
           order_date: new Date().toISOString().slice(0, 10),
+          ...(newOrderCustomerId ? { customer_id: newOrderCustomerId } : {}),
+          ...(newOrderCustomerId && newOrderShipToId !== "billing" ? { ship_to_address_id: parseInt(newOrderShipToId, 10) } : {}),
         }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
@@ -434,9 +481,12 @@ function SalesPageInner() {
         ]);
         setSelectedOrderId(data.order.id);
       }
-      setNewOrderNumber("");
       setNewOrderTotal("");
+      setNewOrderCustomerId(null);
+      setNewOrderAddresses([]);
+      setNewOrderShipToId("billing");
       setError(null);
+      void fetchNextOrderNumber();
     } catch (err) {
       setApiError("Could not create order", "We could not create the order.", err);
     } finally {
@@ -656,14 +706,9 @@ function SalesPageInner() {
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-semibold text-[var(--ui-title)]">Sales / Orders</h3>
-        <button
-          type="button"
-          onClick={syncEtsyOrders}
-          disabled={busyAction != null || selectedShopId == null}
-          className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm disabled:opacity-60"
-        >
-          {busyAction === "sync-etsy" ? "Syncing..." : "Sync Etsy receipts"}
-        </button>
+        <Button variant="secondary" size="lg" onClick={syncEtsyOrders} busy={busyAction === "sync-etsy"} disabled={selectedShopId == null}>
+          Sync Etsy receipts
+        </Button>
       </div>
 
       {batch.selectionCount > 0 ? (
@@ -721,31 +766,60 @@ function SalesPageInner() {
         </BatchActionsBar>
       ) : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 md:grid-cols-[1fr_auto_auto]">
-        <input
-          ref={createOrderRef}
-          value={newOrderNumber}
-          onChange={(e) => setNewOrderNumber(e.target.value)}
-          aria-label="New order number"
-          placeholder="New order number"
-          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-        />
-        <input
-          value={newOrderTotal}
-          onChange={(e) => setNewOrderTotal(e.target.value)}
-          aria-label="New order total"
-          placeholder="Total"
-          className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-        />
-        <button
-          type="button"
-          onClick={createOrderRecord}
-          disabled={busyAction != null}
-          title="New order (⌘N)"
-          className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {busyAction === "create-order" ? "Creating..." : "Create order"}
-        </button>
+      <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+          <input
+            ref={createOrderRef}
+            value={newOrderNumber}
+            onChange={(e) => setNewOrderNumber(e.target.value)}
+            aria-label="New order number"
+            placeholder="Order number"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <select
+            value={newOrderCustomerId ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setNewOrderCustomerId(val ? parseInt(val, 10) : null);
+            }}
+            aria-label="Customer"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          >
+            <option value="">No customer</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {[c.first_name, c.last_name].filter(Boolean).join(" ") || `Customer ${c.id}`}
+              </option>
+            ))}
+          </select>
+          <input
+            value={newOrderTotal}
+            onChange={(e) => setNewOrderTotal(e.target.value)}
+            aria-label="New order total"
+            placeholder="Total"
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+          />
+          <Button variant="accent" size="lg" onClick={createOrderRecord} busy={busyAction === "create-order"} title="New order (⌘N)">
+            Create order
+          </Button>
+        </div>
+        {newOrderCustomerId && newOrderAddresses.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-[var(--ui-muted)]">Ship to:</span>
+            <select
+              value={newOrderShipToId}
+              onChange={(e) => setNewOrderShipToId(e.target.value)}
+              className="flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-xs"
+            >
+              <option value="billing">Billing address (default)</option>
+              {newOrderAddresses.map((a) => (
+                <option key={a.id} value={String(a.id)}>
+                  {a.summary}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -937,23 +1011,12 @@ function SalesPageInner() {
               </label>
             ) : null}
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShipModalOpen(false)}
-                className="rounded-lg border border-[var(--ui-border)] px-3 py-2 text-sm"
-              >
+              <Button variant="secondary" onClick={() => setShipModalOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void submitMarkShipped()}
-                disabled={busyAction != null}
-                className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {busyAction === "mark-shipped" || busyAction === "batch-ship"
-                  ? "Saving…"
-                  : "Confirm shipment"}
-              </button>
+              </Button>
+              <Button variant="accent" onClick={() => void submitMarkShipped()} busy={busyAction === "mark-shipped" || busyAction === "batch-ship"}>
+                Confirm shipment
+              </Button>
             </div>
           </div>
         </div>

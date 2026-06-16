@@ -122,6 +122,14 @@ All `"Checking connection..."` and skeleton-only states must include `LoadingSpi
 - No new CSS class names — use component props only.
 - No visual regressions — layout, spacing, and color must match current appearance (the shared components already use the same CSS variables).
 
+### Migration status (2026-06-16)
+
+**`Button` migration: complete.** ~80 raw `<button>` elements converted to `<Button>` across 20 files. All page-level and component-level buttons now use the shared component with canonical variants (`accent`, `primary`, `secondary`, `danger`, `ghost`) and sizes (`sm`, `md`, `lg`). Conditional busy text (e.g. `"Creating..." : "Create"`) replaced with `busy` prop (auto-spinner).
+
+**Remaining raw `<button>` elements (intentional):** filter chips (`FilterChipRow`), segment toggles (Items|Receipts), icon-only overlay dismiss (× on thumbnails/toasts/modals), list-row navigation buttons (Outstanding items, search results, wizard cards), autocomplete dropdown items. These have unique shapes/behaviors that don't map to standard button variants.
+
+**Remaining migrations (not yet started):** `DataTable` adoption, `FormField`/`TextInput` adoption, `useToast` adoption, `useApi` adoption, `usePagination` adoption.
+
 ## Consequences
 
 - **Positive**

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { InventoryItem } from "@/types";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getConditionPictureSlotPath, pictureDisplayUrl } from "@/lib/picture-url";
 
@@ -118,14 +119,9 @@ export function ConditionPictureGrid({
     <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-[var(--ui-title)]">Condition pictures</p>
-        <button
-          type="button"
-          onClick={addToFirstEmpty}
-          disabled={disabled || !inventoryId || !slots.some((s) => !s.path)}
-          className="rounded-lg border border-[var(--ui-border)] px-2 py-1 text-xs disabled:opacity-50"
-        >
+        <Button variant="secondary" size="sm" onClick={addToFirstEmpty} disabled={disabled || !inventoryId || !slots.some((s) => !s.path)}>
           + Add
-        </button>
+        </Button>
       </div>
 
       <input

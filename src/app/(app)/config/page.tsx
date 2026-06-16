@@ -196,6 +196,9 @@ export default function ConfigPage() {
   const [itemNumberPrefix, setItemNumberPrefix] = useState("ITEM");
   const [itemNumberPadding, setItemNumberPadding] = useState("4");
   const [nextItemPreview, setNextItemPreview] = useState<string | null>(null);
+  const [orderNumberPrefix, setOrderNumberPrefix] = useState("ORD");
+  const [orderNumberPadding, setOrderNumberPadding] = useState("4");
+  const [nextOrderPreview, setNextOrderPreview] = useState<string | null>(null);
   const [storeCategories, setStoreCategories] = useState("");
   const [apiUsage, setApiUsage] = useState<Array<{ service: string; month: string; call_count: number }>>([]);
   const [sessionHours, setSessionHours] = useState<Array<{ service: string; month: string; total_hours: number }>>([]);
@@ -442,6 +445,8 @@ export default function ConfigPage() {
       setActivityRetentionDays(map.get("activity_log.retention_days") ?? "365");
       setItemNumberPrefix(map.get("inventory.number_prefix") || "ITEM");
       setItemNumberPadding(map.get("inventory.number_padding") || "4");
+      setOrderNumberPrefix(map.get("order.number_prefix") || "ORD");
+      setOrderNumberPadding(map.get("order.number_padding") || "4");
       setStoreCategories(map.get("inventory.store_categories") ?? "");
       setConfigBaseline(
         buildConfigFormSnapshot({
@@ -737,9 +742,22 @@ export default function ConfigPage() {
     }
   }, []);
 
+  const loadNextOrderPreview = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orders/next-number", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { next_number?: string };
+      if (res.ok) setNextOrderPreview(data.next_number ?? null);
+    } catch {
+      setNextOrderPreview(null);
+    }
+  }, []);
+
   useEffect(() => {
     void loadNextItemPreview();
-  }, [loadNextItemPreview]);
+    void loadNextOrderPreview();
+  }, [loadNextItemPreview, loadNextOrderPreview]);
 
   const saveItemNumberSettings = async () => {
     const prefix = itemNumberPrefix.trim() || "ITEM";
@@ -755,6 +773,22 @@ export default function ConfigPage() {
       `New items will be numbered like ${prefix}-${"0".repeat(pad - 1)}1.`
     );
     void loadNextItemPreview();
+  };
+
+  const saveOrderNumberSettings = async () => {
+    const prefix = orderNumberPrefix.trim() || "ORD";
+    const pad = Math.max(2, Math.min(6, parseInt(orderNumberPadding, 10) || 4));
+    setOrderNumberPrefix(prefix);
+    setOrderNumberPadding(String(pad));
+    await saveSettingsKeys(
+      [
+        { key: "order.number_prefix", value: prefix },
+        { key: "order.number_padding", value: String(pad) },
+      ],
+      "Order numbering saved",
+      `New orders will be numbered like ${prefix}-${"0".repeat(pad - 1)}1.`
+    );
+    void loadNextOrderPreview();
   };
 
   const saveStoreCategories = () => {
@@ -1704,6 +1738,60 @@ export default function ConfigPage() {
             </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Order numbering</h4>
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Auto-generate order numbers when creating manual orders. Format: PREFIX-0001.
+            </p>
+            <FormField label="Prefix" helpText="Letters or short code prepended to the sequence number.">
+              <input
+                value={orderNumberPrefix}
+                onChange={(e) => setOrderNumberPrefix(e.target.value.replace(/[^A-Za-z0-9_-]/g, "").toUpperCase())}
+                placeholder="ORD"
+                maxLength={10}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Padding digits" helpText="Number of digits (2-6). E.g. 4 → 0001, 6 → 000001.">
+              <input
+                type="number"
+                min={2}
+                max={6}
+                value={orderNumberPadding}
+                onChange={(e) => setOrderNumberPadding(e.target.value)}
+                onBlur={() => {
+                  const n = parseInt(orderNumberPadding, 10);
+                  if (!Number.isFinite(n) || n < 2) setOrderNumberPadding("2");
+                  else if (n > 6) setOrderNumberPadding("6");
+                }}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <div className="mt-2 rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2">
+              <p className="text-xs text-[var(--ui-muted)]">Preview</p>
+              <p className="mt-0.5 font-mono text-sm text-[var(--ui-title)]">
+                {(() => {
+                  const prefix = orderNumberPrefix.trim() || "ORD";
+                  const pad = Math.max(2, Math.min(6, parseInt(orderNumberPadding, 10) || 4));
+                  return `${prefix}-${"0".repeat(pad - 1)}1`;
+                })()}
+              </p>
+              {nextOrderPreview && (
+                <p className="mt-1 text-xs text-[var(--ui-green)]">
+                  Next order will be: <strong>{nextOrderPreview}</strong>
+                </p>
+              )}
+            </div>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => void saveOrderNumberSettings()}
+              disabled={extraSettingsLoading}
+              className="mt-3"
+            >
+              Save order numbering
+            </Button>
+          </div>
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Store categories</h4>
             <p className="mb-3 text-xs text-[var(--ui-muted)]">
               Your internal categories for grouping inventory and reporting.
@@ -1838,7 +1926,7 @@ export default function ConfigPage() {
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold">AI settings</h4>
             <p className="mb-2 text-xs text-[var(--ui-muted)]">
-              Required for <strong>Listing Coach</strong> and Generate in app listing content.
+              Required for <strong>Add New Item</strong> AI research and listing generation.
             </p>
             <FormField label="Model" helpText="OpenAI model name (e.g. gpt-4.1-mini)" required error={aiFieldErrors.model}>
               <input

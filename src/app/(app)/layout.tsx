@@ -10,6 +10,7 @@ import { UndoRedoProvider, useUndoRedo } from "@/context/UndoRedoContext";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { IntegrityWarningBanner } from "@/components/shell/IntegrityWarningBanner";
 import { StaleDataBadge } from "@/components/shell/StaleDataBadge";
+import { Button } from "@/components/ui/Button";
 import { MutationQueuedError } from "@/lib/api-fetch";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { AppHeader } from "@/components/shell/AppHeader";
@@ -257,25 +258,19 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               inventory, customers, and orders locally. Connect Etsy when your key is active to
               sync.
             </p>
-            <button
-              type="button"
-              onClick={connect}
-              className="mt-3 rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white"
-            >
+            <Button variant="accent" size="lg" onClick={connect} className="mt-3">
               Connect Etsy
-            </button>
+            </Button>
           </div>
         )}
 
         {!loading && (
           <>
+            <TabBar />
             {!pathname.startsWith("/listing-coach") ? (
-              <>
-                <TabBar />
-                <div className="flex justify-end">
-                  <StaleDataBadge />
-                </div>
-              </>
+              <div className="flex justify-end">
+                <StaleDataBadge />
+              </div>
             ) : null}
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}

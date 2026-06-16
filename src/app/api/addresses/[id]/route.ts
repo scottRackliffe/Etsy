@@ -62,12 +62,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       });
     }
 
-    getDb()
-      .prepare(
+    const db = getDb();
+
+    if (params.is_default === 1) {
+      const addr = db.prepare("SELECT customer_id FROM addresses WHERE id = ?").get(id) as { customer_id: number } | undefined;
+      if (addr) {
+        db.prepare("UPDATE addresses SET is_default = 0 WHERE customer_id = ? AND id != ?").run(addr.customer_id, id);
+      }
+    }
+
+    db.prepare(
         `UPDATE addresses SET ${updates.join(", ")}, updated_at = @updated_at WHERE id = @id`
       )
       .run(params);
-    const item = getDb().prepare("SELECT * FROM addresses WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const item = db.prepare("SELECT * FROM addresses WHERE id = ?").get(id) as Record<string, unknown> | undefined;
     if (!item) {
       throw new ApiRouteError({
         status: 404,

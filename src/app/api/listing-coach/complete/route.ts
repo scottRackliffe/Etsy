@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         code: "VALIDATION_ERROR",
         message: "Expected multipart form data",
         userMessage: "Save request format was invalid.",
-        actions: ["Retry saving from Listing Coach."],
+        actions: ["Retry saving your item."],
         canRetry: false,
       });
     }
@@ -178,6 +178,42 @@ export async function POST(request: Request) {
       typeof vendorNotesRaw === "string" && vendorNotesRaw.trim()
         ? vendorNotesRaw.trim()
         : undefined;
+    const receiptPhotoRaw = formData.get("receipt_photo");
+    let receiptPhotoBuffer: Buffer | undefined;
+    let receiptPhotoExt: string | undefined;
+    if (receiptPhotoRaw instanceof File && receiptPhotoRaw.size > 0) {
+      const bytes = await receiptPhotoRaw.arrayBuffer();
+      receiptPhotoBuffer = Buffer.from(bytes);
+      const ext = receiptPhotoRaw.name.split(".").pop()?.toLowerCase();
+      receiptPhotoExt = ext && ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"].includes(ext) ? ext : "jpg";
+    }
+
+    const receiptDescriptionRaw = formData.get("receipt_description");
+    const receiptDescription =
+      typeof receiptDescriptionRaw === "string" && receiptDescriptionRaw.trim()
+        ? receiptDescriptionRaw.trim()
+        : undefined;
+
+    const selectedReceiptItemIdRaw = formData.get("selected_receipt_item_id");
+    const selectedReceiptItemId =
+      selectedReceiptItemIdRaw != null && selectedReceiptItemIdRaw !== ""
+        ? Number(selectedReceiptItemIdRaw)
+        : undefined;
+    const extraReceiptItemsRaw = formData.get("extra_receipt_items");
+    let extraReceiptItems: Array<{ description: string; cost: number | null }> | undefined;
+    if (typeof extraReceiptItemsRaw === "string" && extraReceiptItemsRaw.trim()) {
+      try {
+        const parsed = JSON.parse(extraReceiptItemsRaw);
+        if (Array.isArray(parsed)) {
+          extraReceiptItems = parsed
+            .filter((e: unknown) => e && typeof e === "object" && typeof (e as Record<string, unknown>).description === "string")
+            .map((e: Record<string, unknown>) => ({
+              description: String(e.description),
+              cost: typeof e.cost === "number" ? e.cost : null,
+            }));
+        }
+      } catch { /* ignore */ }
+    }
 
     const priceConfidenceRaw = formData.get("price_confidence");
     const priceConfidence =
@@ -265,6 +301,11 @@ export async function POST(request: Request) {
       vendorShippingPrice,
       vendorReferenceNumber,
       vendorNotes,
+      receiptPhotoBuffer,
+      receiptPhotoExt,
+      receiptDescription,
+      selectedReceiptItemId: selectedReceiptItemId != null && Number.isFinite(selectedReceiptItemId) ? selectedReceiptItemId : undefined,
+      extraReceiptItems,
     });
 
     return NextResponse.json(

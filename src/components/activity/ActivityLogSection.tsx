@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -90,14 +91,9 @@ export function ActivityLogSection({ id }: { id?: string }) {
               className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
             />
           </label>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-2 text-xs text-[var(--ui-muted)] disabled:opacity-60"
-          >
+          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
             Refresh
-          </button>
+          </Button>
         </div>
         <div className="mt-3">
           <FilterChipRow

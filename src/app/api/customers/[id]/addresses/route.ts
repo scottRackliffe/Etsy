@@ -87,7 +87,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         state: typeof body.state === "string" ? body.state : null,
         postal_code: typeof body.postal_code === "string" ? body.postal_code : null,
         country: typeof body.country === "string" ? body.country : null,
-        is_default: body.is_default ? 1 : 0,
+        is_default: body.is_default ? 1 : (() => {
+          const existing = getDb().prepare("SELECT COUNT(*) as count FROM addresses WHERE customer_id = ?").get(customerId) as { count: number };
+          return existing.count === 0 ? 1 : 0;
+        })(),
         created_at: now,
         updated_at: now,
       });

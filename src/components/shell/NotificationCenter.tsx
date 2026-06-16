@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import {
   clearAllNotifications,
   formatNotificationTime,
@@ -112,20 +113,12 @@ export function NotificationCenter() {
             <h2 className="text-sm font-semibold text-[var(--ui-title)]">Notifications</h2>
             {notifications.length > 0 ? (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => markAllNotificationsRead()}
-                  className="text-xs text-[var(--ui-accent)] hover:underline"
-                >
+                <Button variant="ghost" size="sm" onClick={() => markAllNotificationsRead()}>
                   Mark all read
-                </button>
-                <button
-                  type="button"
-                  onClick={() => clearAllNotifications()}
-                  className="text-xs text-[var(--ui-muted)] hover:text-[var(--ui-red)] hover:underline"
-                >
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => clearAllNotifications()}>
                   Clear all
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
@@ -163,15 +156,9 @@ export function NotificationCenter() {
                             {n.action.label}
                           </Link>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              markNotificationRead(n.id);
-                            }}
-                            className="mt-1 text-xs text-[var(--ui-muted)] hover:underline"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => markNotificationRead(n.id)} className="mt-1">
                             Mark read
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { RecentlyViewedMenu } from "@/components/shell/RecentlyViewedMenu";
@@ -61,21 +62,13 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
             {shops.length ? "Connected" : "Not connected"}
           </span>
           {shops.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setDisconnectOpen(true)}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-neutral)] px-3 py-2 text-sm font-medium text-[var(--ui-body)] shadow-sm transition hover:bg-[var(--ui-neutral-hover)]"
-            >
+            <Button variant="secondary" size="lg" onClick={() => setDisconnectOpen(true)}>
               Disconnect
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={connect}
-              className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--ui-accent-hover)]"
-            >
+            <Button variant="accent" size="lg" onClick={connect}>
               Connect Etsy
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -305,6 +305,8 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `repeat_customer_threshold` (ADR-066, optional)
 `inventory.number_prefix` (item number auto-generation prefix, default "ITEM")
 `inventory.number_padding` (item number zero-padding width, default 4, range 2-6)
+`order.number_prefix` (order number auto-generation prefix, default "ORD")
+`order.number_padding` (order number zero-padding width, default 4, range 2-6)
 `inventory.store_categories` (comma-separated list of user-defined store categories for inventory),
 `easypost.api_key_encrypted` (ADR-074), `easypost.address_validation` (ADR-074),
 `easypost.label_format` (ADR-074), `easypost.label_size` (ADR-074),
@@ -527,7 +529,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 12. WHAT'S BUILT vs WHAT'S PENDING
 
-### Built and working (Priorities 1-53 complete, docs reconciled 2026-06-09):
+### Built and working (Priorities 1-53 complete, docs reconciled 2026-06-16):
 - OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
 - Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
 - Dashboard (connected/not-connected states, shop selector, receipts table)
@@ -547,7 +549,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Config page: 8 sections, ConfirmDialog for destructive actions, AI key masking, publish defaults UI
 - Shipping Info section with per-carrier fields
 - Currency wiring: `ui.currency_code` setting flows to all formatters via AppContext
-- Shared component adoption (ADR-028): Button, FormField, SelectInput on Reports, Tutorial, Config
+- Shared component adoption (ADR-028): Button migration complete (~80 raw buttons → Button component across 20 files); FormField, SelectInput on Reports, Tutorial, Config
 - Search, filter, sort, pagination (ADR-029) on all list views
 - Inventory detail editing (ADR-030): two-panel layout with condition picture grid (5 slots)
 - Order detail view (ADR-031): master-detail with financials, ship-to, line items
@@ -590,6 +592,11 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Listing quality score (ADR-068): scoring rubric, tips, circular badge, sortable column
 - Sample/demo data (ADR-069): fixture SQL, load/remove API, wizard integration, Config UI
 - Listing Coach (ADR-072): 2-phase flow (log purchase + unified editable form), photo paste, Google paste, AI compose with refinement, activity log
+- Customer enhancements: copy/clone with ship-to addresses, single delete with referential integrity check, default ship-to selection, cancel button on create form
+- Address enhancements: ZIP code lookup with city/state autofill (Zippopotam.us), postal code validation warning, phone number formatting (libphonenumber-js)
+- Order auto-numbering: configurable prefix/padding in Config, `GET /api/orders/next-number` endpoint
+- Order creation: customer dropdown + ship-to address picker, auto-fill from default ship-to or billing address
+- Multi-photo drag-and-drop fix on PictureGrid (inventory detail panel)
 
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint

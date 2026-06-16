@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
@@ -92,22 +93,13 @@ export function ActivityFeed({
           </div>
           <div className="flex flex-wrap gap-2">
             {onViewAll ? (
-              <button
-                type="button"
-                onClick={onViewAll}
-                className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-accent)]"
-              >
+              <Button variant="ghost" size="sm" onClick={onViewAll}>
                 View all →
-              </button>
+              </Button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)] disabled:opacity-60"
-            >
+            <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
 

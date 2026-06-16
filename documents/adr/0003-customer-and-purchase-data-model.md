@@ -84,3 +84,13 @@ The concepts in this ADR map to the implementation schema as follows (see ADR-01
 | discount_amount         | `orders.discount_total`       |                                                                                                                                              |
 
 The snapshot principle (ship-to address copied at order time) and the one-customer-many-addresses design remain unchanged from this ADR.
+
+### Customer management features (added 2026-06-16)
+
+**Copy/clone customer:** "Copy as new" button on customer detail duplicates the primary address, email, phone, and all ship-to addresses (including `is_default` flag) into the "Add customer" form. Name fields are cleared. All ship-to addresses are created via `POST /api/customers/{id}/addresses` after the new customer is saved.
+
+**Default ship-to address:** One ship-to address per customer can be marked as default (`is_default = 1`). Radio buttons in the ship-to list allow the user to change the default. When creating a manual order with a `customer_id`, ship-to is auto-filled from: (1) the customer's default ship-to address, or (2) the customer's billing address if no default ship-to exists.
+
+**Customer deletion:** Customers with orders cannot be deleted (409 `REFERENTIAL_INTEGRITY`). Customers without orders can be deleted; `addresses` and `customer_notes` cascade on delete.
+
+**Customer/ship-to picker on orders:** Manual order creation includes a customer dropdown and a conditional ship-to address picker populated from the selected customer's saved addresses.

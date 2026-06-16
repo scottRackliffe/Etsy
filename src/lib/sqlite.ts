@@ -89,6 +89,7 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   listing_approved_at: "TEXT",
   listing_published_at: "TEXT",
   is_listed: "INTEGER DEFAULT 0",
+  receipt_description: "TEXT",
   notes: "TEXT",
   created_at: "TEXT",
   updated_at: "TEXT",
@@ -210,10 +211,38 @@ function ensureCoreTables(db: Database.Database): void {
       purchase_price REAL,
       shipping_price REAL,
       reference_number TEXT,
+      receipt_image TEXT,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE RESTRICT
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vendor_name TEXT NOT NULL,
+      purchase_date TEXT,
+      receipt_image TEXT,
+      shipping_price REAL,
+      reference_number TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS receipt_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      receipt_id INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      cost REAL,
+      inventory_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(receipt_id) REFERENCES receipts(id) ON DELETE CASCADE,
+      FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE SET NULL
     );
   `);
 
@@ -408,6 +437,7 @@ function ensureCoreTables(db: Database.Database): void {
   // Ensure reconciliation columns exist on pre-existing databases
   ensureTableColumns(db, "orders", ORDERS_RECONCILIATION_COLUMNS);
   ensureTableColumns(db, "customers", CUSTOMERS_RECONCILIATION_COLUMNS);
+  ensureTableColumns(db, "purchases", { receipt_image: "TEXT" });
 
   // Indexes
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory(status);");

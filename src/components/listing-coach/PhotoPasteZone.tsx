@@ -31,8 +31,13 @@ type DragState = {
   overIndex: number;
 } | null;
 
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "tiff", "tif", "heic", "heif", "bmp"]);
+
 function validateFile(file: File): string | null {
-  if (!file.type.startsWith("image/")) {
+  const hasImageType = file.type.startsWith("image/");
+  const ext = file.name?.split(".").pop()?.toLowerCase() ?? "";
+  const hasImageExt = IMAGE_EXTENSIONS.has(ext);
+  if (!hasImageType && !hasImageExt) {
     return "File must be an image.";
   }
   if (file.size > MAX_BYTES) {
@@ -58,6 +63,10 @@ export function PhotoPasteZone({
   const addFiles = useCallback(
     (files: FileList | File[]) => {
       const incoming = Array.from(files);
+      /* eslint-disable no-console */
+      console.log(`[Photos] addFiles: ${incoming.length} file(s) received`);
+      incoming.forEach((f, i) => console.log(`  [${i}] ${f.name} type="${f.type}" size=${f.size}`));
+      /* eslint-enable no-console */
       if (incoming.length === 0) return;
       const room = maxPhotos - photos.length;
       if (room <= 0) {
@@ -124,16 +133,13 @@ export function PhotoPasteZone({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-semibold text-[var(--ui-title)]">{title}</h4>
         {photos.length > 0 ? (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="text-xs text-[var(--ui-muted)] hover:text-[var(--ui-body)]"
-          >
+          <Button variant="ghost" size="sm" onClick={clearAll}>
             Clear all
-          </button>
+          </Button>
         ) : null}
       </div>
 
+      {/* Drop zone — always visible, separate from thumbnails */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         ref={zoneRef}
@@ -151,16 +157,25 @@ export function PhotoPasteZone({
           e.preventDefault();
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
-        className="min-h-[200px] cursor-pointer rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)]"
+        className={`cursor-pointer rounded-xl border-2 border-dashed border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-6 text-center outline-none focus:border-[var(--ui-accent)] hover:border-[var(--ui-accent)]/50 transition-colors ${photos.length === 0 ? "min-h-[200px]" : "min-h-[80px]"}`}
       >
-        <p className="text-sm font-medium text-[var(--ui-title)]">{pasteHint}</p>
-        <p className="mt-1 text-xs text-[var(--ui-muted)]">
-          {emptyHint ?? `Up to ${maxPhotos} images · max 15 MB each`}
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {photos.length === 0 ? (
+          <>
+            <p className="text-sm font-medium text-[var(--ui-title)]">{pasteHint}</p>
+            <p className="mt-1 text-xs text-[var(--ui-muted)]">
+              {emptyHint ?? `Up to ${maxPhotos} images · max 15 MB each`}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-[var(--ui-muted)]">
+            Drop more photos here · {photos.length}/{maxPhotos}
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-            Choose files…
+            Select photos…
           </Button>
+          <span className="text-xs text-[var(--ui-muted)]">Shift/Cmd-click to select multiple</span>
         </div>
         <input
           ref={fileInputRef}
@@ -175,31 +190,7 @@ export function PhotoPasteZone({
         />
       </div>
 
-      {rejectMessage ? (
-        <p className="text-xs text-[var(--ui-yellow)]">{rejectMessage}</p>
-      ) : null}
-
-      {slotGuidance && photos.length === 0 ? (
-        <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
-            10-Shot Recipe — recommended photo order
-          </p>
-          <div className="grid gap-1.5 sm:grid-cols-2">
-            {slotGuidance.map((guide, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="mt-0.5 shrink-0 rounded bg-[var(--ui-accent)]/20 px-1.5 py-0.5 font-semibold text-[var(--ui-accent)]">
-                  {i + 1}
-                </span>
-                <div>
-                  <span className="font-semibold text-[var(--ui-title)]">{guide.label}</span>
-                  <span className="ml-1 text-[var(--ui-muted)]">— {guide.description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
+      {/* Thumbnails — separate from drop zone, only for viewing & reordering */}
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {photos.map((photo, index) => {
@@ -225,7 +216,10 @@ export function PhotoPasteZone({
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (drag && drag.dragIndex !== index) {
+                  e.stopPropagation();
+                  if (e.dataTransfer.files?.length && !drag) {
+                    addFiles(e.dataTransfer.files);
+                  } else if (drag && drag.dragIndex !== index) {
                     const next = [...photos];
                     const [moved] = next.splice(drag.dragIndex, 1);
                     next.splice(index, 0, moved);
@@ -268,6 +262,31 @@ export function PhotoPasteZone({
               </div>
             );
           })}
+          </div>
+        ) : null}
+
+      {rejectMessage ? (
+        <p className="text-xs text-[var(--ui-yellow)]">{rejectMessage}</p>
+      ) : null}
+
+      {slotGuidance && photos.length === 0 ? (
+        <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
+            10-Shot Recipe — recommended photo order
+          </p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {slotGuidance.map((guide, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="mt-0.5 shrink-0 rounded bg-[var(--ui-accent)]/20 px-1.5 py-0.5 font-semibold text-[var(--ui-accent)]">
+                  {i + 1}
+                </span>
+                <div>
+                  <span className="font-semibold text-[var(--ui-title)]">{guide.label}</span>
+                  <span className="ml-1 text-[var(--ui-muted)]">— {guide.description}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   EMPTY_SHIPPING_INFO,
   type ShippingInfoData,
@@ -180,14 +181,9 @@ export function ShippingInfoSection({ onError, onSuccess }: Props) {
               className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm md:col-span-2"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="mt-3 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {saving ? "Saving…" : `Save ${activeCarrier} Shipping Info`}
-          </button>
+          <Button variant="accent" size="lg" onClick={() => void save()} busy={saving} className="mt-3">
+            Save {activeCarrier} Shipping Info
+          </Button>
         </>
       )}
     </div>

@@ -154,13 +154,9 @@ export function OtherCostsManager({ inventoryId, disabled, onTotalChanged }: Pro
           )}
         </p>
         {!disabled && (
-          <button
-            type="button"
-            onClick={startAdd}
-            className="text-xs text-[var(--ui-accent)] hover:underline"
-          >
+          <Button variant="ghost" size="sm" onClick={startAdd}>
             + Add cost
-          </button>
+          </Button>
         )}
       </div>
 
@@ -190,22 +186,12 @@ export function OtherCostsManager({ inventoryId, disabled, onTotalChanged }: Pro
               </span>
               {!disabled && (
                 <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(cost)}
-                    className="text-[var(--ui-accent)] hover:underline"
-                    aria-label={`Edit ${cost.cost_type || "cost"}`}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => startEdit(cost)} title={`Edit ${cost.cost_type || "cost"}`}>
                     Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(cost)}
-                    className="text-[var(--ui-red)] hover:underline"
-                    aria-label={`Delete ${cost.cost_type || "cost"}`}
-                  >
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => setDeleteTarget(cost)} title={`Delete ${cost.cost_type || "cost"}`}>
                     ×
-                  </button>
+                  </Button>
                 </div>
               )}
             </li>
