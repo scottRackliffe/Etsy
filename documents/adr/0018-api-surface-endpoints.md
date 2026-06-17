@@ -1239,7 +1239,7 @@ Request:
 - File upload for pictures: multipart/form-data; server stores files per ADR-010/ADR-026 and updates inventory picture columns and thumbnail (ADR-002).
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation mode strategy (manual vs integrated AI vs portable handoff vs Listing Coach) is governed by **ADR-023** and **ADR-072**. Listing endpoints are in section 4; extensions §24–§29 cover ADR-038–072.
-- **Full extension index:** §12–§30 (ADR-027–074). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
+- **Full extension index:** §12–§32 (ADR-027–074 plus vendor receipts). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
 - **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
 
 ### Extensions (updated 2026-05-24)
@@ -1402,7 +1402,23 @@ Rate shopping, label purchase, refund, address validation, and batch operations 
 
 Error codes: `SHIPPING_NOT_CONFIGURED` (400), `ADDRESS_INVALID` (422), `INSUFFICIENT_FUNDS` (402), `LABEL_ALREADY_PURCHASED` (409), `RATE_LIMIT` (429). Full error catalog: ADR-074 §9. Full request/response shapes: **Appendix B §B30**.
 
-**§31. Etsy Taxonomy Cache**
+**§31. Vendor purchase receipts (added 2026-06-16)**
+
+Manage scanned/manual vendor purchase receipts and link receipt items to inventory. These are **buy-side** receipts (what the seller bought from vendors), not Etsy customer receipts.
+
+| Method | Path                                        | Auth | Purpose                                      | Request / response                                                                                                                                   |
+| ------ | ------------------------------------------- | ---- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/receipts`                             | App  | List all vendor purchase receipts            | 200: `{ items: Receipt[], pagination }`. Each receipt includes nested `items: ReceiptItem[]`.                                                        |
+| POST   | `/api/receipts`                             | App  | Create a new receipt (manual or from OCR)     | Body: `{ vendor_name, purchase_date, notes?, items: [{ description, quantity, unit_price }] }`. 201: created receipt with items.                      |
+| GET    | `/api/receipts/[id]`                        | App  | Get single receipt with items                | 200: receipt object with `items[]`.                                                                                                                   |
+| PATCH  | `/api/receipts/[id]`                        | App  | Update receipt header fields                 | Body: partial receipt fields. 200: updated receipt.                                                                                                   |
+| DELETE | `/api/receipts/[id]`                        | App  | Delete receipt and all its items             | 204. Unlinks any inventory items first.                                                                                                               |
+| PATCH  | `/api/receipts/[id]/items/[itemId]`         | App  | Update receipt item (including inventory link) | Body: `{ inventory_id?, description?, quantity?, unit_price? }`. When `inventory_id` is set: updates inventory `purchase_cost`, `date_purchased`, inserts a `purchases` record. When `inventory_id` is null: removes link, deletes auto-created purchases record. 200: updated item. |
+| POST   | `/api/receipts/ocr`                         | App  | OCR scan a receipt image                     | Body: `multipart/form-data` with `image` file (JPEG/PNG). Uses AI to extract vendor, date, line items. 200: `{ vendor_name, purchase_date, items[] }`. 503 if AI not configured. |
+
+Cross-ref: ADR-030 (vendor sourcing section), ADR-017 (`receipts`, `receipt_items`, `purchases` tables).
+
+**§32. Etsy Taxonomy Cache**
 
 Local cache of Etsy's seller taxonomy (category tree) and per-category properties/attributes. Data is fetched from the Etsy Open API v3 application-level endpoints (no OAuth required, only API key). Stored in `etsy_taxonomy_nodes` and `etsy_taxonomy_properties` tables (ADR-017).
 

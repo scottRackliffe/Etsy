@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The current application UI is a single monolithic client component (`src/app/page.tsx`, ~3,000 lines) containing all tabs, forms, lists, modals, and state. This makes the codebase difficult to maintain, test, and extend. The UI design (ADR-009, ui-design.md) defines 8 tabs, context-sensitive commands, an outstanding panel, and numerous forms — none of which can scale inside a single file.
+The current application UI is a single monolithic client component (`src/app/page.tsx`, ~3,000 lines) containing all tabs, forms, lists, modals, and state. This makes the codebase difficult to maintain, test, and extend. The UI design (ADR-009, ui-design.md) defines 9 tabs, context-sensitive commands, an outstanding panel, and numerous forms — none of which can scale inside a single file.
 
 This ADR defines how to decompose the frontend into a component architecture using Next.js App Router conventions.
 
@@ -30,7 +30,9 @@ src/app/
     sales/
       page.tsx                  # Sales/Orders tab — master-detail layout (ADR-031)
     inventory/
-      page.tsx                  # Inventory tab — two-panel: detail + listing workshop (ADR-030)
+      page.tsx                  # Inventory tab — detail panel with listing fields (ADR-030)
+    receipts/
+      page.tsx                  # Receipts tab — vendor purchase receipts with inventory linking
     customers/
       page.tsx                  # Customers tab content
     reports/
@@ -48,7 +50,7 @@ src/app/
 
 The `(app)` route group wraps all tabbed pages in a shared layout without adding a URL segment.
 
-**Note (updated 2026-05-24):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`) select and scroll to the target record within the list page (ADR-035).
+**Note (updated 2026-06-16):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. The Listing Workshop panel has been removed from the inventory page; listing fields (title, description, tags, etc.) are now consolidated into the `InventoryDetailPanel` component. A "Regenerate with AI" button replaces the separate workshop modes. Receipts (vendor purchase records) have been extracted into a dedicated `/receipts` tab. ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`) select and scroll to the target record within the list page (ADR-035).
 
 ### 2. App shell layout (`(app)/layout.tsx`)
 
@@ -57,7 +59,7 @@ The shared layout renders:
 | Area             | Component       | Position                  | Behavior                                                                   |
 | ---------------- | --------------- | ------------------------- | -------------------------------------------------------------------------- |
 | **Header**       | `<AppHeader />` | Top, full width           | App name, Etsy connection status indicator, shop selector (when connected) |
-| **Tab bar**      | `<TabBar />`    | Below header, full width  | 8 tabs as `<Link>` elements; active tab highlighted via `usePathname()`    |
+| **Tab bar**      | `<TabBar />`    | Below header, full width  | 9 tabs as `<Link>` elements; active tab highlighted via `usePathname()`    |
 | **Main content** | `{children}`    | Below tab bar, full width | Active tab page content                                                    |
 
 **Note (updated 2026-05-24):** The original ADR-024 included `CommandsPanel` and `OutstandingPanel` as persistent side panels flanking the main content. These are deferred to post-v1 per ADR-009. In v1, context-sensitive actions are placed inline on each page using `Button` components (ADR-028). The Outstanding tab serves as the full-page outstanding list. The `panel_layout` setting and layout swap button are also deferred.

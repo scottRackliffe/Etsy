@@ -67,6 +67,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Listing quality score and SEO hints | `documents/adr/0068-listing-quality-score.md` |
 | Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
 | Listing Coach (guided new listing) | `documents/adr/0072-listing-coach-guided-new-listing-flow.md` |
+| Vendor purchase receipts (scan, link, manage) | ADR-018 §31, API routes at `/api/receipts/*` |
 | User guide: Listing Coach | `system/tips/Listing_Coach_Guide.md` |
 | API usage tracking (per-service monthly counts) | `documents/adr/0075-api-usage-tracking.md` |
 | Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
@@ -129,14 +130,14 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
-| **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory two-panel), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). |
+| **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory detail+listing inline), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). Receipts tab at `/receipts`. Listing Workshop removed from inventory. |
 | **ADR-023** (Listing modes) | ADR-002, 010/026 pictures, 017 listing_* columns, 068 quality score |
 | **ADR-025** (Token refresh) | ADR-007 OAuth, 019 sync, 018 auth proxy routes |
 | **ADR-026** (Picture storage) | ADR-010, 033 upload UI, 018 §16 `/api/uploads` |
 | **ADR-027** (Backup) | ADR-034 Config UI, 018 §19, 043 jobs, 058 integrity |
 | **ADR-028** (Shared components) | ADR-024, 032, 045, 059, 060, 061 |
 | **ADR-029** (Search/pagination) | ADR-018 §12, 041 global search, 034 `ui.page_size` |
-| **ADR-030** (Inventory detail) | ADR-024 two-panel, 033 pictures, 038 profit row, 042 drafts, 046 `If-Match` |
+| **ADR-030** (Inventory detail) | ADR-024 single-column (workshop removed), 033 pictures, 038 profit row, 042 drafts, 046 `If-Match`. Listing fields inline in detail panel. |
 | **ADR-031** (Order detail) | ADR-003/004 ship fields, 021 mark-shipped, 035 deep links, 018 §14–15. Line item API: POST/PATCH/DELETE `/api/orders/[id]/items`. |
 | **ADR-032** (ConfirmDialog) | ADR-028 Modal, 040 batch, 069 remove sample data |
 | **ADR-033** (Image upload grid) | ADR-010, 026 storage, 030 inventory panel |
@@ -417,7 +418,7 @@ id, service, endpoint, status_code, created_at
 NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `bg-[var(--ui-*)]`.
 
 ### Layout structure (ADR-024 updated, ui-design.md §1)
-- Tabs: top, full width — Dashboard | Sales | Inventory | Customers | Reports | Tutorial & Tips | Outstanding | Config
+- Tabs: top, full width — Dashboard | Sales | Inventory | Receipts | Customers | Reports | Tutorial & Tips | Outstanding | Config
 - **v1 layout:** Header + Tab bar + Main content (full width). No side panels.
 - **Deferred to post-v1:** Commands panel and Outstanding side panel (ADR-009 notes)
 - Header: app name, Etsy connection status, shop selector
@@ -428,7 +429,7 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 
 ### Page layouts
 - **Sales:** Master-detail — order list + order detail panel (ADR-031)
-- **Inventory:** Two-panel — inventory detail + listing workshop (ADR-030)
+- **Inventory:** Single-column — item list + detail panel (with listing content inline) + picture grids (ADR-030)
 - **No detail sub-routes:** Detail views are inline panels, NOT separate `[id]/page.tsx` routes (ADR-024)
 
 ### Outstanding behavior
@@ -468,10 +469,10 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 
 ## 6. LISTING AUTHORING MODES (ADR-023)
 
-Four modes — always respect all four:
-1. **Manual** — guided form with sections: title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
-2. **Integrated AI** — app sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
-3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft
+Four modes — always respect all four (note: the separate "Listing Workshop" panel has been removed; listing fields are inline in `InventoryDetailPanel`):
+1. **Manual** — edit listing fields directly in the inventory detail panel: title, description, tags, title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
+2. **Integrated AI** — "Regenerate with AI" button on detail panel sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
+3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft (deferred to post-v1)
 4. **Listing Coach** (ADR-072) — 2-phase flow for new listings: log purchase + unified AI-populated editable form with per-field and global refinement
 
 State machine: `draft → generated|imported → approved → published`
@@ -560,6 +561,10 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - AI settings API with masked values and connection test
 - Global API error model + structured logging
 - Migration system + seed data
+- Receipts tab: scan/upload, manual entry, expandable detail, inventory linking (pick list + create), bidirectional unlink
+- Listing fields consolidated into InventoryDetailPanel; Listing Workshop panel removed
+- Etsy taxonomy category picker and attributes panel components
+- Publish-to-Etsy API route with taxonomy support
 - Backup system (ADR-027): tar.gz archive, lock retry, pre-restore naming, scheduled backup time/day
 - Config page: 8 sections, ConfirmDialog for destructive actions, AI key masking, publish defaults UI
 - Shipping Info section with per-carrier fields

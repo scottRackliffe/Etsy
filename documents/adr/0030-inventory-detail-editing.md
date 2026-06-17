@@ -14,7 +14,7 @@ The Inventory page currently functions only as a "Listing authoring workshop." U
 
 ## Decision
 
-**Add a full inventory detail panel alongside the existing listing workshop.** The page is restructured into two major sections: **Inventory detail** (core data) and **Listing workshop** (authoring and publish workflow). Both operate on the same selected inventory item.
+**Add a full inventory detail panel with listing content fields inline.** The page uses a single-column layout: item list → detail panel (with listing content section) → picture grids. All fields for a selected item are accessible in one scrollable view. **(Updated 2026-06-16: The separate "Listing Workshop" panel has been removed; listing fields are consolidated into the detail panel.)**
 
 ---
 
@@ -26,14 +26,15 @@ The Inventory page currently functions only as a "Listing authoring workshop." U
 │                        [+ Add item]                     │
 ├─────────────────────────────────────────────────────────┤
 │ DataTable (item list with pagination)                   │
-├────────────────────────┬────────────────────────────────┤
-│ Item detail panel      │ Listing workshop (existing)    │
-│ (editable fields)      │ (collapsed by default,         │
-│                        │  expand to work on listing)    │
-└────────────────────────┴────────────────────────────────┘
+├─────────────────────────────────────────────────────────┤
+│ Item detail panel                                       │
+│ (Identity, Financials, Dates, Condition, Etsy Details,  │
+│  Listing Content [+ Regenerate with AI], Where I Bought │
+│  This, Activity Timeline)                               │
+├─────────────────────────────────────────────────────────┤
+│ Picture grids (item photos + condition photos)          │
+└─────────────────────────────────────────────────────────┘
 ```
-
-On screens < `lg`, the two panels stack vertically (detail on top, listing below).
 
 ---
 
@@ -189,15 +190,15 @@ Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 
 
 ---
 
-### Listing workshop changes
+### Listing content fields (updated 2026-06-16)
 
-- The listing workshop UI (manual form, AI generation, portable import, approve/reject/publish) lives in a collapsible section below the inventory detail panel and above pictures.
-- Default state: collapsed. Toggle via **Listing workshop** / **Hide workshop** button in the page toolbar (alongside Add item and Delete selected).
-- When collapsed, draft state is shown on the selected-item summary line; a separate draft badge is not required in v1.
-- Auto-expand when `listing_draft_state` is `generated` or `imported`, or when arriving from Listing Coach with `?itemId=<id>&openWorkshop=1`.
-- When expanded, workshop UI uses shared components (ADR-028) and per-mode requirement info cards (ADR-023). Required listing fields are marked with a red asterisk.
-- AI settings and Etsy publish defaults sections are **removed from Inventory** — they belong in Config only (eliminates duplication).
-- v1 uses a **vertical stack** layout on all breakpoints; side-by-side detail | workshop is aspirational/post-v1.
+> **Note:** The original "Listing Workshop" panel (a separate collapsible section with manual/AI/portable import mode tabs) has been **removed**. Listing fields are now consolidated directly into the `InventoryDetailPanel` as a "Listing Content" section below the core inventory fields.
+
+- **Listing Content section** in the detail panel includes: listing title, listing description, listing tags, title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist.
+- **"Regenerate with AI" button** replaces the separate workshop modes. Clicking it re-runs the integrated AI content generator for the selected item.
+- AI settings and Etsy publish defaults sections are in **Config only** (not duplicated on Inventory page).
+- The `openWorkshop=1` query parameter is no longer used.
+- Listing Coach (ADR-072) at `/listing-coach` remains the primary guided flow for new items. After completion, it redirects to `/inventory?itemId=<id>` where the user can review and edit all fields inline.
 
 ## Consequences
 

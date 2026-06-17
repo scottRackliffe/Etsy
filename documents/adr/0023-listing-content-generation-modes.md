@@ -62,16 +62,18 @@ The default workflow will be:
 
 ### Required listing-authoring surfaces
 
-The build must include these three operator-facing capabilities:
+> **Note (updated 2026-06-16):** The separate "Listing Workshop" panel UI has been removed. Listing fields (title, description, tags, strategy fields, etc.) are now consolidated directly into the `InventoryDetailPanel` component as a "Listing Content" section. The modes below describe content generation approaches, not separate UI panels.
 
-1. **Guided winning-listing form (manual mode)**  
-   A structured form that mirrors recommended winning-listing sections (title strategy, product story/details, condition clarity, attributes, tags/keywords, pricing/shipping notes, and confidence checks) so users can produce high-quality listings without AI.
+The build must include these operator-facing capabilities:
 
-2. **Hybrid portable handoff (export/import mode)**  
+1. **Inline editing (manual mode)**  
+   Listing fields are editable directly in the inventory detail panel. Sections include: title strategy, product story/details, condition clarity, attributes, tags/keywords, pricing/shipping notes, and confidence checks.
+
+2. **Hybrid portable handoff (export/import mode)** *(deferred to post-v1)*  
    Export structured listing package + pictures + clear generation instructions; user runs external AI manually; user imports generated draft; system validates and presents for approval.
 
-3. **Integrated AI connection configuration (in-app generation mode)**  
-   Settings fields and validation for provider connection data required for internal generation (provider type, model, key/token or endpoint configuration, optional org/project, timeout/retry/token limits, and safe test-connection behavior).
+3. **Integrated AI (in-app generation mode)**  
+   "Regenerate with AI" button in the inventory detail panel sends item data + all pictures to configured AI provider. Returned structured JSON is saved directly to inventory listing fields. Settings fields and validation for provider connection data are in Config.
 
 ### Listing draft lifecycle
 
