@@ -236,6 +236,11 @@ export async function POST(request: Request) {
       typeof materialsRaw === "string" && materialsRaw.trim()
         ? materialsRaw.trim()
         : undefined;
+    const etsyAttributesJsonRaw = formData.get("etsy_attributes_json");
+    const etsyAttributesJson =
+      typeof etsyAttributesJsonRaw === "string" && etsyAttributesJsonRaw.trim()
+        ? etsyAttributesJsonRaw.trim()
+        : undefined;
     const isSupplyRaw = formData.get("is_supply");
     const isSupply = isSupplyRaw === "true" || isSupplyRaw === "1";
 
@@ -288,6 +293,7 @@ export async function POST(request: Request) {
       priceConfidence,
       etsyWhenMade,
       etsyTaxonomyId: etsyTaxonomyId != null && Number.isFinite(etsyTaxonomyId) ? etsyTaxonomyId : undefined,
+      etsyAttributesJson,
       materials,
       isSupply,
       itemWeight: itemWeight != null && Number.isFinite(itemWeight) ? itemWeight : undefined,

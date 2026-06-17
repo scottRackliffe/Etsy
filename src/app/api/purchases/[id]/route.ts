@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
+import { getDb } from "@/lib/sqlite";
 import { getPurchase, patchPurchase, deletePurchase } from "@/lib/records";
 
 async function getPurchaseId(context: { params: Promise<{ id: string }> }): Promise<number> {
@@ -82,6 +83,20 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getPurchaseId(context);
+
+    // Check if this purchase was created from a receipt link — if so, unlink the receipt item too
+    const purchase = getPurchase(id) as { inventory_id?: number; notes?: string } | null;
+    if (purchase?.inventory_id && purchase.notes) {
+      const match = purchase.notes.match(/Linked from scanned receipt #(\d+)/);
+      if (match) {
+        const receiptId = Number(match[1]);
+        const db = getDb();
+        db.prepare(
+          "UPDATE receipt_items SET inventory_id = NULL WHERE receipt_id = ? AND inventory_id = ?"
+        ).run(receiptId, purchase.inventory_id);
+      }
+    }
+
     const deleted = deletePurchase(id);
     if (!deleted) {
       throw new ApiRouteError({

@@ -17,6 +17,7 @@ import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueueFullError } from "@/lib/api-fetch";
 import { OtherCostsManager } from "@/components/inventory/OtherCostsManager";
+import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -96,6 +97,7 @@ type DraftFields = {
   notes: string;
   etsy_when_made: string;
   etsy_taxonomy_id: string;
+  listing_category_path: string;
   materials: string;
   item_weight: string;
   item_weight_unit: string;
@@ -104,6 +106,15 @@ type DraftFields = {
   item_height: string;
   item_dimensions_unit: string;
   is_supply: boolean;
+  listing_title: string;
+  listing_description: string;
+  listing_tags: string;
+  listing_title_strategy: string;
+  listing_product_story: string;
+  listing_condition_clarity: string;
+  listing_attributes: string;
+  listing_pricing_shipping_notes: string;
+  listing_quality_checklist: string;
 };
 
 function materialsToDisplay(json: string | null): string {
@@ -143,6 +154,7 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
     notes: item.notes ?? "",
     etsy_when_made: item.etsy_when_made ?? "",
     etsy_taxonomy_id: item.etsy_taxonomy_id != null ? String(item.etsy_taxonomy_id) : "",
+    listing_category_path: item.listing_category_path ?? "",
     materials: materialsToDisplay(item.materials),
     item_weight: item.item_weight != null ? String(item.item_weight) : "",
     item_weight_unit: item.item_weight_unit ?? "",
@@ -151,6 +163,15 @@ function itemToDraft(item: InventoryItemDetail): DraftFields {
     item_height: item.item_height != null ? String(item.item_height) : "",
     item_dimensions_unit: item.item_dimensions_unit ?? "",
     is_supply: Boolean(item.is_supply),
+    listing_title: item.listing_title ?? "",
+    listing_description: item.listing_description ?? "",
+    listing_tags: item.listing_tags ?? "",
+    listing_title_strategy: item.listing_title_strategy ?? "",
+    listing_product_story: item.listing_product_story ?? "",
+    listing_condition_clarity: item.listing_condition_clarity ?? "",
+    listing_attributes: item.listing_attributes ?? "",
+    listing_pricing_shipping_notes: item.listing_pricing_shipping_notes ?? "",
+    listing_quality_checklist: item.listing_quality_checklist ?? "",
   };
 }
 
@@ -171,6 +192,8 @@ type InventoryDetailPanelProps = {
   onSuccess: (title: string, message: string) => void;
   onReloadItem?: () => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
+  onRegenerateAi?: () => void;
+  regenerateAiBusy?: boolean;
 };
 
 export function InventoryDetailPanel({
@@ -181,6 +204,8 @@ export function InventoryDetailPanel({
   onSuccess,
   onReloadItem,
   onDirtyChange,
+  onRegenerateAi,
+  regenerateAiBusy,
 }: InventoryDetailPanelProps) {
   const { currencyCode } = useApp();
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
@@ -346,6 +371,16 @@ export function InventoryDetailPanel({
         notes: draft.notes.trim() || null,
         etsy_when_made: draft.etsy_when_made || null,
         etsy_taxonomy_id: draft.etsy_taxonomy_id === "" ? null : Number(draft.etsy_taxonomy_id),
+        listing_category_path: draft.listing_category_path.trim() || null,
+        listing_title: draft.listing_title.trim() || null,
+        listing_description: draft.listing_description.trim() || null,
+        listing_tags: draft.listing_tags.trim() || null,
+        listing_title_strategy: draft.listing_title_strategy.trim() || null,
+        listing_product_story: draft.listing_product_story.trim() || null,
+        listing_condition_clarity: draft.listing_condition_clarity.trim() || null,
+        listing_attributes: draft.listing_attributes.trim() || null,
+        listing_pricing_shipping_notes: draft.listing_pricing_shipping_notes.trim() || null,
+        listing_quality_checklist: draft.listing_quality_checklist.trim() || null,
         materials: displayToMaterialsJson(draft.materials),
         item_weight: draft.item_weight === "" ? null : Number(draft.item_weight),
         item_weight_unit: draft.item_weight_unit || null,
@@ -827,16 +862,21 @@ export function InventoryDetailPanel({
               />
             </FormField>
             <FormField
-              label="Category ID"
-              helpText="Etsy taxonomy ID for the item category. Required for publishing."
+              label="Etsy Category"
+              helpText="Select the Etsy category for this item. Required for publishing."
               required
             >
-              <TextInput
-                type="number"
-                value={draft.etsy_taxonomy_id}
-                onChange={(v) => setDraft((c) => ({ ...c!, etsy_taxonomy_id: v }))}
+              <TaxonomyCategoryPicker
+                value={draft.etsy_taxonomy_id ? Number(draft.etsy_taxonomy_id) : null}
+                valuePath={draft.listing_category_path || undefined}
+                onChange={(id, fullPath) => {
+                  setDraft((c) => ({
+                    ...c!,
+                    etsy_taxonomy_id: id != null ? String(id) : "",
+                    listing_category_path: fullPath,
+                  }));
+                }}
                 disabled={busy || saving}
-                className={inputClass}
               />
             </FormField>
             <FormField
@@ -925,6 +965,132 @@ export function InventoryDetailPanel({
           </div>
         </section>
       </div>
+
+      <section className="mt-4 border-t border-[var(--ui-border)] pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+            Listing Content
+          </p>
+          {onRegenerateAi ? (
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={onRegenerateAi}
+              busy={regenerateAiBusy}
+              disabled={busy || saving}
+            >
+              Regenerate with AI
+            </Button>
+          ) : null}
+        </div>
+        <div className="space-y-3">
+          <FormField label="Listing title" required>
+            <input
+              value={draft.listing_title}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_title: e.target.value }))}
+              placeholder="e.g. Vintage 1950s Pink Depression Glass..."
+              spellCheck
+              disabled={busy || saving}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Listing description" required>
+            <textarea
+              value={draft.listing_description}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_description: e.target.value }))}
+              placeholder="Full listing description for Etsy..."
+              spellCheck
+              disabled={busy || saving}
+              rows={4}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Listing tags" required helpText="Comma-separated, up to 13 tags. Choose words buyers would search for.">
+            <input
+              value={draft.listing_tags}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_tags: e.target.value }))}
+              placeholder="Comma separated, up to 13"
+              disabled={busy || saving}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
+            {draft.listing_tags.trim() && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {draft.listing_tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
+                  <span key={tag} className="rounded-full border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-0.5 text-xs text-[var(--ui-body)]">{tag}</span>
+                ))}
+              </div>
+            )}
+          </FormField>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <FormField label="Title strategy">
+              <textarea
+                value={draft.listing_title_strategy}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_title_strategy: e.target.value }))}
+                placeholder="Naming approach and keyword strategy..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Product story / details">
+              <textarea
+                value={draft.listing_product_story}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_product_story: e.target.value }))}
+                placeholder="History, origin, notable features..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Condition clarity">
+              <textarea
+                value={draft.listing_condition_clarity}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_condition_clarity: e.target.value }))}
+                placeholder="Condition details and any defect disclosure"
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Attributes and category fit">
+              <textarea
+                value={draft.listing_attributes}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_attributes: e.target.value }))}
+                placeholder="Material, era, dimensions, style..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Pricing and shipping notes">
+              <textarea
+                value={draft.listing_pricing_shipping_notes}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: e.target.value }))}
+                placeholder="Pricing rationale, shipping instructions..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Quality checklist">
+              <textarea
+                value={draft.listing_quality_checklist}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_quality_checklist: e.target.value }))}
+                placeholder="Pre-publish review notes..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+            </FormField>
+          </div>
+        </div>
+      </section>
 
       <section className="mt-4 border-t border-[var(--ui-border)] pt-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
       search: parseOptionalString(params, "search"),
+      order_status: parseOptionalString(params, "order_status"),
       payment_status: parseOptionalString(params, "payment_status"),
       shipping_status,
       source_channel: parseOptionalString(params, "source_channel"),

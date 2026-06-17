@@ -116,6 +116,12 @@ div[data-lastpass-root],
   pointer-events: none !important;
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(45%) sepia(90%) saturate(1500%) hue-rotate(200deg) brightness(1.1);
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

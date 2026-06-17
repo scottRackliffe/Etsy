@@ -281,6 +281,7 @@ export type OrderListOptions = {
   limit: number;
   offset: number;
   search?: string;
+  order_status?: string;
   payment_status?: string;
   shipping_status?: "shipped" | "not_shipped";
   source_channel?: string;
@@ -305,6 +306,10 @@ export function listOrders(options: OrderListOptions) {
   const db = getDb();
   const params: Record<string, unknown> = {};
   let where = "WHERE 1=1";
+  if (options.order_status?.trim()) {
+    where += " AND order_status = @order_status";
+    params.order_status = options.order_status.trim();
+  }
   if (options.payment_status?.trim()) {
     where += " AND payment_status = @payment_status";
     params.payment_status = options.payment_status.trim();

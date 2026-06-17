@@ -32,6 +32,7 @@ export type CompleteListingCoachInput = {
   priceConfidence?: string;
   etsyWhenMade?: string;
   etsyTaxonomyId?: number;
+  etsyAttributesJson?: string;
   materials?: string;
   isSupply?: boolean;
   itemWeight?: number;
@@ -111,6 +112,7 @@ export async function completeListingCoach(
         is_listed: 0,
         ...(input.etsyWhenMade ? { etsy_when_made: input.etsyWhenMade } : {}),
         ...(input.etsyTaxonomyId ? { etsy_taxonomy_id: input.etsyTaxonomyId } : {}),
+        ...(input.etsyAttributesJson ? { etsy_attributes_json: input.etsyAttributesJson } : {}),
         ...(input.materials ? { materials: input.materials } : {}),
         is_supply: input.isSupply ? 1 : 0,
         ...(input.itemWeight != null ? { item_weight: input.itemWeight } : {}),

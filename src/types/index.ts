@@ -68,6 +68,7 @@ export type InventoryItem = {
   listing_product_story: string | null;
   listing_condition_clarity: string | null;
   listing_attributes: string | null;
+  etsy_attributes_json: string | null;
   listing_pricing_shipping_notes: string | null;
   listing_quality_checklist: string | null;
   listing_draft_state: string | null;

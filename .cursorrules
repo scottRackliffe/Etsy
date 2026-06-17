@@ -320,7 +320,9 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `etsy.publish.readiness_state_id`,
 `etsy.publish.image_max_dimension`, `etsy.publish.image_target_dpi`,
 `etsy.publish.image_jpeg_quality`, `etsy.publish.allow_partial_image_upload`,
-`etsy.publish.image_upload_attempts`
+`etsy.publish.image_upload_attempts`,
+`etsy_taxonomy.last_sync_at` (ISO timestamp of last taxonomy sync),
+`etsy_taxonomy.node_count` (number of cached taxonomy nodes)
 
 ### `customer_notes` table — per-customer interaction log (ADR-065)
 ```
@@ -355,6 +357,19 @@ id, action, entity_type, entity_id, entity_label, detail_json, source, created_a
 ### `report_artifacts` table — generated report metadata
 ```
 id, report_name, report_params_json, artifact_path, artifact_json, generated_at
+```
+
+### `etsy_taxonomy_nodes` table — cached Etsy category tree
+```
+id (PK, from Etsy), parent_id, name, full_path, level
+```
+
+### `etsy_taxonomy_properties` table — cached Etsy per-category attributes
+```
+id, taxonomy_id, property_id, name, display_name,
+is_required, supports_attributes, supports_variations,
+possible_values_json, scales_json
+UNIQUE(taxonomy_id, property_id)
 ```
 
 ### `api_call_log` table — external API call counter (ADR-075)
@@ -597,6 +612,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Order auto-numbering: configurable prefix/padding in Config, `GET /api/orders/next-number` endpoint
 - Order creation: customer dropdown + ship-to address picker, auto-fill from default ship-to or billing address
 - Multi-photo drag-and-drop fix on PictureGrid (inventory detail panel)
+- Etsy taxonomy cache: local SQLite cache of Etsy seller taxonomy (category tree) and per-category attributes, Config UI sync button, on-demand property fetch
 
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint

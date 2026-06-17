@@ -205,6 +205,9 @@ export default function ConfigPage() {
   const [apiUsageLoading, setApiUsageLoading] = useState(false);
   const [purgeUsageConfirm, setPurgeUsageConfirm] = useState(false);
   const [extraSettingsLoading, setExtraSettingsLoading] = useState(false);
+  const [taxonomySyncing, setTaxonomySyncing] = useState(false);
+  const [taxonomyLastSync, setTaxonomyLastSync] = useState<string | null>(null);
+  const [taxonomyNodeCount, setTaxonomyNodeCount] = useState(0);
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<Map<string, string>>(new Map());
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
@@ -804,6 +807,64 @@ export default function ConfigPage() {
         ? `${cleaned.split(",").length} categories available for inventory items.`
         : "Store categories cleared."
     );
+  };
+
+  const loadTaxonomyStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/etsy-taxonomy/sync", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        lastSyncAt?: string | null;
+        nodeCount?: number;
+      };
+      if (res.ok) {
+        setTaxonomyLastSync(data.lastSyncAt ?? null);
+        setTaxonomyNodeCount(data.nodeCount ?? 0);
+      }
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTaxonomyStatus();
+  }, [loadTaxonomyStatus]);
+
+  const syncTaxonomy = async () => {
+    setTaxonomySyncing(true);
+    try {
+      const res = await fetch("/api/etsy-taxonomy/sync", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        nodesInserted?: number;
+        lastSyncAt?: string;
+        error?: { user_message?: string };
+      };
+      if (!res.ok) {
+        throw data;
+      }
+      setTaxonomyLastSync(data.lastSyncAt ?? null);
+      setTaxonomyNodeCount(data.nodesInserted ?? 0);
+      setError({
+        title: "Etsy categories synced",
+        message: `Loaded ${data.nodesInserted?.toLocaleString() ?? 0} categories from Etsy.`,
+        actions: [
+          "Categories are now available when creating listings.",
+        ],
+      });
+    } catch (err) {
+      setApiError(
+        "Category sync failed",
+        "Could not sync Etsy categories.",
+        err
+      );
+    } finally {
+      setTaxonomySyncing(false);
+    }
   };
 
   useEffect(() => {
@@ -1820,6 +1881,39 @@ export default function ConfigPage() {
               className="mt-3"
             >
               Save store categories
+            </Button>
+          </div>
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">
+              Etsy categories &amp; attributes
+            </h4>
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Load Etsy&apos;s category taxonomy and per-category attributes for use in listing creation.
+              Attributes are fetched on demand when you select a category in the listing workshop.
+            </p>
+            {taxonomyLastSync ? (
+              <div className="mb-3 space-y-1 text-xs text-[var(--ui-body)]">
+                <p>
+                  <span className="font-medium text-[var(--ui-title)]">Last sync:</span>{" "}
+                  {new Date(taxonomyLastSync).toLocaleString()}
+                </p>
+                <p>
+                  <span className="font-medium text-[var(--ui-title)]">Categories loaded:</span>{" "}
+                  {taxonomyNodeCount.toLocaleString()}
+                </p>
+              </div>
+            ) : (
+              <p className="mb-3 text-xs text-[var(--ui-yellow)]">
+                Categories have not been synced yet. Click the button below to load them from Etsy.
+              </p>
+            )}
+            <Button
+              variant="accent"
+              size="lg"
+              busy={taxonomySyncing}
+              onClick={() => void syncTaxonomy()}
+            >
+              {taxonomyLastSync ? "Refresh Etsy categories" : "Load Etsy categories"}
             </Button>
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">

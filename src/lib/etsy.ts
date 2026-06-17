@@ -401,6 +401,66 @@ export async function createDraftListing(
   throw new EtsyApiError(`/shops/${params.shopId}/listings`, 429, "Rate limit exceeded after retries", null);
 }
 
+/**
+ * PUT /v3/application/shops/{shop_id}/listings/{listing_id}/properties/{property_id}
+ * Sets a single property (attribute) value on a published listing.
+ * For properties with fixed values: pass value_ids + values.
+ * For free-text properties: pass empty value_ids and the text value in values.
+ */
+export async function updateListingProperty(
+  accessToken: string,
+  params: {
+    shopId: number;
+    listingId: number;
+    propertyId: number;
+    valueIds: number[];
+    values: string[];
+    scaleId?: number;
+  }
+): Promise<{ property_id: number; values: string[] }> {
+  assertBearerFormat(accessToken);
+  const form = new URLSearchParams();
+  for (const vid of params.valueIds) {
+    form.append("value_ids[]", String(vid));
+  }
+  if (params.valueIds.length === 0) {
+    form.append("value_ids[]", "");
+  }
+  for (const v of params.values) {
+    form.append("values[]", v);
+  }
+  if (params.scaleId != null) {
+    form.set("scale_id", String(params.scaleId));
+  }
+
+  const endpoint = `/shops/${params.shopId}/listings/${params.listingId}/properties/${params.propertyId}`;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${ETSY_API_BASE}${endpoint}`, {
+      method: "PUT",
+      headers: {
+        "x-api-key": getApiKeyHeader(),
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": FORM_URLENCODED_UTF8,
+      },
+      body: form,
+    });
+    trackRateLimitHeaders(res.headers);
+    logApiCall("etsy", endpoint, res.status);
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+      await sleep(exponentialBackoff(attempt, retryAfter));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new EtsyApiError(endpoint, res.status, text, res.headers.get("Retry-After"));
+    }
+    return (await res.json()) as { property_id: number; values: string[] };
+  }
+  throw new EtsyApiError(endpoint, 429, "Rate limit exceeded after retries", null);
+}
+
 async function toUploadBlob(reference: string): Promise<{ blob: Blob; filename: string }> {
   if (/^https?:\/\//i.test(reference)) {
     const res = await fetch(reference);
@@ -758,4 +818,110 @@ export async function getShopReceipts(
   if (opts?.max_created) params.set("max_created", String(opts.max_created));
   const q = params.toString();
   return etsyApi<ShopReceiptsResponse>(`/shops/${shopId}/receipts${q ? `?${q}` : ""}`, accessToken);
+}
+
+// ---------------------------------------------------------------------------
+// Etsy Taxonomy (application-level, no OAuth token required)
+// ---------------------------------------------------------------------------
+
+export type EtsyTaxonomyNode = {
+  id: number;
+  level: number;
+  name: string;
+  parent_id: number | null;
+  children: EtsyTaxonomyNode[];
+  full_path_taxonomy_ids: number[];
+};
+
+export type EtsyTaxonomyNodesResponse = {
+  count: number;
+  results: EtsyTaxonomyNode[];
+};
+
+export type EtsyPropertyValue = {
+  value_id: number | null;
+  name: string;
+  scale_id: number | null;
+  equal_to: number[];
+};
+
+export type EtsyPropertyScale = {
+  scale_id: number;
+  display_name: string;
+  description: string;
+};
+
+export type EtsyTaxonomyProperty = {
+  property_id: number;
+  name: string;
+  display_name: string;
+  scales: EtsyPropertyScale[];
+  is_required: boolean;
+  supports_attributes: boolean;
+  supports_variations: boolean;
+  possible_values: EtsyPropertyValue[];
+};
+
+export type EtsyTaxonomyPropertiesResponse = {
+  count: number;
+  results: EtsyTaxonomyProperty[];
+};
+
+/**
+ * Application-level Etsy API call — uses only the API key, no OAuth Bearer token.
+ * Taxonomy endpoints are public and don't require user auth.
+ */
+async function etsyAppApi<T>(apiPath: string): Promise<T> {
+  const timeout = Number(process.env.ETSY_API_TIMEOUT_MS) || 30_000;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const res = await fetch(`${ETSY_API_BASE}${apiPath}`, {
+        signal: controller.signal,
+        headers: {
+          "x-api-key": getApiKeyHeader(),
+        },
+      });
+
+      trackRateLimitHeaders(res.headers);
+      logApiCall("etsy", apiPath, res.status);
+
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10) || null;
+        const waitMs = exponentialBackoff(attempt, retryAfter);
+        await sleep(waitMs);
+        continue;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new EtsyApiError(apiPath, res.status, text, res.headers.get("Retry-After"));
+      }
+      return res.json() as Promise<T>;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw new EtsyApiError(apiPath, 429, "Rate limit exceeded after retries", null);
+}
+
+/**
+ * GET /v3/application/seller-taxonomy/nodes — full taxonomy tree.
+ */
+export async function fetchTaxonomyNodes(): Promise<EtsyTaxonomyNodesResponse> {
+  return etsyAppApi<EtsyTaxonomyNodesResponse>("/seller-taxonomy/nodes");
+}
+
+/**
+ * GET /v3/application/seller-taxonomy/nodes/:taxonomy_id/properties — per-category properties.
+ */
+export async function fetchTaxonomyProperties(
+  taxonomyId: number
+): Promise<EtsyTaxonomyPropertiesResponse> {
+  return etsyAppApi<EtsyTaxonomyPropertiesResponse>(
+    `/seller-taxonomy/nodes/${taxonomyId}/properties`
+  );
 }

@@ -30,6 +30,11 @@ Rules:
 - If the image is not a receipt, return: { "error": "This does not appear to be a receipt." }
 - Never guess or fabricate data. Use null for anything you cannot read clearly.`;
 
+const IMAGE_MIMES: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+  webp: "image/webp", gif: "image/gif", heic: "image/heic", heif: "image/heif",
+};
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -52,8 +57,7 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name?.split(".").pop()?.toLowerCase() ?? "jpg";
-    const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", heic: "image/heic", heif: "image/heif" };
-    const mime = mimeMap[ext] ?? "image/jpeg";
+    const mime = IMAGE_MIMES[ext] ?? "image/jpeg";
     const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
 
     const openai = new OpenAI({

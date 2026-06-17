@@ -318,6 +318,8 @@ Persistent audit trail. Source: ADR-037.
 | `listing_imports`          | Portable AI import audit                                                           | ADR-023    |
 | `listing_publish_previews` | Pre-publish payload snapshots                                                      | ADR-023    |
 | `report_artifacts`         | Generated report metadata (`report_name`, `report_params_json`, paths)             | ADR-013    |
+| `etsy_taxonomy_nodes`      | Cached Etsy seller taxonomy (category tree)                                        | ADR-017    |
+| `etsy_taxonomy_properties` | Cached Etsy per-category attributes/properties                                     | ADR-017    |
 | `schema_migrations`        | Applied migration versions                                                         | migrations |
 
 ---
@@ -704,6 +706,30 @@ CREATE TABLE settings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- etsy_taxonomy_nodes — cached Etsy seller taxonomy (category tree)
+CREATE TABLE etsy_taxonomy_nodes (
+  id INTEGER PRIMARY KEY,
+  parent_id INTEGER,
+  name TEXT NOT NULL,
+  full_path TEXT,
+  level INTEGER NOT NULL DEFAULT 0
+);
+
+-- etsy_taxonomy_properties — cached Etsy per-category attributes
+CREATE TABLE etsy_taxonomy_properties (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  taxonomy_id INTEGER NOT NULL,
+  property_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  display_name TEXT,
+  is_required INTEGER NOT NULL DEFAULT 0,
+  supports_attributes INTEGER NOT NULL DEFAULT 0,
+  supports_variations INTEGER NOT NULL DEFAULT 0,
+  possible_values_json TEXT,
+  scales_json TEXT,
+  UNIQUE(taxonomy_id, property_id)
+);
+
 -- 7. schema_migrations
 CREATE TABLE schema_migrations (
   version TEXT PRIMARY KEY,
@@ -734,6 +760,8 @@ CREATE INDEX idx_listing_publish_previews_inventory_id ON listing_publish_previe
 CREATE INDEX idx_activity_log_created_at ON activity_log(created_at);
 CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
+CREATE INDEX idx_etsy_taxonomy_nodes_parent ON etsy_taxonomy_nodes(parent_id);
+CREATE INDEX idx_etsy_taxonomy_properties_taxonomy ON etsy_taxonomy_properties(taxonomy_id);
 ```
 
 ---

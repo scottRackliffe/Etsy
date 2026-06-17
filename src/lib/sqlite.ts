@@ -428,6 +428,32 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS etsy_taxonomy_nodes (
+      id INTEGER PRIMARY KEY,
+      parent_id INTEGER,
+      name TEXT NOT NULL,
+      full_path TEXT,
+      level INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS etsy_taxonomy_properties (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      taxonomy_id INTEGER NOT NULL,
+      property_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      display_name TEXT,
+      is_required INTEGER NOT NULL DEFAULT 0,
+      supports_attributes INTEGER NOT NULL DEFAULT 0,
+      supports_variations INTEGER NOT NULL DEFAULT 0,
+      possible_values_json TEXT,
+      scales_json TEXT,
+      UNIQUE(taxonomy_id, property_id)
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -438,6 +464,7 @@ function ensureCoreTables(db: Database.Database): void {
   ensureTableColumns(db, "orders", ORDERS_RECONCILIATION_COLUMNS);
   ensureTableColumns(db, "customers", CUSTOMERS_RECONCILIATION_COLUMNS);
   ensureTableColumns(db, "purchases", { receipt_image: "TEXT" });
+  ensureTableColumns(db, "inventory", { etsy_attributes_json: "TEXT" });
 
   // Indexes
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory(status);");
@@ -478,6 +505,12 @@ function ensureCoreTables(db: Database.Database): void {
   );
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_connection_sessions_service ON connection_sessions(service, started_at);"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_etsy_taxonomy_nodes_parent ON etsy_taxonomy_nodes(parent_id);"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_etsy_taxonomy_properties_taxonomy ON etsy_taxonomy_properties(taxonomy_id);"
   );
 }
 

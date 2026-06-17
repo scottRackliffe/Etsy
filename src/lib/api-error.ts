@@ -29,7 +29,9 @@ export type ApiErrorCode =
   | "ADDRESS_INVALID"
   | "INSUFFICIENT_FUNDS"
   | "LABEL_ALREADY_PURCHASED"
-  | "VIDEO_GENERATION_FAILED";
+  | "VIDEO_GENERATION_FAILED"
+  | "TAXONOMY_SYNC_FAILED"
+  | "TAXONOMY_PROPERTIES_FAILED";
 
 export type ApiErrorPayload = {
   ok: false;

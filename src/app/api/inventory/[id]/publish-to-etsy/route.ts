@@ -12,9 +12,11 @@ import { getLatestPublishPreview } from "@/lib/listing-review";
 import {
   createDraftListing,
   updateListingDetails,
+  updateListingProperty,
   updateListingState,
   uploadListingImageFromReference,
 } from "@/lib/etsy";
+import { getTaxonomyProperties } from "@/lib/etsy-taxonomy";
 
 function parseNumberSetting(key: string): number | null {
   const raw = getSetting(key);
@@ -341,6 +343,57 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    // Push structured taxonomy attributes to Etsy
+    let attributesPushed = 0;
+    const attributeErrors: string[] = [];
+    if (item.etsy_attributes_json) {
+      try {
+        const attrs = JSON.parse(item.etsy_attributes_json) as Record<string, string>;
+        const cachedProps = getTaxonomyProperties(resolvedTaxonomyId);
+
+        for (const [propIdStr, valueName] of Object.entries(attrs)) {
+          if (!valueName || !valueName.trim()) continue;
+          const propertyId = Number(propIdStr);
+          if (!Number.isFinite(propertyId)) continue;
+
+          const cachedProp = cachedProps.find((p) => p.property_id === propertyId);
+          let valueIds: number[] = [];
+          if (cachedProp) {
+            try {
+              const possibleValues = JSON.parse(cachedProp.possible_values_json || "[]") as Array<{
+                value_id: number | null;
+                name: string;
+              }>;
+              const match = possibleValues.find(
+                (pv) => pv.name.toLowerCase() === valueName.trim().toLowerCase()
+              );
+              if (match?.value_id != null) {
+                valueIds = [match.value_id];
+              }
+            } catch {
+              // Fall through — empty value_ids will let Etsy auto-assign
+            }
+          }
+
+          try {
+            await updateListingProperty(token, {
+              shopId: resolvedShopId,
+              listingId: etsyListing.listing_id,
+              propertyId,
+              valueIds,
+              values: [valueName.trim()],
+            });
+            attributesPushed++;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            attributeErrors.push(`Property ${propertyId}: ${msg}`);
+          }
+        }
+      } catch {
+        attributeErrors.push("Could not parse etsy_attributes_json");
+      }
+    }
+
     const isDeveloperMode = parseBooleanSetting("etsy.developer_mode", false);
     if (uploadedImageCount > 0 || imageIds.length > 0) {
       await updateListingDetails(token, {
@@ -424,9 +477,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         uploaded_image_count: uploadedImageCount,
         failed_upload_count: failedUploads.length,
         failed_uploads: failedUploads,
+        attributes_pushed: attributesPushed,
+        attribute_errors: attributeErrors,
         staged_steps: {
           draft_create: true,
           image_uploads: failedUploads.length === 0,
+          attributes_set: attributeErrors.length === 0,
           listing_text_update: true,
           listing_activate: !isDeveloperMode,
         },

@@ -69,6 +69,7 @@ function SalesPageInner() {
   const debouncedOrderSearch = useDebouncedValue(orderSearch, 300);
   useListSearchFromUrl(setOrderSearch, () => setPage(0));
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
+  const [statusFilter, setStatusFilter] = useState<string | null>("active");
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [shippingFilter, setShippingFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -150,11 +151,12 @@ function SalesPageInner() {
   const orderBatchFilter = useMemo(
     () => ({
       search: debouncedOrderSearch.trim() || undefined,
+      order_status: statusFilter ?? undefined,
       payment_status: paymentFilter ?? undefined,
       shipping_status: shippingFilter ?? undefined,
       source_channel: sourceFilter ?? undefined,
     }),
-    [debouncedOrderSearch, paymentFilter, shippingFilter, sourceFilter]
+    [debouncedOrderSearch, statusFilter, paymentFilter, shippingFilter, sourceFilter]
   );
 
   const buildOrderBatchBody = useCallback(
@@ -263,6 +265,7 @@ function SalesPageInner() {
         offset: String(offset),
       });
       if (q.trim()) params.set("search", q.trim());
+      if (statusFilter) params.set("order_status", statusFilter);
       if (paymentFilter) params.set("payment_status", paymentFilter);
       if (shippingFilter) params.set("shipping_status", shippingFilter);
       if (sourceFilter) params.set("source_channel", sourceFilter);
@@ -290,6 +293,7 @@ function SalesPageInner() {
       debouncedOrderSearch,
       pageSize,
       offset,
+      statusFilter,
       paymentFilter,
       shippingFilter,
       sourceFilter,
@@ -840,6 +844,19 @@ function SalesPageInner() {
           </div>
           <div className="mb-3 space-y-2">
             <FilterChipRow
+              label="Status"
+              value={statusFilter}
+              onChange={(value) => {
+                setPage(0);
+                setStatusFilter(value);
+              }}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "void", label: "Void" },
+                { value: "cancelled", label: "Cancelled" },
+              ]}
+            />
+            <FilterChipRow
               label="Payment"
               value={paymentFilter}
               onChange={(value) => {
@@ -922,12 +939,12 @@ function SalesPageInner() {
       {listTotal === 0 ? (
         <EmptyState
           message={
-            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+            orderSearch.trim() || (statusFilter && statusFilter !== "active") || paymentFilter || shippingFilter || sourceFilter
               ? "No orders match your filters."
               : "No orders yet. Sync from Etsy or create your first manual order."
           }
           primaryAction={
-            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+            orderSearch.trim() || (statusFilter && statusFilter !== "active") || paymentFilter || shippingFilter || sourceFilter
               ? {
                   label: "Clear filters",
                   onClick: () => {
@@ -941,7 +958,7 @@ function SalesPageInner() {
               : { label: "Create a manual order", onClick: () => createOrderRef.current?.focus() }
           }
           secondaryAction={
-            orderSearch.trim() || paymentFilter || shippingFilter || sourceFilter
+            orderSearch.trim() || (statusFilter && statusFilter !== "active") || paymentFilter || shippingFilter || sourceFilter
               ? undefined
               : shops.length > 0
                 ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }

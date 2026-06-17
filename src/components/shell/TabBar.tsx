@@ -8,6 +8,7 @@ const TABS: Array<{ id: string; label: string; href: string }> = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard" },
   { id: "sales", label: "Sales", href: "/sales" },
   { id: "inventory", label: "Inventory", href: "/inventory" },
+  { id: "receipts", label: "Receipts", href: "/receipts" },
   { id: "customers", label: "Customers", href: "/customers" },
   { id: "reports", label: "Reports", href: "/reports" },
   { id: "outstanding", label: "Outstanding", href: "/outstanding" },

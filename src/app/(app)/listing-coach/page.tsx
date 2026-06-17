@@ -26,6 +26,8 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/hooks/useToast";
 import { createUiError } from "@/lib/ui-error";
 import { computeListingScore, type ListingScoreResult } from "@/lib/listing-score";
+import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
+import TaxonomyAttributesPanel from "@/components/etsy/TaxonomyAttributesPanel";
 import type { AiConfig, ApiErrorShape, UiError } from "@/types";
 
 const ITEM_PHOTO_GUIDANCE: SlotGuidance[] = SHOT_SLOT_ORDER.map((type) => ({
@@ -210,6 +212,7 @@ export default function ListingCoachPage() {
   const [listingProductStory, setListingProductStory] = useState("");
   const [listingConditionClarity, setListingConditionClarity] = useState("");
   const [listingAttributes, setListingAttributes] = useState("");
+  const [taxonomyAttributes, setTaxonomyAttributes] = useState<Record<string, string>>({});
   const [listingPricingShippingNotes, setListingPricingShippingNotes] = useState("");
   const [listingQualityChecklist, setListingQualityChecklist] = useState("");
 
@@ -378,6 +381,7 @@ export default function ListingCoachPage() {
     setListingProductStory("");
     setListingConditionClarity("");
     setListingAttributes("");
+    setTaxonomyAttributes({});
     setListingPricingShippingNotes("");
     setListingQualityChecklist("");
     setVideoGenerating(false);
@@ -644,6 +648,8 @@ export default function ListingCoachPage() {
 
       if (etsyWhenMade) formData.append("etsy_when_made", etsyWhenMade);
       if (etsyTaxonomyId) formData.append("etsy_taxonomy_id", String(etsyTaxonomyId));
+      const hasAttrs = Object.keys(taxonomyAttributes).some((k) => taxonomyAttributes[k]);
+      if (hasAttrs) formData.append("etsy_attributes_json", JSON.stringify(taxonomyAttributes));
       if (materialsText.trim()) {
         formData.append(
           "materials",
@@ -723,7 +729,7 @@ export default function ListingCoachPage() {
       }
 
       toast.showToast("Listing saved to inventory.", "success");
-      router.push(`/inventory?itemId=${data.item_id}&openWorkshop=1`);
+      router.push(`/inventory?itemId=${data.item_id}`);
     } catch {
       setError(
         createUiError({
@@ -846,7 +852,12 @@ export default function ListingCoachPage() {
         <div className="space-y-6">
           {/* Section 1: Where I Bought This (receipt first) */}
           <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-4">
-            <p className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this (optional)</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-[var(--ui-title)]">Where I bought this</p>
+              <span className="rounded-full border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--ui-muted)]">
+                Optional — scroll down to skip
+              </span>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="relative block text-sm text-[var(--ui-body)]">
                 <span className="block mb-1">Vendor / source</span>
@@ -1428,14 +1439,27 @@ export default function ListingCoachPage() {
 
             <label className="block text-sm text-[var(--ui-body)]">
               Etsy category
-              <input value={listingCategoryPath} onChange={(e) => setListingCategoryPath(e.target.value)} className={inputClass} placeholder='e.g. Home & Living > Kitchen & Dining > Dinnerware' />
+              <TaxonomyCategoryPicker
+                value={etsyTaxonomyId}
+                valuePath={listingCategoryPath || undefined}
+                onChange={(id, fullPath) => {
+                  setEtsyTaxonomyId(id);
+                  setListingCategoryPath(fullPath);
+                  setTaxonomyAttributes({});
+                }}
+                className="mt-1"
+              />
               {researchResult?.suggested_taxonomy_path && !listingCategoryPath ? (
                 <Button variant="ghost" size="sm" onClick={() => setListingCategoryPath(researchResult.suggested_taxonomy_path!)} className="mt-1">
                   Use AI suggestion: {researchResult.suggested_taxonomy_path}
                 </Button>
               ) : null}
             </label>
-            <input type="hidden" value={etsyTaxonomyId ?? ""} />
+            <TaxonomyAttributesPanel
+              taxonomyId={etsyTaxonomyId}
+              values={taxonomyAttributes}
+              onChange={setTaxonomyAttributes}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-[var(--ui-body)]">

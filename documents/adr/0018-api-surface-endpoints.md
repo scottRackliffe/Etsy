@@ -1401,3 +1401,14 @@ Rate shopping, label purchase, refund, address validation, and batch operations 
 | POST   | `/api/shipping/batch-buy`                | App  | Batch label purchase for multiple orders | Body: `{ order_ids, rate_preference, weight_oz?, length_in?, width_in?, height_in? }` | 200: `{ ok, total, succeeded, failed, results: [{ order_id, success, tracking_number?, rate_cents?, error? }] }` |
 
 Error codes: `SHIPPING_NOT_CONFIGURED` (400), `ADDRESS_INVALID` (422), `INSUFFICIENT_FUNDS` (402), `LABEL_ALREADY_PURCHASED` (409), `RATE_LIMIT` (429). Full error catalog: ADR-074 §9. Full request/response shapes: **Appendix B §B30**.
+
+**§31. Etsy Taxonomy Cache**
+
+Local cache of Etsy's seller taxonomy (category tree) and per-category properties/attributes. Data is fetched from the Etsy Open API v3 application-level endpoints (no OAuth required, only API key). Stored in `etsy_taxonomy_nodes` and `etsy_taxonomy_properties` tables (ADR-017).
+
+| Method | Path                                                | Auth | Purpose                                        | Request / response                                                                                                         |
+| ------ | --------------------------------------------------- | ---- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/etsy-taxonomy/sync`                           | App  | Full sync of taxonomy nodes from Etsy          | No body. 200: `{ ok, nodesInserted, durationMs, lastSyncAt }`. Replaces all existing nodes.                               |
+| GET    | `/api/etsy-taxonomy/sync`                           | App  | Get taxonomy sync status                       | 200: `{ ok, lastSyncAt, nodeCount }`                                                                                       |
+| GET    | `/api/etsy-taxonomy/nodes`                          | App  | List taxonomy nodes                            | Query: `parent_id` (optional, root if omitted), `q` (optional search). 200: `{ ok, items: TaxonomyNode[] }`               |
+| GET    | `/api/etsy-taxonomy/nodes/[id]/properties`          | App  | Get properties for a taxonomy node             | Path param: `id`. Properties are fetched from Etsy on-demand if not cached. 200: `{ ok, items: TaxonomyProperty[], node }` |
