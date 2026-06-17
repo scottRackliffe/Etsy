@@ -7,7 +7,8 @@ VALUES
   ('etsy.oauth.verifier', '', datetime('now')),
   ('etsy.oauth.access_token_encrypted', '', datetime('now')),
   ('etsy.oauth.refresh_token_encrypted', '', datetime('now')),
-  ('app.session.current_user_id', 'local-admin', datetime('now'));
+  ('app.session.current_user_id', 'local-admin', datetime('now')),
+  ('app.version', '1.0', datetime('now'));
 
 INSERT OR IGNORE INTO inventory(
   item_number, description, purchase_cost, shipping_cost, status, quantity, category_tags, created_at, updated_at

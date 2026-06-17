@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
 import { ProgressModal } from "@/components/ui/ProgressModal";
+import { ChartOfAccountsSection } from "@/components/config/ChartOfAccountsSection";
 import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape, AiConfig } from "@/types";
@@ -1744,6 +1745,9 @@ export default function ConfigPage() {
               Save tax settings
             </Button>
           </div>
+
+          <ChartOfAccountsSection />
+
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Item numbering</h4>
             <p className="mb-3 text-xs text-[var(--ui-muted)]">

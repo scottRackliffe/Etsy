@@ -55,6 +55,7 @@ type DraftFields = {
   seller_shipping_cost: string;
   tax_total: string;
   discount_total: string;
+  discount_reason: string;
   shipper: string;
   shipping_date: string;
   tracking_number: string;
@@ -75,6 +76,7 @@ function orderToDraft(order: Order): DraftFields {
     seller_shipping_cost: String(order.seller_shipping_cost ?? ""),
     tax_total: String(order.tax_total ?? ""),
     discount_total: String(order.discount_total ?? ""),
+    discount_reason: (order as Record<string, unknown>).discount_reason as string ?? "",
     shipper: order.shipper ?? "",
     shipping_date: order.shipping_date ?? "",
     tracking_number: order.tracking_number ?? "",
@@ -141,6 +143,9 @@ export function OrderDetailPanel({
   } | null>(null);
   const [recoveryApplied, setRecoveryApplied] = useState(false);
   const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
+  const [discountReasons, setDiscountReasons] = useState<string[]>([]);
+  const [addingNewReason, setAddingNewReason] = useState(false);
+  const [newReasonText, setNewReasonText] = useState("");
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [voidLabelConfirm, setVoidLabelConfirm] = useState(false);
   const router = useRouter();
@@ -190,6 +195,16 @@ export function OrderDetailPanel({
           const rate = parseFloat(data.value);
           if (Number.isFinite(rate) && rate > 0) setDefaultTaxRate(rate);
         }
+      } catch { /* optional */ }
+    })();
+    (async () => {
+      try {
+        const res = await fetch("/api/orders/discount-reasons", {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { reasons: string[] };
+        if (!cancelled && data.reasons) setDiscountReasons(data.reasons);
       } catch { /* optional */ }
     })();
     return () => { cancelled = true; };
@@ -399,6 +414,7 @@ export function OrderDetailPanel({
           : null,
         tax_total: draft.tax_total.trim() ? Number(draft.tax_total) : null,
         discount_total: draft.discount_total.trim() ? Number(draft.discount_total) : null,
+        discount_reason: draft.discount_reason.trim() || null,
         shipper: draft.shipper.trim() || null,
         shipping_date: draft.shipping_date.trim() || null,
         tracking_number: draft.tracking_number.trim() || null,
@@ -765,6 +781,71 @@ export function OrderDetailPanel({
             )}
           </div>
           {field("discount_total", "Discount", "text", "Discount applied to this order.")}
+          <FormField label="Discount Reason" helpText="Why this discount was given.">
+            {addingNewReason ? (
+              <div className="flex gap-1">
+                <input
+                  value={newReasonText}
+                  onChange={(e) => setNewReasonText(e.target.value)}
+                  placeholder="Enter new reason..."
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newReasonText.trim()) {
+                      const reason = newReasonText.trim();
+                      if (!discountReasons.includes(reason)) {
+                        setDiscountReasons((prev) => [...prev, reason].sort());
+                      }
+                      setDraft((c) => (c ? { ...c, discount_reason: reason } : c));
+                      setNewReasonText("");
+                      setAddingNewReason(false);
+                    } else if (e.key === "Escape") {
+                      setNewReasonText("");
+                      setAddingNewReason(false);
+                    }
+                  }}
+                />
+                <Button
+                  variant="accent"
+                  size="sm"
+                  disabled={!newReasonText.trim()}
+                  onClick={() => {
+                    const reason = newReasonText.trim();
+                    if (reason && !discountReasons.includes(reason)) {
+                      setDiscountReasons((prev) => [...prev, reason].sort());
+                    }
+                    if (reason) setDraft((c) => (c ? { ...c, discount_reason: reason } : c));
+                    setNewReasonText("");
+                    setAddingNewReason(false);
+                  }}
+                >
+                  Add
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { setNewReasonText(""); setAddingNewReason(false); }}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <select
+                value={draft?.discount_reason ?? ""}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setAddingNewReason(true);
+                  } else {
+                    setDraft((c) => (c ? { ...c, discount_reason: e.target.value } : c));
+                  }
+                }}
+                disabled={busy || saving || isVoid}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] disabled:opacity-50"
+              >
+                <option value="">— None —</option>
+                {discountReasons.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+                <option value="__new__">+ Add new reason...</option>
+              </select>
+            )}
+          </FormField>
         </div>
       </section>
 

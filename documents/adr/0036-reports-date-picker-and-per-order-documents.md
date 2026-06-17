@@ -172,6 +172,9 @@ Replace kebab-case report names with user-friendly labels in the dropdown:
 | `postal-by-vendor`  | Postal Costs by Carrier   |
 | `outstanding-items` | Outstanding Items         |
 | `ar-aging`          | Accounts Receivable Aging |
+| `accounting-export` | Accounting Export         |
+
+> **Note (2026-06-17):** `income-mtd`, `income-ytd`, and `postal-by-vendor` have been removed (redundant with enhanced Sales and Costs reports). `accounting-export` added with full double-entry bookkeeping and GAAP account numbers (ADR-056).
 
 ## Consequences
 

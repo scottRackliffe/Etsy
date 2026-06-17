@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trudy's Classic Treasures | Sales Manager",
+  title: "AiCE™ — The AI-Powered eCommerce Engine",
   description: "Manage your vintage shop orders, inventory, and sales",
   icons: {
     icon: [

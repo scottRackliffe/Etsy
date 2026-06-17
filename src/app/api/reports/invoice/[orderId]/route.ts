@@ -1,13 +1,10 @@
-import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { buildSingleOrderInvoice } from "@/lib/reporting";
 import { reportResponse, resolveReportFormat } from "@/lib/report-http";
 
 export async function GET(_request: Request, context: { params: Promise<{ orderId: string }> }) {
   try {
-    requireEtsyAccessToken(await cookies());
     const orderId = parsePositiveInt((await context.params).orderId);
     if (!orderId) {
       throw new ApiRouteError({

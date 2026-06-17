@@ -3,7 +3,6 @@ import { getOrder } from "@/lib/records";
 import {
   buildSingleOrderInvoice,
   buildSingleOrderThankYou,
-  renderReportContent,
   type ReportResult,
 } from "@/lib/reporting";
 import type { PrintQueueDocType } from "@/lib/print-queue";
@@ -137,6 +136,36 @@ export function validatePrintQueueItems(items: PrintQueueRequestItem[]): string[
   return failures;
 }
 
+function renderReportToPdf(
+  doc: InstanceType<typeof PDFDocument>,
+  report: ReportResult
+): void {
+  doc.fontSize(18).text(`${report.report_name}`, { underline: true });
+  doc.moveDown(0.5);
+  doc.fontSize(11).text(`Generated: ${report.generated_at}`);
+  doc.moveDown(0.5);
+  doc.fontSize(11).text(report.summary);
+  doc.moveDown();
+  for (const [metric, value] of Object.entries(report.metrics)) {
+    doc.fontSize(11).text(`${metric}: ${value}`);
+  }
+  for (const section of report.sections) {
+    doc.moveDown();
+    doc.fontSize(13).text(section.title);
+    doc.moveDown(0.4);
+    if (section.rows.length === 0) {
+      doc.fontSize(10).text("No rows.");
+      continue;
+    }
+    for (const row of section.rows.slice(0, 100)) {
+      const line = Object.entries(row)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(" | ");
+      doc.fontSize(10).text(line);
+    }
+  }
+}
+
 function resolveReportForItem(item: PrintQueueRequestItem): ReportResult | null {
   if (item.type === "invoice") return buildSingleOrderInvoice(item.orderId);
   if (item.type === "thank-you") return buildSingleOrderThankYou(item.orderId);
@@ -149,7 +178,7 @@ export async function buildPrintQueuePdf(items: PrintQueueRequestItem[]): Promis
       autoFirstPage: false,
       info: {
         Title: "Print queue",
-        Author: "Sales Manager",
+        Author: "AiCE",
       },
     });
     const chunks: Buffer[] = [];
@@ -178,7 +207,7 @@ export async function buildPrintQueuePdf(items: PrintQueueRequestItem[]): Promis
       } else {
         const report = resolveReportForItem(item);
         if (report) {
-          renderReportContent(doc, report);
+          renderReportToPdf(doc, report);
         }
       }
     }

@@ -413,6 +413,41 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 
 ---
 
+### 6b. Table: `chart_of_accounts`
+
+GAAP chart of accounts for accounting export (ADR-056).
+
+| Column         | Type    | Constraints               | Source / notes                                          |
+| -------------- | ------- | ------------------------- | ------------------------------------------------------- |
+| id             | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                          |
+| acct_number    | TEXT    | NOT NULL, UNIQUE          | GAAP account number (e.g. `1000`).                      |
+| account_name   | TEXT    | NOT NULL                  | Human-readable name (e.g. `Cash`).                      |
+| account_type   | TEXT    | NOT NULL                  | Asset, Liability, Equity, Revenue, Contra-Revenue, COGS, Expense. |
+| normal_balance | TEXT    | NOT NULL                  | `debit` or `credit`.                                    |
+| description    | TEXT    |                           | Optional explanation.                                   |
+| is_active      | INTEGER | NOT NULL DEFAULT 1        | 1 = active, 0 = inactive.                               |
+| created_at     | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                     |
+| updated_at     | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                     |
+
+### 6c. Table: `gl_transaction_rules`
+
+GL transaction rules mapping transaction types to debit/credit accounts (ADR-056).
+
+| Column           | Type    | Constraints               | Source / notes                                          |
+| ---------------- | ------- | ------------------------- | ------------------------------------------------------- |
+| id               | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                          |
+| transaction_type | TEXT    | NOT NULL                  | e.g. `Sale`, `Payment`, `COGS`, `Discount`.             |
+| description      | TEXT    |                           | Human-readable explanation of the entry.                |
+| debit_acct       | TEXT    | NOT NULL                  | References `chart_of_accounts.acct_number`.             |
+| credit_acct      | TEXT    | NOT NULL                  | References `chart_of_accounts.acct_number`.             |
+| source_table     | TEXT    |                           | Primary table the data comes from.                      |
+| source_column    | TEXT    |                           | Column containing the amount.                           |
+| is_active        | INTEGER | NOT NULL DEFAULT 1        | 1 = active, 0 = inactive.                               |
+| created_at       | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                     |
+| updated_at       | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                     |
+
+---
+
 ### 7. Indexes (ADR-014)
 
 Indexes are part of the initial schema. Index names are defined in the DDL below.
@@ -762,6 +797,33 @@ CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
 CREATE INDEX idx_etsy_taxonomy_nodes_parent ON etsy_taxonomy_nodes(parent_id);
 CREATE INDEX idx_etsy_taxonomy_properties_taxonomy ON etsy_taxonomy_properties(taxonomy_id);
+
+-- chart_of_accounts (ADR-056)
+CREATE TABLE chart_of_accounts (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  acct_number    TEXT    NOT NULL UNIQUE,
+  account_name   TEXT    NOT NULL,
+  account_type   TEXT    NOT NULL,
+  normal_balance TEXT    NOT NULL,
+  description    TEXT,
+  is_active      INTEGER NOT NULL DEFAULT 1,
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- gl_transaction_rules (ADR-056)
+CREATE TABLE gl_transaction_rules (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  transaction_type TEXT    NOT NULL,
+  description      TEXT,
+  debit_acct       TEXT    NOT NULL,
+  credit_acct      TEXT    NOT NULL,
+  source_table     TEXT,
+  source_column    TEXT,
+  is_active        INTEGER NOT NULL DEFAULT 1,
+  created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 ```
 
 ---

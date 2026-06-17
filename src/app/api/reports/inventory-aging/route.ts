@@ -1,5 +1,3 @@
-import { cookies } from "next/headers";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { buildReport, saveReportArtifact } from "@/lib/reporting";
 import { reportResponse, resolveReportFormat, resolveReportParams } from "@/lib/report-http";
@@ -8,7 +6,6 @@ const REPORT_NAME = "inventory-aging";
 
 export async function GET(request: Request) {
   try {
-    requireEtsyAccessToken(await cookies());
     const params = resolveReportParams(request.url);
     const report = buildReport(REPORT_NAME, params);
     const format = resolveReportFormat(request.url);
@@ -27,7 +24,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    requireEtsyAccessToken(await cookies());
     const params = resolveReportParams(request.url);
     const report = buildReport(REPORT_NAME, params);
     saveReportArtifact(REPORT_NAME, report);

@@ -163,6 +163,7 @@ export type Order = {
   shipping_total: number | null;
   tax_total: number | null;
   discount_total: number | null;
+  discount_reason: string | null;
   grand_total: number | null;
   source_channel: string | null;
   easypost_shipment_id: string | null;

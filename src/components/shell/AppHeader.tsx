@@ -25,21 +25,14 @@ export function AppHeader({ onOpenSearch }: { onOpenSearch?: () => void }) {
     <header className="sticky top-0 z-20 border-b border-[var(--ui-border)]/80 bg-[color:var(--ui-panel-bg)]/90 px-4 py-3 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2">
-            <Image
-              src={iconConfig.screenHeaderPath || "/icons/screen-header.png"}
-              alt="Screen header icon"
-              width={screenHeaderIconSize}
-              height={screenHeaderIconSize}
-              className="h-auto w-auto"
-            />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-[var(--ui-title)]">
-              Trudy&apos;s Sales Manager
-            </h1>
-            <p className="text-xs text-[var(--ui-muted)]">Modern sales console</p>
-          </div>
+          <Image
+            src={iconConfig.screenHeaderPath || "/brand/aice-dark.png"}
+            alt="AiCE"
+            width={200}
+            height={60}
+            className="h-10 w-auto object-contain"
+          />
+          <p className="text-xs text-[var(--ui-muted)]">The AI-Powered eCommerce Engine</p>
         </div>
         <div className="flex items-center gap-3">
           <NotificationCenter />

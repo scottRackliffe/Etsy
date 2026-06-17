@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import {
   buildPrintQueuePdf,
   parsePrintQueueRequestItems,
@@ -10,7 +8,6 @@ import {
 
 export async function POST(request: Request) {
   try {
-    requireEtsyAccessToken(await cookies());
     const body = await request.json().catch(() => null);
     let items;
     try {

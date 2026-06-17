@@ -143,6 +143,6 @@ This recalculation happens in the API `PATCH /api/orders/[id]` handler whenever 
 
 ## Notes
 
-- Cross-references: ADR-006 (reports scope — adds "Sales Tax Summary" to the report list), ADR-013 (report output format — PDF layout rules), ADR-017 (schema — `orders.tax_total` column, `settings` table), ADR-019 (Etsy sync — `total_tax_cost` field mapping), ADR-034 (Config — UI for tax rate setting), ADR-036 (date picker for report date range)
+- Cross-references: ADR-006 (reports scope — adds "Sales Tax Summary" to the report list), ADR-013 (report output format — PDF layout rules), ADR-017 (schema — `orders.tax_total` column, `settings` table, `tax_payments` table), ADR-019 (Etsy sync — `total_tax_cost` field mapping), ADR-034 (Config — UI for tax rate setting), ADR-036 (date picker for report date range), ADR-056 (accounting export — tax collected and tax remittance journal entries with GAAP account 2100 Sales Tax Payable)
 - Future consideration: per-state tax rate support could be added by keying rates to ship-to state, but this is out of scope for v1
 - The setting key `tax.default_rate` uses dot-notation consistent with existing settings keys (e.g., `etsy.active_shop_id`)

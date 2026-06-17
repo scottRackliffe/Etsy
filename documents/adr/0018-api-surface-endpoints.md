@@ -1428,3 +1428,22 @@ Local cache of Etsy's seller taxonomy (category tree) and per-category propertie
 | GET    | `/api/etsy-taxonomy/sync`                           | App  | Get taxonomy sync status                       | 200: `{ ok, lastSyncAt, nodeCount }`                                                                                       |
 | GET    | `/api/etsy-taxonomy/nodes`                          | App  | List taxonomy nodes                            | Query: `parent_id` (optional, root if omitted), `q` (optional search). 200: `{ ok, items: TaxonomyNode[] }`               |
 | GET    | `/api/etsy-taxonomy/nodes/[id]/properties`          | App  | Get properties for a taxonomy node             | Path param: `id`. Properties are fetched from Etsy on-demand if not cached. 200: `{ ok, items: TaxonomyProperty[], node }` |
+
+**§33. Chart of Accounts and GL Transaction Rules (ADR-056)**
+
+GAAP chart of accounts and double-entry GL transaction rules for the accounting export. Both tables are editable from Config.
+
+| Method | Path                            | Auth | Purpose                                  | Request / response                                                                                        |
+| ------ | ------------------------------- | ---- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/chart-of-accounts`        | App  | List all accounts sorted by acct_number  | 200: `{ ok, items: Account[] }`                                                                          |
+| POST   | `/api/chart-of-accounts`        | App  | Create new account                       | Body: `{ acct_number, account_name, account_type, normal_balance, description? }`. 201: created account. |
+| GET    | `/api/chart-of-accounts/[id]`   | App  | Get single account                       | 200: `{ ok, item }`. 404 if not found.                                                                  |
+| PUT    | `/api/chart-of-accounts/[id]`   | App  | Update account fields                    | Body: partial fields. 200: updated account. 409 if duplicate `acct_number`.                              |
+| DELETE | `/api/chart-of-accounts/[id]`   | App  | Soft-delete (set `is_active = 0`)        | 200: `{ ok }`. 404 if not found.                                                                         |
+| GET    | `/api/gl-transaction-rules`     | App  | List all rules with joined account names | 200: `{ ok, items: GLRule[] }`                                                                           |
+| POST   | `/api/gl-transaction-rules`     | App  | Create new rule                          | Body: `{ transaction_type, description?, debit_acct, credit_acct, source_table?, source_column? }`. 201. |
+| GET    | `/api/gl-transaction-rules/[id]`| App  | Get single rule with account names       | 200: `{ ok, item }`. 404 if not found.                                                                  |
+| PUT    | `/api/gl-transaction-rules/[id]`| App  | Update rule fields                       | Body: partial fields. 200: updated rule. Validates acct_number exists in COA.                            |
+| DELETE | `/api/gl-transaction-rules/[id]`| App  | Soft-delete (set `is_active = 0`)        | 200: `{ ok }`. 404 if not found.                                                                         |
+
+`account_type` enum: `Asset`, `Liability`, `Equity`, `Revenue`, `Contra-Revenue`, `COGS`, `Expense`. `normal_balance` enum: `debit`, `credit`.

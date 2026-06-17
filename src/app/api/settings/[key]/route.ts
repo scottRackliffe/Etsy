@@ -29,6 +29,7 @@ function isWizardExemptKey(key: string): boolean {
   return (
     key === "setup.completed" ||
     key === "business_name" ||
+    key === "app.version" ||
     key === "business_phone" ||
     key === "business_email" ||
     key.startsWith("business_address_") ||

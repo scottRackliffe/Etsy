@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
-import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { buildAccountingExportCsv } from "@/lib/reporting";
 import { resolveReportParams } from "@/lib/report-http";
 
@@ -9,7 +7,6 @@ const REPORT_NAME = "accounting-export";
 
 export async function GET(request: Request) {
   try {
-    requireEtsyAccessToken(await cookies());
     const parsed = new URL(request.url);
     const format = (parsed.searchParams.get("format") ?? "csv").toLowerCase();
     if (format !== "csv") {

@@ -52,7 +52,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Customer merge and deduplication | `documents/adr/0053-customer-merge-and-dedup.md` |
 | Inventory aging and slow-mover report | `documents/adr/0054-inventory-aging-and-slow-mover-report.md` |
 | Print queue for batch printing | `documents/adr/0055-print-queue-for-batch-printing.md` |
-| Export to accounting format | `documents/adr/0056-export-to-accounting-format.md` |
+| Export to accounting format, COA, GL rules | `documents/adr/0056-export-to-accounting-format.md` |
 | Scheduled auto-sync from Etsy | `documents/adr/0057-scheduled-auto-sync-from-etsy.md` |
 | SQLite hardening (WAL, integrity) | `documents/adr/0058-sqlite-hardening.md` |
 | Empty-state calls to action | `documents/adr/0059-empty-state-calls-to-action.md` |
@@ -163,7 +163,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-053** (Customer merge) | ADR-018 §25, 022 delete rules, 003 model, 065 `customer_notes` migration |
 | **ADR-054** (Inventory aging) | ADR-006, 013 `format=pdf|csv`, 038 slow movers |
 | **ADR-055** (Print queue) | ADR-040 batch add, 036 reports; client `localStorage` only |
-| **ADR-056** (Accounting export) | ADR-006, 013 CSV, 018 report route |
+| **ADR-056** (Accounting export) | ADR-006, 013 CSV, 017 `chart_of_accounts` + `gl_transaction_rules`, 018 §33 COA/GL APIs, 034 Config Accounting section, 038 COGS, 039 tax remittance |
 | **ADR-057** (Auto-sync) | ADR-019 sync, 025 tokens, 034 `sync.auto_interval` |
 | **ADR-058** (SQLite hardening) | ADR-012, 017, 027 backup integrity settings |
 | **ADR-059** (Empty states) | ADR-028 EmptyState, all list tabs |
@@ -354,6 +354,20 @@ id, action, entity_type, entity_id, entity_label, detail_json, source, created_a
 ```
 - `source`: `user` | `system` | `etsy_sync` (ADR-037 uses `etsy`; canonical is `etsy_sync`)
 - Retention: 365 days (configurable via `activity_log.retention_days` setting)
+
+### `chart_of_accounts` table — GAAP chart of accounts (ADR-056)
+```
+id, acct_number, account_name, account_type, normal_balance,
+description, is_active, created_at, updated_at
+```
+- `account_type`: Asset | Liability | Equity | Revenue | Contra-Revenue | COGS | Expense
+- `normal_balance`: debit | credit
+
+### `gl_transaction_rules` table — double-entry transaction rules (ADR-056)
+```
+id, transaction_type, description, debit_acct, credit_acct,
+source_table, source_column, is_active, created_at, updated_at
+```
 
 ### `report_artifacts` table — generated report metadata
 ```
@@ -560,6 +574,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - All 9 report endpoints (PDF + CSV) with date parameters + per-order invoice/thank-you
 - AI settings API with masked values and connection test
 - Global API error model + structured logging
+- Chart of Accounts + GL Transaction Rules: DB tables, CRUD API, Config UI, accounting export integration (ADR-056)
 - Migration system + seed data
 - Receipts tab: scan/upload, manual entry, expandable detail, inventory linking (pick list + create), bidirectional unlink
 - Listing fields consolidated into InventoryDetailPanel; Listing Workshop panel removed

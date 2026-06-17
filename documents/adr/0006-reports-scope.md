@@ -32,7 +32,7 @@ The following **reports** will be supported; all are backed by the database and 
 | **Profit by item**         | Per-item cost, revenue, margin, and profit for a date range.                 | `inventory` + `other_costs` + sold `order_items` / `orders.order_date`. See ADR-038, ADR-013.            |
 | **Sales tax summary**      | Tax collected by period for filing reference.                                | `orders.tax_total`, `orders.order_date`; active orders only. See ADR-039, ADR-013.                       |
 | **Inventory aging**        | Slow movers and days-in-stock / days-listed.                                 | `inventory.date_purchased`, `date_listed`, `status`. See ADR-054, ADR-013.                               |
-| **Accounting export**      | CSV journal-style export for external accounting tools.                      | `orders`, `order_items`, `inventory`, `other_costs`. See ADR-056. Primary format CSV.                    |
+| **Accounting export**      | Double-entry journal export for external accounting tools.                   | `orders`, `order_items`, `inventory`, `other_costs`, `tax_payments`, `chart_of_accounts`, `gl_transaction_rules`. See ADR-056. GAAP account numbers. CSV-only. |
 
 Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-pdf.md)). All reports support both; PDF for print/share, CSV for data export. The scope of _what_ each report contains is fixed above.
 

@@ -1,23 +1,21 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
-import Image from "next/image";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/Button";
 import { FormField, SelectInput } from "@/components/ui/FormField";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { ProgressModal } from "@/components/ui/ProgressModal";
-import { useProgressOperation } from "@/hooks/useProgressOperation";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { ReportViewer, type ReportData } from "@/components/reports/ReportViewer";
+import { ComparisonViewer } from "@/components/reports/ComparisonViewer";
+import { DetailCostComparisonViewer, type DetailCostComparisonData } from "@/components/reports/DetailCostComparisonViewer";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "thank-you-note", label: "Thank You Note" },
-  { value: "invoice", label: "Invoice" },
   { value: "sales", label: "Sales Report" },
+  { value: "sales-comparison", label: "Sales Comparison Report" },
   { value: "costs", label: "Costs Report" },
-  { value: "income-mtd", label: "Income — Month to Date" },
-  { value: "income-ytd", label: "Income — Year to Date" },
-  { value: "postal-by-vendor", label: "Postal Costs by Carrier" },
+  { value: "cost-comparison", label: "Cost Comparison Report" },
+  { value: "cost-comparison-detail", label: "Detail Cost Comparison" },
   { value: "outstanding-items", label: "Outstanding Items" },
   { value: "ar-aging", label: "Accounts Receivable Aging" },
   { value: "profit-by-item", label: "Profit by Item" },
@@ -31,8 +29,6 @@ const DATE_FILTER_REPORTS = new Set([
   "sales",
   "costs",
   "postal-by-vendor",
-  "invoice",
-  "thank-you-note",
   "profit-by-item",
   "vendor-profitability",
   "sales-tax-summary",
@@ -52,25 +48,144 @@ function mondayThisWeek(): string {
   return d.toISOString().slice(0, 10);
 }
 
-const PER_ORDER_REPORTS = new Set(["invoice", "thank-you-note"]);
+type CompareType = "months" | "quarters" | "years";
+
+type ComparisonData = {
+  reportType?: "sales" | "costs";
+  labels: [string, string, string];
+  metrics: [Record<string, number | string>, Record<string, number | string>, Record<string, number | string>];
+};
+
+function monthRange(ym: string): { from: string; to: string; label: string } {
+  const [y, m] = ym.split("-").map(Number);
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  const label = new Date(y, m - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  return { from, to, label };
+}
+
+function quarterRange(qKey: string): { from: string; to: string; label: string } {
+  const [qStr, yStr] = qKey.split("-");
+  const q = Number(qStr);
+  const y = Number(yStr);
+  const startMonth = (q - 1) * 3;
+  const from = `${y}-${String(startMonth + 1).padStart(2, "0")}-01`;
+  const endMonth = startMonth + 3;
+  const last = new Date(y, endMonth, 0).getDate();
+  const to = `${y}-${String(endMonth).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  return { from, to, label: `Q${q} ${y}` };
+}
+
+function yearRange(y: string): { from: string; to: string; label: string } {
+  return { from: `${y}-01-01`, to: `${y}-12-31`, label: y };
+}
+
+function buildPeriodOptions(type: CompareType): Array<{ value: string; label: string }> {
+  const now = new Date();
+  const options: Array<{ value: string; label: string }> = [];
+  if (type === "months") {
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+      options.push({ value: val, label });
+    }
+  } else if (type === "quarters") {
+    for (let i = 0; i < 12; i++) {
+      const totalQ = now.getFullYear() * 4 + Math.floor(now.getMonth() / 3) - i;
+      const y = Math.floor(totalQ / 4);
+      const q = (totalQ % 4) + 1;
+      options.push({ value: `${q}-${y}`, label: `Q${q} ${y}` });
+    }
+  } else {
+    for (let i = 0; i < 6; i++) {
+      const y = String(now.getFullYear() - i);
+      options.push({ value: y, label: y });
+    }
+  }
+  return options;
+}
+
+const STORAGE_KEY = "aice.reports.lastSelection";
+
+function loadSavedSelection(): {
+  reportType: string;
+  fromDate: string;
+  toDate: string;
+  activePreset: string | null;
+  compareType: CompareType;
+  period1: string;
+  period2: string;
+  period3: string;
+} | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function ReportsPage() {
-  const { iconConfig, busyAction, setBusyAction, setError } = useApp();
+  const { busyAction, setBusyAction, setError } = useApp();
+
+  const saved = useRef(loadSavedSelection());
 
   const reportTypeSelectorRef = useRef<HTMLDivElement>(null);
-  const [reportType, setReportType] = useState("sales");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [activePreset, setActivePreset] = useState<string | null>(null);
-  const [reportCsvPreview, setReportCsvPreview] = useState("");
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-  const [perOrderId, setPerOrderId] = useState("");
-  const [orderIdError, setOrderIdError] = useState<string | null>(null);
-  const { modal: progressModal, run: runWithProgress } = useProgressOperation();
+  const [reportType, setReportType] = useState(saved.current?.reportType || "sales");
+  const [fromDate, setFromDate] = useState(saved.current?.fromDate || "");
+  const [toDate, setToDate] = useState(saved.current?.toDate || "");
+  const [activePreset, setActivePreset] = useState<string | null>(saved.current?.activePreset ?? null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const reportHeaderIconWidth = Number.isFinite(Number(iconConfig.reportHeaderWidthPx))
-    ? Math.max(80, Math.min(640, Math.floor(Number(iconConfig.reportHeaderWidthPx))))
-    : 220;
+  const [compareType, setCompareType] = useState<CompareType>(saved.current?.compareType || "months");
+  const [period1, setPeriod1] = useState(saved.current?.period1 || "");
+  const [period2, setPeriod2] = useState(saved.current?.period2 || "");
+  const [period3, setPeriod3] = useState(saved.current?.period3 || "");
+  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
+  const [detailCostData, setDetailCostData] = useState<DetailCostComparisonData | null>(null);
+
+  const isComparison = reportType === "sales-comparison" || reportType === "cost-comparison" || reportType === "cost-comparison-detail";
+  const periodOptions = useMemo(() => buildPeriodOptions(compareType), [compareType]);
+
+  useEffect(() => {
+    if (!saved.current?.period1 && periodOptions.length >= 3) {
+      setPeriod1(periodOptions[2].value);
+      setPeriod2(periodOptions[1].value);
+      setPeriod3(periodOptions[0].value);
+    }
+    saved.current = null;
+  }, [periodOptions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ reportType, fromDate, toDate, activePreset, compareType, period1, period2, period3 })
+      );
+    } catch {}
+  }, [reportType, fromDate, toDate, activePreset, compareType, period1, period2, period3]);
+
+  const [businessName, setBusinessName] = useState<string>("");
+  const [appVersion, setAppVersion] = useState<string>("1.0");
+
+  useEffect(() => {
+    fetch("/api/settings/business_name")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (body?.ok && body.value) setBusinessName(String(body.value));
+      })
+      .catch(() => {});
+    fetch("/api/settings/app.version")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (body?.ok && body.value) setAppVersion(String(body.value));
+      })
+      .catch(() => {});
+  }, []);
 
   const supportsDates = DATE_FILTER_REPORTS.has(reportType);
 
@@ -121,71 +236,135 @@ export default function ReportsPage() {
       setFromDate(`${ly}-01-01`);
       setToDate(`${ly}-12-31`);
     } else if (preset === "custom") {
-      // Keep current user-specified dates as-is
+      // Keep current user-specified dates
     } else {
       setFromDate("");
       setToDate("");
     }
   };
 
-  const previewReportCsv = async () => {
-    setBusyAction("preview-report");
+  const buildUrl = (format: "json" | "csv") => {
+    const base = `/api/reports/${reportType}${reportQuery}`;
+    const join = base.includes("?") ? "&" : "?";
+    return `${base}${join}format=${format}`;
+  };
+
+  const csvDownloadUrl = buildUrl("csv");
+
+  const fetchReportForPeriod = useCallback(
+    async (endpoint: string, from: string, to: string): Promise<Record<string, number | string>> => {
+      const url = `/api/reports/${endpoint}?from_date=${from}&to_date=${to}&format=json`;
+      const resp = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!resp.ok) throw new Error("Failed to fetch report");
+      const body = await resp.json();
+      if (!body.ok || !body.report) throw new Error("Invalid response");
+      const metrics = { ...body.report.metrics };
+      delete metrics.date_range;
+      return metrics;
+    },
+    []
+  );
+
+  const fetchFullReport = useCallback(
+    async (endpoint: string, from: string, to: string) => {
+      const url = `/api/reports/${endpoint}?from_date=${from}&to_date=${to}&format=json`;
+      const resp = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!resp.ok) throw new Error("Failed to fetch report");
+      const body = await resp.json();
+      if (!body.ok || !body.report) throw new Error("Invalid response");
+      return body.report as {
+        metrics: Record<string, number | string>;
+        sections: Array<{ title: string; rows: Array<Record<string, number | string>> }>;
+      };
+    },
+    []
+  );
+
+  const generateComparison = async () => {
+    setGenerateError(null);
+    setGenerating(true);
+    setBusyAction("generate-report");
     try {
-      await runWithProgress({
-        title: "Generating report preview",
-        statusText: "Building CSV preview…",
-        fn: async () => {
-          const url = `/api/reports/${reportType}${reportQuery ? `${reportQuery}&format=csv` : "?format=csv"}`;
-          const response = await fetch(url, {
-            headers: { Accept: "text/csv" },
-          });
-          const text = await response.text();
-          if (!response.ok) throw { error: { user_message: "Report preview failed." } };
-          setReportCsvPreview(text);
-          setError(null);
-        },
-      });
+      const resolver = compareType === "months" ? monthRange
+        : compareType === "quarters" ? quarterRange : yearRange;
+      const r1 = resolver(period1);
+      const r2 = resolver(period2);
+      const r3 = resolver(period3);
+
+      if (reportType === "cost-comparison-detail") {
+        const [rpt1, rpt2, rpt3] = await Promise.all([
+          fetchFullReport("costs", r1.from, r1.to),
+          fetchFullReport("costs", r2.from, r2.to),
+          fetchFullReport("costs", r3.from, r3.to),
+        ]);
+        setDetailCostData({
+          labels: [r1.label, r2.label, r3.label],
+          reports: [rpt1, rpt2, rpt3],
+        });
+        setComparisonData(null);
+        setError(null);
+      } else {
+        const endpoint = reportType === "cost-comparison" ? "costs" : "sales";
+
+        const [m1, m2, m3] = await Promise.all([
+          fetchReportForPeriod(endpoint, r1.from, r1.to),
+          fetchReportForPeriod(endpoint, r2.from, r2.to),
+          fetchReportForPeriod(endpoint, r3.from, r3.to),
+        ]);
+
+        setComparisonData({
+          reportType: reportType === "cost-comparison" ? "costs" : "sales",
+          labels: [r1.label, r2.label, r3.label],
+          metrics: [m1, m2, m3],
+        });
+        setDetailCostData(null);
+        setError(null);
+      }
     } catch {
-      /* modal handles error */
+      setGenerateError("Failed to generate comparison. Please try again.");
     } finally {
+      setGenerating(false);
       setBusyAction(null);
     }
   };
 
-  const isPerOrder = PER_ORDER_REPORTS.has(reportType) && perOrderId.trim().length > 0;
+  const generateReport = async () => {
+    setGenerateError(null);
 
-  const isThankYouPerOrder = reportType === "thank-you-note" && isPerOrder;
+    if (isComparison) {
+      await generateComparison();
+      return;
+    }
 
-  const validateAndGenerate = async () => {
-    if (isPerOrder) {
-      setOrderIdError(null);
-      try {
-        const resp = await fetch(`/api/orders/${encodeURIComponent(perOrderId.trim())}`, {
-          headers: { Accept: "application/json" },
-        });
-        if (resp.status === 404) {
-          setOrderIdError("Order not found. Please check the order ID.");
-          return;
-        }
-        if (!resp.ok) {
-          setOrderIdError("Could not validate the order ID. Please try again.");
-          return;
-        }
-      } catch {
-        setOrderIdError("Could not validate the order ID. Please try again.");
+    if (reportType === "accounting-export") {
+      window.open(csvDownloadUrl, "_blank");
+      return;
+    }
+
+    setGenerating(true);
+    setBusyAction("generate-report");
+    try {
+      const url = buildUrl("json");
+      const resp = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null);
+        const msg = body?.error?.user_message || "Report generation failed. Please try again.";
+        setGenerateError(msg);
         return;
       }
+      const body = await resp.json();
+      if (body.ok && body.report) {
+        setReportData(body.report);
+        setError(null);
+      } else {
+        setGenerateError("Unexpected response from the server.");
+      }
+    } catch {
+      setGenerateError("Network error. Please check your connection and try again.");
+    } finally {
+      setGenerating(false);
+      setBusyAction(null);
     }
-    setGeneratedUrl(downloadUrl("pdf"));
-  };
-
-  const downloadUrl = (format: "csv" | "pdf") => {
-    if (isPerOrder) {
-      return `/api/reports/${reportType}/${encodeURIComponent(perOrderId.trim())}?format=${format}`;
-    }
-    const base = `/api/reports/${reportType}${reportQuery}`;
-    const join = base.includes("?") ? "&" : "?";
-    return `${base}${join}format=${format}`;
   };
 
   useKeyboardShortcuts([
@@ -193,33 +372,30 @@ export default function ReportsPage() {
       key: "p",
       modifiers: ["meta"],
       action: () => {
-        if (reportType !== "accounting-export") {
-          window.open(downloadUrl("pdf"), "_blank");
+        if (reportData) {
+          window.print();
         }
       },
     },
   ]);
 
   return (
-    <>
-      <ProgressModal {...progressModal} />
-      <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-3">
-          <Image
-            src={iconConfig.reportHeaderPath || "/icons/report-header.png"}
-            alt="Report header icon"
-            width={reportHeaderIconWidth}
-            height={Math.max(24, Math.floor(reportHeaderIconWidth * 0.22))}
-            className="h-auto max-h-16 w-auto rounded"
-          />
-          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
-        </div>
+    <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm print:border-none print:bg-transparent print:p-0 print:shadow-none">
+      {/* Controls — hidden when printing */}
+      <div className="print:hidden">
+        <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Reports</h3>
 
         <div ref={reportTypeSelectorRef} className="mb-3 flex flex-wrap items-end gap-3">
           <FormField label="Report type">
             <SelectInput
               value={reportType}
-              onChange={(v) => { setReportType(v); setGeneratedUrl(null); }}
+              onChange={(v) => {
+                setReportType(v);
+                setReportData(null);
+                setComparisonData(null);
+                setDetailCostData(null);
+                setGenerateError(null);
+              }}
               options={REPORT_OPTIONS}
             />
           </FormField>
@@ -231,7 +407,7 @@ export default function ReportsPage() {
               onChange={(e) => {
                 setFromDate(e.target.value);
                 setActivePreset(null);
-                setGeneratedUrl(null);
+                setReportData(null);
               }}
               className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
@@ -244,14 +420,47 @@ export default function ReportsPage() {
               onChange={(e) => {
                 setToDate(e.target.value);
                 setActivePreset(null);
-                setGeneratedUrl(null);
+                setReportData(null);
               }}
               className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
           </FormField>
         </div>
 
-        {supportsDates ? (
+        {isComparison ? (
+          <>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {(["months", "quarters", "years"] as CompareType[]).map((ct) => (
+                <button
+                  key={ct}
+                  type="button"
+                  onClick={() => {
+                    setCompareType(ct);
+                    setComparisonData(null);
+                  }}
+                  className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                    compareType === ct
+                      ? "border-[var(--ui-accent)] bg-[var(--ui-accent)]/10 text-[var(--ui-accent)]"
+                      : "border-[var(--ui-border)] text-[var(--ui-body)] hover:bg-[var(--ui-neutral)]"
+                  }`}
+                >
+                  {ct === "months" ? "Compare Months" : ct === "quarters" ? "Compare Quarters" : "Compare Years"}
+                </button>
+              ))}
+            </div>
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              <FormField label="Period 1">
+                <SelectInput value={period1} onChange={(v) => { setPeriod1(v); setComparisonData(null); }} options={periodOptions} />
+              </FormField>
+              <FormField label="Period 2">
+                <SelectInput value={period2} onChange={(v) => { setPeriod2(v); setComparisonData(null); }} options={periodOptions} />
+              </FormField>
+              <FormField label="Period 3">
+                <SelectInput value={period3} onChange={(v) => { setPeriod3(v); setComparisonData(null); }} options={periodOptions} />
+              </FormField>
+            </div>
+          </>
+        ) : supportsDates ? (
           <div className="mb-3 flex flex-wrap gap-2">
             {[
               { id: "today", label: "Today" },
@@ -290,116 +499,91 @@ export default function ReportsPage() {
           </p>
         )}
 
-        {PER_ORDER_REPORTS.has(reportType) && (
-          <div className="mb-3">
-            <FormField label="Order ID (leave blank for all orders)">
-              <input
-                type="text"
-                value={perOrderId}
-                onChange={(e) => {
-                  setPerOrderId(e.target.value);
-                  setGeneratedUrl(null);
-                  setOrderIdError(null);
-                }}
-                placeholder="e.g. 42"
-                className="w-32 rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-title)] focus:border-[var(--ui-accent)] focus:outline-none"
-              />
-            </FormField>
-            {orderIdError && (
-              <p className="mt-1 text-xs text-[var(--ui-red)]">{orderIdError}</p>
-            )}
+        {generateError && (
+          <div className="mb-3 rounded-lg border border-[var(--ui-red)]/30 bg-[var(--ui-red)]/5 px-4 py-3">
+            <p className="text-sm text-[var(--ui-red)]">{generateError}</p>
           </div>
         )}
 
-        {generatedUrl ? (
-          <div className="mb-3 rounded-lg border border-[var(--ui-green)]/30 bg-[var(--ui-green)]/5 p-3">
-            <p className="mb-2 text-sm font-medium text-[var(--ui-title)]">Report generated</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="accent"
-                size="lg"
-                onClick={() => {
-                  const w = window.open(generatedUrl, "_blank");
-                  if (w) setTimeout(() => w.print(), 800);
-                }}
-              >
-                Print
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={() => window.open(generatedUrl, "_blank")}
-                disabled={reportType === "accounting-export"}
-              >
-                Export PDF
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={() => window.open(downloadUrl("csv"), "_blank")}
-                disabled={isThankYouPerOrder}
-              >
-                Export CSV
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => setGeneratedUrl(null)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
+        {!reportData && !comparisonData && (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="accent"
               size="lg"
-              onClick={() => void validateAndGenerate()}
-              disabled={reportType === "accounting-export"}
+              onClick={() => void generateReport()}
+              busy={generating}
+              disabled={generating || busyAction != null}
             >
-              Generate Report
+              {isComparison ? "Generate Comparison" : "Generate Report"}
             </Button>
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={previewReportCsv}
-              busy={busyAction === "preview-report"}
-              disabled={busyAction != null}
-            >
-              Preview CSV
-            </Button>
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => window.open(downloadUrl("csv"), "_blank")}
-              disabled={isThankYouPerOrder}
-            >
-              Export CSV
-            </Button>
+            {!isComparison && (
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => window.open(csvDownloadUrl, "_blank")}
+              >
+                Export CSV
+              </Button>
+            )}
           </div>
         )}
-        {reportCsvPreview.trim().length === 0 ? (
-          <EmptyState
-            message="No reports generated yet. Once you have orders, you can generate sales, tax, and profit reports here."
-            primaryAction={{
-              label: "Generate a report",
-              onClick: () => {
-                reportTypeSelectorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                const select = reportTypeSelectorRef.current?.querySelector("select");
-                select?.focus();
-              },
-            }}
-          />
-        ) : (
-          <textarea
-            readOnly
-            value={reportCsvPreview}
-            aria-label="Report CSV preview"
-            className="mt-3 min-h-80 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 font-mono text-xs"
-          />
-        )}
-      </section>
-    </>
+      </div>
+
+      {/* Loading state */}
+      {generating && (
+        <div className="flex items-center justify-center py-12 print:hidden">
+          <LoadingSpinner />
+          <span className="ml-3 text-sm text-[var(--ui-body)]">Generating report...</span>
+        </div>
+      )}
+
+      {/* Report viewer */}
+      {reportData && !generating && (
+        <ReportViewer
+          report={reportData}
+          csvDownloadUrl={csvDownloadUrl}
+          businessName={businessName}
+          appVersion={appVersion}
+          onClose={() => {
+            setReportData(null);
+            setGenerateError(null);
+          }}
+        />
+      )}
+
+      {/* Comparison viewer */}
+      {comparisonData && !generating && (
+        <ComparisonViewer
+          data={comparisonData}
+          businessName={businessName}
+          appVersion={appVersion}
+          onClose={() => {
+            setComparisonData(null);
+            setGenerateError(null);
+          }}
+        />
+      )}
+
+      {/* Detail cost comparison viewer */}
+      {detailCostData && !generating && (
+        <DetailCostComparisonViewer
+          data={detailCostData}
+          businessName={businessName}
+          appVersion={appVersion}
+          onClose={() => {
+            setDetailCostData(null);
+            setGenerateError(null);
+          }}
+        />
+      )}
+
+      {/* Hint text below buttons */}
+      {!reportData && !comparisonData && !detailCostData && !generating && (
+        <p className="mt-4 text-center text-xs text-[var(--ui-muted)] print:hidden">
+          Select a report type, choose a date range, and click Generate Report.
+          Reports can be printed or saved as PDF directly from your browser.
+        </p>
+      )}
+    </section>
   );
 }

@@ -18,20 +18,22 @@ ADR-006 defines the set of reports (thank you note, invoice, sales, costs, incom
 
 **Primary report output is PDF, with CSV export for the same report data.** All reports listed in ADR-006 (including profit-by-item, sales tax summary, inventory aging, and accounting export per ADR-038/039/054/056) are generated with a printable PDF view and support CSV export from the same filtered dataset.
 
-- **Generation:** Use a PDF library (e.g. a Node/JS PDF library such as PDFKit, jsPDF, or React-PDF) to produce PDFs from report data. Report output is **not cached**; each run generates from current data (see ADR-008).
-- **User choices after a report is generated:** The user is offered exactly four actions: **Print** (send to printer), **Export PDF** (save/download as PDF file), **Export CSV** (save/download as comma-delimited file), **Cancel** (close without printing or exporting). All reports support both export formats. No other actions are required; the user chooses what to do next.
-- **Export CSV:** Comma-delimited file; same report data and global filter as the PDF. First row is a header (column names); one row per detail line. Values that contain commas or newlines are quoted per RFC 4180. File extension typically `.csv`.
+- **Generation (updated 2026-06-17):** Reports use an **HTML-based rendering approach**. The API returns report data as structured JSON (`format=json`). The frontend `<ReportViewer>` component renders a branded, print-ready HTML view. The browser's native Print / Save-as-PDF handles PDF output. Server-side PDFKit generation has been removed from regular reports (retained only for batch print queue). Report output is **not cached**; each run generates from current data (see ADR-008).
+- **Auth:** Report API routes do **not** require Etsy OAuth. Reports query local SQLite data and work without an Etsy connection.
+- **User choices after a report is generated:** The user is offered exactly three actions: **Print / Save as PDF** (browser print dialog), **Export CSV** (download as comma-delimited file), **Close** (dismiss report view). The browser's print dialog handles both printing and PDF export.
+- **Export CSV:** Comma-delimited file; same report data and global filter as the HTML view. First row is a header (column names); one row per detail line. Values that contain commas or newlines are quoted per RFC 4180. File extension typically `.csv`.
 - **Layout:** Each report uses the **report layout (full spec)** below. Layout is consistent across report types (headers, tables, totals) suitable for a business document.
 
 **Report layout (full spec)**
 
-- **Fonts:** 12 pt **Courier** for detail rows, header, and footer. Report title in header: **14 pt or 16 pt** as required to fit.
-- **Page number:** Bottom of page, **centered**.
-- **Header/footer on every page:** Report title (or short title) at top of each page; page number at bottom of each page.
-- **User logo:** When a user logo is set (stored in system per ADR-017, `settings.business_logo_path`), the app places it on documents (thank-you note, invoice, report header). **Spec:** Max height 1.5 in (40 mm); position: top of first page, left-aligned or right-aligned; if business name appears, logo above business name. Format: use image as stored; scale proportionally to fit max height.
-- **Margins:** **1 inch (or 25 mm)** all sides.
-- **Tables:** Detail in tables: 12 pt Courier; **light grid lines** between rows/columns.
-- **Spacing:** **Single** line spacing for body; one blank line between major sections.
+- **Fonts:** Headings use **Crimson Text** (serif); body text and table data use **Raleway** (sans-serif). These match the Trudy's Classic Treasures brand guide.
+- **Brand header:** The report banner image (`/brand/banner.png`) appears at the top of every printed report.
+- **Page setup:** `@page { margin: 0.75in; size: letter; }` via CSS `@media print`.
+- **Tables:** Proper HTML tables with column headers, alternating row colors (white / cream `#FAF8F3`), right-aligned money columns with monospace `tabular-nums`.
+- **Metrics:** Key metrics displayed as card grid above data tables.
+- **Page breaks:** `break-inside: avoid` on table rows; `display: table-header-group` on thead for repeating headers.
+- **Spacing:** Single line spacing for body; section headers separated by horizontal rules.
+- **Brand footer:** "Trudy's Classic Treasures — Classic treasures to warm your home" centered at bottom.
 
 ---
 
@@ -170,3 +172,7 @@ The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 | sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                                                                                |
 | ship*to*\* fields                        | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                  |
 | sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                    |
+
+### Accounting export format (updated 2026-06-17)
+
+The Accounting Export report (ADR-056) uses double-entry bookkeeping with GAAP account numbers. It is CSV-only (no PDF). Each transaction produces two rows (debit + credit). Account numbers are stored in the `chart_of_accounts` database table and are editable from Config. See ADR-056 for the full specification.

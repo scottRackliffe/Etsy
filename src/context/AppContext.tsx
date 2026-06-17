@@ -200,7 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     developerMode: "false",
   });
   const [iconConfig, setIconConfig] = useState<IconConfig>({
-    screenHeaderPath: "/icons/screen-header.png",
+    screenHeaderPath: "/brand/aice-dark.png",
     reportHeaderPath: "/icons/report-header.png",
     screenHeaderSizePx: "32",
     reportHeaderWidthPx: "220",
@@ -542,7 +542,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         minQualityScore: minQualityScore || "80",
       });
       setIconConfig({
-        screenHeaderPath: screenHeaderPath || "/icons/screen-header.png",
+        screenHeaderPath: screenHeaderPath || "/brand/aice-dark.png",
         reportHeaderPath: reportHeaderPath || "/icons/report-header.png",
         screenHeaderSizePx: screenHeaderSizePx || "32",
         reportHeaderWidthPx: reportHeaderWidthPx || "220",

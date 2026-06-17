@@ -178,7 +178,7 @@ WHERE i.id = ?
 
 ## Notes
 
-- Cross-references: ADR-002 (inventory data model — `purchase_cost`, `shipping_cost`, `sale_revenue` fields), ADR-006 (reports scope — adds "Profit by Item" to the report list), ADR-013 (report output format — PDF layout rules apply), ADR-016 (dashboard — new KPI card), ADR-029 (sort/filter — margin as sortable column), ADR-034 (Config — `ui.currency_code` for formatting)
+- Cross-references: ADR-002 (inventory data model — `purchase_cost`, `shipping_cost`, `sale_revenue` fields), ADR-006 (reports scope — adds "Profit by Item" to the report list), ADR-013 (report output format — PDF layout rules apply), ADR-016 (dashboard — new KPI card), ADR-029 (sort/filter — margin as sortable column), ADR-034 (Config — `ui.currency_code` for formatting), ADR-056 (accounting export — COGS journal entry uses `purchase_cost + shipping_cost` from inventory)
 - The `other_costs` table schema: `id, inventory_id, cost_type, amount, note, created_at, updated_at`
 - ROI percentage is included in the detail panel but NOT in the report (to keep the report focused on margin)
 - All currency values respect the `ui.currency_code` setting from ADR-034

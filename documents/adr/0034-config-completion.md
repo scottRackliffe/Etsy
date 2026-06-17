@@ -35,8 +35,10 @@ The Config page currently has three sections: AI settings, Etsy publish defaults
 │ Store categories         │ Display preferences          │
 │                          │ (existing, expanded)         │
 ├──────────────────────────┼──────────────────────────────┤
-│ Icons and branding       │ Backup and restore           │
-│ (existing)               │                              │
+│ Accounting (COA + GL)    │ Icons and branding           │
+│                          │ (existing)                   │
+├──────────────────────────┼──────────────────────────────┤
+│ Backup and restore       │                              │
 └──────────────────────────┴──────────────────────────────┘
 ```
 
@@ -196,7 +198,22 @@ Existing card with screen header path, report header path, and sizes.
 
 ---
 
-### Section 8: Backup and restore (NEW — per ADR-027)
+### Section 8a: Accounting (NEW — per ADR-056)
+
+Chart of accounts and GL transaction rules for the accounting export.
+
+| Element                     | Type           | Notes                                                                                                |
+| --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| Chart of Accounts table     | Data table     | All accounts: acct #, name, type, normal balance, description, active status. Add/edit/deactivate.   |
+| GL Transaction Rules table  | Data table     | All rules: transaction type, debit account, credit account, description, source. Read-only reference. |
+
+Data is stored in `chart_of_accounts` and `gl_transaction_rules` database tables (ADR-017). API: `GET/POST /api/chart-of-accounts`, `GET/PUT/DELETE /api/chart-of-accounts/[id]`, same pattern for `/api/gl-transaction-rules` (ADR-018 §33).
+
+Allows accountants to customize GAAP account numbers to match their accounting software without code changes.
+
+---
+
+### Section 8b: Backup and restore (NEW — per ADR-027)
 
 | Element             | Type                      | Notes                                                              |
 | ------------------- | ------------------------- | ------------------------------------------------------------------ |
