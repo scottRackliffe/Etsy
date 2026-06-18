@@ -314,9 +314,24 @@ export type BusinessExpense = {
   contract_end_date: string | null;
   gl_account: string | null;
   fiscal_quarter: string | null;
+  payment_status: string;
+  due_date: string | null;
+  period_from: string | null;
+  period_to: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type BillPayment = {
+  id: number;
+  expense_id: number;
+  payment_date: string;
+  amount: number;
+  payment_method: string | null;
+  reference_number: string | null;
+  notes: string | null;
+  created_at: string;
 };
 
 export type Vendor = {

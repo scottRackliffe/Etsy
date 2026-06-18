@@ -11,7 +11,7 @@ const TABS: Array<{ id: string; label: string; href: string }> = [
   { id: "receipts", label: "Receipts", href: "/receipts" },
   { id: "customers", label: "Customers", href: "/customers" },
   { id: "vendors", label: "Vendors", href: "/vendors" },
-  { id: "expenses", label: "Expenses", href: "/expenses" },
+  { id: "expenses", label: "AP Lite", href: "/expenses" },
   { id: "reports", label: "Reports", href: "/reports" },
   { id: "outstanding", label: "Outstanding", href: "/outstanding" },
   { id: "tutorial", label: "Tutorial & tips", href: "/tutorial" },

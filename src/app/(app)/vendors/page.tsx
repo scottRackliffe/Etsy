@@ -366,6 +366,32 @@ function VendorsPageInner() {
     }
   };
 
+  const reactivateVendor = async () => {
+    if (!selectedVendorId) return;
+    setBusyAction("reactivate-vendor");
+    try {
+      const response = await apiFetch(`/api/vendors/${selectedVendorId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ is_active: 1 }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      await reloadVendors();
+      setError(null);
+    } catch (err) {
+      setApiError(
+        "Could not reactivate vendor",
+        "We could not reactivate the vendor.",
+        err
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const vendorColumns = useMemo(
     () => [
       {
@@ -500,14 +526,26 @@ function VendorsPageInner() {
                   >
                     Save changes
                   </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setDeleteOpen(true)}
-                    disabled={busyAction != null}
-                  >
-                    Deactivate
-                  </Button>
+                  {selectedVendor.is_active ? (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeleteOpen(true)}
+                      disabled={busyAction != null}
+                    >
+                      Deactivate
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      onClick={() => void reactivateVendor()}
+                      busy={busyAction === "reactivate-vendor"}
+                      disabled={busyAction != null && busyAction !== "reactivate-vendor"}
+                    >
+                      Reactivate
+                    </Button>
+                  )}
                 </div>
               </div>
 

@@ -509,11 +509,29 @@ function ensureCoreTables(db: Database.Database): void {
       contract_end_date     TEXT,
       gl_account            TEXT,
       fiscal_quarter        TEXT,
+      payment_status        TEXT    NOT NULL DEFAULT 'unpaid',
+      due_date              TEXT,
+      period_from           TEXT,
+      period_to             TEXT,
       notes                 TEXT,
       created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
       updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bill_payments (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      expense_id       INTEGER NOT NULL REFERENCES business_expenses(id) ON DELETE CASCADE,
+      payment_date     TEXT    NOT NULL,
+      amount           REAL    NOT NULL,
+      payment_method   TEXT,
+      reference_number TEXT,
+      notes            TEXT,
+      created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS idx_bill_payments_expense_id ON bill_payments(expense_id)");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS chart_of_accounts (
@@ -621,6 +639,12 @@ function ensureCoreTables(db: Database.Database): void {
   ensureTableColumns(db, "purchases", { receipt_image: "TEXT", vendor_id: "INTEGER REFERENCES vendors(id)" });
   ensureTableColumns(db, "receipts", { vendor_id: "INTEGER REFERENCES vendors(id)" });
   ensureTableColumns(db, "inventory", { etsy_attributes_json: "TEXT" });
+  ensureTableColumns(db, "business_expenses", {
+    payment_status: "TEXT NOT NULL DEFAULT 'unpaid'",
+    due_date: "TEXT",
+    period_from: "TEXT",
+    period_to: "TEXT",
+  });
 
   // Indexes
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory(status);");

@@ -11,9 +11,11 @@ export type ExpenseListOptions = {
   offset: number;
   search?: string;
   category?: string;
+  payment_status?: string;
   from_date?: string;
   to_date?: string;
   is_recurring?: number;
+  vendor_id?: number;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 };
@@ -23,6 +25,7 @@ const EXPENSE_SORT: Record<string, string> = {
   amount: "e.amount",
   category: "e.category",
   vendor_name: "e.vendor_name",
+  payment_status: "e.payment_status",
   created_at: "e.created_at",
 };
 
@@ -45,6 +48,14 @@ export function listExpenses(options: ExpenseListOptions) {
   if (options.is_recurring === 0 || options.is_recurring === 1) {
     where += " AND e.is_recurring = @is_recurring";
     params.is_recurring = options.is_recurring;
+  }
+  if (options.payment_status?.trim()) {
+    where += " AND e.payment_status = @payment_status";
+    params.payment_status = options.payment_status.trim();
+  }
+  if (options.vendor_id != null) {
+    where += " AND e.vendor_id = @vendor_id";
+    params.vendor_id = options.vendor_id;
   }
   where += buildSearchClause(
     ["e.vendor_name", "e.category", "e.subcategory", "e.notes", "e.invoice_number", "e.paid_by"],
@@ -203,7 +214,19 @@ export function getExpenseSummary(from_date?: string, to_date?: string) {
     )
     .get(params) as { count: number; gross_total: number; adjusted_total: number; deductible_total: number };
 
-  return { by_category: byCategory, by_month: byMonth, totals };
+  const byStatus = db
+    .prepare(
+      `SELECT payment_status, COUNT(*) AS count, ROUND(SUM(amount), 2) AS total
+       FROM business_expenses ${where}
+       GROUP BY payment_status ORDER BY payment_status`
+    )
+    .all(params) as Array<{ payment_status: string; count: number; total: number }>;
+
+  const recurringCount = (
+    db.prepare(`SELECT COUNT(*) AS c FROM business_expenses ${where} AND is_recurring = 1`).get(params) as { c: number }
+  ).c;
+
+  return { by_category: byCategory, by_month: byMonth, by_status: byStatus, totals, recurring_count: recurringCount };
 }
 
 export function listUpcomingExpenses(daysAhead: number = 30) {
@@ -220,6 +243,47 @@ export function listUpcomingExpenses(daysAhead: number = 30) {
        ORDER BY recurring_next_date ASC`
     )
     .all({ today, cutoff });
+}
+
+// ---------------------------------------------------------------------------
+// Bill Payments (AP Lite)
+// ---------------------------------------------------------------------------
+
+export function recomputePaymentStatus(expenseId: number) {
+  const db = getDb();
+  const expense = db.prepare("SELECT amount FROM business_expenses WHERE id = ?").get(expenseId) as { amount: number } | undefined;
+  if (!expense) return;
+  const paidRow = db.prepare("SELECT COALESCE(SUM(amount), 0) AS paid FROM bill_payments WHERE expense_id = ?").get(expenseId) as { paid: number };
+  let status = "unpaid";
+  if (paidRow.paid >= expense.amount) status = "paid";
+  else if (paidRow.paid > 0) status = "partial";
+  const lastPayment = db.prepare("SELECT payment_date FROM bill_payments WHERE expense_id = ? ORDER BY payment_date DESC LIMIT 1").get(expenseId) as { payment_date: string } | undefined;
+  db.prepare("UPDATE business_expenses SET payment_status = ?, date_paid = ?, updated_at = ? WHERE id = ?")
+    .run(status, status === "paid" ? (lastPayment?.payment_date ?? nowIso()) : null, nowIso(), expenseId);
+}
+
+export function listBillPayments(expenseId: number) {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM bill_payments WHERE expense_id = ? ORDER BY payment_date DESC")
+    .all(expenseId);
+}
+
+export function createBillPayment(expenseId: number, input: { payment_date: string; amount: number; payment_method?: string | null; reference_number?: string | null; notes?: string | null }) {
+  const db = getDb();
+  const result = db.prepare(
+    `INSERT INTO bill_payments (expense_id, payment_date, amount, payment_method, reference_number, notes)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(expenseId, input.payment_date, input.amount, input.payment_method ?? null, input.reference_number ?? null, input.notes ?? null);
+  recomputePaymentStatus(expenseId);
+  return db.prepare("SELECT * FROM bill_payments WHERE id = ?").get(result.lastInsertRowid);
+}
+
+export function deleteBillPayment(expenseId: number, paymentId: number): boolean {
+  const db = getDb();
+  const result = db.prepare("DELETE FROM bill_payments WHERE id = ? AND expense_id = ?").run(paymentId, expenseId);
+  if (result.changes > 0) recomputePaymentStatus(expenseId);
+  return result.changes > 0;
 }
 
 // ---------------------------------------------------------------------------

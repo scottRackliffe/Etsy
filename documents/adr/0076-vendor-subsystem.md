@@ -173,4 +173,4 @@ Dashboard | Sales | Inventory | Receipts | Customers | Vendors | Reports | Tutor
 - Cross-references: ADR-002 (inventory data model — `purchase_cost` sourced from vendor), ADR-006 (reports — Vendor Profitability), ADR-017 (schema — `vendors` table §5c, `purchases.vendor_id`, `receipts.vendor_id`), ADR-018 (API — vendor endpoints §34, vendor match §35), ADR-022 (delete behavior — soft-delete pattern), ADR-024 (frontend routing — Vendors tab), ADR-029 (search/filter/sort/pagination on vendor list), ADR-035 (deep-link — `?vendorId=`), ADR-056 (accounting export — no direct impact)
 - `VendorPicker` component at `src/components/ui/VendorPicker.tsx` — reusable across Receipts, Expenses, Listing Coach, and Inventory detail.
 - The existing `GET /api/purchases/vendors` endpoint (distinct vendor names) is deprecated but not removed.
-- Future enhancements (post-v1): vendor terms/payment terms, preferred vendor flag, vendor rating, automatic reorder suggestions, vendor spend dashboard widget.
+- Future enhancements (post-v1): vendor rating, automatic reorder suggestions, vendor spend dashboard widget.

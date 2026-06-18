@@ -109,6 +109,38 @@ export function TaxPaymentWidget() {
     }
     setBusyAction("create");
     try {
+      // Create as business_expense (AP Lite) with a bill_payment
+      const expResponse = await apiFetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          expense_date: paymentDate,
+          amount: parsedAmount,
+          category: "Tax Remittance",
+          subcategory: reason.trim() || null,
+          vendor_name: payee.trim() || null,
+          tax_deductible: 0,
+          period_from: periodFrom || null,
+          period_to: periodTo || null,
+          notes: referenceNumber.trim() ? `Ref: ${referenceNumber.trim()}${notes.trim() ? `\n${notes.trim()}` : ""}` : notes.trim() || null,
+        }),
+      });
+      const expData = (await expResponse.json().catch(() => ({}))) as ApiErrorShape & { id?: number };
+      if (!expResponse.ok) throw expData;
+
+      if (expData.id) {
+        await apiFetch(`/api/expenses/${expData.id}/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            payment_date: paymentDate,
+            amount: parsedAmount,
+            reference_number: referenceNumber.trim() || null,
+          }),
+        });
+      }
+
+      // Also create in legacy tax_payments for backward compat
       const response = await apiFetch("/api/tax-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },

@@ -11,7 +11,7 @@ export async function GET(_request: Request, ctx: Ctx) {
     if (!expense) {
       throw new ApiRouteError({ status: 404, code: "NOT_FOUND", message: "Expense not found", userMessage: "Expense not found.", actions: [], canRetry: false });
     }
-    return NextResponse.json(expense);
+    return NextResponse.json({ ok: true, item: expense });
   } catch (error) {
     return errorResponse(fromUnknownError(error, {
       code: "INTERNAL_ERROR", message: "Failed to get expense",

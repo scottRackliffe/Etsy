@@ -13,10 +13,13 @@ export async function GET(request: Request) {
     const to_date = u.searchParams.get("to_date") ?? undefined;
     const is_recurring_raw = u.searchParams.get("is_recurring");
     const is_recurring = is_recurring_raw === "0" || is_recurring_raw === "1" ? parseInt(is_recurring_raw, 10) : undefined;
+    const payment_status = u.searchParams.get("payment_status") ?? undefined;
+    const vendor_id_raw = u.searchParams.get("vendor_id");
+    const vendor_id = vendor_id_raw ? parseInt(vendor_id_raw, 10) : undefined;
     const sortBy = u.searchParams.get("sortBy") ?? undefined;
     const sortDir = (u.searchParams.get("sortDir") ?? undefined) as "asc" | "desc" | undefined;
 
-    const { items, total } = listExpenses({ limit, offset, search, category, from_date, to_date, is_recurring, sortBy, sortDir });
+    const { items, total } = listExpenses({ limit, offset, search, category, payment_status, from_date, to_date, is_recurring, vendor_id, sortBy, sortDir });
     return NextResponse.json({
       items,
       pagination: { limit, offset, total, has_more: offset + limit < total },
