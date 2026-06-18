@@ -1436,6 +1436,29 @@ export function buildAccountingExportRows(params?: ReportParams): AccountingExpo
       row.amount.toFixed(2), "Sales Tax Payable", "Cash");
   }
 
+  const bizExpenses = db
+    .prepare(
+      `SELECT expense_date AS tx_date, ROUND(amount * business_use_pct / 100.0, 2) AS amount,
+        COALESCE(invoice_number, CAST(id AS TEXT)) AS ref,
+        COALESCE(vendor_name, '') AS vendor_name,
+        category,
+        COALESCE(gl_account, CASE WHEN is_cogs = 1 THEN '5000' ELSE '6200' END) AS gl_acct
+      FROM business_expenses WHERE amount > 0`
+    )
+    .all() as Array<{ tx_date: string; amount: number; ref: string; vendor_name: string; category: string; gl_acct: string }>;
+
+  const acctNameByNumber: Record<string, string> = {};
+  for (const [name, num] of Object.entries(ACCT)) acctNameByNumber[num] = name;
+
+  for (const row of bizExpenses) {
+    if (params?.from_date && row.tx_date < params.from_date) continue;
+    if (params?.to_date && row.tx_date > params.to_date) continue;
+    const debitAcctName = acctNameByNumber[row.gl_acct] ?? "Operating Expenses";
+    push2(row.tx_date, "Business Expense", row.ref,
+      `${row.category}${row.vendor_name ? ` — ${row.vendor_name}` : ""}`,
+      row.amount.toFixed(2), debitAcctName, "Cash");
+  }
+
   rows.sort((a, b) => {
     const dateCmp = a.Date.localeCompare(b.Date);
     if (dateCmp !== 0) return dateCmp;
@@ -1475,6 +1498,312 @@ export function buildAccountingExportCsv(params?: ReportParams): string {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Balance Sheet
+// ---------------------------------------------------------------------------
+
+type AccountBalance = { acct_number: string; account_name: string; account_type: string; normal_balance: string; balance: number };
+
+function computeAccountBalances(asOfDate?: string): AccountBalance[] {
+  const db = getDb();
+  const accounts = db.prepare(
+    "SELECT acct_number, account_name, account_type, normal_balance FROM chart_of_accounts WHERE is_active = 1"
+  ).all() as Array<{ acct_number: string; account_name: string; account_type: string; normal_balance: string }>;
+
+  const balances: Record<string, number> = {};
+  for (const a of accounts) balances[a.account_name] = 0;
+
+  const acctMap: Record<string, string> = {};
+  for (const a of accounts) acctMap[a.acct_number] = a.account_name;
+  const normalMap: Record<string, string> = {};
+  for (const a of accounts) normalMap[a.account_name] = a.normal_balance;
+
+  const addBalance = (acctName: string, amount: number, side: "debit" | "credit") => {
+    if (!(acctName in balances)) return;
+    const normal = normalMap[acctName];
+    if (side === normal) {
+      balances[acctName] += amount;
+    } else {
+      balances[acctName] -= amount;
+    }
+  };
+
+  const dateFilter = asOfDate ? ` AND order_date <= '${asOfDate}'` : "";
+  const purchDateFilter = asOfDate ? ` AND purchase_date <= '${asOfDate}'` : "";
+  const expDateFilter = asOfDate ? ` AND expense_date <= '${asOfDate}'` : "";
+  const taxDateFilter = asOfDate ? ` AND payment_date <= '${asOfDate}'` : "";
+
+  // Sales → DR AR, CR Revenue
+  const sales = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(oi.line_total), 0), 2) AS total
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     WHERE o.order_status = 'active'${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Accounts Receivable", sales.total, "debit");
+  addBalance("Sales Revenue", sales.total, "credit");
+
+  // COGS → DR COGS, CR Inventory
+  const cogs = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(COALESCE(i.purchase_cost, 0) + COALESCE(i.shipping_cost, 0)), 0), 2) AS total
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     LEFT JOIN inventory i ON i.id = oi.inventory_id
+     WHERE o.order_status = 'active'${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Cost of Goods Sold", cogs.total, "debit");
+  addBalance("Inventory", cogs.total, "credit");
+
+  // Payments → DR Cash, CR AR
+  const payments = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(grand_total), 0), 2) AS total
+     FROM orders WHERE order_status = 'active' AND payment_status = 'paid' AND COALESCE(grand_total, 0) > 0${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Cash", payments.total, "debit");
+  addBalance("Accounts Receivable", payments.total, "credit");
+
+  // Shipping Revenue → DR AR, CR Shipping Income
+  const shipRev = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(shipping_total), 0), 2) AS total
+     FROM orders WHERE order_status = 'active' AND COALESCE(shipping_total, 0) > 0${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Accounts Receivable", shipRev.total, "debit");
+  addBalance("Shipping Income", shipRev.total, "credit");
+
+  // Discounts → DR Sales Discounts, CR AR
+  const discounts = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(discount_total), 0), 2) AS total
+     FROM orders WHERE order_status = 'active' AND COALESCE(discount_total, 0) > 0${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Sales Discounts", discounts.total, "debit");
+  addBalance("Accounts Receivable", discounts.total, "credit");
+
+  // Tax Collected → DR AR, CR Sales Tax Payable
+  const taxCollected = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(tax_total), 0), 2) AS total
+     FROM orders WHERE order_status = 'active' AND COALESCE(tax_total, 0) > 0${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Accounts Receivable", taxCollected.total, "debit");
+  addBalance("Sales Tax Payable", taxCollected.total, "credit");
+
+  // Shipping Expense → DR Shipping Expense, CR Cash
+  const shipExp = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(seller_shipping_cost), 0), 2) AS total
+     FROM orders WHERE order_status = 'active' AND COALESCE(seller_shipping_cost, 0) > 0${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Shipping Expense", shipExp.total, "debit");
+  addBalance("Cash", shipExp.total, "credit");
+
+  // Refunds → DR Returns & Allowances, CR Cash; DR Sales Tax Payable, CR Cash
+  const refunds = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(subtotal), 0), 2) AS sub_total,
+            ROUND(COALESCE(SUM(tax_total), 0), 2) AS tax_total
+     FROM orders WHERE order_status = 'active' AND payment_status = 'refunded'${dateFilter}`
+  ).get() as { sub_total: number; tax_total: number };
+  addBalance("Sales Returns & Allowances", refunds.sub_total, "debit");
+  addBalance("Cash", refunds.sub_total, "credit");
+  addBalance("Sales Tax Payable", refunds.tax_total, "debit");
+  addBalance("Cash", refunds.tax_total, "credit");
+
+  // Refund COGS reversal → DR Inventory, CR COGS
+  const refundCogs = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(COALESCE(i.purchase_cost, 0) + COALESCE(i.shipping_cost, 0)), 0), 2) AS total
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     LEFT JOIN inventory i ON i.id = oi.inventory_id
+     WHERE o.order_status = 'active' AND o.payment_status = 'refunded'${dateFilter}`
+  ).get() as { total: number };
+  addBalance("Inventory", refundCogs.total, "debit");
+  addBalance("Cost of Goods Sold", refundCogs.total, "credit");
+
+  // Purchases → DR Inventory, CR Cash
+  const purch = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(COALESCE(purchase_price, 0) + COALESCE(shipping_price, 0)), 0), 2) AS total
+     FROM purchases WHERE 1=1${purchDateFilter}`
+  ).get() as { total: number };
+  addBalance("Inventory", purch.total, "debit");
+  addBalance("Cash", purch.total, "credit");
+
+  // Other Costs → DR Operating Expenses, CR Cash
+  const otherCosts = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(amount), 0), 2) AS total
+     FROM other_costs WHERE COALESCE(amount, 0) > 0`
+  ).get() as { total: number };
+  addBalance("Operating Expenses", otherCosts.total, "debit");
+  addBalance("Cash", otherCosts.total, "credit");
+
+  // Tax Remittance → DR Sales Tax Payable, CR Cash
+  const taxPaid = db.prepare(
+    `SELECT ROUND(COALESCE(SUM(amount), 0), 2) AS total
+     FROM tax_payments WHERE amount > 0${taxDateFilter}`
+  ).get() as { total: number };
+  addBalance("Sales Tax Payable", taxPaid.total, "debit");
+  addBalance("Cash", taxPaid.total, "credit");
+
+  // Business Expenses → DR expense acct, CR Cash
+  const bizExp = db.prepare(
+    `SELECT COALESCE(gl_account, CASE WHEN is_cogs = 1 THEN '5000' ELSE '6200' END) AS gl_acct,
+            ROUND(SUM(amount * business_use_pct / 100.0), 2) AS total
+     FROM business_expenses WHERE amount > 0${expDateFilter}
+     GROUP BY gl_acct`
+  ).all() as Array<{ gl_acct: string; total: number }>;
+  for (const row of bizExp) {
+    const acctName = acctMap[row.gl_acct] ?? "Operating Expenses";
+    addBalance(acctName, row.total, "debit");
+    addBalance("Cash", row.total, "credit");
+  }
+
+  return accounts.map((a) => ({
+    ...a,
+    balance: Math.round((balances[a.account_name] ?? 0) * 100) / 100,
+  }));
+}
+
+function buildBalanceSheetReport(params?: ReportParams): ReportResult {
+  const asOfDate = params?.to_date ?? new Date().toISOString().slice(0, 10);
+  const allBalances = computeAccountBalances(asOfDate);
+
+  const bsTypes = new Set(["Asset", "Liability", "Equity"]);
+  const bsAccounts = allBalances.filter((a) => bsTypes.has(a.account_type));
+
+  const netIncome = computeNetIncome(allBalances);
+
+  const assetRows = bsAccounts
+    .filter((a) => a.account_type === "Asset")
+    .map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Balance: a.balance }));
+  const totalAssets = assetRows.reduce((s, r) => s + (r.Balance as number), 0);
+
+  const liabilityRows = bsAccounts
+    .filter((a) => a.account_type === "Liability")
+    .map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Balance: a.balance }));
+  const totalLiabilities = liabilityRows.reduce((s, r) => s + (r.Balance as number), 0);
+
+  const equityRows = bsAccounts
+    .filter((a) => a.account_type === "Equity")
+    .map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Balance: a.balance }));
+  equityRows.push({ "Acct #": "----", Account: "Current Period Net Income", Balance: Math.round(netIncome * 100) / 100 });
+  const totalEquity = equityRows.reduce((s, r) => s + (r.Balance as number), 0);
+
+  return {
+    report_name: "balance-sheet",
+    generated_at: new Date().toISOString(),
+    summary: `As of ${asOfDate}`,
+    metrics: {
+      as_of_date: asOfDate,
+      total_assets: Math.round(totalAssets * 100) / 100,
+      total_liabilities: Math.round(totalLiabilities * 100) / 100,
+      total_equity: Math.round(totalEquity * 100) / 100,
+      total_liabilities_and_equity: Math.round((totalLiabilities + totalEquity) * 100) / 100,
+    },
+    sections: [
+      { title: "Assets", no_totals: true, rows: [...assetRows, { "Acct #": "", Account: "Total Assets", Balance: Math.round(totalAssets * 100) / 100 }] },
+      { title: "Liabilities", no_totals: true, rows: [...liabilityRows, { "Acct #": "", Account: "Total Liabilities", Balance: Math.round(totalLiabilities * 100) / 100 }] },
+      { title: "Equity", no_totals: true, rows: [...equityRows, { "Acct #": "", Account: "Total Equity", Balance: Math.round(totalEquity * 100) / 100 }] },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Income Statement (P&L)
+// ---------------------------------------------------------------------------
+
+function computeNetIncome(allBalances: AccountBalance[]): number {
+  let netIncome = 0;
+  for (const a of allBalances) {
+    if (a.account_type === "Revenue") {
+      netIncome += a.balance;
+    } else if (a.account_type === "Contra-Revenue") {
+      netIncome -= a.balance;
+    } else if (a.account_type === "COGS") {
+      netIncome -= a.balance;
+    } else if (a.account_type === "Expense") {
+      netIncome -= a.balance;
+    }
+  }
+  return netIncome;
+}
+
+function buildIncomeStatementReport(params?: ReportParams): ReportResult {
+  const allBalances = computeAccountBalances(params?.to_date);
+
+  const revenueAccounts = allBalances.filter((a) => a.account_type === "Revenue");
+  const contraAccounts = allBalances.filter((a) => a.account_type === "Contra-Revenue");
+  const cogsAccounts = allBalances.filter((a) => a.account_type === "COGS");
+  const expenseAccounts = allBalances.filter((a) => a.account_type === "Expense");
+
+  const totalRevenue = revenueAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalContra = contraAccounts.reduce((s, a) => s + a.balance, 0);
+  const netRevenue = totalRevenue - totalContra;
+  const totalCogs = cogsAccounts.reduce((s, a) => s + a.balance, 0);
+  const grossProfit = netRevenue - totalCogs;
+  const totalExpenses = expenseAccounts.reduce((s, a) => s + a.balance, 0);
+  const netIncome = grossProfit - totalExpenses;
+
+  const round = (n: number) => Math.round(n * 100) / 100;
+
+  const revenueRows = revenueAccounts.map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Amount: a.balance }));
+  const contraRows = contraAccounts.map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Amount: -a.balance }));
+  const cogsRows = cogsAccounts.map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Amount: a.balance }));
+  const expenseRows = expenseAccounts.map((a) => ({ "Acct #": a.acct_number, Account: a.account_name, Amount: a.balance }));
+
+  const dateRange = describeDateRange(params?.from_date, params?.to_date);
+
+  return {
+    report_name: "income-statement",
+    generated_at: new Date().toISOString(),
+    summary: dateRange,
+    metrics: {
+      date_range: dateRange,
+      total_revenue: round(totalRevenue),
+      total_contra_revenue: round(totalContra),
+      net_revenue: round(netRevenue),
+      total_cogs: round(totalCogs),
+      gross_profit: round(grossProfit),
+      total_operating_expenses: round(totalExpenses),
+      net_income: round(netIncome),
+    },
+    sections: [
+      {
+        title: "Revenue",
+        no_totals: true,
+        rows: [
+          ...revenueRows,
+          ...(contraRows.length > 0 ? [{ "Acct #": "" as string | number, Account: "Less:", Amount: "" as string | number }] : []),
+          ...contraRows,
+          { "Acct #": "", Account: "Net Revenue", Amount: round(netRevenue) },
+        ],
+      },
+      {
+        title: "Cost of Goods Sold",
+        no_totals: true,
+        rows: [
+          ...cogsRows,
+          { "Acct #": "", Account: "Total COGS", Amount: round(totalCogs) },
+        ],
+      },
+      {
+        title: "Gross Profit",
+        no_totals: true,
+        rows: [
+          { "Acct #": "", Account: "Gross Profit (Net Revenue − COGS)", Amount: round(grossProfit) },
+        ],
+      },
+      {
+        title: "Operating Expenses",
+        no_totals: true,
+        rows: [
+          ...expenseRows,
+          { "Acct #": "", Account: "Total Operating Expenses", Amount: round(totalExpenses) },
+        ],
+      },
+      {
+        title: "Net Income",
+        no_totals: true,
+        rows: [
+          { "Acct #": "", Account: "Net Income", Amount: round(netIncome) },
+        ],
+      },
+    ],
+  };
+}
+
 function buildAccountingExportReport(params?: ReportParams): ReportResult {
   const rows = buildAccountingExportRows(params);
   return {
@@ -1511,6 +1840,8 @@ export function buildReport(reportName: string, params?: ReportParams): ReportRe
   if (reportName === "sales-tax-summary") return buildSalesTaxSummaryReport(params);
   if (reportName === "inventory-aging") return buildInventoryAgingReport(params);
   if (reportName === "accounting-export") return buildAccountingExportReport(params);
+  if (reportName === "balance-sheet") return buildBalanceSheetReport(params);
+  if (reportName === "income-statement") return buildIncomeStatementReport(params);
   const generated_at = new Date().toISOString();
   return {
     report_name: reportName,

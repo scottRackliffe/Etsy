@@ -74,10 +74,41 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const sets: string[] = [];
     const values: Record<string, unknown> = { id: receiptId };
 
-    for (const key of ["vendor_name", "purchase_date", "reference_number", "notes", "receipt_image", "shipping_price"] as const) {
+    for (const key of ["vendor_name", "vendor_id", "purchase_date", "reference_number", "notes", "receipt_image", "shipping_price"] as const) {
       if (key in body) {
         sets.push(`${key} = @${key}`);
         values[key] = body[key] ?? null;
+      }
+    }
+
+    if ("vendor_id" in body && typeof body.vendor_id === "number") {
+      const vendor = db.prepare("SELECT name FROM vendors WHERE id = ?").get(body.vendor_id) as { name: string } | undefined;
+      if (vendor) {
+        if (!sets.includes("vendor_name = @vendor_name")) {
+          sets.push("vendor_name = @vendor_name");
+        }
+        values.vendor_name = vendor.name;
+
+        // Cascade to purchase records created from this receipt's linked items
+        const linkedInventoryIds = db
+          .prepare("SELECT inventory_id FROM receipt_items WHERE receipt_id = ? AND inventory_id IS NOT NULL")
+          .all(receiptId) as Array<{ inventory_id: number }>;
+
+        if (linkedInventoryIds.length > 0) {
+          const updatePurchase = db.prepare(
+            "UPDATE purchases SET vendor_id = ?, vendor_name = ?, updated_at = ? WHERE inventory_id = ? AND notes LIKE ?"
+          );
+          const now = new Date().toISOString();
+          for (const row of linkedInventoryIds) {
+            updatePurchase.run(
+              body.vendor_id,
+              vendor.name,
+              now,
+              row.inventory_id,
+              `Linked from scanned receipt #${receiptId}`
+            );
+          }
+        }
       }
     }
 

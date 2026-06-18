@@ -6,10 +6,12 @@ import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { VendorPicker } from "@/components/ui/VendorPicker";
 
 type ReceiptRow = {
   id: number;
   vendor_name: string;
+  vendor_id: number | null;
   purchase_date: string | null;
   reference_number: string | null;
   total_items: number;
@@ -28,6 +30,7 @@ type ReceiptItem = {
 
 type ReceiptDraft = {
   vendor_name: string;
+  vendor_id: number | null;
   purchase_date: string | null;
   reference_number: string | null;
   items: Array<{ description: string; cost: number | null }>;
@@ -242,6 +245,7 @@ export default function ReceiptsPage() {
       if (data.ok && data.ocr) {
         setDraft({
           vendor_name: data.ocr.vendor_name,
+          vendor_id: null,
           purchase_date: data.ocr.purchase_date,
           reference_number: data.ocr.reference_number,
           items: data.ocr.items.length > 0 ? data.ocr.items : [{ description: "", cost: null }],
@@ -267,7 +271,7 @@ export default function ReceiptsPage() {
   };
 
   const saveReceipt = async () => {
-    if (!draft || !draft.vendor_name.trim()) return;
+    if (!draft || (!draft.vendor_id && !draft.vendor_name.trim())) return;
     setSaving(true);
     try {
       const res = await fetch("/api/receipts", {
@@ -275,6 +279,7 @@ export default function ReceiptsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendor_name: draft.vendor_name.trim(),
+          vendor_id: draft.vendor_id ?? undefined,
           purchase_date: draft.purchase_date,
           reference_number: draft.reference_number,
           notes: draft.notes,
@@ -330,6 +335,30 @@ export default function ReceiptsPage() {
     }
   };
 
+  const updateReceiptVendor = async (receiptId: number, vendorId: number | null, vendorName: string | null) => {
+    try {
+      const res = await fetch(`/api/receipts/${receiptId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendor_id: vendorId,
+          vendor_name: vendorName ?? undefined,
+        }),
+      });
+      if (res.ok) {
+        setReceipts((prev) =>
+          prev.map((r) =>
+            r.id === receiptId
+              ? { ...r, vendor_id: vendorId, vendor_name: vendorName ?? r.vendor_name }
+              : r
+          )
+        );
+      }
+    } catch {
+      setError({ title: "Update failed", message: "Could not update vendor.", actions: ["Try again."] });
+    }
+  };
+
   const cancelDraft = () => {
     setDraft(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -365,6 +394,7 @@ export default function ReceiptsPage() {
             onClick={() =>
               setDraft({
                 vendor_name: "",
+                vendor_id: null,
                 purchase_date: new Date().toISOString().slice(0, 10),
                 reference_number: null,
                 items: [{ description: "", cost: null }],
@@ -410,14 +440,19 @@ export default function ReceiptsPage() {
             </div>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block text-sm text-[var(--ui-body)]">
+            <div className="block text-sm text-[var(--ui-body)]">
               Vendor / store
-              <input
-                value={draft.vendor_name}
-                onChange={(e) => setDraft({ ...draft, vendor_name: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-              />
-            </label>
+              <div className="mt-1">
+                <VendorPicker
+                  vendorId={draft.vendor_id}
+                  onChange={(id, name) => setDraft({ ...draft, vendor_id: id, vendor_name: name ?? "" })}
+                  placeholder="Select vendor..."
+                  allowEmpty={false}
+                  ocrHint={!draft.vendor_id && draft.vendor_name ? draft.vendor_name : null}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </div>
+            </div>
             <label className="block text-sm text-[var(--ui-body)]">
               Date
               <input
@@ -517,7 +552,7 @@ export default function ReceiptsPage() {
             <Button
               variant="primary"
               busy={saving}
-              disabled={!draft.vendor_name.trim()}
+              disabled={!draft.vendor_id && !draft.vendor_name.trim()}
               onClick={() => void saveReceipt()}
             >
               Save Receipt
@@ -543,6 +578,7 @@ export default function ReceiptsPage() {
             onClick: () =>
               setDraft({
                 vendor_name: "",
+                vendor_id: null,
                 purchase_date: new Date().toISOString().slice(0, 10),
                 reference_number: null,
                 items: [{ description: "", cost: null }],
@@ -580,6 +616,11 @@ export default function ReceiptsPage() {
                         {expandedId === rx.id ? "▼" : "▶"}
                       </span>
                       {rx.vendor_name}
+                      {!rx.vendor_id && (
+                        <span className="ml-1.5 rounded-full bg-[var(--ui-yellow)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[var(--ui-yellow)]" title="Vendor not linked — expand to fix">
+                          unlinked
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-[var(--ui-body)]">
                       {rx.purchase_date ?? "—"}
@@ -620,6 +661,22 @@ export default function ReceiptsPage() {
                   {expandedId === rx.id ? (
                     <tr key={`${rx.id}-detail`}>
                       <td colSpan={6} className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-4 py-3">
+                        {/* Vendor link editor */}
+                        <div className="mb-3">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+                            Vendor
+                          </p>
+                          <div className="max-w-xs">
+                            <VendorPicker
+                              vendorId={rx.vendor_id}
+                              onChange={(id, name) => void updateReceiptVendor(rx.id, id, name)}
+                              placeholder="Select vendor..."
+                              ocrHint={!rx.vendor_id && rx.vendor_name ? rx.vendor_name : null}
+                              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                            />
+                          </div>
+                        </div>
+
                         {detailLoading ? (
                           <div className="flex items-center gap-2 py-2">
                             <LoadingSpinner />

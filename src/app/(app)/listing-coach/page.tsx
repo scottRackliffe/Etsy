@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleResultsPasteZone } from "@/components/listing-coach/GoogleResultsPasteZone";
 import { PhotoPasteZone } from "@/components/listing-coach/PhotoPasteZone";
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorPanel } from "@/components/ui/ErrorPanel";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { VendorPicker } from "@/components/ui/VendorPicker";
 import { useToast } from "@/hooks/useToast";
 import { createUiError } from "@/lib/ui-error";
 import { computeListingScore, type ListingScoreResult } from "@/lib/listing-score";
@@ -224,15 +225,13 @@ export default function ListingCoachPage() {
   const [shippingCostInbound, setShippingCostInbound] = useState<number | null>(null);
   const [categoryTags, setCategoryTags] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
+  const [vendorId, setVendorId] = useState<number | null>(null);
   const [vendorName, setVendorName] = useState("");
   const [vendorShippingPrice, setVendorShippingPrice] = useState<number | null>(null);
   const [vendorReferenceNumber, setVendorReferenceNumber] = useState("");
   const [vendorNotes, setVendorNotes] = useState("");
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [vendorList, setVendorList] = useState<string[]>([]);
-  const [vendorSuggestions, setVendorSuggestions] = useState<string[]>([]);
-  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
 
   // Receipts
   type ReceiptSummary = { id: number; vendor_name: string; purchase_date: string | null; reference_number: string | null; total_items: number; unassigned_items: number; receipt_image: string | null; shipping_price: number | null; notes: string | null };
@@ -273,12 +272,6 @@ export default function ListingCoachPage() {
         if (data?.value) {
           setStoreCategoryList(data.value.split(",").map((s) => s.trim()).filter(Boolean));
         }
-      })
-      .catch(() => {});
-    void fetch("/api/purchases/vendors", { headers: { Accept: "application/json" } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { vendors?: string[] } | null) => {
-        if (data?.vendors) setVendorList(data.vendors);
       })
       .catch(() => {});
   }, []);
@@ -662,6 +655,7 @@ export default function ListingCoachPage() {
       if (categoryTags.trim()) formData.append("category_tags", categoryTags.trim());
       if (internalNotes.trim()) formData.append("internal_notes", internalNotes.trim());
       if (vendorName.trim()) formData.append("vendor_name", vendorName.trim());
+      if (vendorId != null) formData.append("vendor_id", String(vendorId));
       if (vendorShippingPrice != null) formData.append("vendor_shipping_price", String(vendorShippingPrice));
       if (vendorReferenceNumber.trim()) formData.append("vendor_reference_number", vendorReferenceNumber.trim());
       if (vendorNotes.trim()) formData.append("vendor_notes", vendorNotes.trim());
@@ -859,62 +853,24 @@ export default function ListingCoachPage() {
               </span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="relative block text-sm text-[var(--ui-body)]">
+              <div className="block text-sm text-[var(--ui-body)]">
                 <span className="block mb-1">Vendor / source</span>
-                <input
-                  value={vendorName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setVendorName(val);
+                <VendorPicker
+                  vendorId={vendorId}
+                  onChange={(id, name) => {
+                    setVendorId(id);
+                    setVendorName(name ?? "");
                     setSelectedReceiptId(null);
                     setReceiptItems([]);
                     setSelectedReceiptItemId(null);
                     setShowReceiptPicker(false);
-                    if (val.trim().length > 0) {
-                      const lower = val.toLowerCase();
-                      setVendorSuggestions(vendorList.filter((v) => v.toLowerCase().includes(lower)));
-                      setShowVendorSuggestions(true);
-                    } else {
-                      setShowVendorSuggestions(false);
-                      setVendorReceipts([]);
-                    }
+                    if (name) void fetchReceiptsForVendor(name);
+                    else setVendorReceipts([]);
                   }}
-                  onFocus={() => {
-                    if (vendorName.trim().length > 0) {
-                      const lower = vendorName.toLowerCase();
-                      setVendorSuggestions(vendorList.filter((v) => v.toLowerCase().includes(lower)));
-                      setShowVendorSuggestions(true);
-                    } else if (vendorList.length > 0) {
-                      setVendorSuggestions(vendorList);
-                      setShowVendorSuggestions(true);
-                    }
-                  }}
-                  onBlur={() => setTimeout(() => setShowVendorSuggestions(false), 150)}
-                  className={inputClass}
                   placeholder="e.g. Goodwill, estate sale, eBay"
-                  spellCheck
-                  autoComplete="off"
+                  allowEmpty={false}
+                  className={inputClass}
                 />
-                {showVendorSuggestions && vendorSuggestions.length > 0 ? (
-                  <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-lg">
-                    {vendorSuggestions.map((v) => (
-                      <li key={v}>
-                        <button
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left text-sm text-[var(--ui-body)] hover:bg-[var(--ui-accent)]/20"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setVendorName(v);
-                            setShowVendorSuggestions(false);
-                            void fetchReceiptsForVendor(v);
-                          }}
-                        >
-                          {v}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
               </div>
               <label className="block text-sm text-[var(--ui-body)]">
                 Vendor shipping cost ($)
@@ -1553,10 +1509,18 @@ export default function ListingCoachPage() {
           <div className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 space-y-3">
             <SectionHeader title="Where I Bought This" />
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm text-[var(--ui-body)]">
+              <div className="block text-sm text-[var(--ui-body)]">
                 Vendor name
-                <input value={vendorName} onChange={(e) => setVendorName(e.target.value)} className={inputClass} placeholder="e.g. Goodwill, estate sale" />
-              </label>
+                <div className="mt-1">
+                  <VendorPicker
+                    vendorId={vendorId}
+                    onChange={(id, name) => { setVendorId(id); setVendorName(name ?? ""); }}
+                    placeholder="Select vendor..."
+                    allowEmpty={false}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
               <label className="block text-sm text-[var(--ui-body)]">
                 Vendor shipping cost
                 <input type="number" min="0" step="0.01" value={vendorShippingPrice ?? ""} onChange={(e) => setVendorShippingPrice(e.target.value === "" ? null : Number(e.target.value))} className={inputClass} />

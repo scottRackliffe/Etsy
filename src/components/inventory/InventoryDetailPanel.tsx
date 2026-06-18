@@ -17,6 +17,7 @@ import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueueFullError } from "@/lib/api-fetch";
 import { OtherCostsManager } from "@/components/inventory/OtherCostsManager";
+import { VendorPicker } from "@/components/ui/VendorPicker";
 import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
 import type { ApiErrorShape, InventoryItem } from "@/types";
 
@@ -70,6 +71,7 @@ export type InventoryItemDetail = InventoryItem & {
 type VendorPurchase = {
   id: number;
   inventory_id: number;
+  vendor_id: number | null;
   vendor_name: string | null;
   purchase_date: string | null;
   purchase_price: number | null;
@@ -252,6 +254,7 @@ export function InventoryDetailPanel({
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [addBuyOpen, setAddBuyOpen] = useState(false);
   const [buyForm, setBuyForm] = useState({
+    vendor_id: null as number | null,
     vendor_name: "",
     purchase_date: new Date().toISOString().slice(0, 10),
     purchase_price: "",
@@ -263,6 +266,7 @@ export function InventoryDetailPanel({
   const [deleteBuyTarget, setDeleteBuyTarget] = useState<VendorPurchase | null>(null);
   const [editBuyTarget, setEditBuyTarget] = useState<VendorPurchase | null>(null);
   const [editBuyForm, setEditBuyForm] = useState({
+    vendor_id: null as number | null,
     vendor_name: "",
     purchase_date: "",
     purchase_price: "",
@@ -432,7 +436,7 @@ export function InventoryDetailPanel({
   };
 
   const addVendorBuy = async () => {
-    if (!item || !buyForm.vendor_name.trim()) return;
+    if (!item || (!buyForm.vendor_id && !buyForm.vendor_name.trim())) return;
     setBuyBusy(true);
     try {
       const response = await fetch("/api/purchases", {
@@ -440,7 +444,8 @@ export function InventoryDetailPanel({
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           inventory_id: item.id,
-          vendor_name: buyForm.vendor_name.trim(),
+          vendor_id: buyForm.vendor_id ?? undefined,
+          vendor_name: buyForm.vendor_name.trim() || null,
           purchase_date: buyForm.purchase_date || null,
           purchase_price: buyForm.purchase_price === "" ? null : Number(buyForm.purchase_price),
           shipping_price: buyForm.shipping_price === "" ? null : Number(buyForm.shipping_price),
@@ -452,6 +457,7 @@ export function InventoryDetailPanel({
       if (!response.ok) throw data;
       setAddBuyOpen(false);
       setBuyForm({
+        vendor_id: null,
         vendor_name: "",
         purchase_date: new Date().toISOString().slice(0, 10),
         purchase_price: "",
@@ -471,6 +477,7 @@ export function InventoryDetailPanel({
   const openEditBuy = (row: VendorPurchase) => {
     setEditBuyTarget(row);
     setEditBuyForm({
+      vendor_id: row.vendor_id ?? null,
       vendor_name: row.vendor_name ?? "",
       purchase_date: row.purchase_date ?? "",
       purchase_price: row.purchase_price != null ? String(row.purchase_price) : "",
@@ -488,6 +495,7 @@ export function InventoryDetailPanel({
         method: "PATCH",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
+          vendor_id: editBuyForm.vendor_id ?? null,
           vendor_name: editBuyForm.vendor_name.trim() || null,
           purchase_date: editBuyForm.purchase_date || null,
           purchase_price: editBuyForm.purchase_price === "" ? null : Number(editBuyForm.purchase_price),
@@ -1202,11 +1210,13 @@ export function InventoryDetailPanel({
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
               Add vendor purchase
             </h4>
-            <FormField label="Vendor name">
-              <TextInput
-                value={buyForm.vendor_name}
-                onChange={(v) => setBuyForm((c) => ({ ...c, vendor_name: v }))}
-                className={inputClass}
+            <FormField label="Vendor">
+              <VendorPicker
+                vendorId={buyForm.vendor_id}
+                onChange={(id, name) => setBuyForm((c) => ({ ...c, vendor_id: id, vendor_name: name ?? "" }))}
+                placeholder="Select vendor..."
+                allowEmpty={false}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
               />
             </FormField>
             <FormField label="Purchase date">
@@ -1258,7 +1268,7 @@ export function InventoryDetailPanel({
               <Button
                 variant="accent"
                 onClick={() => void addVendorBuy()}
-                disabled={!buyForm.vendor_name.trim()}
+                disabled={!buyForm.vendor_id && !buyForm.vendor_name.trim()}
                 busy={buyBusy}
               >
                 Add buy
@@ -1278,12 +1288,19 @@ export function InventoryDetailPanel({
             <h4 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">
               Edit vendor purchase
             </h4>
-            <FormField label="Vendor name">
-              <TextInput
-                value={editBuyForm.vendor_name}
-                onChange={(v) => setEditBuyForm((c) => ({ ...c, vendor_name: v }))}
-                className={inputClass}
+            <FormField label="Vendor">
+              <VendorPicker
+                vendorId={editBuyForm.vendor_id}
+                onChange={(id, name) => setEditBuyForm((c) => ({ ...c, vendor_id: id, vendor_name: name ?? "" }))}
+                placeholder="Select vendor..."
+                allowEmpty={false}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
               />
+              {editBuyForm.vendor_name && !editBuyForm.vendor_id && (
+                <p className="mt-1 text-xs text-[var(--ui-yellow)]">
+                  Unlinked vendor: &quot;{editBuyForm.vendor_name}&quot; — select a vendor above to link it
+                </p>
+              )}
             </FormField>
             <FormField label="Purchase date">
               <input
@@ -1334,7 +1351,7 @@ export function InventoryDetailPanel({
               <Button
                 variant="accent"
                 onClick={() => void saveVendorBuy()}
-                disabled={!editBuyForm.vendor_name.trim()}
+                disabled={!editBuyForm.vendor_id && !editBuyForm.vendor_name.trim()}
                 busy={buyBusy}
               >
                 Save changes

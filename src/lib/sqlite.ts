@@ -454,6 +454,68 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS vendors (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      name                    TEXT    NOT NULL UNIQUE,
+      address_1               TEXT,
+      address_2               TEXT,
+      city                    TEXT,
+      state                   TEXT,
+      postal_code             TEXT,
+      country                 TEXT    DEFAULT 'US',
+      contact_person          TEXT,
+      email                   TEXT,
+      phone                   TEXT,
+      website                 TEXT,
+      account_number          TEXT,
+      payment_terms           TEXT,
+      tax_id                  TEXT,
+      is_preferred            INTEGER NOT NULL DEFAULT 0,
+      vendor_category         TEXT,
+      default_shipping_method TEXT,
+      notes                   TEXT,
+      is_active               INTEGER NOT NULL DEFAULT 1,
+      created_at              TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at              TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS business_expenses (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      expense_date          TEXT    NOT NULL,
+      date_paid             TEXT,
+      amount                REAL    NOT NULL,
+      currency_code         TEXT    NOT NULL DEFAULT 'USD',
+      payment_method        TEXT,
+      vendor_id             INTEGER REFERENCES vendors(id),
+      vendor_name           TEXT,
+      category              TEXT    NOT NULL,
+      subcategory           TEXT,
+      tax_deductible        INTEGER NOT NULL DEFAULT 1,
+      tax_category          TEXT,
+      business_use_pct      REAL    NOT NULL DEFAULT 100.0,
+      is_cogs               INTEGER NOT NULL DEFAULT 0,
+      is_asset              INTEGER NOT NULL DEFAULT 0,
+      depreciation_years    INTEGER,
+      inventory_id          INTEGER REFERENCES inventory(id),
+      invoice_number        TEXT,
+      receipt_attached      INTEGER NOT NULL DEFAULT 0,
+      receipt_path          TEXT,
+      paid_by               TEXT,
+      is_recurring          INTEGER NOT NULL DEFAULT 0,
+      recurring_frequency   TEXT,
+      recurring_next_date   TEXT,
+      contract_end_date     TEXT,
+      gl_account            TEXT,
+      fiscal_quarter        TEXT,
+      notes                 TEXT,
+      created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS chart_of_accounts (
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
       acct_number    TEXT    NOT NULL UNIQUE,
@@ -504,7 +566,9 @@ function ensureCoreTables(db: Database.Database): void {
         ('4900', 'Sales Discounts',            'Contra-Revenue', 'debit',  'Discounts given to customers (contra-income)'),
         ('5000', 'Cost of Goods Sold',         'COGS',           'debit',  'Cost of merchandise sold'),
         ('6100', 'Shipping Expense',           'Expense',        'debit',  'Seller-paid shipping costs to carriers'),
-        ('6200', 'Operating Expenses',         'Expense',        'debit',  'Packaging, supplies, and other operating costs');
+        ('6200', 'Operating Expenses',         'Expense',        'debit',  'Packaging, supplies, and other operating costs'),
+        ('3000', 'Owner''s Equity',            'Equity',         'credit', 'Owner capital contributions'),
+        ('3200', 'Retained Earnings',          'Equity',         'credit', 'Accumulated net income from prior periods');
     `);
   }
 
@@ -525,14 +589,37 @@ function ensureCoreTables(db: Database.Database): void {
         ('Refund - Inventory', 'Item returned to stock — inventory up, COGS reversed', '1300', '5000', 'inventory',     'purchase_cost'),
         ('Purchase',           'Buy inventory item for resale',                        '1300', '1000', 'purchases',     'purchase_price'),
         ('Purchase Shipping',  'Shipping cost to acquire inventory',                   '1300', '1000', 'purchases',     'shipping_price'),
-        ('Other Cost',         'Operating expense (packaging, supplies, etc.)',        '6200', '1000', 'other_costs',   'amount');
+        ('Other Cost',         'Operating expense (packaging, supplies, etc.)',        '6200', '1000', 'other_costs',   'amount'),
+        ('Business Expense',   'Business overhead expense — debit expense acct, credit cash', '6200', '1000', 'business_expenses', 'amount');
     `);
+  }
+
+  // Ensure equity accounts + business expense GL rule exist on pre-existing databases
+  db.exec(`
+    INSERT OR IGNORE INTO chart_of_accounts (acct_number, account_name, account_type, normal_balance, description)
+    VALUES ('3000', 'Owner''s Equity', 'Equity', 'credit', 'Owner capital contributions');
+  `);
+  db.exec(`
+    INSERT OR IGNORE INTO chart_of_accounts (acct_number, account_name, account_type, normal_balance, description)
+    VALUES ('3200', 'Retained Earnings', 'Equity', 'credit', 'Accumulated net income from prior periods');
+  `);
+  {
+    const hasRule = db.prepare(
+      "SELECT COUNT(*) AS c FROM gl_transaction_rules WHERE transaction_type = 'Business Expense'"
+    ).get() as { c: number };
+    if (hasRule.c === 0) {
+      db.exec(`
+        INSERT INTO gl_transaction_rules (transaction_type, description, debit_acct, credit_acct, source_table, source_column)
+        VALUES ('Business Expense', 'Business overhead expense — debit expense acct, credit cash', '6200', '1000', 'business_expenses', 'amount');
+      `);
+    }
   }
 
   // Ensure reconciliation columns exist on pre-existing databases
   ensureTableColumns(db, "orders", ORDERS_RECONCILIATION_COLUMNS);
   ensureTableColumns(db, "customers", CUSTOMERS_RECONCILIATION_COLUMNS);
-  ensureTableColumns(db, "purchases", { receipt_image: "TEXT" });
+  ensureTableColumns(db, "purchases", { receipt_image: "TEXT", vendor_id: "INTEGER REFERENCES vendors(id)" });
+  ensureTableColumns(db, "receipts", { vendor_id: "INTEGER REFERENCES vendors(id)" });
   ensureTableColumns(db, "inventory", { etsy_attributes_json: "TEXT" });
 
   // Indexes
@@ -540,7 +627,14 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_of_sale ON inventory(date_of_sale);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_listed ON inventory(date_listed);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_purchases_inventory_id ON purchases(inventory_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_purchases_vendor_id ON purchases(vendor_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_receipts_vendor_id ON receipts(vendor_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_vendors_is_active ON vendors(is_active);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_other_costs_inventory_id ON other_costs(inventory_id);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_business_expenses_date ON business_expenses(expense_date);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_business_expenses_category ON business_expenses(category);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_business_expenses_vendor_id ON business_expenses(vendor_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_orders_was_paid ON orders(was_paid);");

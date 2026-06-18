@@ -49,7 +49,16 @@ export async function POST(request: Request) {
     const db = getDb();
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
 
-    const vendorName = typeof body.vendor_name === "string" ? body.vendor_name.trim() : "";
+    let vendorName = typeof body.vendor_name === "string" ? body.vendor_name.trim() : "";
+    const vendorId = typeof body.vendor_id === "number" ? body.vendor_id : null;
+
+    if (vendorId) {
+      const vendor = db.prepare("SELECT name FROM vendors WHERE id = ?").get(vendorId) as
+        | { name: string }
+        | undefined;
+      if (vendor) vendorName = vendor.name;
+    }
+
     if (!vendorName) {
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION_ERROR", message: "vendor_name is required" } },
@@ -60,11 +69,12 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     const result = db
       .prepare(
-        `INSERT INTO receipts (vendor_name, purchase_date, receipt_image, shipping_price, reference_number, notes, created_at, updated_at)
-         VALUES (@vendor_name, @purchase_date, @receipt_image, @shipping_price, @reference_number, @notes, @created_at, @updated_at)`
+        `INSERT INTO receipts (vendor_name, vendor_id, purchase_date, receipt_image, shipping_price, reference_number, notes, created_at, updated_at)
+         VALUES (@vendor_name, @vendor_id, @purchase_date, @receipt_image, @shipping_price, @reference_number, @notes, @created_at, @updated_at)`
       )
       .run({
         vendor_name: vendorName,
+        vendor_id: vendorId,
         purchase_date: typeof body.purchase_date === "string" ? body.purchase_date : null,
         receipt_image: typeof body.receipt_image === "string" ? body.receipt_image : null,
         shipping_price: typeof body.shipping_price === "number" ? body.shipping_price : null,

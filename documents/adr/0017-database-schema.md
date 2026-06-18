@@ -259,26 +259,58 @@ Line items for a sales order. Source: ADR-003, ADR-019.
 
 ---
 
-### 5c. Table: `purchases` (vendor sourcing only)
+### 5c. Table: `vendors`
 
-What Trudy **bought from vendors** to resell — not customer sales. Source: ADR-002.
+Normalized vendor/supplier records. Source: ADR-076.
 
-| Column           | Type    | Constraints                                           | Source / notes      |
-| ---------------- | ------- | ----------------------------------------------------- | ------------------- |
-| id               | INTEGER | PRIMARY KEY AUTOINCREMENT                             | Surrogate key.      |
-| inventory_id     | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT | FK to inventory.    |
-| vendor_name      | TEXT    | —                                                     | Vendor name.        |
-| purchase_date    | TEXT    | —                                                     | YYYY-MM-DD.         |
-| purchase_price   | REAL    | —                                                     | Item cost.          |
-| shipping_price   | REAL    | —                                                     | Inbound shipping.   |
-| reference_number | TEXT    | —                                                     | Optional ref.       |
-| notes            | TEXT    | —                                                     | Optional.           |
-| created_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp. |
-| updated_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp. |
+| Column                  | Type    | Constraints               | Source / notes                                                 |
+| ----------------------- | ------- | ------------------------- | -------------------------------------------------------------- |
+| id                      | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key.                                                 |
+| name                    | TEXT    | NOT NULL, UNIQUE          | Business/vendor name.                                          |
+| address_1               | TEXT    |                           | Street address line 1.                                         |
+| address_2               | TEXT    |                           | Street address line 2 (optional).                              |
+| city                    | TEXT    |                           |                                                                |
+| state                   | TEXT    |                           | State / province.                                              |
+| postal_code             | TEXT    |                           |                                                                |
+| country                 | TEXT    |                           | Default: "US".                                                 |
+| contact_person          | TEXT    |                           | Primary contact name.                                          |
+| email                   | TEXT    |                           |                                                                |
+| phone                   | TEXT    |                           |                                                                |
+| website                 | TEXT    |                           | Vendor website or online store URL.                            |
+| account_number          | TEXT    |                           | Your account number with this vendor.                          |
+| payment_terms           | TEXT    |                           | e.g. "Net 30", "COD", "Prepaid".                               |
+| tax_id                  | TEXT    |                           | Vendor EIN / Tax ID (for 1099 reporting).                      |
+| is_preferred            | INTEGER | NOT NULL DEFAULT 0        | 1 = preferred/favorite vendor.                                 |
+| vendor_category         | TEXT    |                           | e.g. "Estate sale", "Auction house", "Antique mall", "Online". |
+| default_shipping_method | TEXT    |                           | How vendor typically ships to you.                             |
+| notes                   | TEXT    |                           | Free-text notes about this vendor.                             |
+| is_active               | INTEGER | NOT NULL DEFAULT 1        | 1 = active, 0 = inactive (soft-delete).                        |
+| created_at              | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                            |
+| updated_at              | TEXT    | NOT NULL                  | ISO 8601 timestamp.                                            |
 
 ---
 
-### 5d. Table: `customer_notes`
+### 5d. Table: `purchases` (vendor sourcing only)
+
+What Trudy **bought from vendors** to resell — not customer sales. Source: ADR-002, ADR-076.
+
+| Column           | Type    | Constraints                                           | Source / notes                                        |
+| ---------------- | ------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| id               | INTEGER | PRIMARY KEY AUTOINCREMENT                             | Surrogate key.                                        |
+| inventory_id     | INTEGER | NOT NULL, REFERENCES inventory(id) ON DELETE RESTRICT | FK to inventory.                                      |
+| vendor_id        | INTEGER | REFERENCES vendors(id)                                | FK to vendors. Optional for legacy rows (ADR-076).    |
+| vendor_name      | TEXT    | —                                                     | Vendor name. Auto-populated from vendors.name if vendor_id set. Kept for backward compat. |
+| purchase_date    | TEXT    | —                                                     | YYYY-MM-DD.                                           |
+| purchase_price   | REAL    | —                                                     | Item cost.                                            |
+| shipping_price   | REAL    | —                                                     | Inbound shipping.                                     |
+| reference_number | TEXT    | —                                                     | Optional ref.                                         |
+| notes            | TEXT    | —                                                     | Optional.                                             |
+| created_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp.                                   |
+| updated_at       | TEXT    | NOT NULL                                              | ISO 8601 timestamp.                                   |
+
+---
+
+### 5e. Table: `customer_notes`
 
 Chronological interaction notes per customer. Source: ADR-065.
 
@@ -292,7 +324,7 @@ Chronological interaction notes per customer. Source: ADR-065.
 
 ---
 
-### 5e. Table: `activity_log`
+### 5f. Table: `activity_log`
 
 Persistent audit trail. Source: ADR-037.
 
@@ -448,6 +480,98 @@ GL transaction rules mapping transaction types to debit/credit accounts (ADR-056
 
 ---
 
+### 6d. Table: `tax_payments`
+
+Tax remittance payments made to tax authorities (ADR-039). Each row is a payment of collected sales tax.
+
+| Column | Type | Constraints | Source / notes |
+| ---------------- | ------- | ------------------------------------ | --------------------------------------------------- |
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
+| payment_date | TEXT | NOT NULL | ISO 8601 date of payment. |
+| amount | REAL | NOT NULL | Amount paid. |
+| payee | TEXT | | Tax authority name (e.g. "Ohio Dept of Taxation"). |
+| reason | TEXT | | Reason / description of payment. |
+| period_from | TEXT | | Start of tax period covered. |
+| period_to | TEXT | | End of tax period covered. |
+| reference_number | TEXT | | Check number, confirmation number, etc. |
+| notes | TEXT | | Free-text notes. |
+| created_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+
+---
+
+### 6e. Table: `receipts`
+
+Vendor purchase receipts — tracks what Trudy bought from vendors (distinct from `etsy_receipts` which caches raw Etsy API data).
+
+| Column | Type | Constraints | Source / notes |
+| ---------------- | ------- | ------------------------------------ | --------------------------------------------------- |
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
+| vendor_name | TEXT | NOT NULL | Vendor / store name (from OCR or manual entry). |
+| vendor_id | INTEGER | REFERENCES vendors(id) | FK to normalized vendor record (may be NULL for legacy data). |
+| purchase_date | TEXT | | Date of purchase. |
+| receipt_image | TEXT | | Path to receipt image file. |
+| shipping_price | REAL | | Shipping paid on this receipt. |
+| reference_number | TEXT | | Receipt number, order number, etc. |
+| notes | TEXT | | Free-text notes. |
+| created_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+| updated_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+
+---
+
+### 6f. Table: `receipt_items`
+
+Line items on a vendor purchase receipt. Each item can optionally be linked to an inventory record.
+
+| Column | Type | Constraints | Source / notes |
+| ------------ | ------- | -------------------------------------------- | --------------------------------------------------- |
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
+| receipt_id | INTEGER | NOT NULL, FK → receipts(id) ON DELETE CASCADE | Parent receipt. |
+| description | TEXT | NOT NULL | Item description from receipt. |
+| cost | REAL | | Item cost. |
+| inventory_id | INTEGER | FK → inventory(id) ON DELETE SET NULL | Linked inventory item (NULL = unassigned). |
+| created_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+
+---
+
+### 6g. Table: `business_expenses`
+
+General business overhead expenses — not directly tied to inventory COGS (ADR-039, Expenses tab). Supports categorization, tax deductibility, recurring tracking, and GL account mapping.
+
+| Column | Type | Constraints | Source / notes |
+| ------------------- | ------- | ----------------------------------------- | --------------------------------------------------- |
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | Surrogate key. |
+| expense_date | TEXT | NOT NULL | Date expense was incurred. |
+| date_paid | TEXT | | Date payment was actually made (accrual vs cash). |
+| amount | REAL | NOT NULL | Expense amount. |
+| currency_code | TEXT | NOT NULL DEFAULT 'USD' | Currency code. |
+| payment_method | TEXT | | e.g. "Credit card", "PayPal", "Check". |
+| vendor_id | INTEGER | REFERENCES vendors(id) | FK to vendor who was paid. |
+| vendor_name | TEXT | | Vendor name (backward compat / OCR fallback). |
+| category | TEXT | NOT NULL | Expense category (e.g. "Software & subscriptions"). |
+| subcategory | TEXT | | Finer categorization. |
+| tax_deductible | INTEGER | NOT NULL DEFAULT 1 | 1 = deductible, 0 = not. |
+| tax_category | TEXT | | Schedule C category. |
+| business_use_pct | REAL | NOT NULL DEFAULT 100.0 | Percent business use (partial deductions). |
+| is_cogs | INTEGER | NOT NULL DEFAULT 0 | 1 = cost of goods sold, 0 = operating expense. |
+| is_asset | INTEGER | NOT NULL DEFAULT 0 | 1 = capital asset (not expensed). |
+| depreciation_years | INTEGER | | Depreciation schedule for assets. |
+| inventory_id | INTEGER | REFERENCES inventory(id) | Link to specific inventory item if applicable. |
+| invoice_number | TEXT | | Vendor invoice number. |
+| receipt_attached | INTEGER | NOT NULL DEFAULT 0 | 1 = receipt file attached. |
+| receipt_path | TEXT | | Path to receipt/invoice file. |
+| paid_by | TEXT | | Who made the purchase (Person 1 / Person 2). |
+| is_recurring | INTEGER | NOT NULL DEFAULT 0 | 1 = recurring expense. |
+| recurring_frequency | TEXT | | e.g. "monthly", "annual", "quarterly". |
+| recurring_next_date | TEXT | | Next expected occurrence. |
+| contract_end_date | TEXT | | Subscription/contract end date. |
+| gl_account | TEXT | | GL account code override (default: 6200 or 5000 if COGS). |
+| fiscal_quarter | TEXT | | Fiscal quarter for reporting. |
+| notes | TEXT | | Free-text notes. |
+| created_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+| updated_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+
+---
+
 ### 7. Indexes (ADR-014)
 
 Indexes are part of the initial schema. Index names are defined in the DDL below.
@@ -461,6 +585,10 @@ Indexes are part of the initial schema. Index names are defined in the DDL below
 - **customer_notes:** `customer_id`.
 - **activity_log:** `created_at`, `(entity_type, entity_id)`, `action`.
 - **purchases:** `inventory_id`.
+- **vendors:** `name`, `is_active`.
+- **tax_payments:** `payment_date`.
+- **receipts:** `vendor_id`.
+- **business_expenses:** `expense_date`, `category`, `vendor_id`.
 
 ---
 
@@ -654,10 +782,37 @@ CREATE TABLE order_items (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5c. purchases — vendor sourcing only (ADR-002)
+-- 5c. vendors (ADR-076)
+CREATE TABLE vendors (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                    TEXT    NOT NULL UNIQUE,
+  address_1               TEXT,
+  address_2               TEXT,
+  city                    TEXT,
+  state                   TEXT,
+  postal_code             TEXT,
+  country                 TEXT    DEFAULT 'US',
+  contact_person          TEXT,
+  email                   TEXT,
+  phone                   TEXT,
+  website                 TEXT,
+  account_number          TEXT,
+  payment_terms           TEXT,
+  tax_id                  TEXT,
+  is_preferred            INTEGER NOT NULL DEFAULT 0,
+  vendor_category         TEXT,
+  default_shipping_method TEXT,
+  notes                   TEXT,
+  is_active               INTEGER NOT NULL DEFAULT 1,
+  created_at              TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at              TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 5d. purchases — vendor sourcing only (ADR-002, ADR-076)
 CREATE TABLE purchases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
+  vendor_id INTEGER REFERENCES vendors(id),
   vendor_name TEXT,
   purchase_date TEXT,
   purchase_price REAL,
@@ -668,7 +823,7 @@ CREATE TABLE purchases (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5d. customer_notes (ADR-065)
+-- 5e. customer_notes (ADR-065)
 CREATE TABLE customer_notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -677,7 +832,7 @@ CREATE TABLE customer_notes (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5e. activity_log (ADR-037)
+-- 5f. activity_log (ADR-037)
 CREATE TABLE activity_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   action TEXT NOT NULL,
@@ -797,6 +952,11 @@ CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
 CREATE INDEX idx_etsy_taxonomy_nodes_parent ON etsy_taxonomy_nodes(parent_id);
 CREATE INDEX idx_etsy_taxonomy_properties_taxonomy ON etsy_taxonomy_properties(taxonomy_id);
+CREATE INDEX IF NOT EXISTS idx_tax_payments_date ON tax_payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_receipts_vendor_id ON receipts(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_date ON business_expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_category ON business_expenses(category);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_vendor_id ON business_expenses(vendor_id);
 
 -- chart_of_accounts (ADR-056)
 CREATE TABLE chart_of_accounts (
@@ -823,6 +983,80 @@ CREATE TABLE gl_transaction_rules (
   is_active        INTEGER NOT NULL DEFAULT 1,
   created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 6d. tax_payments (ADR-039)
+CREATE TABLE IF NOT EXISTS tax_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  payment_date TEXT NOT NULL,
+  amount REAL NOT NULL,
+  payee TEXT,
+  reason TEXT,
+  period_from TEXT,
+  period_to TEXT,
+  reference_number TEXT,
+  notes TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 6e. receipts (vendor purchase receipts)
+CREATE TABLE IF NOT EXISTS receipts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_name TEXT NOT NULL,
+  vendor_id INTEGER REFERENCES vendors(id),
+  purchase_date TEXT,
+  receipt_image TEXT,
+  shipping_price REAL,
+  reference_number TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 6f. receipt_items
+CREATE TABLE IF NOT EXISTS receipt_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  receipt_id INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  cost REAL,
+  inventory_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(receipt_id) REFERENCES receipts(id) ON DELETE CASCADE,
+  FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE SET NULL
+);
+
+-- 6g. business_expenses
+CREATE TABLE IF NOT EXISTS business_expenses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  expense_date TEXT NOT NULL,
+  date_paid TEXT,
+  amount REAL NOT NULL,
+  currency_code TEXT NOT NULL DEFAULT 'USD',
+  payment_method TEXT,
+  vendor_id INTEGER REFERENCES vendors(id),
+  vendor_name TEXT,
+  category TEXT NOT NULL,
+  subcategory TEXT,
+  tax_deductible INTEGER NOT NULL DEFAULT 1,
+  tax_category TEXT,
+  business_use_pct REAL NOT NULL DEFAULT 100.0,
+  is_cogs INTEGER NOT NULL DEFAULT 0,
+  is_asset INTEGER NOT NULL DEFAULT 0,
+  depreciation_years INTEGER,
+  inventory_id INTEGER REFERENCES inventory(id),
+  invoice_number TEXT,
+  receipt_attached INTEGER NOT NULL DEFAULT 0,
+  receipt_path TEXT,
+  paid_by TEXT,
+  is_recurring INTEGER NOT NULL DEFAULT 0,
+  recurring_frequency TEXT,
+  recurring_next_date TEXT,
+  contract_end_date TEXT,
+  gl_account TEXT,
+  fiscal_quarter TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 ```
 

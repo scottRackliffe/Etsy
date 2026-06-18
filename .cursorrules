@@ -1,5 +1,5 @@
 # Etsy Sales Manager — Cursor Rules
-# Last updated: 2026-06-09 (full ADR documentation audit — 55 fixes across 40+ files)
+# Last updated: 2026-06-17 (ADR updates: vendors, expenses, tax payments, financial reports)
 # These rules tell Cursor exactly where to look and what to follow for every domain.
 # When in doubt: read the ADR first, then implement.
 
@@ -70,6 +70,8 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Vendor purchase receipts (scan, link, manage) | ADR-018 §31, API routes at `/api/receipts/*` |
 | User guide: Listing Coach | `system/tips/Listing_Coach_Guide.md` |
 | API usage tracking (per-service monthly counts) | `documents/adr/0075-api-usage-tracking.md` |
+| Vendor subsystem (table, API, tab, VendorPicker) | `documents/adr/0076-vendor-subsystem.md` |
+| Business expenses (overhead, recurring, OCR) | `documents/adr/0077-business-expenses.md` |
 | Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
 | Visual design system and UI consistency | `documents/adr/0071-visual-design-system-and-ui-consistency.md` |
 | UI color tokens (hex) | `documents/System_Colors.md` (usage rules: ADR-071) |
@@ -130,7 +132,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-020** (Outstanding) | ADR-035 (deep-link navigation completes context-in-place). Server-side `/api/outstanding` endpoint. Schema mapping: purchase → orders, customer_address → addresses. |
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
-| **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory detail+listing inline), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). Receipts tab at `/receipts`. Listing Workshop removed from inventory. |
+| **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory detail+listing inline), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). Receipts tab at `/receipts`. Vendors tab at `/vendors` (ADR-076). Listing Workshop removed from inventory. |
 | **ADR-023** (Listing modes) | ADR-002, 010/026 pictures, 017 listing_* columns, 068 quality score |
 | **ADR-025** (Token refresh) | ADR-007 OAuth, 019 sync, 018 auth proxy routes |
 | **ADR-026** (Picture storage) | ADR-010, 033 upload UI, 018 §16 `/api/uploads` |
@@ -181,6 +183,8 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-073** (Etsy API) | ADR-025 tokens, 018 auth, 007 OAuth, 011 compliance |
 | **ADR-074** (Shipping API) | ADR-013 thank-you/invoice, 017 orders columns, 018 endpoints, 025 encryption, 027 backup, 031 order detail, 032 confirm, 034 config, 037 activity, 038 profit, 040 batch, 043 progress, shipping-label-carrier-templates.md |
 | **ADR-075** (API usage) | ADR-017 `api_call_log` table, 018 `GET /api/usage`, 034 Config UI section, 037 retention pattern, 074 EasyPost future instrumentation |
+| **ADR-076** (Vendors) | ADR-002 (inventory source), 006 (vendor profitability), 017 (`vendors` table, `purchases.vendor_id`, `receipts.vendor_id`), 018 §34–35 (vendor API, match), 022 (soft-delete), 024 (`/vendors` tab), 029 (search/sort/pagination), 035 (`?vendorId=` deep link), 056 (no direct accounting impact), 077 (expense VendorPicker) |
+| **ADR-077** (Business expenses) | ADR-017 §6g (`business_expenses`), 018 §37 (expense API), 039 (tax deductibility), 056 (GL integration), 076 (VendorPicker) |
 | **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
 | **ADR-071** (Design system) | ADR-028, 045, 059, 060, System_Colors.md, ui-design §1b–1d |
 
@@ -254,11 +258,20 @@ id, order_id, inventory_id, quantity, unit_price, line_total,
 created_at, updated_at
 ```
 
+### `vendors` table — normalized vendor/supplier records (ADR-076)
+```
+id, name, address_1, address_2, city, state, postal_code, country,
+contact_person, email, phone, website, account_number, payment_terms,
+tax_id, is_preferred, vendor_category, default_shipping_method,
+notes, is_active, created_at, updated_at
+```
+
 ### `purchases` table — BUY-SIDE only (vendor purchases of items to resell)
 ```
-id, inventory_id, vendor_name, purchase_date, purchase_price,
+id, inventory_id, vendor_id, vendor_name, purchase_date, purchase_price,
 shipping_price, reference_number, notes, created_at, updated_at
 ```
+- `vendor_id`: optional FK to `vendors.id`. When set, `vendor_name` auto-populated from `vendors.name`.
 ⚠️ NOTE: `purchases` = what Trudy BOUGHT from vendors, NOT customer sales.
 Customer sales = `orders` + `order_items`.
 
@@ -355,6 +368,51 @@ id, action, entity_type, entity_id, entity_label, detail_json, source, created_a
 - `source`: `user` | `system` | `etsy_sync` (ADR-037 uses `etsy`; canonical is `etsy_sync`)
 - Retention: 365 days (configurable via `activity_log.retention_days` setting)
 
+### `receipts` table — vendor purchase receipts (buying trips)
+```
+id, vendor_name, vendor_id, purchase_date, receipt_image,
+shipping_price, reference_number, notes, created_at, updated_at
+```
+- `vendor_id`: optional FK to `vendors.id`. When updated, cascades to linked `purchases`.
+
+### `receipt_items` table — individual items on a vendor receipt
+```
+id, receipt_id, description, cost, inventory_id, created_at
+```
+- `receipt_id`: FK receipts(id) ON DELETE CASCADE
+- `inventory_id`: FK inventory(id) ON DELETE SET NULL (linked to inventory item)
+
+### `tax_payments` table — tax remittance tracking (ADR-039)
+```
+id, payment_date, amount, payee, reason,
+period_from, period_to, reference_number, notes, created_at
+```
+
+### `business_expenses` table — general overhead costs (ADR-077)
+```
+id, expense_date, date_paid, amount, currency_code, payment_method,
+vendor_id, vendor_name, category, subcategory,
+tax_deductible, tax_category, business_use_pct,
+is_cogs, is_asset, depreciation_years, inventory_id,
+invoice_number, receipt_attached, receipt_path, paid_by,
+is_recurring, recurring_frequency, recurring_next_date, contract_end_date,
+gl_account, fiscal_quarter, notes, created_at, updated_at
+```
+- `vendor_id`: optional FK to `vendors.id`
+- `is_cogs`: 1 = Cost of Goods Sold, 0 = operating expense
+
+### `chart_of_accounts` table — GL account codes (ADR-056)
+```
+id, acct_number, account_name, account_type, normal_balance,
+description, is_active, created_at, updated_at
+```
+
+### `gl_transaction_rules` table — double-entry mapping (ADR-056)
+```
+id, transaction_type, description, debit_acct, credit_acct,
+source_table, source_column, is_active, created_at, updated_at
+```
+
 ### `chart_of_accounts` table — GAAP chart of accounts (ADR-056)
 ```
 id, acct_number, account_name, account_type, normal_balance,
@@ -432,7 +490,7 @@ id, service, endpoint, status_code, created_at
 NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `bg-[var(--ui-*)]`.
 
 ### Layout structure (ADR-024 updated, ui-design.md §1)
-- Tabs: top, full width — Dashboard | Sales | Inventory | Receipts | Customers | Reports | Tutorial & Tips | Outstanding | Config
+- Tabs: top, full width — Dashboard | Sales | Inventory | Receipts | Customers | Vendors | Reports | Tutorial & Tips | Outstanding | Config
 - **v1 layout:** Header + Tab bar + Main content (full width). No side panels.
 - **Deferred to post-v1:** Commands panel and Outstanding side panel (ADR-009 notes)
 - Header: app name, Etsy connection status, shop selector
@@ -513,7 +571,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - User gets exactly 4 actions after generation: **Print | Export PDF | Export CSV | Cancel** (Accounting Export: **Export CSV | Cancel** only)
 - Global data filter: only `order_status = 'active'` orders in all purchase/revenue reports
 - Layout: 12pt Courier body, 14/16pt title, 1in margins, light grid, page numbers centered
-- Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging | Profit by Item | Sales Tax Summary | Inventory Aging | Accounting Export
+- Report types: Thank You Note | Invoice | Sales | Costs | Income MTD | Income YTD | Postal by Vendor | Outstanding Items | AR Aging | Profit by Item | Sales Tax Summary | Inventory Aging | Accounting Export | Balance Sheet | Income Statement (P&L)
 - Full content spec per report type: `documents/adr/0013-report-output-pdf.md`
 
 ---
@@ -559,7 +617,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 
 ## 12. WHAT'S BUILT vs WHAT'S PENDING
 
-### Built and working (Priorities 1-53 complete, docs reconciled 2026-06-16):
+### Built and working (Priorities 1-53 complete, vendors/expenses/tax/reports added 2026-06-17):
 - OAuth flow + Etsy proxy (`/api/auth/*`, `/api/shop`, `/api/receipts`)
 - Token refresh middleware with encryption (ADR-025): `src/lib/auth-session.ts`
 - Dashboard (connected/not-connected states, shop selector, receipts table)
@@ -633,6 +691,11 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Order creation: customer dropdown + ship-to address picker, auto-fill from default ship-to or billing address
 - Multi-photo drag-and-drop fix on PictureGrid (inventory detail panel)
 - Etsy taxonomy cache: local SQLite cache of Etsy seller taxonomy (category tree) and per-category attributes, Config UI sync button, on-demand property fetch
+
+- Vendor subsystem (ADR-076): vendors table, CRUD API, Vendors tab (master-detail), migration with backfill, purchases/receipts FK linkage, VendorPicker component (OCR hint, fuzzy match)
+- Tax payments tracking (ADR-039): `tax_payments` table, CRUD API, dashboard widget with summary
+- Business expenses (ADR-077): `business_expenses` table, full CRUD API, Expenses tab (master-detail), OCR invoice scanning, recurring expense tracking, GL integration
+- Financial reports: Balance Sheet and Income Statement (P&L) report endpoints, `computeAccountBalances()` aggregation, new COA entries (Owner's Equity, Retained Earnings)
 
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint

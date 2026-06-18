@@ -1447,3 +1447,100 @@ GAAP chart of accounts and double-entry GL transaction rules for the accounting 
 | DELETE | `/api/gl-transaction-rules/[id]`| App  | Soft-delete (set `is_active = 0`)        | 200: `{ ok }`. 404 if not found.                                                                         |
 
 `account_type` enum: `Asset`, `Liability`, `Equity`, `Revenue`, `Contra-Revenue`, `COGS`, `Expense`. `normal_balance` enum: `debit`, `credit`.
+
+---
+
+**§34. Vendors (ADR-076)**
+
+Normalized vendor/supplier records. Vendors are the businesses from whom Trudy purchases inventory to resell.
+
+| Method | Path                              | Auth | Purpose                                     | Request / response                                                                                                                                           |
+| ------ | --------------------------------- | ---- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/vendors`                    | App  | List vendors                                | Query: `search?`, `sort_by?` (name, city, created_at), `sort_dir?`, `limit?`, `offset?`, `is_active?`. 200: `{ items: Vendor[], pagination }`.              |
+| POST   | `/api/vendors`                    | App  | Create vendor                               | Body: `{ name, address_1?, address_2?, city?, state?, postal_code?, country?, contact_person?, email?, phone?, notes? }`. 201: created vendor. 409 if duplicate name. |
+| GET    | `/api/vendors/[id]`               | App  | Get single vendor with purchase summary     | 200: `{ ok, item: Vendor & { purchase_count, total_spend, last_purchase_date } }`. 404 if not found.                                                       |
+| PUT    | `/api/vendors/[id]`               | App  | Update vendor fields (PATCH semantics)      | Body: partial fields. 200: updated vendor. 409 if duplicate name.                                                                                           |
+| DELETE | `/api/vendors/[id]`               | App  | Soft-delete (set `is_active = 0`)           | 200: `{ ok }`. Cannot hard-delete vendors with purchases.                                                                                                   |
+| GET    | `/api/vendors/[id]/purchases`     | App  | Purchase history for this vendor            | Query: `limit?`, `offset?`. 200: `{ items: Purchase[], pagination }`. Purchases include linked inventory item details.                                      |
+
+**Vendor type:**
+```ts
+interface Vendor {
+  id: number;
+  name: string;
+  address_1: string | null;
+  address_2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+**Impact on existing endpoints:**
+
+- `POST /api/purchases` and `PATCH /api/purchases/[id]`: accept optional `vendor_id`. When provided, `vendor_name` is auto-populated from `vendors.name`.
+- `POST /api/receipts` and `PATCH /api/receipts/[id]`: accept optional `vendor_id`. Same auto-populate behavior. PATCH cascades `vendor_id`/`vendor_name` to linked purchase records.
+- `GET /api/purchases/vendors` is **deprecated** — use `GET /api/vendors` instead. Old endpoint remains for backward compatibility.
+
+---
+
+**§35. Vendor fuzzy match (ADR-076)** — added 2026-06-17
+
+Fuzzy-matches an OCR-detected or free-text vendor name against active vendors. Used by the `VendorPicker` component when processing scanned receipts/invoices.
+
+| Method | Path                   | Auth | Purpose                                    | Request / response                                                                                                                                           |
+| ------ | ---------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/vendors/match`   | App  | Fuzzy-match vendor name against vendor list | Query: `name` (required). 200: `{ query, matches: [{ id, name, score, reason }] }`. Returns top 5 matches ranked by: exact (100), prefix (90), contains (80), token overlap (20–70). |
+
+---
+
+**§36. Tax payments (ADR-039)** — added 2026-06-17
+
+Tax remittance payment tracking. Dashboard widget shows recent payments and running totals.
+
+| Method | Path                          | Auth | Purpose                                    | Request / response                                                                                                                                           |
+| ------ | ----------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/tax-payments`           | App  | List tax payments                          | Query: `limit?`, `offset?`, `sort_by?` (payment_date, amount), `sort_dir?`. 200: `{ items: TaxPayment[], pagination }`.                                    |
+| POST   | `/api/tax-payments`           | App  | Create tax payment                         | Body: `{ payment_date, amount, payee?, reason?, period_from?, period_to?, reference_number?, notes? }`. 201: created payment.                              |
+| GET    | `/api/tax-payments/[id]`      | App  | Get single tax payment                     | 200: `{ ok, item: TaxPayment }`. 404 if not found.                                                                                                         |
+| PATCH  | `/api/tax-payments/[id]`      | App  | Update tax payment                         | Body: partial fields. 200: updated payment.                                                                                                                 |
+| DELETE | `/api/tax-payments/[id]`      | App  | Delete tax payment                         | 204 on success. 404 if not found.                                                                                                                           |
+| GET    | `/api/tax-payments/options`   | App  | Distinct payee and reason values           | 200: `{ payees: string[], reasons: string[] }`.                                                                                                             |
+| GET    | `/api/tax-payments/summary`   | App  | Aggregated summary for dashboard           | 200: `{ total_paid, current_year_paid, last_payment_date, payments_count }`.                                                                                |
+
+---
+
+**§37. Business expenses** — added 2026-06-17
+
+General business overhead expense tracking. Supports categorization, tax deductibility, recurring tracking, OCR invoice scanning, and GL account mapping.
+
+| Method | Path                          | Auth | Purpose                                    | Request / response                                                                                                                                           |
+| ------ | ----------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/expenses`               | App  | List expenses                              | Query: `limit?`, `offset?`, `sort_by?`, `sort_dir?`, `category?`, `vendor_id?`, `from_date?`, `to_date?`, `is_recurring?`. 200: `{ items, pagination }`.   |
+| POST   | `/api/expenses`               | App  | Create expense                             | Body: `{ expense_date, amount, category, vendor_id?, payment_method?, ... }`. 201: created expense with id.                                                |
+| GET    | `/api/expenses/[id]`          | App  | Get single expense                         | 200: `{ ok, item: BusinessExpense }`. 404 if not found.                                                                                                    |
+| PATCH  | `/api/expenses/[id]`          | App  | Update expense                             | Body: partial fields. 200: updated expense.                                                                                                                 |
+| DELETE | `/api/expenses/[id]`          | App  | Delete expense                             | 204 on success. 404 if not found.                                                                                                                           |
+| GET    | `/api/expenses/categories`    | App  | Distinct categories and option values      | 200: `{ categories, subcategories, payment_methods, tax_categories, paid_by_options }`. Merges DB values with default suggestions.                          |
+| GET    | `/api/expenses/summary`       | App  | Aggregated summary (by category, month)    | Query: `from_date?`, `to_date?`. 200: `{ by_category, by_month, total, tax_deductible_total }`.                                                            |
+| GET    | `/api/expenses/upcoming`      | App  | Recurring expenses due soon                | 200: `{ items: BusinessExpense[] }`. Returns recurring expenses with `recurring_next_date` within 30 days.                                                 |
+| POST   | `/api/expenses/scan`          | App  | OCR scan invoice/receipt photo             | Body: multipart `invoice_photo`. 200: `{ ok, ocr: { vendor_name?, expense_date?, amount?, category?, invoice_number?, payment_method?, ... } }`.           |
+
+---
+
+**§38. Financial reports** — added 2026-06-17
+
+Balance Sheet and Income Statement (P&L) reports. Both use `computeAccountBalances()` which aggregates from all GL-affecting transactions.
+
+| Method | Path                               | Auth | Purpose                                    | Request / response                                                                                                                                           |
+| ------ | ---------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/reports/balance-sheet`       | App  | Generate Balance Sheet report              | Query: `to_date?` (as-of date, default today), `format?` (json/csv). 200: report with Assets, Liabilities, Equity sections. Net Income auto-calculated.    |
+| GET    | `/api/reports/income-statement`    | App  | Generate Income Statement (P&L) report     | Query: `from_date?`, `to_date?`, `format?` (json/csv). 200: report with Revenue, COGS, Gross Profit, Operating Expenses, Net Income sections.              |

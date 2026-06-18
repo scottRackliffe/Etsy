@@ -1,6 +1,357 @@
 import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
 import { buildSearchClause, parseSortDir, resolveSortColumn } from "@/lib/list-query";
+
+// ---------------------------------------------------------------------------
+// Business Expenses
+// ---------------------------------------------------------------------------
+
+export type ExpenseListOptions = {
+  limit: number;
+  offset: number;
+  search?: string;
+  category?: string;
+  from_date?: string;
+  to_date?: string;
+  is_recurring?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+const EXPENSE_SORT: Record<string, string> = {
+  expense_date: "e.expense_date",
+  amount: "e.amount",
+  category: "e.category",
+  vendor_name: "e.vendor_name",
+  created_at: "e.created_at",
+};
+
+export function listExpenses(options: ExpenseListOptions) {
+  const db = getDb();
+  const params: Record<string, unknown> = {};
+  let where = "WHERE 1=1";
+  if (options.category?.trim()) {
+    where += " AND e.category = @category";
+    params.category = options.category.trim();
+  }
+  if (options.from_date) {
+    where += " AND e.expense_date >= @from_date";
+    params.from_date = options.from_date;
+  }
+  if (options.to_date) {
+    where += " AND e.expense_date <= @to_date";
+    params.to_date = options.to_date;
+  }
+  if (options.is_recurring === 0 || options.is_recurring === 1) {
+    where += " AND e.is_recurring = @is_recurring";
+    params.is_recurring = options.is_recurring;
+  }
+  where += buildSearchClause(
+    ["e.vendor_name", "e.category", "e.subcategory", "e.notes", "e.invoice_number", "e.paid_by"],
+    options.search,
+    params
+  );
+
+  const sortCol = resolveSortColumn(options.sortBy, EXPENSE_SORT, "expense_date");
+  const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
+
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM business_expenses e ${where}`).get(params) as { c: number }
+  ).c;
+  const items = db
+    .prepare(
+      `SELECT e.*, v.name AS resolved_vendor_name
+       FROM business_expenses e
+       LEFT JOIN vendors v ON v.id = e.vendor_id
+       ${where}
+       ORDER BY ${sortCol} ${dir}, e.id DESC
+       LIMIT @limit OFFSET @offset`
+    )
+    .all({ ...params, limit: options.limit, offset: options.offset });
+  return { items, total };
+}
+
+export function getExpense(id: number) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT e.*, v.name AS resolved_vendor_name
+       FROM business_expenses e
+       LEFT JOIN vendors v ON v.id = e.vendor_id
+       WHERE e.id = ?`
+    )
+    .get(id) ?? null;
+}
+
+export function createExpense(input: Record<string, unknown>) {
+  const db = getDb();
+  const payload = pickDefined(input);
+  payload.created_at = nowIso();
+  payload.updated_at = payload.created_at;
+  if (payload.vendor_id && !payload.vendor_name) {
+    const v = db.prepare("SELECT name FROM vendors WHERE id = ?").get(payload.vendor_id) as { name: string } | undefined;
+    if (v) payload.vendor_name = v.name;
+  }
+  const columns = Object.keys(payload);
+  const placeholders = columns.map((k) => `@${k}`).join(", ");
+  const result = db
+    .prepare(`INSERT INTO business_expenses(${columns.join(", ")}) VALUES(${placeholders})`)
+    .run(payload);
+  return getExpense(result.lastInsertRowid as number);
+}
+
+export function patchExpense(id: number, input: Record<string, unknown>) {
+  const db = getDb();
+  const cleaned = pickDefined(input);
+  if (cleaned.vendor_id && !cleaned.vendor_name) {
+    const v = db.prepare("SELECT name FROM vendors WHERE id = ?").get(cleaned.vendor_id) as { name: string } | undefined;
+    if (v) cleaned.vendor_name = v.name;
+  }
+  const patch = buildPatchSql("business_expenses", id, cleaned);
+  if (!patch) return getExpense(id);
+  db.prepare(patch.sql).run(patch.params);
+  return getExpense(id);
+}
+
+export function deleteExpense(id: number): boolean {
+  const db = getDb();
+  const result = db.prepare("DELETE FROM business_expenses WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function listExpenseCategories() {
+  const db = getDb();
+  const categories = db
+    .prepare("SELECT DISTINCT category FROM business_expenses WHERE category IS NOT NULL AND category != '' ORDER BY category")
+    .all() as Array<{ category: string }>;
+  const subcategories = db
+    .prepare("SELECT DISTINCT subcategory FROM business_expenses WHERE subcategory IS NOT NULL AND subcategory != '' ORDER BY subcategory")
+    .all() as Array<{ subcategory: string }>;
+  const paymentMethods = db
+    .prepare("SELECT DISTINCT payment_method FROM business_expenses WHERE payment_method IS NOT NULL AND payment_method != '' ORDER BY payment_method")
+    .all() as Array<{ payment_method: string }>;
+  const taxCategories = db
+    .prepare("SELECT DISTINCT tax_category FROM business_expenses WHERE tax_category IS NOT NULL AND tax_category != '' ORDER BY tax_category")
+    .all() as Array<{ tax_category: string }>;
+  const paidByOptions = db
+    .prepare("SELECT DISTINCT paid_by FROM business_expenses WHERE paid_by IS NOT NULL AND paid_by != '' ORDER BY paid_by")
+    .all() as Array<{ paid_by: string }>;
+
+  const defaultCategories = [
+    "Inventory / COGS", "Shipping & Postage", "Packaging Materials",
+    "Platform Fees", "Payment Processing Fees", "Advertising & Marketing",
+    "Photography / Equipment", "Software & Subscriptions", "Office Supplies",
+    "Professional Services", "Rent / Home Office", "Utilities",
+    "Internet", "Phone", "Insurance", "Education & Training",
+    "Travel & Lodging", "Meals & Entertainment", "Vehicle / Mileage",
+    "Equipment Repairs", "Licenses & Permits", "Miscellaneous",
+  ];
+  const defaultPaymentMethods = [
+    "Credit Card", "Debit Card", "PayPal", "Bank Transfer", "Cash", "Check",
+  ];
+  const defaultTaxCategories = [
+    "COGS", "Office Expense", "Advertising", "Insurance", "Professional Fees",
+    "Rent", "Utilities", "Travel", "Meals (50%)", "Depreciation", "Other",
+  ];
+  const defaultPaidBy = ["Owner 1", "Owner 2", "Business Account"];
+
+  const merge = <T>(dbValues: T[], defaults: string[], key: keyof T) => {
+    const set = new Set(dbValues.map((r) => r[key] as string));
+    for (const d of defaults) if (!set.has(d)) set.add(d);
+    return Array.from(set).sort();
+  };
+
+  return {
+    categories: merge(categories, defaultCategories, "category"),
+    subcategories: subcategories.map((r) => r.subcategory),
+    payment_methods: merge(paymentMethods, defaultPaymentMethods, "payment_method"),
+    tax_categories: merge(taxCategories, defaultTaxCategories, "tax_category"),
+    paid_by: merge(paidByOptions, defaultPaidBy, "paid_by"),
+  };
+}
+
+export function getExpenseSummary(from_date?: string, to_date?: string) {
+  const db = getDb();
+  let where = "WHERE 1=1";
+  const params: Record<string, string> = {};
+  if (from_date) { where += " AND expense_date >= @from_date"; params.from_date = from_date; }
+  if (to_date) { where += " AND expense_date <= @to_date"; params.to_date = to_date; }
+
+  const byCategory = db
+    .prepare(
+      `SELECT category, COUNT(*) AS count, ROUND(SUM(amount * business_use_pct / 100.0), 2) AS total
+       FROM business_expenses ${where}
+       GROUP BY category ORDER BY total DESC`
+    )
+    .all(params) as Array<{ category: string; count: number; total: number }>;
+
+  const byMonth = db
+    .prepare(
+      `SELECT strftime('%Y-%m', expense_date) AS month, ROUND(SUM(amount * business_use_pct / 100.0), 2) AS total
+       FROM business_expenses ${where}
+       GROUP BY month ORDER BY month`
+    )
+    .all(params) as Array<{ month: string; total: number }>;
+
+  const totals = db
+    .prepare(
+      `SELECT COUNT(*) AS count,
+              ROUND(SUM(amount), 2) AS gross_total,
+              ROUND(SUM(amount * business_use_pct / 100.0), 2) AS adjusted_total,
+              ROUND(SUM(CASE WHEN tax_deductible = 1 THEN amount * business_use_pct / 100.0 ELSE 0 END), 2) AS deductible_total
+       FROM business_expenses ${where}`
+    )
+    .get(params) as { count: number; gross_total: number; adjusted_total: number; deductible_total: number };
+
+  return { by_category: byCategory, by_month: byMonth, totals };
+}
+
+export function listUpcomingExpenses(daysAhead: number = 30) {
+  const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(Date.now() + daysAhead * 86400000).toISOString().slice(0, 10);
+  return db
+    .prepare(
+      `SELECT * FROM business_expenses
+       WHERE is_recurring = 1
+         AND recurring_next_date IS NOT NULL
+         AND recurring_next_date >= @today
+         AND recurring_next_date <= @cutoff
+       ORDER BY recurring_next_date ASC`
+    )
+    .all({ today, cutoff });
+}
+
+// ---------------------------------------------------------------------------
+// Vendors (ADR-076)
+// ---------------------------------------------------------------------------
+
+export type VendorListOptions = {
+  limit: number;
+  offset: number;
+  search?: string;
+  is_active?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+};
+
+const VENDOR_SORT: Record<string, string> = {
+  name: "v.name",
+  city: "v.city",
+  contact_person: "v.contact_person",
+  created_at: "v.created_at",
+};
+
+export function listVendors(options: VendorListOptions) {
+  const db = getDb();
+  const params: Record<string, unknown> = {};
+  let where = "WHERE 1=1";
+  if (options.is_active === 0 || options.is_active === 1) {
+    where += " AND v.is_active = @is_active";
+    params.is_active = options.is_active;
+  }
+  where += buildSearchClause(
+    ["v.name", "v.contact_person", "v.email", "v.phone", "v.city", "v.vendor_category", "v.account_number"],
+    options.search,
+    params
+  );
+
+  const sortCol = resolveSortColumn(options.sortBy, VENDOR_SORT, "name");
+  const dir = parseSortDir(options.sortDir ?? null) === "asc" ? "ASC" : "DESC";
+
+  const total = (
+    db.prepare(`SELECT COUNT(*) AS c FROM vendors v ${where}`).get(params) as { c: number }
+  ).c;
+  const items = db
+    .prepare(
+      `SELECT v.*,
+              COALESCE(pc.purchase_count, 0) AS purchase_count,
+              COALESCE(pc.total_spend, 0) AS total_spend
+       FROM vendors v
+       LEFT JOIN (
+         SELECT vendor_id,
+                COUNT(*) AS purchase_count,
+                SUM(COALESCE(purchase_price, 0) + COALESCE(shipping_price, 0)) AS total_spend
+         FROM purchases
+         WHERE vendor_id IS NOT NULL
+         GROUP BY vendor_id
+       ) pc ON pc.vendor_id = v.id
+       ${where}
+       ORDER BY ${sortCol} ${dir}, v.id DESC
+       LIMIT @limit OFFSET @offset`
+    )
+    .all({ ...params, limit: options.limit, offset: options.offset });
+  return { items, total };
+}
+
+export function getVendor(id: number) {
+  const db = getDb();
+  const vendor = db.prepare("SELECT * FROM vendors WHERE id = ?").get(id);
+  if (!vendor) return null;
+  const summary = db
+    .prepare(
+      `SELECT COUNT(*) AS purchase_count,
+              COALESCE(SUM(COALESCE(purchase_price, 0) + COALESCE(shipping_price, 0)), 0) AS total_spend,
+              MAX(purchase_date) AS last_purchase_date
+       FROM purchases WHERE vendor_id = ?`
+    )
+    .get(id) as { purchase_count: number; total_spend: number; last_purchase_date: string | null };
+  return { ...(vendor as Record<string, unknown>), ...summary };
+}
+
+export function createVendor(input: Record<string, unknown>) {
+  const db = getDb();
+  const payload = pickDefined(input);
+  payload.created_at = nowIso();
+  payload.updated_at = payload.created_at;
+  if (!payload.country) payload.country = "US";
+  const columns = Object.keys(payload);
+  const placeholders = columns.map((k) => `@${k}`).join(", ");
+  const result = db
+    .prepare(`INSERT INTO vendors(${columns.join(", ")}) VALUES(${placeholders})`)
+    .run(payload);
+  return db.prepare("SELECT * FROM vendors WHERE id = ?").get(result.lastInsertRowid);
+}
+
+export function patchVendor(id: number, input: Record<string, unknown>) {
+  const db = getDb();
+  const patch = buildPatchSql("vendors", id, pickDefined(input));
+  if (!patch) return getVendor(id);
+  db.prepare(patch.sql).run(patch.params);
+  return getVendor(id);
+}
+
+export function softDeleteVendor(id: number): boolean {
+  const db = getDb();
+  const result = db
+    .prepare("UPDATE vendors SET is_active = 0, updated_at = ? WHERE id = ?")
+    .run(nowIso(), id);
+  return result.changes > 0;
+}
+
+export function listVendorPurchases(
+  vendorId: number,
+  limit: number,
+  offset: number
+) {
+  const db = getDb();
+  const total = (
+    db.prepare("SELECT COUNT(*) AS c FROM purchases WHERE vendor_id = ?").get(vendorId) as {
+      c: number;
+    }
+  ).c;
+  const items = db
+    .prepare(
+      `SELECT p.*, i.item_number, i.description AS item_description
+       FROM purchases p
+       LEFT JOIN inventory i ON i.id = p.inventory_id
+       WHERE p.vendor_id = ?
+       ORDER BY p.purchase_date DESC, p.id DESC
+       LIMIT ? OFFSET ?`
+    )
+    .all(vendorId, limit, offset);
+  return { items, total };
+}
 import { getDb } from "@/lib/sqlite";
 
 type SqlValue = string | number | null;
@@ -247,9 +598,19 @@ export function listPurchases(limit: number, offset: number, inventoryId?: numbe
   return { items, total };
 }
 
+function resolveVendorName(db: ReturnType<typeof getDb>, payload: Record<string, SqlValue>) {
+  if (payload.vendor_id != null && typeof payload.vendor_id === "number") {
+    const vendor = db.prepare("SELECT name FROM vendors WHERE id = ?").get(payload.vendor_id) as
+      | { name: string }
+      | undefined;
+    if (vendor) payload.vendor_name = vendor.name;
+  }
+}
+
 export function createPurchase(input: Record<string, unknown>) {
   const db = getDb();
   const payload = pickDefined(input);
+  resolveVendorName(db, payload);
   payload.created_at = nowIso();
   payload.updated_at = payload.created_at;
   const columns = Object.keys(payload);
@@ -266,7 +627,9 @@ export function getPurchase(id: number) {
 
 export function patchPurchase(id: number, input: Record<string, unknown>) {
   const db = getDb();
-  const patch = buildPatchSql("purchases", id, pickDefined(input));
+  const payload = pickDefined(input);
+  resolveVendorName(db, payload);
+  const patch = buildPatchSql("purchases", id, payload);
   if (!patch) return getPurchase(id);
   db.prepare(patch.sql).run(patch.params);
   return getPurchase(id);

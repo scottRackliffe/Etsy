@@ -79,6 +79,11 @@ The following rules apply. “Restrict” means the delete is rejected with HTTP
 | addresses   | Yes             | Always (snapshot on orders unchanged)             | 204           |
 | other_costs | Yes             | Always                                            | 204           |
 | purchases   | Yes             | Always (vendor buy records, no FK dependents)     | 204           |
+| vendors     | Soft-delete     | Set `is_active = 0`. Never hard-delete if purchases exist (ADR-076). | 200 |
+| tax_payments | Yes            | Always (standalone records, no FK dependents)     | 204           |
+| business_expenses | Yes       | Always (standalone records, no FK dependents)     | 204           |
+| receipts    | Yes             | Cascades to `receipt_items` via ON DELETE CASCADE  | 204           |
+| receipt_items | Yes           | Always (unlinks from inventory via SET NULL)      | 204           |
 | orders      | No              | —                                                 | No endpoint   |
 | order_items | No              | —                                                 | No endpoint   |
 

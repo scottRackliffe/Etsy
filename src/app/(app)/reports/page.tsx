@@ -23,6 +23,8 @@ const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "sales-tax-summary", label: "Sales Tax Summary" },
   { value: "inventory-aging", label: "Inventory Aging" },
   { value: "accounting-export", label: "Accounting Export" },
+  { value: "balance-sheet", label: "Balance Sheet" },
+  { value: "income-statement", label: "Income Statement (P&L)" },
 ];
 
 const DATE_FILTER_REPORTS = new Set([
@@ -34,6 +36,8 @@ const DATE_FILTER_REPORTS = new Set([
   "sales-tax-summary",
   "inventory-aging",
   "accounting-export",
+  "balance-sheet",
+  "income-statement",
 ]);
 
 function isoToday(): string {

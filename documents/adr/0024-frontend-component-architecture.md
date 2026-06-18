@@ -35,6 +35,10 @@ src/app/
       page.tsx                  # Receipts tab — vendor purchase receipts with inventory linking
     customers/
       page.tsx                  # Customers tab content
+    vendors/
+      page.tsx                  # Vendors tab — master-detail vendor list (ADR-076)
+    expenses/
+      page.tsx                  # Expenses tab — business overhead tracking (ADR-077)
     reports/
       page.tsx                  # Reports tab content
     outstanding/
@@ -50,7 +54,7 @@ src/app/
 
 The `(app)` route group wraps all tabbed pages in a shared layout without adding a URL segment.
 
-**Note (updated 2026-06-16):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. The Listing Workshop panel has been removed from the inventory page; listing fields (title, description, tags, etc.) are now consolidated into the `InventoryDetailPanel` component. A "Regenerate with AI" button replaces the separate workshop modes. Receipts (vendor purchase records) have been extracted into a dedicated `/receipts` tab. ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`) select and scroll to the target record within the list page (ADR-035).
+**Note (updated 2026-06-17):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. The Listing Workshop panel has been removed from the inventory page; listing fields (title, description, tags, etc.) are now consolidated into the `InventoryDetailPanel` component. A "Regenerate with AI" button replaces the separate workshop modes. Receipts (vendor purchase records) have been extracted into a dedicated `/receipts` tab. A dedicated `/vendors` tab has been added for normalized vendor management (ADR-076). ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`, `?vendorId=`) select and scroll to the target record within the list page (ADR-035).
 
 ### 2. App shell layout (`(app)/layout.tsx`)
 
@@ -59,7 +63,7 @@ The shared layout renders:
 | Area             | Component       | Position                  | Behavior                                                                   |
 | ---------------- | --------------- | ------------------------- | -------------------------------------------------------------------------- |
 | **Header**       | `<AppHeader />` | Top, full width           | App name, Etsy connection status indicator, shop selector (when connected) |
-| **Tab bar**      | `<TabBar />`    | Below header, full width  | 9 tabs as `<Link>` elements; active tab highlighted via `usePathname()`    |
+| **Tab bar**      | `<TabBar />`    | Below header, full width  | 10 tabs as `<Link>` elements; active tab highlighted via `usePathname()`   |
 | **Main content** | `{children}`    | Below tab bar, full width | Active tab page content                                                    |
 
 **Note (updated 2026-05-24):** The original ADR-024 included `CommandsPanel` and `OutstandingPanel` as persistent side panels flanking the main content. These are deferred to post-v1 per ADR-009. In v1, context-sensitive actions are placed inline on each page using `Button` components (ADR-028). The Outstanding tab serves as the full-page outstanding list. The `panel_layout` setting and layout swap button are also deferred.

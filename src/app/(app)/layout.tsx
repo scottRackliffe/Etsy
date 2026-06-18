@@ -136,7 +136,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         enabled:
           pathname.startsWith("/inventory") ||
           pathname.startsWith("/sales") ||
-          pathname.startsWith("/customers"),
+          pathname.startsWith("/customers") ||
+          pathname.startsWith("/vendors") ||
+          pathname.startsWith("/expenses"),
       },
       {
         key: "s",

@@ -48,6 +48,7 @@ export async function PATCH(
       const receiptItem = item as { cost?: number | null; description?: string };
       const receipt = db.prepare("SELECT * FROM receipts WHERE id = ?").get(receiptId) as {
         vendor_name?: string;
+        vendor_id?: number | null;
         purchase_date?: string | null;
         reference_number?: string | null;
         shipping_price?: number | null;
@@ -72,14 +73,14 @@ export async function PATCH(
         db.prepare(`UPDATE inventory SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
       }
 
-      // Also create a purchases record so it appears in "Where I bought this"
       const now = new Date().toISOString();
       db.prepare(
-        `INSERT INTO purchases (inventory_id, vendor_name, purchase_date, purchase_price, shipping_price, reference_number, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO purchases (inventory_id, vendor_name, vendor_id, purchase_date, purchase_price, shipping_price, reference_number, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         inventoryId,
         receipt?.vendor_name ?? "Unknown",
+        receipt?.vendor_id ?? null,
         receipt?.purchase_date ?? null,
         receiptItem.cost ?? null,
         receipt?.shipping_price ?? null,

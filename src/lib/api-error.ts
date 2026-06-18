@@ -31,7 +31,8 @@ export type ApiErrorCode =
   | "LABEL_ALREADY_PURCHASED"
   | "VIDEO_GENERATION_FAILED"
   | "TAXONOMY_SYNC_FAILED"
-  | "TAXONOMY_PROPERTIES_FAILED";
+  | "TAXONOMY_PROPERTIES_FAILED"
+  | "DUPLICATE";
 
 export type ApiErrorPayload = {
   ok: false;

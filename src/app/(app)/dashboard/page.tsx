@@ -11,6 +11,7 @@ import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { EtsySyncStatus } from "@/components/dashboard/EtsySyncStatus";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
+import { TaxPaymentWidget } from "@/components/dashboard/TaxPaymentWidget";
 import { useEtsySync } from "@/hooks/useEtsySync";
 import { useToast } from "@/hooks/useToast";
 
@@ -201,6 +202,8 @@ export default function DashboardPage() {
       </section>
 
       <InventoryValueWidget />
+
+      <TaxPaymentWidget />
 
       <ActivityFeed
         onViewAll={scrollToActivityLog}

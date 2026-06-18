@@ -4,8 +4,8 @@ import { getDb } from "@/lib/sqlite";
 export async function GET() {
   const rows = getDb()
     .prepare(
-      `SELECT id, payment_date, amount, period_from, period_to,
-              reference_number, notes, created_at
+      `SELECT id, payment_date, amount, payee, reason,
+              period_from, period_to, reference_number, notes, created_at
        FROM tax_payments
        ORDER BY payment_date DESC`
     )
