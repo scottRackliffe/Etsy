@@ -108,7 +108,8 @@ function ExpensesPageInner() {
   // Confirm dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Scan state
+  // Refs
+  const payFormRef = useRef<HTMLDivElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [ocrVendorHint, setOcrVendorHint] = useState<string | null>(null);
@@ -656,6 +657,7 @@ function ExpensesPageInner() {
                         const balance = selectedExpense.amount - billPayments.reduce((s, p) => s + p.amount, 0);
                         setPayAmount(balance > 0 ? balance.toFixed(2) : "");
                         setPayDate(new Date().toISOString().slice(0, 10));
+                        setTimeout(() => payFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
                       }}
                       disabled={busyAction != null}
                     >
@@ -865,7 +867,7 @@ function ExpensesPageInner() {
                 </p>
 
                 {payFormOpen && (
-                  <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+                  <div ref={payFormRef} className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       <FormField label="Payment date" required>
                         <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputCls} />
