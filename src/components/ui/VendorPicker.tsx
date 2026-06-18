@@ -94,10 +94,11 @@ export function VendorPicker({
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ name: ocrHint.trim() }),
       });
-      const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string };
-      if (response.ok && data.id) {
+      const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string; vendor?: { id: number; name: string } };
+      const created = data.vendor ?? data;
+      if (response.ok && created.id) {
         await loadVendors();
-        onChange(data.id, data.name ?? ocrHint.trim());
+        onChange(created.id, created.name ?? ocrHint.trim());
         consumeHint();
       }
     } catch { /* silently fail */ } finally {
@@ -114,10 +115,11 @@ export function VendorPicker({
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
-      const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string };
-      if (response.ok && data.id) {
+      const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string; vendor?: { id: number; name: string } };
+      const created = data.vendor ?? data;
+      if (response.ok && created.id) {
         await loadVendors();
-        onChange(data.id, data.name ?? newName.trim());
+        onChange(created.id, created.name ?? newName.trim());
         setCreating(false);
         setNewName("");
       }
