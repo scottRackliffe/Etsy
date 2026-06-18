@@ -5,7 +5,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 import { getSetting, setSetting } from "@/lib/settings-store";
 import { logActivity } from "@/lib/activity-log";
-import { setEasyPostApiKey } from "@/lib/easypost";
+import { setEasyPostApiKey, setEasyPostTestApiKey } from "@/lib/easypost";
 
 function normalizeKey(raw: string): string {
   return raw.trim();
@@ -113,7 +113,7 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
       });
     }
 
-    if (key !== "easypost.api_key" && isSensitiveKey(key)) {
+    if (key !== "easypost.api_key" && key !== "easypost.test_api_key" && isSensitiveKey(key)) {
       throw new ApiRouteError({
         status: 403,
         code: "FORBIDDEN",
@@ -161,6 +161,16 @@ export async function PUT(request: Request, context: { params: Promise<{ key: st
         action: "settings.updated",
         entityType: "setting",
         detail: { key: "easypost.api_key_encrypted" },
+      });
+      return NextResponse.json({ ok: true, key, value: "(encrypted)" });
+    }
+
+    if (key === "easypost.test_api_key") {
+      setEasyPostTestApiKey(body.value);
+      logActivity({
+        action: "settings.updated",
+        entityType: "setting",
+        detail: { key: "easypost.test_api_key_encrypted" },
       });
       return NextResponse.json({ ok: true, key, value: "(encrypted)" });
     }

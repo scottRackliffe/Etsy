@@ -204,7 +204,7 @@ Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (
 | GET           | /api/orders                | App  | List orders                   | Query: customer_id?, from_date?, to_date?, search?, sort_by?, sort_dir?, limit, offset                      | 200: `{ items: [ order objects ], pagination }`. Each row per ADR-017 orders table; includes customer name, line item count.                   |
 | GET           | /api/orders/[id]           | App  | Get one order with line items | Path: id                                                                                                    | 200: `{ ...order, items: [ order_items ] }`. 404 if not found.                                                                                 |
 | POST          | /api/orders                | App  | Create new order              | Body: { order_number?, customer_id?, items: [ { inventory_id, quantity?, unit_price? } ], order_date? }     | Create order + order_items rows with ship-to snapshot from customer/address. 201: created order with items. 400 if validation fails (ADR-021). |
-| PATCH         | /api/orders/[id]           | App  | Update order fields           | Body: partial order fields (shipping_date?, shipper?, seller_shipping_cost?, notes?, ship_to fields?, etc.) | 200: updated order. 404 if not found. 400 if validation fails.                                                                                 |
+| PATCH         | /api/orders/[id]           | App  | Update order fields           | Body: partial order fields (shipping_date?, shipper?, seller_shipping_cost?, notes?, ship_to fields?, package_weight_oz?, package_length_in?, package_width_in?, package_height_in?, etc.) | 200: updated order. 404 if not found. 400 if validation fails.                                                                                 |
 | POST or PATCH | /api/orders/[id]/mark-paid | App  | Mark order as paid            | Path: id                                                                                                    | Set was_paid=1 on the order. 200: updated order. 404 if not found.                                                                             |
 
 **Mark as paid (order):** The UI "Mark as paid" applies to an order. The API provides a single endpoint: POST or PATCH /api/orders/[id]/mark-paid — sets was_paid=1. 200: updated order. 404 if order not found.
@@ -225,6 +225,12 @@ No DELETE for orders: we do not support deleting order rows (audit trail). Void/
 | GET    | /api/settings/ai                 | App  | Get AI settings  | None                                                             | 200: masked AI config and capability flags (api key configured, model/provider, budgets).                           |
 | PUT    | /api/settings/ai                 | App  | Save AI settings | Body: provider/model/api key/base url/timeout/retry/token budget | 200: masked AI config. Validation errors return 400 with actionable guidance.                                       |
 | POST   | /api/settings/ai/test-connection | App  | Test AI settings | None                                                             | 200 on successful provider response; error envelope on failure.                                                     |
+
+**Special key handling for EasyPost credentials:**
+
+- `PUT /api/settings/easypost.api_key` — encrypts the value via AES-256-GCM and stores as `easypost.api_key_encrypted`. Returns `{ ok, key, value: "(encrypted)" }`.
+- `PUT /api/settings/easypost.test_api_key` — encrypts the value and stores as `easypost.test_api_key_encrypted`. Returns `{ ok, key, value: "(encrypted)" }`.
+- `PUT /api/settings/easypost.mode` — plain value, `"production"` (default) or `"test"`. Controls which encrypted key is used by `getEasyPostApiKey()`.
 
 ---
 
@@ -1070,7 +1076,7 @@ Request:
 }
 ```
 
-All fields optional — falls back to order-level values, then `easypost.default_*` settings.
+All fields optional. Fallback chain: request body → `orders.package_weight_oz` / `package_length_in` / `package_width_in` / `package_height_in` → `easypost.default_*` settings. Uses the active EasyPost key per `easypost.mode` (`production` or `test`).
 
 200:
 

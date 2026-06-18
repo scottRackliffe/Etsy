@@ -52,6 +52,12 @@ export function RateShoppingModal({
     setSelectedRateId("");
     setShipmentId("");
     setError(null);
+    if (order) {
+      if (order.package_weight_oz != null) setWeightOz(String(order.package_weight_oz));
+      if (order.package_length_in != null) setLengthIn(String(order.package_length_in));
+      if (order.package_width_in != null) setWidthIn(String(order.package_width_in));
+      if (order.package_height_in != null) setHeightIn(String(order.package_height_in));
+    }
     void fetchRates();
   }, [open, orderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -75,10 +81,10 @@ export function RateShoppingModal({
         ok?: boolean;
         shipment_id?: string;
         rates?: ShippingRate[];
-        error?: { user_message?: string };
+        error?: { message?: string; user_message?: string };
       };
       if (!res.ok) {
-        setError(data.error?.user_message ?? "Could not fetch shipping rates.");
+        setError(data.error?.message ?? data.error?.user_message ?? "Could not fetch shipping rates.");
         return;
       }
       setShipmentId(data.shipment_id ?? "");
@@ -131,6 +137,7 @@ export function RateShoppingModal({
       open={open}
       onClose={onClose}
       title={`Ship Order #${order?.order_number ?? orderId ?? ""}`}
+      maxWidth="max-w-2xl"
     >
       <div className="space-y-4">
         <p className="text-sm text-[var(--ui-body)]">
@@ -215,20 +222,20 @@ export function RateShoppingModal({
 
         {!loading && rates.length > 0 && (
           <div className="max-h-64 overflow-y-auto rounded border border-[var(--ui-border)]">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead>
                 <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)]">
-                  <th className="py-2 pl-3 pr-1 text-left text-xs text-[var(--ui-muted)]" />
-                  <th className="px-2 py-2 text-left text-xs text-[var(--ui-muted)]">
+                  <th className="w-8 py-2 pl-3 pr-1 text-left text-xs text-[var(--ui-muted)]" />
+                  <th className="w-[25%] px-2 py-2 text-left text-xs text-[var(--ui-muted)]">
                     Carrier
                   </th>
                   <th className="px-2 py-2 text-left text-xs text-[var(--ui-muted)]">
                     Service
                   </th>
-                  <th className="px-2 py-2 text-right text-xs text-[var(--ui-muted)]">
+                  <th className="w-14 px-2 py-2 text-right text-xs text-[var(--ui-muted)]">
                     Est.
                   </th>
-                  <th className="px-2 py-2 text-right text-xs text-[var(--ui-muted)]">
+                  <th className="w-20 px-2 py-2 text-right text-xs text-[var(--ui-muted)]">
                     Price
                   </th>
                 </tr>
@@ -254,7 +261,7 @@ export function RateShoppingModal({
                     <td className="px-2 py-2 text-[var(--ui-body)]">
                       {rate.carrier}
                     </td>
-                    <td className="px-2 py-2 text-[var(--ui-body)]">
+                    <td className="px-2 py-2 text-[var(--ui-body)] truncate" title={rate.service}>
                       {rate.service}
                     </td>
                     <td className="px-2 py-2 text-right text-[var(--ui-muted)]">

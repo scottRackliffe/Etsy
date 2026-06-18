@@ -33,7 +33,7 @@ export async function GET() {
     if (e instanceof ApiRouteError && e.code === "UNAUTHORIZED") {
       return errorResponse(e);
     }
-    logger.error("Shops error", { error: e });
+    logger.error("Shops error", { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined });
     return errorResponse(
       fromUnknownError(e, {
         code: "ETSY_API_FAILED",

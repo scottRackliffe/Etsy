@@ -1,8 +1,8 @@
-# ADR-034: Config completion — business profile, shipping info, date format, and full settings
+# ADR-034: Config completion — all application settings on one page
 
 ## Status
 
-Accepted
+Accepted (updated 2026-06-18)
 
 ## Date
 
@@ -10,243 +10,107 @@ Accepted
 
 ## Context
 
-The Config page currently has three sections: AI settings, Etsy publish defaults, and icon paths. Many settings required by other features are missing from the UI: business profile (needed for invoices and reports per ADR-013), shipping carrier defaults (needed for shipping labels and mark-shipped flow per ADR-031), date format preference, backup configuration (per ADR-027), and Etsy connection status. Users must set these values through the API directly or not at all.
+The Config page needs to surface every application setting the user may need to adjust, organized into logical sections. Early versions only had AI settings, Etsy publish defaults, and icon paths. This has been expanded to include all settings documented across ADRs, business profile, shipping, tax, display preferences, backup/restore, and more.
 
 ## Decision
 
-**Expand the Config page to include all application settings, organized into logical sections.** Each section is a card in a responsive grid layout.
+**The Config page is a single scrollable page with card sections in a responsive grid (`lg:grid-cols-2` and `lg:grid-cols-3`).** No internal tabs. Each section has a heading, form fields, and a dedicated Save button.
 
 ---
 
-### Config page layout
+### Complete section inventory (22 sections)
+
+| # | Section | Setting keys | Notes |
+|---|---------|-------------|-------|
+| 1 | **Business profile** | `business_name`, `business_address_line_1..2`, `business_city`, `business_state_province`, `business_postal_code`, `business_country`, `business_phone`, `business_email`, `business_logo_path`, `report_header_logo_path` | Logo upload + preview. Report header image upload. Used in invoices/reports (ADR-013). |
+| 2 | **Etsy connection** | Session-based + `last_etsy_sync_at`, `etsy_token_expires_at`, `sync.auto_interval` | Connection status badge, shop info, auto-sync interval selector, Connect/Reconnect/Disconnect buttons. |
+| 3 | **Shipping Info (labels)** | `shipping_info_usps`, `shipping_info_ups`, `shipping_info_fedex`, `shipping_info_dhl`, `shipping_info_other` | Delegated to `ShippingInfoSection.tsx`. Per-carrier return address for label generation. |
+| 4 | **Shipping defaults** | `shipping.default_carrier`, `shipping.default_origin_zip`, `shipping.default_weight_oz`, `shipping.usps_account`, `shipping.ups_account`, `shipping.fedex_account` | Default carrier dropdown (USPS/UPS/FedEx/DHL/Other), origin zip, weight, carrier account numbers. |
+| 5 | **Shipping API (EasyPost)** | `easypost.mode`, `easypost.api_key_encrypted`, `easypost.test_api_key_encrypted`, `easypost.address_validation`, `easypost.label_format`, `easypost.label_size`, `easypost.default_weight_oz`, `easypost.default_length_in`, `easypost.default_width_in`, `easypost.default_height_in`, `easypost.preferred_carrier`, `easypost.preferred_service` | Production/Test mode toggle (radio buttons; `easypost.mode` = `"production"` \| `"test"`, default `"production"`). Yellow "TEST MODE" badge when test mode active. Production API Key (password input, saved as `easypost.api_key_encrypted`). Test API Key (password input, saved as `easypost.test_api_key_encrypted`). Dimensions, label format/size, address validation checkbox, preferred carrier/service. Test connection button (indicates which mode is being tested). |
+| 6 | **Tax settings** | `tax.default_rate` | Percentage input (e.g. 8.25 for 8.25%). Per ADR-039. |
+| 7 | **Accounting** | `chart_of_accounts`, `gl_transaction_rules` tables | Delegated to `ChartOfAccountsSection.tsx`. COA management + GL rule reference table. |
+| 8 | **Item numbering** | `inventory.number_prefix`, `inventory.number_padding` | Prefix + padding digits with live preview and next-number display. |
+| 9 | **Order numbering** | `order.number_prefix`, `order.number_padding` | Same pattern as item numbering. |
+| 10 | **Store categories** | `inventory.store_categories` | Textarea (one per line). Count display. |
+| 11 | **Etsy categories & attributes** | Taxonomy cache tables | Sync button, last sync timestamp, node count. Loads Etsy taxonomy for listing creation. |
+| 12 | **Display preferences** | `ui.date_format`, `ui.currency_code`, `ui.page_size`, `ui.timezone`, `first_day_of_week`, `repeat_customer_threshold`, `activity_log.retention_days` | Date format, currency, page size, timezone (all IANA zones), first day of week (Sun/Mon/Sat), repeat customer badge threshold, activity log retention. |
+| 13 | **AI settings** | `ai.provider`, `ai.model`, `ai.api_key_encrypted`, `ai.base_url`, `ai.timeout_ms`, `ai.retry_count`, `ai.token_budget` | Model name, API key (password), base URL, timeout/retries/token budget. Save + Test connection buttons. |
+| 14 | **Publish defaults** | `etsy.publish.default_taxonomy_id`, `etsy.publish.shipping_profile_id`, `etsy.publish.return_policy_id`, `etsy.publish.default_who_made`, `etsy.publish.default_when_made`, `etsy.publish.image_max_dimension`, `etsy.publish.image_jpeg_quality`, `etsy.publish.image_target_dpi`, `etsy.publish.image_upload_attempts`, `etsy.publish.allow_partial_image_upload`, `etsy.publish.readiness_state_id`, `etsy.publish.image_ids`, `etsy.developer_mode`, `listing.min_quality_score` | Etsy listing defaults. Taxonomy ID, shipping/return policy IDs, who/when made, image settings (dimension, quality, DPI, upload retries, partial upload toggle). Min listing quality score gate. Developer mode checkbox. |
+| 15 | **Icons and sizing** | `ui.icons.screen_header_path`, `ui.icons.report_header_path`, `ui.icons.screen_header_size_px`, `ui.icons.report_header_width_px` | Path inputs for bundled icon assets. |
+| 16 | **Content & paths** | `pictures_matter_url`, `thumbnail_size`, `tutorial_system_folder_path` | "Why pictures matter" URL, thumbnail max dimension (100–400px), custom tutorial tips folder path. |
+| 17 | **Sample Data** | N/A (uses `/api/seed/sample-data`) | Load / Remove sample data buttons with confirmation dialogs. Status display. Per ADR-069. |
+| 18 | **API Usage** | `api_usage` table | Monthly call table by service, connected hours, Purge button with confirmation. |
+| 19 | **Backup and restore** | `backup_schedule`, `backup_directory`, `backup_time`, `backup_day`, `backup_include_pictures`, `backup_max_count`, `last_backup_at` | Schedule (manual/daily/weekly), directory, time, day (for weekly), include pictures toggle, retention count, backup history table with Restore/Download/Delete. Per ADR-027. |
+| 20 | **Database integrity** | `last_integrity_check`, `integrity_warning` | Run integrity check button. Displays last check timestamp and any warnings. Per ADR-058. |
+
+---
+
+### Layout structure
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Configuration                                           │
-├──────────────────────────┬──────────────────────────────┤
-│ Business profile         │ Etsy connection              │
-├──────────────────────────┼──────────────────────────────┤
-│ Shipping defaults        │ Shipping API (EasyPost)      │
-├──────────────────────────┼──────────────────────────────┤
-│ AI settings (existing)   │ Publish defaults             │
-├──────────────────────────┼──────────────────────────────┤
-│ Tax settings             │ Item numbering               │
-├──────────────────────────┼──────────────────────────────┤
-│ Store categories         │ Display preferences          │
-│                          │ (existing, expanded)         │
-├──────────────────────────┼──────────────────────────────┤
-│ Accounting (COA + GL)    │ Icons and branding           │
-│                          │ (existing)                   │
-├──────────────────────────┼──────────────────────────────┤
-│ Backup and restore       │                              │
-└──────────────────────────┴──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ Configuration                                                    │
+├──────────────────────────────┬──────────────────────────────────┤
+│ Business profile (logo/addr) │ Etsy connection (status/sync)    │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Shipping Info (per-carrier)  │                                  │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Shipping defaults            │ Shipping API (EasyPost)          │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Tax settings                 │ Accounting (COA + GL rules)      │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Item numbering               │ Order numbering                  │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Store categories             │ Etsy categories & attributes     │
+├──────────────────────────────┼──────────────────────────────────┤
+│ Display preferences          │                                  │
+├──────────────────────┬───────┴───────────┬─────────────────────┤
+│ AI settings          │ Publish defaults   │ Icons and sizing    │
+├──────────────────────┴───────────────────┴─────────────────────┤
+│ Content & paths                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ Sample Data                                                     │
+├─────────────────────────────────────────────────────────────────┤
+│ API Usage                                                       │
+├─────────────────────────────────────────────────────────────────┤
+│ Backup and restore          │ Database integrity                │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 On screens < `lg`: single column, cards stack vertically.
-
-Each section is a card with a heading, fields, and a "Save" button.
-
----
-
-### Section 1: Business profile (NEW)
-
-Settings keys and fields:
-
-| Setting key               | Label            | Input type                | Notes                                                                                                   |
-| ------------------------- | ---------------- | ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `business_name`           | Business name    | `TextInput`               | Used in invoice/report headers                                                                          |
-| `business_address_line_1` | Address line 1   | `TextInput`               |                                                                                                         |
-| `business_address_line_2` | Address line 2   | `TextInput`               | Optional                                                                                                |
-| `business_city`           | City             | `TextInput`               |                                                                                                         |
-| `business_state_province` | State / Province | `TextInput`               |                                                                                                         |
-| `business_postal_code`    | Postal code      | `TextInput`               |                                                                                                         |
-| `business_country`        | Country          | `TextInput`               | Default: "US"                                                                                           |
-| `business_phone`          | Phone            | `TextInput` type="tel"    | Optional                                                                                                |
-| `business_email`          | Email            | `TextInput` type="email"  | Optional                                                                                                |
-| `business_logo_path`      | Business logo    | File upload or path input | Used on invoices, reports (per ADR-013). Max height 1.5 in on PDF. Stored in `uploads/branding/logo.*`. |
-
-**Logo upload:**
-
-- Small preview of current logo (if set).
-- "Upload logo" button: opens file picker for image files.
-- Uploaded file processed and stored at `uploads/branding/logo.{ext}`.
-- Setting value stores the relative path.
-
-**Save behavior:** Single "Save business profile" button. Toast on success.
-
----
-
-### Section 2: Etsy connection (NEW)
-
-Display-only section showing connection status:
-
-| Field             | Source                            | Display                                                 |
-| ----------------- | --------------------------------- | ------------------------------------------------------- |
-| Connection status | Session cookie presence           | Badge: "Connected" (green) or "Not connected" (neutral) |
-| Shop name         | `shops[0].shop_name` from context | Text                                                    |
-| Shop ID           | `shops[0].shop_id`                | Text                                                    |
-| Token expires     | `etsy_token_expires_at` setting   | Formatted date/time                                     |
-| Last Etsy sync    | `last_etsy_sync_at` setting       | Formatted date/time or "Never"                          |
-| Redirect URI      | `ETSY_REDIRECT_URI` env var       | Display for reference during Etsy app setup             |
-
-Actions:
-
-- "Reconnect" button: triggers OAuth flow (same as header Connect).
-- "Disconnect" button: clears session (with confirmation per ADR-032).
-
----
-
-### Section 2b: Tax settings (NEW — ADR-039)
-
-| Setting key        | Label                  | Input type                            | Notes                                                                                                                                                      |
-| ------------------ | ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tax.default_rate` | Default sales tax rate | `TextInput` type="number" step="0.01" | Percentage value (e.g. `8.25` = 8.25%). Enter as percentage, e.g. 8.25 for 8.25%. Used when creating manual orders; Etsy-synced orders use `orders.tax_total` from receipt. |
-
-> **Reconciliation note (2026-06-09):** Tax rate stored as percentage number (e.g., `8.25`), not decimal fraction (`0.0825`). Step changed from `0.0001` to `0.01`. Auto-calculation: `tax_total = subtotal × (rate / 100)`. Matches ADR-039 §2.
-
-Save: "Save tax settings" button. See ADR-039 for report `sales-tax-summary`.
-
-Also in this section (ADR-069): **Sample data** — "Load sample data" / "Remove sample data" buttons calling `POST` / `DELETE /api/seed/sample-data` with ConfirmDialog (ADR-032).
-
----
-
-### Section 3: Shipping defaults (NEW)
-
-| Setting key                   | Label                       | Input type                | Notes                                                                                              |
-| ----------------------------- | --------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
-| `shipping.default_carrier`    | Default carrier             | `SelectInput`             | Options: `USPS`, `UPS`, `FedEx`, `DHL`, `Other`. Default: `USPS`. Pre-filled in mark-shipped flow. |
-| `shipping.default_origin_zip` | Origin postal code          | `TextInput`               | Seller's zip code for rate estimation                                                              |
-| `shipping.default_weight_oz`  | Default package weight (oz) | `TextInput` type="number" | Default weight for shipping cost estimation                                                        |
-| `shipping.usps_account`       | USPS account #              | `TextInput`               | Optional                                                                                           |
-| `shipping.ups_account`        | UPS account #               | `TextInput`               | Optional                                                                                           |
-| `shipping.fedex_account`      | FedEx account #             | `TextInput`               | Optional                                                                                           |
-
-Save: "Save shipping defaults" button.
-
----
-
-### Section 3b: Shipping API — EasyPost (NEW, ADR-074)
-
-Integrated shipping label purchase via EasyPost. Appears below Shipping defaults when EasyPost API key is configured (or always shown with setup prompt).
-
-| Setting key                    | Label                       | Input type                | Notes                                                                                         |
-| ------------------------------ | --------------------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
-| `easypost.api_key_encrypted`   | EasyPost API key            | `TextInput` type="password" | Encrypted at rest (AES-256-GCM). Masked display. Never returned to browser.                  |
-| `easypost.address_validation`  | Validate addresses          | `Checkbox`                | "Validate ship-to addresses before rate shopping." Default: off.                              |
-| `easypost.label_format`        | Label format                | `SelectInput`             | Options: `PDF` (default), `PNG`.                                                              |
-| `easypost.label_size`          | Label size                  | `SelectInput`             | Options: `4x6` (thermal, default), `Letter` (8.5x11).                                        |
-| `easypost.default_weight_oz`   | Default weight (oz)         | `TextInput` type="number" | Default parcel weight for rate shopping when not set on order.                                 |
-| `easypost.default_length_in`   | Default length (in)         | `TextInput` type="number" | Default parcel length.                                                                        |
-| `easypost.default_width_in`    | Default width (in)          | `TextInput` type="number" | Default parcel width.                                                                         |
-| `easypost.default_height_in`   | Default height (in)         | `TextInput` type="number" | Default parcel height.                                                                        |
-| `easypost.preferred_carrier`   | Preferred carrier           | `SelectInput`             | Options: `Any` (default), `USPS`, `UPS`, `FedEx`, `DHL`. Used for batch label auto-selection. |
-| `easypost.preferred_service`   | Preferred service           | `TextInput`               | Optional. Service name for batch (e.g., "GroundAdvantage").                                   |
-
-**Test connection** button: calls EasyPost address verification API with a dummy address to validate the API key. Shows:
-- Success: "Connected (Free Access — Wallet Carriers)" in green.
-- Failure: error message in red with troubleshooting link.
-
-**Collapsible troubleshooting section** at bottom: common problems and solutions per ADR-074 §10.
-
-Save: "Save shipping API settings" button.
-
----
-
-### Section 4: AI settings (EXISTING — minor enhancement)
-
-Existing card with model, API key, base URL, timeout. Already implemented.
-
-- API key input should use `type="password"`.
-- **Listing Coach (ADR-072)** requires a configured AI key. When missing, coach routes return **503** `AI_NOT_CONFIGURED`; Config should show helper text: "Required for Listing Coach and Generate in app."
-- **Test connection** must succeed before coach is offered as primary Inventory CTA (optional UI gate; API enforces regardless).
-
----
-
-### Section 5: Publish defaults (EXISTING — relocated and expanded)
-
-The existing Etsy publish defaults section. Moved here from the Inventory page (per ADR-030, eliminates duplication). Setting keys renamed to `default_*` to clarify these are defaults that can be overridden per-item on the inventory record.
-
-| Setting key                          | Label                  | Input type    | Notes                                                                                                                                                                                                                                                                  |
-| ------------------------------------ | ---------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `etsy.publish.default_who_made`      | Who made               | `SelectInput` | Options: `i_did`, `someone_else`, `collective`. Default: `someone_else` (appropriate for vintage/antique shops). |
-| `etsy.publish.default_when_made`     | When made (era)        | `SelectInput` | Options per ADR-017 §1a: `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700`. Default: `2004_2009` (vintage items are 20+ years old). |
-| `etsy.publish.default_taxonomy_id`   | Default category       | `SelectInput` | Etsy taxonomy ID. Used when no per-item `etsy_taxonomy_id` is set. |
-| `etsy.publish.return_policy_id`      | Return policy ID       | `TextInput` type="number" | **Required.** Etsy return policy ID. Must be set before any listing can be published. Obtain from Etsy Shop Manager → Policies. |
-
-> **Note:** Per-item overrides on the inventory record take precedence over these global defaults at publish time. See ADR-017 §1c.
-
-Save: "Save publish defaults" button.
-
----
-
-### Section 6: Display preferences (NEW)
-
-| Setting key        | Label            | Input type    | Notes                                                                                                          |
-| ------------------ | ---------------- | ------------- | -------------------------------------------------------------------------------------------------------------- |
-| `ui.date_format`   | Date format      | `SelectInput` | Options: `MM/DD/YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`. Default: `MM/DD/YYYY`. Used by all date displays in the UI. |
-| `ui.currency_code` | Currency         | `SelectInput` | Options: `USD`, `CAD`, `GBP`, `EUR`, `AUD`. Default: `USD`. Display-only for v1.                               |
-| `ui.page_size`     | Records per page | `SelectInput` | Options: `10`, `25`, `50`, `100`. Default: `25`. Used by all paginated lists.                                  |
-| `ui.timezone`      | Timezone         | `SelectInput` | Browser-detected default. Used for date display (all stored dates are UTC).                                    |
-
-Save: "Save display preferences" button.
-
----
-
-### Section 7: Icons and branding (EXISTING — no changes)
-
-Existing card with screen header path, report header path, and sizes.
-
----
-
-### Section 8a: Accounting (NEW — per ADR-056)
-
-Chart of accounts and GL transaction rules for the accounting export.
-
-| Element                     | Type           | Notes                                                                                                |
-| --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- |
-| Chart of Accounts table     | Data table     | All accounts: acct #, name, type, normal balance, description, active status. Add/edit/deactivate.   |
-| GL Transaction Rules table  | Data table     | All rules: transaction type, debit account, credit account, description, source. Read-only reference. |
-
-Data is stored in `chart_of_accounts` and `gl_transaction_rules` database tables (ADR-017). API: `GET/POST /api/chart-of-accounts`, `GET/PUT/DELETE /api/chart-of-accounts/[id]`, same pattern for `/api/gl-transaction-rules` (ADR-018 §33).
-
-Allows accountants to customize GAAP account numbers to match their accounting software without code changes.
-
----
-
-### Section 8b: Backup and restore (NEW — per ADR-027)
-
-| Element             | Type                      | Notes                                                              |
-| ------------------- | ------------------------- | ------------------------------------------------------------------ |
-| Last backup         | Display                   | Date/time of last successful backup, or "No backups yet"           |
-| Backup schedule     | `SelectInput`             | Options: `Manual only`, `Daily`, `Weekly`. Default: `Manual only`. |
-| Backup retention    | Display                   | "Rolling FIFO: keeps last {n} backups" (per ADR-027)               |
-| "Backup now" button | `Button variant="accent"` | Triggers immediate backup. Toast on success with file size.        |
-| Backup history      | Small table               | Last 5 backups: date, size, actions (Restore, Download)            |
-| Restore             | `Button variant="danger"` | Confirmation per ADR-032. Creates safety-net backup first.         |
 
 ---
 
 ### Settings persistence
 
-All settings use the existing `settings` table and `/api/settings/[key]` endpoint. The Config page saves each section's settings as a batch (multiple PUT calls in sequence, same as current pattern).
-
-Add helper: `saveSettingsBatch(updates: Array<{key: string, value: string}>)` in a shared utility to avoid the per-field sequential loop in every save handler.
+All settings use the `settings` key/value table and `/api/settings/[key]` endpoint. Each section saves as a batch of PUT calls via `saveSettingsKeys()`. Concurrent edit detection uses `If-Match` / `updated_at` headers.
 
 ---
 
-### Remove duplicated settings from Inventory page
+### Settings NOT in Config (by design)
 
-Per ADR-030, the AI settings and Etsy publish defaults sections currently duplicated on the Inventory page are removed. The Inventory page shows a link: "Configure AI and publish settings →" that navigates to `/config`.
+| Setting key(s) | Reason |
+|----------------|--------|
+| `etsy_access_token_encrypted`, `etsy_refresh_token_encrypted`, `etsy_token_expires_at` | Internal — managed by OAuth flow |
+| `app.session.current_id` | Internal — managed by auth middleware |
+| `etsy.oauth.state`, `etsy.oauth.verifier` | Internal — OAuth PKCE flow only |
+| `etsy.active_shop_id` | Set by OAuth connect flow |
+| `panel_layout` | Deferred to post-v1 (ADR-009/024) |
+| `setup.completed` | Managed by setup wizard (ADR-044), not directly editable |
+| `outstanding_sort_*` | Per-page sort state, not a global setting |
+| `default_picture_directory` | Deferred; bulk import is post-v1 |
 
 ## Consequences
 
 - **Positive**
-  - All application settings accessible from one page.
+  - All application settings accessible from one page — no hidden settings requiring API calls.
   - Business profile enables complete invoices and professional reports.
   - Shipping defaults streamline the mark-shipped workflow.
   - Display preferences let users control date/currency formatting.
   - Backup UI implements ADR-027 frontend requirements.
-  - No more duplicated settings sections.
+  - Content & paths section exposes tutorial folder and picture settings previously hidden.
+  - Database integrity section shows check history, not just the action button.
+  - Publish defaults expose all advanced image settings previously only saved but not editable.
 - **Negative**
-  - Config page becomes the largest settings page — card layout must remain scannable.
+  - Config page is the largest page — card layout keeps it scannable.
   - Business logo upload requires the image serving infrastructure from ADR-033.

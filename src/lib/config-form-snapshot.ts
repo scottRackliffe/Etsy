@@ -31,6 +31,10 @@ export type DisplaySettingsSnapshot = {
   currency_code: string;
   page_size: string;
   timezone: string;
+  first_day_of_week: string;
+  fiscal_year_type: string;
+  fiscal_year_end_month: string;
+  fiscal_year_end_day: string;
 };
 
 export type PublishConfigSnapshot = {

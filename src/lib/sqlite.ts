@@ -147,6 +147,10 @@ const ORDERS_RECONCILIATION_COLUMNS: Record<string, string> = {
   label_format: "TEXT",
   shipping_rate_cents: "INTEGER",
   shipping_carrier_service: "TEXT",
+  package_weight_oz: "REAL",
+  package_length_in: "REAL",
+  package_width_in: "REAL",
+  package_height_in: "REAL",
 };
 
 const CUSTOMERS_RECONCILIATION_COLUMNS: Record<string, string> = {

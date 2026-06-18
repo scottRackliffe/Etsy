@@ -40,7 +40,7 @@ function decryptValue(ciphertext: string): string {
   return decipher.update(encrypted) + decipher.final("utf8");
 }
 
-/** Store the EasyPost API key encrypted in settings */
+/** Store the EasyPost production API key encrypted in settings */
 export function setEasyPostApiKey(plainKey: string): void {
   setSetting("easypost.api_key_encrypted", encryptValue(plainKey));
   logActivity({
@@ -50,21 +50,40 @@ export function setEasyPostApiKey(plainKey: string): void {
   });
 }
 
-/** Get the plaintext EasyPost API key (env var takes precedence) */
+/** Store the EasyPost test API key encrypted in settings */
+export function setEasyPostTestApiKey(plainKey: string): void {
+  setSetting("easypost.test_api_key_encrypted", encryptValue(plainKey));
+  logActivity({
+    action: "easypost.test_api_key_updated",
+    entityType: "settings",
+    source: "user",
+  });
+}
+
+/** Get the current EasyPost mode: "production" or "test" */
+export function getEasyPostMode(): "production" | "test" {
+  const mode = getSetting("easypost.mode");
+  return mode === "test" ? "test" : "production";
+}
+
+/** Get the plaintext EasyPost API key for the active mode (env var takes precedence) */
 export function getEasyPostApiKey(): string | null {
   const envKey = process.env.EASYPOST_API_KEY;
   if (envKey) return envKey;
-  const encrypted = getSetting("easypost.api_key_encrypted");
+
+  const mode = getEasyPostMode();
+  const settingKey = mode === "test" ? "easypost.test_api_key_encrypted" : "easypost.api_key_encrypted";
+  const encrypted = getSetting(settingKey);
   if (!encrypted) return null;
   try {
     return decryptValue(encrypted);
   } catch {
-    logger.warn("easypost: failed to decrypt stored API key");
+    logger.warn(`easypost: failed to decrypt stored ${mode} API key`);
     return null;
   }
 }
 
-/** Returns true if EasyPost is configured */
+/** Returns true if EasyPost is configured for the active mode */
 export function isEasyPostConfigured(): boolean {
   return !!getEasyPostApiKey();
 }

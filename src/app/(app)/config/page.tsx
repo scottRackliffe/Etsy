@@ -11,6 +11,7 @@ import {
 } from "@/lib/auto-sync-interval";
 import { formStatesEqual } from "@/lib/deep-equal-form";
 import { buildConfigFormSnapshot, type ConfigFormSnapshot } from "@/lib/config-form-snapshot";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
@@ -61,6 +62,8 @@ type ShippingSettings = {
 
 type EasyPostSettings = {
   api_key: string;
+  test_api_key: string;
+  mode: "production" | "test";
   address_validation: string;
   label_format: string;
   label_size: string;
@@ -81,6 +84,10 @@ type DisplaySettings = {
   currency_code: string;
   page_size: string;
   timezone: string;
+  first_day_of_week: string;
+  fiscal_year_type: string;
+  fiscal_year_end_month: string;
+  fiscal_year_end_day: string;
 };
 
 const COMMON_TIMEZONES = [
@@ -166,6 +173,8 @@ export default function ConfigPage() {
   const [taxSettings, setTaxSettings] = useState<TaxSettings>({ default_rate: "" });
   const [easypostSettings, setEasypostSettings] = useState<EasyPostSettings>({
     api_key: "",
+    test_api_key: "",
+    mode: "production",
     address_validation: "off",
     label_format: "pdf",
     label_size: "4x6",
@@ -183,7 +192,16 @@ export default function ConfigPage() {
     currency_code: "USD",
     page_size: "25",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    first_day_of_week: "0",
+    fiscal_year_type: "calendar",
+    fiscal_year_end_month: "12",
+    fiscal_year_end_day: "31",
   });
+  const [picturesMatterUrl, setPicturesMatterUrl] = useState("");
+  const [thumbnailSize, setThumbnailSize] = useState("200");
+  const [tutorialFolderPath, setTutorialFolderPath] = useState("");
+  const [lastIntegrityCheck, setLastIntegrityCheck] = useState<string | null>(null);
+  const [integrityWarning, setIntegrityWarning] = useState<string | null>(null);
   const [backupSchedule, setBackupSchedule] = useState("manual");
   const [backupDirectory, setBackupDirectory] = useState("./backups");
   const [backupTime, setBackupTime] = useState("02:00");
@@ -420,6 +438,8 @@ export default function ConfigPage() {
       setTaxSettings({ default_rate: map.get("tax.default_rate") ?? "" });
       setEasypostSettings({
         api_key: "",
+        test_api_key: "",
+        mode: (map.get("easypost.mode") ?? "production") as "production" | "test",
         address_validation: map.get("easypost.address_validation") ?? "off",
         label_format: map.get("easypost.label_format") ?? "pdf",
         label_size: map.get("easypost.label_size") ?? "4x6",
@@ -436,7 +456,16 @@ export default function ConfigPage() {
         currency_code: map.get("ui.currency_code") ?? "USD",
         page_size: map.get("ui.page_size") ?? "25",
         timezone: map.get("ui.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        first_day_of_week: map.get("first_day_of_week") ?? "0",
+        fiscal_year_type: map.get("fiscal.year_type") ?? "calendar",
+        fiscal_year_end_month: map.get("fiscal.year_end_month") ?? "12",
+        fiscal_year_end_day: map.get("fiscal.year_end_day") ?? "31",
       });
+      setPicturesMatterUrl(map.get("pictures_matter_url") ?? "");
+      setThumbnailSize(map.get("thumbnail_size") ?? "200");
+      setTutorialFolderPath(map.get("tutorial_system_folder_path") ?? "");
+      setLastIntegrityCheck(map.get("last_integrity_check") ?? null);
+      setIntegrityWarning(map.get("integrity_warning") ?? null);
       setBackupSchedule(map.get("backup_schedule") ?? "manual");
       setBackupDirectory(map.get("backup_directory") ?? "./backups");
       setBackupTime(map.get("backup_time") ?? "02:00");
@@ -479,6 +508,10 @@ export default function ConfigPage() {
             currency_code: map.get("ui.currency_code") ?? "USD",
             page_size: map.get("ui.page_size") ?? "25",
             timezone: map.get("ui.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            first_day_of_week: map.get("first_day_of_week") ?? "0",
+            fiscal_year_type: map.get("fiscal.year_type") ?? "calendar",
+            fiscal_year_end_month: map.get("fiscal.year_end_month") ?? "12",
+            fiscal_year_end_day: map.get("fiscal.year_end_day") ?? "31",
           },
           backupSchedule: map.get("backup_schedule") ?? "manual",
           backupDirectory: map.get("backup_directory") ?? "./backups",
@@ -666,6 +699,7 @@ export default function ConfigPage() {
     setExtraSettingsLoading(true);
     try {
       const updates: Array<{ key: string; value: string }> = [
+        { key: "easypost.mode", value: easypostSettings.mode },
         { key: "easypost.address_validation", value: easypostSettings.address_validation },
         { key: "easypost.label_format", value: easypostSettings.label_format },
         { key: "easypost.label_size", value: easypostSettings.label_size },
@@ -679,6 +713,9 @@ export default function ConfigPage() {
       if (easypostSettings.api_key.trim()) {
         updates.push({ key: "easypost.api_key", value: easypostSettings.api_key.trim() });
       }
+      if (easypostSettings.test_api_key.trim()) {
+        updates.push({ key: "easypost.test_api_key", value: easypostSettings.test_api_key.trim() });
+      }
       await saveSettingsKeys(
         updates,
         "Shipping API settings saved",
@@ -687,6 +724,9 @@ export default function ConfigPage() {
       if (easypostSettings.api_key.trim()) {
         setEasypostSettings((c) => ({ ...c, api_key: "" }));
         setEasypostConnected(true);
+      }
+      if (easypostSettings.test_api_key.trim()) {
+        setEasypostSettings((c) => ({ ...c, test_api_key: "" }));
       }
     } catch {
       setExtraSettingsLoading(false);
@@ -727,11 +767,26 @@ export default function ConfigPage() {
         { key: "ui.currency_code", value: displaySettings.currency_code },
         { key: "ui.page_size", value: displaySettings.page_size },
         { key: "ui.timezone", value: displaySettings.timezone },
+        { key: "first_day_of_week", value: displaySettings.first_day_of_week },
+        { key: "fiscal.year_type", value: displaySettings.fiscal_year_type },
+        { key: "fiscal.year_end_month", value: displaySettings.fiscal_year_end_month },
+        { key: "fiscal.year_end_day", value: displaySettings.fiscal_year_end_day },
         { key: "repeat_customer_threshold", value: repeatCustomerThreshold },
         { key: "activity_log.retention_days", value: activityRetentionDays },
       ],
       "Display preferences saved",
-      "Date format, currency, page size, timezone, repeat threshold, and retention were updated."
+      "Display settings were updated."
+    );
+
+  const savePicturesAndTutorialSettings = () =>
+    void saveSettingsKeys(
+      [
+        { key: "pictures_matter_url", value: picturesMatterUrl },
+        { key: "thumbnail_size", value: thumbnailSize },
+        { key: "tutorial_system_folder_path", value: tutorialFolderPath },
+      ],
+      "Content settings saved",
+      "Picture and tutorial path settings were updated."
     );
 
   const loadNextItemPreview = useCallback(async () => {
@@ -1600,13 +1655,53 @@ export default function ConfigPage() {
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping API (EasyPost)</h4>
-            <FormField label="API Key" helpText="Enter your EasyPost API key. It will be encrypted and stored securely.">
+            <div className="mb-3 flex items-center gap-4">
+              <span className="text-sm text-[var(--ui-body)]">Mode:</span>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="easypost-mode"
+                  value="production"
+                  checked={easypostSettings.mode === "production"}
+                  onChange={() => setEasypostSettings((c) => ({ ...c, mode: "production" }))}
+                  className="h-4 w-4"
+                />
+                <span className={easypostSettings.mode === "production" ? "font-semibold text-[var(--ui-title)]" : "text-[var(--ui-muted)]"}>Production</span>
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="easypost-mode"
+                  value="test"
+                  checked={easypostSettings.mode === "test"}
+                  onChange={() => setEasypostSettings((c) => ({ ...c, mode: "test" }))}
+                  className="h-4 w-4"
+                />
+                <span className={easypostSettings.mode === "test" ? "font-semibold text-[var(--ui-yellow)]" : "text-[var(--ui-muted)]"}>Test</span>
+              </label>
+              {easypostSettings.mode === "test" && (
+                <Badge label="TEST MODE" variant="warning" />
+              )}
+            </div>
+            <FormField label="Production API Key" helpText={easypostConnected ? "Production key is saved. Paste a new key to replace it." : "Paste your EasyPost production API key (starts with EZAK). It will be encrypted."}>
               <input
                 value={easypostSettings.api_key}
                 onChange={(e) => setEasypostSettings((c) => ({ ...c, api_key: e.target.value }))}
-                placeholder={easypostConnected ? "••••••••••••(configured)" : "EZAK..."}
-                type="password"
-                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                placeholder={easypostConnected ? "Paste new key to replace current one" : "EZAK..."}
+                autoComplete="off"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm font-mono"
+              />
+              {easypostConnected && !easypostSettings.api_key && (
+                <p className="mt-1 text-xs text-[var(--ui-green)]">Production key is configured and saved.</p>
+              )}
+            </FormField>
+            <FormField label="Test API Key" helpText="Paste your EasyPost test API key (starts with EZTEST). Used when mode is set to Test. No real charges.">
+              <input
+                value={easypostSettings.test_api_key}
+                onChange={(e) => setEasypostSettings((c) => ({ ...c, test_api_key: e.target.value }))}
+                placeholder="EZTESTxxxxxxxx..."
+                autoComplete="off"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm font-mono"
               />
             </FormField>
             <div className="mb-2 flex items-center gap-2">
@@ -1617,7 +1712,7 @@ export default function ConfigPage() {
                 disabled={easypostTesting}
                 busy={easypostTesting}
               >
-                Test connection
+                Test connection ({easypostSettings.mode})
               </Button>
               {easypostConnected === true && (
                 <span className="text-xs text-[var(--ui-green)]">Connected</span>
@@ -1712,6 +1807,14 @@ export default function ConfigPage() {
                 <option value="FedEx">FedEx</option>
                 <option value="DHL">DHL</option>
               </select>
+            </FormField>
+            <FormField label="Preferred service" helpText="e.g. GroundAdvantage, Priority. Leave blank for any.">
+              <input
+                value={easypostSettings.preferred_service}
+                onChange={(e) => setEasypostSettings((c) => ({ ...c, preferred_service: e.target.value }))}
+                placeholder="e.g. GroundAdvantage"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
             </FormField>
             <Button
               variant="accent"
@@ -1989,6 +2092,75 @@ export default function ConfigPage() {
                 })()}
               </select>
             </FormField>
+            <FormField label="First day of week" helpText="Used for calendar displays and weekly reports.">
+              <select
+                value={displaySettings.first_day_of_week}
+                onChange={(e) => setDisplaySettings((c) => ({ ...c, first_day_of_week: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </FormField>
+            <FormField label="Fiscal year" helpText="Calendar year ends Dec 31. Fiscal lets you set a custom year-end date for reports.">
+              <select
+                value={displaySettings.fiscal_year_type}
+                onChange={(e) => setDisplaySettings((c) => ({ ...c, fiscal_year_type: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="calendar">Calendar year (Jan 1 – Dec 31)</option>
+                <option value="fiscal">Fiscal year (custom end date)</option>
+              </select>
+            </FormField>
+            {displaySettings.fiscal_year_type === "fiscal" && (
+              <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+                <p className="mb-2 text-xs font-medium text-[var(--ui-title)]">Fiscal year-end date</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField label="Month">
+                    <select
+                      value={displaySettings.fiscal_year_end_month}
+                      onChange={(e) => setDisplaySettings((c) => ({ ...c, fiscal_year_end_month: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    >
+                      <option value="1">January</option>
+                      <option value="2">February</option>
+                      <option value="3">March</option>
+                      <option value="4">April</option>
+                      <option value="5">May</option>
+                      <option value="6">June</option>
+                      <option value="7">July</option>
+                      <option value="8">August</option>
+                      <option value="9">September</option>
+                      <option value="10">October</option>
+                      <option value="11">November</option>
+                      <option value="12">December</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Day">
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={displaySettings.fiscal_year_end_day}
+                      onChange={(e) => setDisplaySettings((c) => ({ ...c, fiscal_year_end_day: e.target.value }))}
+                      onBlur={() => {
+                        const d = parseInt(displaySettings.fiscal_year_end_day, 10);
+                        if (!Number.isFinite(d) || d < 1) setDisplaySettings((c) => ({ ...c, fiscal_year_end_day: "1" }));
+                        else if (d > 31) setDisplaySettings((c) => ({ ...c, fiscal_year_end_day: "31" }));
+                      }}
+                      className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                    />
+                  </FormField>
+                </div>
+                <p className="mt-2 text-xs text-[var(--ui-muted)]">
+                  Fiscal year ends on{" "}
+                  {new Date(2000, parseInt(displaySettings.fiscal_year_end_month, 10) - 1, parseInt(displaySettings.fiscal_year_end_day, 10) || 1)
+                    .toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+                  . Reports will use this as the year boundary.
+                </p>
+              </div>
+            )}
             <FormField label="Repeat customer threshold" helpText="Number of orders before a customer gets the Repeat badge.">
               <input
                 type="number"
@@ -2060,6 +2232,18 @@ export default function ConfigPage() {
               {aiConfig?.apiKeyConfigured && !aiApiKeyDraft && !aiFieldErrors.apiKey && (
                 <p className="mt-1 text-xs text-[var(--ui-green)]">API key is configured.</p>
               )}
+            </FormField>
+            <FormField label="Base URL" helpText="Custom API endpoint. Leave blank for default OpenAI.">
+              <input
+                value={aiConfig?.baseUrl ?? ""}
+                onChange={(e) =>
+                  setAiConfig((c) =>
+                    c ? { ...c, baseUrl: e.target.value || null } : c
+                  )
+                }
+                placeholder="https://api.openai.com/v1"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
             </FormField>
             <div className="grid grid-cols-3 gap-2">
               <FormField label="Timeout (sec)" helpText="5–120 seconds" error={aiFieldErrors.timeout}>
@@ -2234,7 +2418,45 @@ export default function ConfigPage() {
                   className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
                 />
               </FormField>
+              <FormField label="Image target DPI" helpText="Target resolution for uploaded images.">
+                <input
+                  value={publishConfig.imageTargetDpi}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, imageTargetDpi: e.target.value }))
+                  }
+                  placeholder="300"
+                  type="number"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Image upload retries" helpText="Number of upload attempts per image.">
+                <input
+                  value={publishConfig.imageUploadAttempts}
+                  onChange={(e) =>
+                    setPublishConfig((c) => ({ ...c, imageUploadAttempts: e.target.value }))
+                  }
+                  placeholder="3"
+                  type="number"
+                  min="1"
+                  max="10"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
             </div>
+            <label className="mt-2 flex items-center gap-2 text-sm text-[var(--ui-body)]">
+              <input
+                type="checkbox"
+                checked={publishConfig.allowPartialImageUpload === "true"}
+                onChange={(e) =>
+                  setPublishConfig((c) => ({
+                    ...c,
+                    allowPartialImageUpload: e.target.checked ? "true" : "false",
+                  }))
+                }
+                className="h-4 w-4 rounded border-[var(--ui-border)]"
+              />
+              Allow partial image upload (publish even if some images fail)
+            </label>
             <div className="mt-3">
               <FormField
                 label="Minimum listing quality score"
@@ -2317,6 +2539,51 @@ export default function ConfigPage() {
             />
             <Button variant="secondary" size="lg" onClick={saveIconSettings} disabled={saving} className="mt-2">
               Save icon settings
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Content &amp; paths</h4>
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              URLs and folder paths used by picture and tutorial features.
+            </p>
+            <FormField label="Why pictures matter URL" helpText="Link displayed near image upload areas.">
+              <input
+                value={picturesMatterUrl}
+                onChange={(e) => setPicturesMatterUrl(e.target.value)}
+                placeholder="https://example.com/why-pictures-matter"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Thumbnail size (px)" helpText="Max dimension for auto-generated thumbnails (100–400).">
+              <input
+                value={thumbnailSize}
+                onChange={(e) => setThumbnailSize(e.target.value)}
+                placeholder="200"
+                type="number"
+                min={100}
+                max={400}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Custom tutorial tips folder" helpText="Folder path for additional user-created tips content.">
+              <input
+                value={tutorialFolderPath}
+                onChange={(e) => setTutorialFolderPath(e.target.value)}
+                placeholder="./system/tips"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={savePicturesAndTutorialSettings}
+              disabled={extraSettingsLoading}
+              className="mt-3"
+            >
+              Save content settings
             </Button>
           </div>
         </div>
@@ -2702,6 +2969,17 @@ export default function ConfigPage() {
             <p className="mb-2 text-xs text-[var(--ui-muted)]">
               Run a full integrity check on the SQLite database. This verifies all tables and indexes are intact.
             </p>
+            <div className="mb-3 space-y-1 text-xs text-[var(--ui-body)]">
+              <p>
+                <span className="font-medium text-[var(--ui-title)]">Last check:</span>{" "}
+                {lastIntegrityCheck ? new Date(lastIntegrityCheck).toLocaleString() : "Never"}
+              </p>
+              {integrityWarning && (
+                <p className="text-[var(--ui-red)]">
+                  <span className="font-medium">Warning:</span> {integrityWarning}
+                </p>
+              )}
+            </div>
             <Button
               variant="secondary"
               size="lg"
@@ -2717,16 +2995,20 @@ export default function ConfigPage() {
                     details?: string[];
                   };
                   if (!res.ok) throw data;
+                  setLastIntegrityCheck(new Date().toISOString());
                   if (data.result === "ok") {
+                    setIntegrityWarning(null);
                     setError({
                       title: "Database is healthy",
                       message: "Integrity check passed — all tables and indexes are intact.",
                       actions: [],
                     });
                   } else {
+                    const warning = (data.details ?? []).join("; ");
+                    setIntegrityWarning(warning);
                     setError({
                       title: "Integrity issues found",
-                      message: `The integrity check found problems: ${(data.details ?? []).join("; ")}`,
+                      message: `The integrity check found problems: ${warning}`,
                       actions: ["Consider restoring from a recent backup."],
                     });
                   }

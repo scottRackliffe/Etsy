@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     beginOauth(state, codeVerifier);
     return NextResponse.redirect(url);
   } catch (e) {
-    logger.error("Etsy auth error", { error: e });
+    logger.error("Etsy auth error", { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined });
     const normalized = fromUnknownError(e, {
       code: "ETSY_AUTH_FAILED",
       message: "Etsy auth failed",

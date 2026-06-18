@@ -171,6 +171,10 @@ export type Order = {
   label_format: string | null;
   shipping_rate_cents: number | null;
   shipping_carrier_service: string | null;
+  package_weight_oz: number | null;
+  package_length_in: number | null;
+  package_width_in: number | null;
+  package_height_in: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

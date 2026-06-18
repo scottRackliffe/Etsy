@@ -77,8 +77,9 @@ export function getEtsyConfig() {
     throw new Error("Missing ETSY_CLIENT_ID, ETSY_CLIENT_SECRET, or ETSY_REDIRECT_URI");
   }
   const isDev = process.env.NODE_ENV !== "production";
-  if (!isDev && !redirectUri.startsWith("https://")) {
-    throw new Error("ETSY_REDIRECT_URI must use https:// in production");
+  const isLocalhost = redirectUri.startsWith("http://localhost") || redirectUri.startsWith("http://127.0.0.1");
+  if (!isDev && !isLocalhost && !redirectUri.startsWith("https://")) {
+    throw new Error("ETSY_REDIRECT_URI must use https:// in production (except localhost)");
   }
   if (redirectUri.endsWith("/") || redirectUri.includes("?")) {
     throw new Error("ETSY_REDIRECT_URI must not have a trailing slash or query string");

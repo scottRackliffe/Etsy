@@ -59,10 +59,14 @@ type DraftFields = {
   shipper: string;
   shipping_date: string;
   tracking_number: string;
+  package_weight_oz: string;
+  package_length_in: string;
+  package_width_in: string;
+  package_height_in: string;
   notes: string;
 };
 
-function orderToDraft(order: Order): DraftFields {
+function orderToDraft(order: Order, defaults?: PackageDefaults): DraftFields {
   return {
     ship_to_first_name: order.ship_to_first_name ?? "",
     ship_to_last_name: order.ship_to_last_name ?? "",
@@ -80,9 +84,20 @@ function orderToDraft(order: Order): DraftFields {
     shipper: order.shipper ?? "",
     shipping_date: order.shipping_date ?? "",
     tracking_number: order.tracking_number ?? "",
+    package_weight_oz: order.package_weight_oz != null ? String(order.package_weight_oz) : (defaults?.weight_oz ?? ""),
+    package_length_in: order.package_length_in != null ? String(order.package_length_in) : (defaults?.length_in ?? ""),
+    package_width_in: order.package_width_in != null ? String(order.package_width_in) : (defaults?.width_in ?? ""),
+    package_height_in: order.package_height_in != null ? String(order.package_height_in) : (defaults?.height_in ?? ""),
     notes: order.notes ?? "",
   };
 }
+
+type PackageDefaults = {
+  weight_oz: string;
+  length_in: string;
+  width_in: string;
+  height_in: string;
+};
 
 function inventoryLabel(inventoryId: number, items: InventoryItem[]): string {
   const item = items.find((row) => row.id === inventoryId);
@@ -123,6 +138,8 @@ export function OrderDetailPanel({
   const { state: connectionState } = useConnection();
   const isOffline = connectionState !== "online";
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const [order, setOrder] = useState<Order | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
   const [loading, setLoading] = useState(false);
@@ -148,11 +165,12 @@ export function OrderDetailPanel({
   const [newReasonText, setNewReasonText] = useState("");
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [voidLabelConfirm, setVoidLabelConfirm] = useState(false);
+  const pkgDefaultsRef = useRef<PackageDefaults>({ weight_oz: "", length_in: "", width_in: "", height_in: "" });
   const router = useRouter();
 
   const isDirty = useMemo(() => {
     if (!order || !draft) return false;
-    return !formStatesEqual(draft, orderToDraft(order));
+    return !formStatesEqual(draft, orderToDraft(order, pkgDefaultsRef.current));
   }, [order, draft]);
 
   const { registerOnDiscard } = useUnsavedChanges();
@@ -169,7 +187,7 @@ export function OrderDetailPanel({
   useEffect(() => {
     if (!order) return;
     return registerOnDiscard(() => {
-      setDraft(orderToDraft(order));
+      setDraft(orderToDraft(order, pkgDefaultsRef.current));
       setRecoveryApplied(false);
     });
   }, [order, registerOnDiscard]);
@@ -226,25 +244,42 @@ export function OrderDetailPanel({
     async (id: number) => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/orders/${id}`, {
-          headers: { Accept: "application/json" },
-        });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
-        if (!response.ok) throw data;
+        const [orderRes, settingsRes] = await Promise.all([
+          fetch(`/api/orders/${id}`, { headers: { Accept: "application/json" } }),
+          fetch("/api/settings", { headers: { Accept: "application/json" }, credentials: "include" }),
+        ]);
+        const data = (await orderRes.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+        if (!orderRes.ok) throw data;
+
+        let defaults = pkgDefaultsRef.current;
+        if (settingsRes.ok) {
+          const settingsData = (await settingsRes.json().catch(() => ({}))) as { items?: Array<{ key: string; value: string }> };
+          if (settingsData.items) {
+            const map = new Map(settingsData.items.map((s) => [s.key, s.value]));
+            defaults = {
+              weight_oz: map.get("easypost.default_weight_oz") || "",
+              length_in: map.get("easypost.default_length_in") || "",
+              width_in: map.get("easypost.default_width_in") || "",
+              height_in: map.get("easypost.default_height_in") || "",
+            };
+            pkgDefaultsRef.current = defaults;
+          }
+        }
+
         if (data.order) {
           setOrder(data.order);
-          setDraft(orderToDraft(data.order));
+          setDraft(orderToDraft(data.order, defaults));
           setLinkCustomerId(data.order.customer_id ? String(data.order.customer_id) : "");
         }
       } catch (err) {
-        onError("Could not load order", "We could not load order details.", err);
+        onErrorRef.current("Could not load order", "We could not load order details.", err);
         setOrder(null);
         setDraft(null);
       } finally {
         setLoading(false);
       }
     },
-    [onError]
+    [] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   useEffect(() => {
@@ -294,7 +329,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order));
+        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
         onOrderUpdated(data.order);
       }
       setAddItemOpen(false);
@@ -319,7 +354,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order));
+        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
         onOrderUpdated(data.order);
       }
       setRemoveLineTarget(null);
@@ -418,6 +453,10 @@ export function OrderDetailPanel({
         shipper: draft.shipper.trim() || null,
         shipping_date: draft.shipping_date.trim() || null,
         tracking_number: draft.tracking_number.trim() || null,
+        package_weight_oz: draft.package_weight_oz.trim() ? Number(draft.package_weight_oz) : null,
+        package_length_in: draft.package_length_in.trim() ? Number(draft.package_length_in) : null,
+        package_width_in: draft.package_width_in.trim() ? Number(draft.package_width_in) : null,
+        package_height_in: draft.package_height_in.trim() ? Number(draft.package_height_in) : null,
         notes: draft.notes.trim() || null,
       };
       const { previousState, newState } = pickChangedFields(
@@ -434,7 +473,7 @@ export function OrderDetailPanel({
         pickRecord: (data) => (data.order as Order | undefined) ?? null,
         onPatched: (updated) => {
           setOrder(updated);
-          setDraft(orderToDraft(updated));
+          setDraft(orderToDraft(updated, pkgDefaultsRef.current));
           onOrderUpdated(updated);
         },
       });
@@ -478,7 +517,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order));
+        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
         onOrderUpdated(data.order);
       }
     } catch (err) {
@@ -902,6 +941,60 @@ export function OrderDetailPanel({
               </Button>
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Package dimensions</h5>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <FormField label="Weight (oz)" helpText="Pre-filled from Config defaults.">
+            <input
+              id="pkg-weight"
+              type="number"
+              min="0"
+              step="0.1"
+              value={draft.package_weight_oz}
+              onChange={(e) => setDraft((c) => c ? { ...c, package_weight_oz: e.target.value } : c)}
+              disabled={busy || saving || isVoid}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
+            />
+          </FormField>
+          <FormField label="Length (in)">
+            <input
+              id="pkg-length"
+              type="number"
+              min="0"
+              step="0.1"
+              value={draft.package_length_in}
+              onChange={(e) => setDraft((c) => c ? { ...c, package_length_in: e.target.value } : c)}
+              disabled={busy || saving || isVoid}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
+            />
+          </FormField>
+          <FormField label="Width (in)">
+            <input
+              id="pkg-width"
+              type="number"
+              min="0"
+              step="0.1"
+              value={draft.package_width_in}
+              onChange={(e) => setDraft((c) => c ? { ...c, package_width_in: e.target.value } : c)}
+              disabled={busy || saving || isVoid}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
+            />
+          </FormField>
+          <FormField label="Height (in)">
+            <input
+              id="pkg-height"
+              type="number"
+              min="0"
+              step="0.1"
+              value={draft.package_height_in}
+              onChange={(e) => setDraft((c) => c ? { ...c, package_height_in: e.target.value } : c)}
+              disabled={busy || saving || isVoid}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
+            />
+          </FormField>
         </div>
       </section>
 

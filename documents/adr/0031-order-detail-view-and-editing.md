@@ -105,6 +105,17 @@ On screens < `lg`, panels stack vertically.
 | Carrier service | Service    | Read-only               | `shipping_carrier_service` — shown when a label has been purchased (e.g., "USPS Ground Advantage"). |
 | Postage paid    | Postage    | Read-only               | `shipping_rate_cents` formatted as dollars — shown when a label has been purchased. |
 
+**Package dimensions:**
+
+| Field              | Label       | Editable | Notes                                                        |
+| ------------------ | ----------- | -------- | ------------------------------------------------------------ |
+| `package_weight_oz` | Weight (oz) | Yes      | Pre-filled from `easypost.default_weight_oz` when null       |
+| `package_length_in` | Length (in) | Yes      | Pre-filled from `easypost.default_length_in` when null       |
+| `package_width_in`  | Width (in)  | Yes      | Pre-filled from `easypost.default_width_in` when null        |
+| `package_height_in` | Height (in) | Yes      | Pre-filled from `easypost.default_height_in` when null       |
+
+Layout: 4-column grid (`grid-cols-2 sm:grid-cols-4`). Saved via `PATCH /api/orders/[id]`. The Rate Shopping Modal reads these values first; if null, falls back to Config defaults (`easypost.default_*` settings).
+
 **Label section (ADR-074):**
 
 Visible when EasyPost is configured (API key set). Contains the integrated shipping label workflow:
@@ -214,6 +225,15 @@ Line items are managed via nested endpoints under the order:
 Add `tracking_number TEXT` column to `orders` table. Migration: `ALTER TABLE orders ADD COLUMN tracking_number TEXT`.
 
 Add EasyPost columns (ADR-074): `easypost_shipment_id TEXT`, `label_url TEXT`, `label_format TEXT`, `shipping_rate_cents INTEGER`, `shipping_carrier_service TEXT`.
+
+Add package dimension columns:
+
+```sql
+ALTER TABLE orders ADD COLUMN package_weight_oz REAL;
+ALTER TABLE orders ADD COLUMN package_length_in REAL;
+ALTER TABLE orders ADD COLUMN package_width_in REAL;
+ALTER TABLE orders ADD COLUMN package_height_in REAL;
+```
 
 ## Consequences
 

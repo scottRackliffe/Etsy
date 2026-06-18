@@ -98,10 +98,10 @@ export async function POST(request: Request) {
 
     const bizName = getSetting("business_name");
     const bizStreet = getSetting("business_address_line_1");
-    const bizCity = getSetting("business_address_city");
-    const bizState = getSetting("business_address_state");
-    const bizZip = getSetting("business_address_postal_code");
-    const bizCountry = getSetting("business_address_country");
+    const bizCity = getSetting("business_city");
+    const bizState = getSetting("business_state_province");
+    const bizZip = getSetting("business_postal_code");
+    const bizCountry = getSetting("business_country");
 
     if (!bizStreet || !bizCity || !bizState || !bizZip || !bizCountry) {
       throw new ApiRouteError({

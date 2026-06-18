@@ -83,10 +83,10 @@ export async function POST(
 
     const bizName = getSetting("business_name");
     const bizStreet = getSetting("business_address_line_1");
-    const bizCity = getSetting("business_address_city");
-    const bizState = getSetting("business_address_state");
-    const bizZip = getSetting("business_address_postal_code");
-    const bizCountry = getSetting("business_address_country");
+    const bizCity = getSetting("business_city");
+    const bizState = getSetting("business_state_province");
+    const bizZip = getSetting("business_postal_code");
+    const bizCountry = getSetting("business_country");
 
     if (!bizStreet || !bizCity || !bizState || !bizZip || !bizCountry) {
       throw new ApiRouteError({
@@ -107,22 +107,27 @@ export async function POST(
       height_in?: number;
     };
 
+    const orderWeight = typeof order.package_weight_oz === "number" ? order.package_weight_oz : null;
+    const orderLength = typeof order.package_length_in === "number" ? order.package_length_in : null;
+    const orderWidth = typeof order.package_width_in === "number" ? order.package_width_in : null;
+    const orderHeight = typeof order.package_height_in === "number" ? order.package_height_in : null;
+
     const weightOz =
       typeof body.weight_oz === "number"
         ? body.weight_oz
-        : parseFloat(getSetting("easypost.default_weight_oz") ?? "16");
+        : orderWeight ?? (parseFloat(getSetting("easypost.default_weight_oz") || "16") || 16);
     const lengthIn =
       typeof body.length_in === "number"
         ? body.length_in
-        : parseFloat(getSetting("easypost.default_length_in") ?? "0") || undefined;
+        : orderLength ?? (parseFloat(getSetting("easypost.default_length_in") || "0") || undefined);
     const widthIn =
       typeof body.width_in === "number"
         ? body.width_in
-        : parseFloat(getSetting("easypost.default_width_in") ?? "0") || undefined;
+        : orderWidth ?? (parseFloat(getSetting("easypost.default_width_in") || "0") || undefined);
     const heightIn =
       typeof body.height_in === "number"
         ? body.height_in
-        : parseFloat(getSetting("easypost.default_height_in") ?? "0") || undefined;
+        : orderHeight ?? (parseFloat(getSetting("easypost.default_height_in") || "0") || undefined);
 
     const result = await createShipmentAndGetRates({
       fromAddress: {

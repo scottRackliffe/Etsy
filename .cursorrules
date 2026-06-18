@@ -241,6 +241,7 @@ subtotal, shipping_total, tax_total, discount_total, grand_total,
 source_channel, notes,
 easypost_shipment_id, label_url, label_format,
 shipping_rate_cents, shipping_carrier_service,
+package_weight_oz, package_length_in, package_width_in, package_height_in,
 created_at, updated_at
 ```
 - `order_status`: active | void | cancelled
@@ -322,7 +323,9 @@ Known keys: `etsy.active_shop_id`, `etsy.oauth.state`, `etsy.oauth.verifier`,
 `order.number_prefix` (order number auto-generation prefix, default "ORD")
 `order.number_padding` (order number zero-padding width, default 4, range 2-6)
 `inventory.store_categories` (comma-separated list of user-defined store categories for inventory),
-`easypost.api_key_encrypted` (ADR-074), `easypost.address_validation` (ADR-074),
+`easypost.api_key_encrypted` (ADR-074), `easypost.test_api_key_encrypted` (ADR-074),
+`easypost.mode` (ADR-074, `"production"` | `"test"`, default `"production"`),
+`easypost.address_validation` (ADR-074),
 `easypost.label_format` (ADR-074), `easypost.label_size` (ADR-074),
 `easypost.default_weight_oz` (ADR-074), `easypost.default_length_in` (ADR-074),
 `easypost.default_width_in` (ADR-074), `easypost.default_height_in` (ADR-074),

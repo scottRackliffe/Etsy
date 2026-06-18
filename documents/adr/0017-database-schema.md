@@ -236,6 +236,10 @@ One row per sales order. Holds ship-to snapshot and shipping/payment state. Line
 | label_format                  | TEXT    | —                                           | Label file format: "pdf", "png", or "html" (legacy). (ADR-074).                                                                            |
 | shipping_rate_cents           | INTEGER | —                                           | Postage cost in cents (e.g., 415 = $4.15). Used in profit/cost reports (ADR-074).                                                           |
 | shipping_carrier_service      | TEXT    | —                                           | Carrier + service name (e.g., "USPS Ground Advantage"). (ADR-074).                                                                         |
+| package_weight_oz             | REAL    | —                                           | Per-order parcel weight in ounces for rate shopping.                                                                                        |
+| package_length_in             | REAL    | —                                           | Per-order parcel length in inches.                                                                                                          |
+| package_width_in              | REAL    | —                                           | Per-order parcel width in inches.                                                                                                           |
+| package_height_in             | REAL    | —                                           | Per-order parcel height in inches.                                                                                                          |
 | notes                         | TEXT    | —                                           | Optional.                                                                                                                                   |
 | created_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
 | updated_at                    | TEXT    | NOT NULL DEFAULT (datetime('now'))          | ISO 8601 timestamp.                                                                                                                         |
@@ -415,6 +419,8 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | inventory.number_padding     | Zero-padding width for item number sequence (2–6)                                                            | "4" (default)                                                                       |
 | inventory.store_categories   | Comma-separated list of user-defined store categories for inventory grouping/reporting                        | e.g. "Glassware,Jewelry,Kitchen"                                                    |
 | easypost.api_key_encrypted       | EasyPost API key, encrypted at rest (AES-256-GCM, ADR-074)                                                  | Encrypted string                                                                    |
+| easypost.test_api_key_encrypted  | EasyPost test API key (EZTEST…), encrypted at rest (AES-256-GCM)                                            | Encrypted string                                                                    |
+| easypost.mode                    | `"production"` (default) or `"test"`; selects which encrypted key is used                                    | "production"                                                                        |
 | easypost.address_validation      | Validate ship-to addresses before rate shopping (ADR-074)                                                    | "on" or "off" (default "off")                                                       |
 | easypost.label_format            | Shipping label file format (ADR-074)                                                                         | "pdf" (default) or "png"                                                            |
 | easypost.label_size              | Shipping label paper size (ADR-074)                                                                          | "4x6" (default) or "letter"                                                         |
@@ -765,6 +771,10 @@ CREATE TABLE orders (
   label_format TEXT,
   shipping_rate_cents INTEGER,
   shipping_carrier_service TEXT,
+  package_weight_oz REAL,
+  package_length_in REAL,
+  package_width_in REAL,
+  package_height_in REAL,
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

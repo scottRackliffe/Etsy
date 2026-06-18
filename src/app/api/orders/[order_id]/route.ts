@@ -7,6 +7,7 @@ import { OrderValidationError, prepareOrderPayload } from "@/lib/order-validatio
 import { assertRecordNotStale, getIfMatchHeader } from "@/lib/if-match";
 import { getOrder, patchOrder } from "@/lib/records";
 import { logActivity } from "@/lib/activity-log";
+import { getSetting } from "@/lib/settings-store";
 
 async function getOrderId(context: { params: Promise<{ order_id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).order_id);
