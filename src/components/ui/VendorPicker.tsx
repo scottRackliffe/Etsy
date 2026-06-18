@@ -64,6 +64,13 @@ export function VendorPicker({
 
   useEffect(() => { void loadVendors(); }, [loadVendors]);
 
+  // Re-fetch if vendorId points to a vendor not in the current list
+  useEffect(() => {
+    if (vendorId != null && vendors.length > 0 && !vendors.some((v) => v.id === vendorId)) {
+      void loadVendors();
+    }
+  }, [vendorId, vendors, loadVendors]);
+
   useEffect(() => {
     if (!ocrHint?.trim() || hintDismissed || vendorId) {
       setMatches([]);
