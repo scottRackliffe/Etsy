@@ -6,24 +6,25 @@ import type { Vendor } from "@/types";
 type VendorOption = { id: number; name: string };
 type VendorMatch = { id: number; name: string; score: number; reason: string };
 
+type VendorDetail = {
+  contact_person: string;
+  email: string;
+  phone: string;
+  address_1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+};
+
+const EMPTY_DETAIL: VendorDetail = { contact_person: "", email: "", phone: "", address_1: "", city: "", state: "", postal_code: "" };
+
 type Props = {
-  /** Currently selected vendor ID (null = no vendor) */
   vendorId: number | null;
-  /** Called when selection changes; receives id + name (or null) */
   onChange: (vendorId: number | null, vendorName: string | null) => void;
-  /** CSS class for the select / input elements */
   className?: string;
-  /** Placeholder text for the empty option */
   placeholder?: string;
-  /** If true, show "No vendor" as the empty option label instead of placeholder */
   allowEmpty?: boolean;
-  /**
-   * OCR-detected vendor name hint. When provided, the picker calls the fuzzy
-   * match endpoint and shows candidate suggestions the user can click to
-   * auto-select. Cleared once a selection is made.
-   */
   ocrHint?: string | null;
-  /** Called after the hint has been consumed (user picked a match or dismissed) */
   onHintConsumed?: () => void;
 };
 
@@ -44,6 +45,12 @@ export function VendorPicker({
   const [matches, setMatches] = useState<VendorMatch[]>([]);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
+
+  // Post-creation detail panel
+  const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  const [justCreatedName, setJustCreatedName] = useState("");
+  const [detail, setDetail] = useState<VendorDetail>(EMPTY_DETAIL);
+  const [savingDetail, setSavingDetail] = useState(false);
 
   const loadVendors = useCallback(async () => {
     try {
@@ -85,6 +92,16 @@ export function VendorPicker({
     consumeHint();
   }, [onChange, consumeHint]);
 
+  const finishCreate = useCallback(async (id: number, name: string) => {
+    await loadVendors();
+    onChange(id, name);
+    setJustCreatedId(id);
+    setJustCreatedName(name);
+    setDetail(EMPTY_DETAIL);
+    setCreating(false);
+    setNewName("");
+  }, [loadVendors, onChange]);
+
   const createFromHint = useCallback(async () => {
     if (!ocrHint?.trim()) return;
     setBusy(true);
@@ -97,14 +114,13 @@ export function VendorPicker({
       const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string; vendor?: { id: number; name: string } };
       const created = data.vendor ?? data;
       if (response.ok && created.id) {
-        await loadVendors();
-        onChange(created.id, created.name ?? ocrHint.trim());
         consumeHint();
+        await finishCreate(created.id, created.name ?? ocrHint.trim());
       }
     } catch { /* silently fail */ } finally {
       setBusy(false);
     }
-  }, [ocrHint, loadVendors, onChange, consumeHint]);
+  }, [ocrHint, finishCreate, consumeHint]);
 
   const createVendor = async () => {
     if (!newName.trim()) return;
@@ -118,17 +134,42 @@ export function VendorPicker({
       const data = (await response.json().catch(() => ({}))) as { id?: number; name?: string; vendor?: { id: number; name: string } };
       const created = data.vendor ?? data;
       if (response.ok && created.id) {
-        await loadVendors();
-        onChange(created.id, created.name ?? newName.trim());
-        setCreating(false);
-        setNewName("");
+        await finishCreate(created.id, created.name ?? newName.trim());
       }
     } catch { /* silently fail — user can retry */ } finally {
       setBusy(false);
     }
   };
 
+  const saveVendorDetails = async () => {
+    if (!justCreatedId) return;
+    setSavingDetail(true);
+    try {
+      const body: Record<string, string | null> = {};
+      if (detail.contact_person.trim()) body.contact_person = detail.contact_person.trim();
+      if (detail.email.trim()) body.email = detail.email.trim();
+      if (detail.phone.trim()) body.phone = detail.phone.trim();
+      if (detail.address_1.trim()) body.address_1 = detail.address_1.trim();
+      if (detail.city.trim()) body.city = detail.city.trim();
+      if (detail.state.trim()) body.state = detail.state.trim();
+      if (detail.postal_code.trim()) body.postal_code = detail.postal_code.trim();
+      if (Object.keys(body).length === 0) {
+        setJustCreatedId(null);
+        return;
+      }
+      await fetch(`/api/vendors/${justCreatedId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body),
+      });
+      setJustCreatedId(null);
+    } catch { /* fail silently */ } finally {
+      setSavingDetail(false);
+    }
+  };
+
   const showHintBar = !!(ocrHint?.trim() && !hintDismissed && !vendorId);
+  const inputCls = "w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm";
 
   return (
     <div>
@@ -229,11 +270,13 @@ export function VendorPicker({
               setNewName(ocrHint?.trim() ?? "");
             } else if (v === "") {
               onChange(null, null);
+              setJustCreatedId(null);
             } else {
               const numId = parseInt(v, 10);
               const match = vendors.find((vendor) => vendor.id === numId);
               onChange(numId, match?.name ?? null);
               if (showHintBar) consumeHint();
+              setJustCreatedId(null);
             }
           }}
           className={className}
@@ -244,6 +287,91 @@ export function VendorPicker({
           ))}
           <option value="__add_new__">+ Add new vendor...</option>
         </select>
+      )}
+
+      {/* Post-creation vendor detail panel */}
+      {justCreatedId != null && (
+        <div className="mt-2 rounded-lg border border-[var(--ui-accent)]/30 bg-[var(--ui-accent)]/5 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold text-[var(--ui-title)]">
+              New vendor: {justCreatedName}
+            </p>
+            <button
+              type="button"
+              onClick={() => setJustCreatedId(null)}
+              className="text-xs text-[var(--ui-muted)] hover:text-[var(--ui-body)]"
+            >
+              Skip
+            </button>
+          </div>
+          <p className="mb-2 text-xs text-[var(--ui-muted)]">
+            Add details now, or skip and edit later on the Vendors tab.
+          </p>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <input
+              value={detail.contact_person}
+              onChange={(e) => setDetail((d) => ({ ...d, contact_person: e.target.value }))}
+              placeholder="Contact person"
+              className={inputCls}
+            />
+            <input
+              value={detail.email}
+              onChange={(e) => setDetail((d) => ({ ...d, email: e.target.value }))}
+              placeholder="Email"
+              type="email"
+              className={inputCls}
+            />
+            <input
+              value={detail.phone}
+              onChange={(e) => setDetail((d) => ({ ...d, phone: e.target.value }))}
+              placeholder="Phone"
+              className={inputCls}
+            />
+            <input
+              value={detail.address_1}
+              onChange={(e) => setDetail((d) => ({ ...d, address_1: e.target.value }))}
+              placeholder="Street address"
+              className={inputCls}
+            />
+            <input
+              value={detail.city}
+              onChange={(e) => setDetail((d) => ({ ...d, city: e.target.value }))}
+              placeholder="City"
+              className={inputCls}
+            />
+            <div className="flex gap-1">
+              <input
+                value={detail.state}
+                onChange={(e) => setDetail((d) => ({ ...d, state: e.target.value }))}
+                placeholder="State"
+                className={inputCls}
+              />
+              <input
+                value={detail.postal_code}
+                onChange={(e) => setDetail((d) => ({ ...d, postal_code: e.target.value }))}
+                placeholder="ZIP"
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => void saveVendorDetails()}
+              disabled={savingDetail}
+              className="rounded px-3 py-1 text-xs font-medium text-white bg-[var(--ui-accent)] hover:opacity-90 disabled:opacity-50"
+            >
+              {savingDetail ? "Saving..." : "Save vendor details"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setJustCreatedId(null)}
+              className="rounded px-3 py-1 text-xs text-[var(--ui-muted)] hover:text-[var(--ui-body)]"
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
