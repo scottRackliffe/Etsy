@@ -27,8 +27,10 @@ src/app/
     layout.tsx                  # App shell: header, tab bar
     dashboard/
       page.tsx                  # Dashboard tab content
-    sales/
+    orders/
       page.tsx                  # Sales/Orders tab — master-detail layout (ADR-031)
+    shipping/
+      page.tsx                  # Shipping tab — list + ShippingPanel (ADR-080)
     inventory/
       page.tsx                  # Inventory tab — detail panel with listing fields (ADR-030)
     receipts/
@@ -117,7 +119,7 @@ Each tab page is a server component that may contain client components for inter
 - `EtsySyncStatus` — Last sync date, sync button, connection health
 - `ActivityFeed` — Recent activity log entries (ADR-037)
 
-**Sales** (`src/app/(app)/sales/page.tsx`)
+**Sales** (`src/app/(app)/orders/page.tsx`)
 
 - Master-detail layout (ADR-031): order list on left, detail panel on right
 - `OrdersTable` — Filterable order list with search, sort, pagination (ADR-029)
@@ -161,7 +163,7 @@ Each tab page is a server component that may contain client components for inter
 - `TutorialArticle` — Rendered markdown article view
 - `TipsFolderLinks` — Links to files in system/tips/ and custom folder
 
-**Config** (`src/app/(app)/config/page.tsx`)
+**Config** (`src/app/(app)/settings/page.tsx`)
 
 - 8 logical sections (ADR-034):
 - `EtsyConnectionCard` — Connect/disconnect, redirect URI, token status

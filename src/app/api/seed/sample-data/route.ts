@@ -25,7 +25,7 @@ export async function POST() {
         code: "SAMPLE_DATA_EXISTS",
         message: "Sample data is already loaded",
         userMessage:
-          "Sample data has already been loaded. Remove it first from Config if you want to reload.",
+          "Sample data has already been loaded. Remove it first from Settings if you want to reload.",
         actions: ["Remove sample data first, then load again."],
         canRetry: false,
       });

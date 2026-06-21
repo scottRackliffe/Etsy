@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getExpense, listBillPayments, createBillPayment, deleteBillPayment } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest, ctx: RouteCtx) {
     notes: notes || null,
   });
 
-  const updated = getExpense(expenseId);
+  const updated = getExpense(expenseId) as { category?: string; vendor_name?: string } | null;
+  logActivity({ action: "expense.payment_recorded", entityType: "expense", entityId: expenseId, entityLabel: updated?.category ?? updated?.vendor_name ?? undefined, detail: { amount: Number(amount) } });
   return NextResponse.json({ ok: true, item: payment, expense: updated }, { status: 201 });
 }
 

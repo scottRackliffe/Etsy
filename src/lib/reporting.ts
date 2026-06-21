@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
 import { computeListingScore } from "@/lib/listing-score";
+import { logActivity } from "@/lib/activity-log";
 
 type ReportMetricValue = number | string;
 
@@ -1910,7 +1911,7 @@ export function buildReportCsv(report: ReportResult): string {
   return lines.join("\n");
 }
 
-export function saveReportArtifact(reportName: string, report: ReportResult): void {
+export function saveReportArtifact(reportName: string, report: ReportResult, format?: string): void {
   const db = getDb();
   db.prepare(
     `
@@ -1923,4 +1924,5 @@ export function saveReportArtifact(reportName: string, report: ReportResult): vo
     artifact_json: JSON.stringify(report),
     generated_at: report.generated_at,
   });
+  logActivity({ action: "report.generated", entityType: "report", entityLabel: reportName, detail: { report_name: reportName, format: format ?? "pdf" } });
 }

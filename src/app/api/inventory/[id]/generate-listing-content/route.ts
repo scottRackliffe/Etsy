@@ -12,6 +12,7 @@ import {
   validateItemForListingRequest,
 } from "@/lib/inventory";
 import { loadListingGuidance } from "@/lib/listing-guidance";
+import { markListingGenerated } from "@/lib/listing-phase";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { logActivity } from "@/lib/activity-log";
 import { logger } from "@/lib/logging";
@@ -91,6 +92,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       listing_draft_source: "integrated_ai",
     });
 
+    const listingPhase = markListingGenerated(inventoryId);
+
     logActivity({
       action: "listing.generated",
       entityType: "inventory",
@@ -108,6 +111,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         listing_description: generated.listing_description,
         listing_tags: generated.listing_tags,
         listing_category_path: generated.listing_category_path ?? null,
+        listing_phase: listingPhase,
         updated_at: updatedItem?.updated_at ?? null,
       },
       { status: 200 }

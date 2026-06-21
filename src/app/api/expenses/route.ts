@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { listExpenses, createExpense } from "@/lib/records";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: Request) {
   try {
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
     if (!body.category?.trim()) {
       throw new ApiRouteError({ status: 400, code: "VALIDATION_ERROR", message: "category is required", userMessage: "Please select a category.", actions: [], canRetry: false });
     }
-    const expense = createExpense(body);
+    const expense = createExpense(body) as { id?: number; category?: string; vendor_name?: string } | null;
+    logActivity({ action: "expense.created", entityType: "expense", entityId: expense?.id ?? undefined, entityLabel: expense?.category ?? expense?.vendor_name ?? undefined });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     return errorResponse(fromUnknownError(error, {

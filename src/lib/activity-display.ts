@@ -16,18 +16,50 @@ export function formatActivityAction(action: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Actions that remove a record. Their rows must NOT link, because the target no
+ * longer exists (ADR-037 §A3 "deleted = no link").
+ */
+const REMOVAL_ACTIONS = new Set<string>([
+  "inventory.deleted",
+  "customer.deleted",
+  "customer.batch_deleted",
+  "address.deleted",
+  "receipt.deleted",
+  "vendor.deleted",
+  "expense.deleted",
+  "tax_payment.deleted",
+]);
+
+/**
+ * Resolve a deep-link back to the record an activity row acted on (ADR-037 §A3,
+ * ADR-035). Returns null for entity types with no per-record target (config,
+ * sync, backup, system, report) and for rows whose action deleted the record.
+ */
 export function activityEntityHref(
   entityType: string | null,
-  entityId: number | null
+  entityId: number | null,
+  action?: string | null
 ): string | null {
   if (!entityType || entityId == null) return null;
+  if (action && REMOVAL_ACTIONS.has(action)) return null;
   switch (entityType) {
     case "order":
-      return `/sales?orderId=${entityId}`;
+      return `/orders?orderId=${entityId}`;
+    case "shipping":
+      return `/shipping?orderId=${entityId}`;
     case "inventory":
       return `/inventory?itemId=${entityId}`;
     case "customer":
       return `/customers?customerId=${entityId}`;
+    case "receipt":
+      return `/receipts?receiptId=${entityId}`;
+    case "vendor":
+      return `/vendors?vendorId=${entityId}`;
+    case "expense":
+      return `/expenses?expenseId=${entityId}`;
+    case "tax_payment":
+      return `/expenses?taxPaymentId=${entityId}`;
     default:
       return null;
   }

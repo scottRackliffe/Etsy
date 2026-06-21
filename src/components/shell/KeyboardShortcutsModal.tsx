@@ -42,7 +42,7 @@ export function KeyboardShortcutsModal({
   ];
 
   const page: ShortcutRow[] = [];
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/sales")) {
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/orders")) {
     page.push({ label: "Sync from Etsy", keys: ["meta", "shift", "S"] });
   }
   if (pathname.startsWith("/inventory")) {

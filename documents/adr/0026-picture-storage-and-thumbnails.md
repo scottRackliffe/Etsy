@@ -4,6 +4,10 @@
 
 Accepted
 
+**Update (WS-H2, ADR-084):** AI dimension annotation reuses `processAndStorePicture()` to store the
+rendered measurement image in a **secondary** main slot under `uploads/inventory/<id>/pictures/`
+(never `picture_1`, so the hero stays clean and the thumbnail is unaffected).
+
 ## Date
 
 2026-05-24

@@ -14,8 +14,8 @@ export async function POST(request: Request) {
         code: "SHIPPING_NOT_CONFIGURED",
         message: "EasyPost is not configured",
         userMessage:
-          "Shipping integration is not set up. Add your EasyPost API key in Config → Shipping.",
-        actions: ["Go to Config → Shipping and enter your EasyPost API key."],
+          "Shipping integration is not set up. Add your EasyPost API key in Settings → Shipping.",
+        actions: ["Go to Settings → Shipping and enter your EasyPost API key."],
         canRetry: false,
       });
     }

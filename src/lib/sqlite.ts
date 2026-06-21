@@ -88,6 +88,12 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   listing_export_id: "TEXT",
   listing_approved_at: "TEXT",
   listing_published_at: "TEXT",
+  listing_phase: "TEXT",
+  listing_source_hash: "TEXT",
+  listing_generated_at: "TEXT",
+  listing_quality_json: "TEXT",
+  shot_list_json: "TEXT",
+  dimension_annotation_json: "TEXT",
   is_listed: "INTEGER DEFAULT 0",
   receipt_description: "TEXT",
   notes: "TEXT",
@@ -652,6 +658,7 @@ function ensureCoreTables(db: Database.Database): void {
 
   // Indexes
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory(status);");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_listing_phase ON inventory(listing_phase);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_of_sale ON inventory(date_of_sale);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_inventory_date_listed ON inventory(date_listed);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_purchases_inventory_id ON purchases(inventory_id);");

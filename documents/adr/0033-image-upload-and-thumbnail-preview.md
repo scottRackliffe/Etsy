@@ -4,6 +4,11 @@
 
 Accepted
 
+**Update (WS-H2, ADR-084):** the inventory picture area now also hosts `MeasurementPhotoPanel` —
+an "Add measurement photo" flow that uploads a ruler photo, confirms AI-estimated dimensions, and
+saves an annotated copy of the hero into a secondary main slot (classified `measurement`). The
+generated image flows through the same `picture-storage.ts` pipeline (ADR-026).
+
 ## Date
 
 2026-05-24

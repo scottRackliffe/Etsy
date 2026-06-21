@@ -186,6 +186,256 @@ function formatPct(value: number | null | undefined): string {
   return `${value.toFixed(1)}%`;
 }
 
+type PhaseInfo = { label: string; className: string };
+
+const PHASE_DISPLAY: Record<string, PhaseInfo> = {
+  needs_data: { label: "Needs data", className: "text-[var(--ui-yellow)]" },
+  ready_to_generate: { label: "Ready to generate", className: "text-[var(--ui-accent)]" },
+  generated: { label: "Generated", className: "text-[var(--ui-body)]" },
+  needs_quality_remediation: { label: "Needs quality fixes", className: "text-[var(--ui-yellow)]" },
+  listing_ready: { label: "Listing ready", className: "text-[var(--ui-green)]" },
+};
+
+type RemediationItem = {
+  field: string;
+  label: string;
+  present: boolean;
+  required: boolean;
+  shortcoming: string;
+  resolution_link: string;
+};
+
+type ReadinessResponse = {
+  ok: boolean;
+  listing_phase: string;
+  button: { label: string; action: "evaluate_data" | "generate" | "evaluate_quality" };
+  data_remediation: RemediationItem[];
+};
+
+type QualityRemediation = {
+  category?: string;
+  ref?: string;
+  shortcoming: string;
+  mitigation?: string;
+  weight?: number;
+  resolution_link?: string;
+};
+
+type QualityCategory = { name: string; earned: number; possible: number };
+
+type QualityResult = {
+  score: number;
+  passed: boolean;
+  target: number;
+  categories?: QualityCategory[];
+  quality_remediation: QualityRemediation[];
+  photo_ai_evaluated?: boolean;
+};
+
+/**
+ * One context-aware listing button + remediation panels (ADR-081 §3/§4).
+ * Generation reuses the parent's handler; quality evaluation calls the
+ * listing-quality endpoint directly.
+ */
+function ListingLifecycleControls({
+  itemId,
+  updatedAt,
+  busy,
+  onRegenerateAi,
+  regenerateAiBusy,
+  onReloadItem,
+  onError,
+}: {
+  itemId: number;
+  updatedAt: string | null;
+  busy: boolean;
+  onRegenerateAi?: () => void;
+  regenerateAiBusy?: boolean;
+  onReloadItem?: () => Promise<void>;
+  onError: (title: string, message: string, err?: unknown) => void;
+}) {
+  const [readiness, setReadiness] = useState<ReadinessResponse | null>(null);
+  const [showData, setShowData] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [quality, setQuality] = useState<QualityResult | null>(null);
+
+  const loadReadiness = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/inventory/${itemId}/listing-readiness`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) setReadiness(data as ReadinessResponse);
+    } catch {
+      /* readiness is advisory; ignore transient errors */
+    }
+  }, [itemId]);
+
+  useEffect(() => {
+    setShowData(false);
+    setQuality(null);
+    void loadReadiness();
+  }, [loadReadiness, updatedAt]);
+
+  const runQuality = useCallback(async () => {
+    setEvaluating(true);
+    try {
+      const res = await fetch(`/api/inventory/${itemId}/listing-quality`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        onError(
+          "Quality evaluation",
+          data?.error?.user_message ?? "We could not evaluate listing quality."
+        );
+      } else {
+        setQuality(data as QualityResult);
+        if (onReloadItem) await onReloadItem();
+        else await loadReadiness();
+      }
+    } catch (err) {
+      onError("Quality evaluation", "We could not evaluate listing quality.", err);
+    } finally {
+      setEvaluating(false);
+    }
+  }, [itemId, onError, onReloadItem, loadReadiness]);
+
+  if (!readiness) return null;
+
+  const phase =
+    PHASE_DISPLAY[readiness.listing_phase] ?? {
+      label: readiness.listing_phase,
+      className: "text-[var(--ui-muted)]",
+    };
+  const action = readiness.button.action;
+  const buttonBusy =
+    action === "generate" ? regenerateAiBusy : action === "evaluate_quality" ? evaluating : false;
+  const onClick = () => {
+    if (action === "evaluate_data") setShowData((s) => !s);
+    else if (action === "generate") onRegenerateAi?.();
+    else void runQuality();
+  };
+
+  return (
+    <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Listing phase</span>
+          <span className={`text-sm font-semibold ${phase.className}`}>{phase.label}</span>
+        </div>
+        <Button
+          variant="accent"
+          size="sm"
+          onClick={onClick}
+          busy={buttonBusy}
+          disabled={busy || (action === "generate" && !onRegenerateAi)}
+        >
+          {readiness.button.label}
+        </Button>
+      </div>
+
+      {action === "evaluate_data" && showData ? (
+        <ul className="mt-3 space-y-1.5">
+          {readiness.data_remediation.map((r) => (
+            <li
+              key={r.field}
+              className="flex items-start justify-between gap-3 text-sm"
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  className={
+                    r.present
+                      ? "text-[var(--ui-green)]"
+                      : r.required
+                        ? "text-[var(--ui-red)]"
+                        : "text-[var(--ui-muted)]"
+                  }
+                  aria-hidden
+                >
+                  {r.present ? "✓" : r.required ? "✗" : "•"}
+                </span>
+                <span
+                  className={
+                    !r.present && r.required
+                      ? "font-medium text-[var(--ui-title)]"
+                      : "text-[var(--ui-body)]"
+                  }
+                >
+                  {r.label}
+                  {r.required ? "" : " (recommended)"}
+                  {!r.present ? (
+                    <span className="block text-xs text-[var(--ui-muted)]">{r.shortcoming}</span>
+                  ) : null}
+                </span>
+              </span>
+              {!r.present ? (
+                <a
+                  href={r.resolution_link}
+                  className="shrink-0 text-xs font-medium text-[var(--ui-accent)] hover:underline"
+                >
+                  Fix →
+                </a>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {quality ? (
+        <div className="mt-3 border-t border-[var(--ui-border)] pt-3">
+          <p className="text-sm">
+            <span className="text-[var(--ui-muted)]">Quality score: </span>
+            <span
+              className={`font-semibold ${
+                quality.passed ? "text-[var(--ui-green)]" : "text-[var(--ui-yellow)]"
+              }`}
+            >
+              {quality.score}
+            </span>
+            <span className="text-[var(--ui-muted)]">
+              {" "}
+              / 100 {quality.target ? `(target ${quality.target})` : ""}
+            </span>
+          </p>
+          {quality.categories && quality.categories.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quality.categories.map((c) => (
+                <span
+                  key={c.name}
+                  className="rounded border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-2 py-0.5 text-xs capitalize text-[var(--ui-body)]"
+                >
+                  {c.name}: {c.earned}/{c.possible}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {quality.photo_ai_evaluated === false ? (
+            <p className="mt-2 text-xs text-[var(--ui-muted)]">
+              Per-photo AI review pending — photo score is provisional.
+            </p>
+          ) : null}
+          {quality.quality_remediation.length > 0 ? (
+            <ul className="mt-2 space-y-1.5">
+              {quality.quality_remediation.map((q, idx) => (
+                <li key={`${q.ref ?? "item"}-${idx}`} className="text-sm text-[var(--ui-body)]">
+                  <span className="font-medium text-[var(--ui-title)]">{q.shortcoming}</span>
+                  {q.mitigation ? (
+                    <span className="block text-xs text-[var(--ui-muted)]">{q.mitigation}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-[var(--ui-muted)]">No outstanding quality items.</p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type InventoryDetailPanelProps = {
   item: InventoryItemDetail | null;
   busy: boolean;
@@ -979,18 +1229,18 @@ export function InventoryDetailPanel({
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
             Listing Content
           </p>
-          {onRegenerateAi ? (
-            <Button
-              variant="accent"
-              size="sm"
-              onClick={onRegenerateAi}
-              busy={regenerateAiBusy}
-              disabled={busy || saving}
-            >
-              Regenerate with AI
-            </Button>
-          ) : null}
         </div>
+        {item ? (
+          <ListingLifecycleControls
+            itemId={item.id}
+            updatedAt={(item as { updated_at?: string | null }).updated_at ?? null}
+            busy={busy || saving}
+            onRegenerateAi={onRegenerateAi}
+            regenerateAiBusy={regenerateAiBusy}
+            onReloadItem={onReloadItem}
+            onError={onError}
+          />
+        ) : null}
         <div className="space-y-3">
           <FormField label="Listing title" required>
             <input

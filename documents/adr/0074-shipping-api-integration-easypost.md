@@ -4,6 +4,10 @@
 
 Accepted
 
+> **WS-F update (2026-06-21, ADR-080):** The EasyPost rate-shopping modal and all label UI now
+> live in the **Shipping module** (`/shipping`, `src/components/shipping/ShippingPanel.tsx`),
+> not in the Sales order-detail panel. No API endpoints changed.
+
 ## Date
 
 2026-06-11

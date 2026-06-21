@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getDb } from "@/lib/sqlite";
+import { logActivity } from "@/lib/activity-log";
 
 export async function PATCH(
   request: Request,
@@ -92,6 +93,11 @@ export async function PATCH(
     }
 
     const updated = db.prepare("SELECT * FROM receipt_items WHERE id = ?").get(receiptItemId);
+    if (inventoryId) {
+      logActivity({ action: "receipt.item_linked", entityType: "receipt", entityId: receiptId, detail: { inventory_id: inventoryId } });
+    } else if (!inventoryId && previousInventoryId) {
+      logActivity({ action: "receipt.item_unlinked", entityType: "receipt", entityId: receiptId });
+    }
     return NextResponse.json({ ok: true, item: updated });
   } catch (error) {
     return errorResponse(

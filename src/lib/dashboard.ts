@@ -1,5 +1,7 @@
 import { getDb } from "@/lib/sqlite";
-import { getSetting } from "@/lib/settings-store";
+import { getSetting, getMinQualityScore } from "@/lib/settings-store";
+import { getOutstandingCount } from "@/lib/outstanding";
+import { computeListingScore, type ListingScoreInput } from "@/lib/listing-score";
 
 const UNSOLD_STATUSES = ["Draft", "In stock", "Listed", "Reserved"];
 
@@ -90,6 +92,86 @@ export function getProfitKpis() {
   };
 }
 
+export function getOrderKpis() {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT
+        COUNT(*) AS total_orders,
+        SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_orders,
+        SUM(CASE WHEN shipping_date IS NOT NULL AND shipping_date != '' THEN 1 ELSE 0 END) AS shipped_orders,
+        SUM(CASE WHEN payment_status = 'paid' AND (shipping_date IS NULL OR shipping_date = '') THEN 1 ELSE 0 END) AS unshipped_orders,
+        COALESCE(SUM(grand_total), 0) AS gross_revenue,
+        SUM(CASE WHEN payment_status != 'paid' THEN 1 ELSE 0 END) AS unpaid_orders,
+        COALESCE(SUM(CASE WHEN payment_status != 'paid' THEN grand_total ELSE 0 END), 0) AS unpaid_receivables
+      FROM orders
+      WHERE order_status = 'active'`
+    )
+    .get() as {
+    total_orders: number;
+    paid_orders: number;
+    shipped_orders: number;
+    unshipped_orders: number;
+    gross_revenue: number;
+    unpaid_orders: number;
+    unpaid_receivables: number;
+  };
+
+  const monthRow = db
+    .prepare(
+      `SELECT
+        COUNT(*) AS orders_this_month,
+        COALESCE(SUM(grand_total), 0) AS revenue_this_month
+      FROM orders
+      WHERE order_status = 'active'
+        AND strftime('%Y-%m', order_date) = strftime('%Y-%m', 'now')`
+    )
+    .get() as { orders_this_month: number; revenue_this_month: number };
+
+  const weekRow = db
+    .prepare(
+      `SELECT COUNT(*) AS orders_last_7_days
+      FROM orders
+      WHERE order_status = 'active'
+        AND date(order_date) >= date('now', '-6 days')`
+    )
+    .get() as { orders_last_7_days: number };
+
+  const aovThisMonth =
+    monthRow.orders_this_month > 0
+      ? round2(monthRow.revenue_this_month / monthRow.orders_this_month)
+      : 0;
+
+  return {
+    total_orders: row.total_orders,
+    paid_orders: row.paid_orders,
+    shipped_orders: row.shipped_orders,
+    unshipped_orders: row.unshipped_orders,
+    unpaid_orders: row.unpaid_orders,
+    unpaid_receivables: round2(row.unpaid_receivables),
+    gross_revenue: round2(row.gross_revenue),
+    orders_this_month: monthRow.orders_this_month,
+    revenue_this_month: round2(monthRow.revenue_this_month),
+    orders_last_7_days: weekRow.orders_last_7_days,
+    aov_this_month: aovThisMonth,
+  };
+}
+
+export function getInventoryActionCounts() {
+  const db = getDb();
+  const notListed = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS c
+         FROM inventory
+         WHERE status = 'In stock' AND (date_listed IS NULL OR date_listed = '')`
+      )
+      .get() as { c: number }
+  ).c;
+
+  return { not_listed_count: notListed };
+}
+
 export function getDashboardStats() {
   const db = getDb();
   const thresholdSetting = getSetting("repeat_customer_threshold");
@@ -114,16 +196,61 @@ export function getDashboardStats() {
   return { repeat_customers_this_month: repeat };
 }
 
+export type LowQualityInventoryItem = {
+  id: number;
+  item_number: string | null;
+  title: string;
+  score: number;
+};
+
+export function getLowQualityInventory(): {
+  items: LowQualityInventoryItem[];
+  threshold: number;
+} {
+  const db = getDb();
+  const minScore = getMinQualityScore();
+  const placeholders = UNSOLD_STATUSES.map(() => "?").join(", ");
+  const rows = db
+    .prepare(`SELECT * FROM inventory WHERE status IN (${placeholders})`)
+    .all(...UNSOLD_STATUSES) as Array<Record<string, unknown>>;
+
+  const items: LowQualityInventoryItem[] = [];
+  for (const row of rows) {
+    const { score } = computeListingScore(row as ListingScoreInput, minScore);
+    if (score < minScore) {
+      const title =
+        (row.listing_title as string)?.trim() ||
+        (row.description as string)?.trim() ||
+        "Untitled";
+      items.push({
+        id: row.id as number,
+        item_number: (row.item_number as string) ?? null,
+        title,
+        score,
+      });
+    }
+  }
+  items.sort((a, b) => a.score - b.score);
+  return { items, threshold: minScore };
+}
+
 export function getDashboardSummary(options: {
   connected: boolean;
   shop?: { shop_id: string; shop_name: string | null };
 }) {
   const profit = getProfitKpis();
+  const orderKpis = getOrderKpis();
+  const stats = getDashboardStats();
+  const inventoryActions = getInventoryActionCounts();
   return {
     connected: options.connected,
     shop: options.shop ?? null,
     last_etsy_sync_at: getSetting("last_etsy_sync_at"),
     receipts_preview: [] as unknown[],
+    outstanding_count: getOutstandingCount(),
     ...profit,
+    ...orderKpis,
+    ...stats,
+    ...inventoryActions,
   };
 }

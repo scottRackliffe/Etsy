@@ -818,8 +818,8 @@ export default function ListingCoachPage() {
           {aiConfigured === false ? (
             <div className="rounded-xl border border-[var(--ui-yellow)]/40 bg-[var(--ui-yellow)]/10 px-4 py-3 text-sm text-[var(--ui-body)]">
               AI needs to be configured before adding items.{" "}
-              <Link href="/config" className="font-semibold text-[var(--ui-accent)] underline">
-                Open Config
+              <Link href="/settings" className="font-semibold text-[var(--ui-accent)] underline">
+                Open Settings
               </Link>
             </div>
           ) : null}

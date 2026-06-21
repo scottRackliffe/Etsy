@@ -240,6 +240,7 @@ export type ListingMode = "manual" | "integrated_ai" | "portable_import";
 export type AiConfig = {
   provider: string;
   model: string;
+  economyModel?: string;
   baseUrl?: string | null;
   timeoutMs: number;
   retryCount: number;

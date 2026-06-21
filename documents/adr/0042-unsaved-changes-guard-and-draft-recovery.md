@@ -63,11 +63,28 @@ When `isDirty` is true and the user attempts to navigate away, a confirmation di
 
 **Dialog content (using ConfirmDialog from ADR-032):**
 
+> **Updated 2026-06-21 (ADR-079 / WS-E): the dialog now has THREE choices, including Save.**
+> This supersedes the prior two-button form below.
+
 - Title: "Unsaved Changes"
-- Body: "You have unsaved changes that will be lost. What would you like to do?"
-- Primary button: "Keep Editing" (accent color, returns to form)
-- Secondary button: "Discard Changes" (neutral color, navigates away, clears draft)
-- No "Save and continue" button (to keep the dialog simple and avoid edge cases with validation failures)
+- Body: "You have unsaved changes. What would you like to do?"
+- **Save changes** (primary): run the form's validate-and-save.
+  - On success → toast **"Changes saved."**, clear dirty flag, then continue the original
+    navigation.
+  - On **validation failure** → cancel the navigation, close the dialog, keep the form open with
+    field-level errors, toast "Fix the highlighted fields to save." (This is how the
+    previously-feared validation edge case is handled — the user stays on the form.)
+- **Discard changes**: revert to saved snapshot, clear dirty flag, toast **"Changes cancelled."**,
+  then continue the original navigation.
+- **Keep editing**: dismiss the dialog, cancel navigation, return to the form.
+
+_Outcome guarantee (owner requirement):_ the user always ends with a **changes-saved** message, a
+**changes-cancelled** message, or is **returned to the form** at the prior location; the dirty
+flag is cleared after Save or Discard.
+
+_(Historical note: the original spec said "No 'Save and continue' button … to avoid edge cases
+with validation failures." That concern is now resolved by the validation-failure handling
+above.)_
 
 **`beforeunload` behavior:**
 

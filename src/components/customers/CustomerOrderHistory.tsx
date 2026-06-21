@@ -149,7 +149,7 @@ export function CustomerOrderHistory({ customerId, onError }: Props) {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <Link
-                        href={`/sales?orderId=${order.id}`}
+                        href={`/orders?orderId=${order.id}`}
                         className={`text-sm font-medium text-[var(--ui-accent)] hover:underline ${
                           inactive ? "line-through" : ""
                         }`}

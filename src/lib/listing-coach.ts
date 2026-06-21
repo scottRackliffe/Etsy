@@ -4,7 +4,7 @@ import { getAiConfig } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
 import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidance";
 import { computeListingScore } from "@/lib/listing-score";
-import { getSetting } from "@/lib/settings-store";
+import { getMinQualityScore } from "@/lib/settings-store";
 import type { CoachPhotoFile } from "@/lib/listing-coach-multipart";
 import {
   cleanJsonResponse,
@@ -168,7 +168,7 @@ function requireAiConfigOrThrow(): NonNullable<ReturnType<typeof getAiConfig>> {
       status: 503,
       code: "AI_NOT_CONFIGURED",
       message: "Integrated AI is not configured",
-      userMessage: "AI needs to be configured in Config before analyzing photos.",
+      userMessage: "AI needs to be configured in Settings before analyzing photos.",
       actions: [
         "Open Config → AI settings and add your API key.",
         "Use Test connection to verify.",
@@ -557,8 +557,7 @@ export async function composeListingCoach(params: {
   for (let i = 1; i <= 20; i++) {
     pictureSlots[`picture_${i}`] = i <= pictureCount ? "set" : null;
   }
-  const minScoreStr = getSetting("listing.min_quality_score");
-  const minScoreVal = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
+  const minScoreVal = getMinQualityScore();
   const scoreResult = computeListingScore({
     listing_title: parsed.listing_title.trim(),
     listing_description: parsed.listing_description.trim(),
@@ -878,8 +877,7 @@ export async function researchAndCompose(
   for (let i = 1; i <= 20; i++) {
     pictureSlots[`picture_${i}`] = i <= pictureCount ? "set" : null;
   }
-  const minScoreStr = getSetting("listing.min_quality_score");
-  const minScoreVal = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
+  const minScoreVal = getMinQualityScore();
   const condCode = params.conditionCode ?? normalizeConditionCode(parsed.suggested_condition_code);
   const categoryPath = typeof parsed.listing_category_path === "string" ? parsed.listing_category_path.trim() : "";
   const scoreResult = computeListingScore(

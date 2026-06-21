@@ -61,6 +61,17 @@ Store the following in the database:
 
 ## Notes
 
+- **Listing lifecycle (ADR-081):** three additive columns support the listing phase machine —
+  `listing_phase` (needs_data / ready_to_generate / generated / needs_quality_remediation /
+  listing_ready; derived-but-stored, separate from `status`), `listing_source_hash` (drift detection),
+  and `listing_generated_at` (generation timestamp). They do not change existing inventory semantics.
+- **Listing quality / shot list (ADR-082/083):** `listing_quality_json` caches the latest quality
+  result, and `shot_list_json` stores the AI-generated photo shot list (per-photo `captured` status
+  is derived at read time from existing pictures + classifications). Both are additive.
+- **Dimension annotation (ADR-084):** `dimension_annotation_json` retains the confirmed dimensions +
+  rendered measurement-photo metadata (target slot, alt text, optional ruler reference) so the
+  measurement overlay can be re-rendered. Additive; the existing `item_length/width/height` +
+  `item_dimensions_unit` fields are the canonical dimension values.
 - Shipper and seller postage are on **`orders`** (see ADR-004), not inventory.
 - Sale revenue and dates may be filled when an item is sold via **`order_items`** / `orders`.
 - How pictures are imported (upload, import from folder, replace, reorder, remove) is defined in ADR-010; the same mechanisms apply to condition_picture_1–5 (upload/replace/remove; typically no “import from folder” for condition pics).

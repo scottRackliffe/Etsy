@@ -166,7 +166,7 @@ Clicking a search result navigates to the entity's page with a deep-link query p
 
 | Entity    | Navigation target            |
 | --------- | ---------------------------- |
-| Order     | `/sales?orderId=<id>`        |
+| Order     | `/orders?orderId=<id>`        |
 | Inventory | `/inventory?itemId=<id>`     |
 | Customer  | `/customers?customerId=<id>` |
 

@@ -1,6 +1,7 @@
 import { logActivity } from "@/lib/activity-log";
 import { OrderShipBlockedError } from "@/lib/order-validation";
 import { buildSearchClause, parseSortDir, resolveSortColumn } from "@/lib/list-query";
+import { recomputeAndStoreListingPhase } from "@/lib/listing-phase";
 
 // ---------------------------------------------------------------------------
 // Business Expenses
@@ -466,6 +467,7 @@ export type InventoryListOptions = {
   search?: string;
   status?: string;
   store_category?: string;
+  listing_phase?: string;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 };
@@ -494,6 +496,10 @@ export function listInventory(options: InventoryListOptions) {
   if (options.store_category?.trim()) {
     where += " AND store_category = @store_category";
     params.store_category = options.store_category.trim();
+  }
+  if (options.listing_phase?.trim()) {
+    where += " AND listing_phase = @listing_phase";
+    params.listing_phase = options.listing_phase.trim();
   }
   where += buildSearchClause(
     ["item_number", "description", "listing_title", "category_tags", "store_category", "notes"],
@@ -533,6 +539,7 @@ export function createInventory(input: Record<string, unknown>) {
   const placeholders = columns.map((k) => `@${k}`).join(", ");
   const sql = `INSERT INTO inventory(${columns.join(", ")}) VALUES(${placeholders})`;
   const result = db.prepare(sql).run(payload);
+  recomputeAndStoreListingPhase(Number(result.lastInsertRowid));
   return db.prepare("SELECT * FROM inventory WHERE id = ?").get(result.lastInsertRowid);
 }
 
@@ -554,6 +561,7 @@ export function patchInventory(id: number, input: Record<string, unknown>) {
   const patch = buildPatchSql("inventory", id, payload);
   if (!patch) return getInventory(id);
   db.prepare(patch.sql).run(patch.params);
+  recomputeAndStoreListingPhase(id);
   return getInventory(id);
 }
 

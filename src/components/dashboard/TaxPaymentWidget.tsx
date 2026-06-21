@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { WidgetHeader } from "@/components/dashboard/WidgetHeader";
 import { FormField } from "@/components/ui/FormField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DropdownWithAddNew } from "@/components/ui/DropdownWithAddNew";
@@ -10,29 +11,26 @@ import { useApp } from "@/context/AppContext";
 import { formatCurrency } from "@/lib/format-currency";
 import { apiFetch } from "@/lib/api-fetch";
 import type { ApiErrorShape } from "@/types";
+import type { TaxPaymentRecord } from "@/lib/tax-payments";
 
-type TaxPayment = {
-  id: number;
-  payment_date: string;
-  amount: number;
-  payee: string | null;
-  reason: string | null;
-  period_from: string | null;
-  period_to: string | null;
-  reference_number: string | null;
-  notes: string | null;
-  created_at: string;
+type TaxSummary = {
+  tax_collected: number;
+  total_remitted: number;
+  balance_due: number;
+  last_payment_date: string | null;
+  current_year_paid: number;
+  payments_count: number;
 };
 
-export function TaxPaymentWidget() {
+export function TaxPaymentWidget({ embedded = false }: { embedded?: boolean }) {
   const { setApiError, setError, currencyCode } = useApp();
   const fmt = (n: number) => formatCurrency(n, currencyCode);
 
-  const [payments, setPayments] = useState<TaxPayment[]>([]);
+  const [payments, setPayments] = useState<TaxPaymentRecord[]>([]);
+  const [summary, setSummary] = useState<TaxSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  // Form state
   const [formOpen, setFormOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
@@ -43,25 +41,42 @@ export function TaxPaymentWidget() {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Dropdown options
   const [payeeOptions, setPayeeOptions] = useState<string[]>([]);
   const [reasonOptions, setReasonOptions] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<TaxPaymentRecord | null>(null);
 
-  // Delete confirm
-  const [deleteTarget, setDeleteTarget] = useState<TaxPayment | null>(null);
-
-  const loadPayments = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const response = await fetch("/api/tax-payments", {
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        items?: TaxPayment[];
+      const [paymentsRes, summaryRes] = await Promise.all([
+        fetch("/api/tax-payments", { headers: { Accept: "application/json" } }),
+        fetch("/api/tax-payments/summary", { headers: { Accept: "application/json" } }),
+      ]);
+      const paymentsData = (await paymentsRes.json().catch(() => ({}))) as ApiErrorShape & {
+        items?: TaxPaymentRecord[];
       };
-      if (!response.ok) throw data;
-      setPayments(data.items ?? []);
+      const summaryData = (await summaryRes.json().catch(() => ({}))) as Partial<TaxSummary>;
+
+      if (paymentsRes.ok) {
+        setPayments(paymentsData.items ?? []);
+      } else {
+        setPayments([]);
+      }
+
+      if (summaryRes.ok) {
+        setSummary({
+          tax_collected: summaryData.tax_collected ?? 0,
+          total_remitted: summaryData.total_remitted ?? 0,
+          balance_due: summaryData.balance_due ?? 0,
+          last_payment_date: summaryData.last_payment_date ?? null,
+          current_year_paid: summaryData.current_year_paid ?? 0,
+          payments_count: summaryData.payments_count ?? 0,
+        });
+      } else {
+        setSummary(null);
+      }
     } catch {
       setPayments([]);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -78,13 +93,15 @@ export function TaxPaymentWidget() {
       };
       if (data.payees) setPayeeOptions(data.payees);
       if (data.reasons) setReasonOptions(data.reasons);
-    } catch { /* use defaults */ }
+    } catch {
+      /* use defaults */
+    }
   }, []);
 
   useEffect(() => {
-    void loadPayments();
+    void loadData();
     void loadOptions();
-  }, [loadPayments, loadOptions]);
+  }, [loadData, loadOptions]);
 
   const resetForm = () => {
     setPaymentDate(new Date().toISOString().slice(0, 10));
@@ -109,7 +126,6 @@ export function TaxPaymentWidget() {
     }
     setBusyAction("create");
     try {
-      // Create as business_expense (AP Lite) with a bill_payment
       const expResponse = await apiFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -122,7 +138,9 @@ export function TaxPaymentWidget() {
           tax_deductible: 0,
           period_from: periodFrom || null,
           period_to: periodTo || null,
-          notes: referenceNumber.trim() ? `Ref: ${referenceNumber.trim()}${notes.trim() ? `\n${notes.trim()}` : ""}` : notes.trim() || null,
+          notes: referenceNumber.trim()
+            ? `Ref: ${referenceNumber.trim()}${notes.trim() ? `\n${notes.trim()}` : ""}`
+            : notes.trim() || null,
         }),
       });
       const expData = (await expResponse.json().catch(() => ({}))) as ApiErrorShape & { id?: number };
@@ -140,7 +158,6 @@ export function TaxPaymentWidget() {
         });
       }
 
-      // Also create in legacy tax_payments for backward compat
       const response = await apiFetch("/api/tax-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -155,16 +172,13 @@ export function TaxPaymentWidget() {
           notes: notes.trim() || null,
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        item?: TaxPayment;
-      };
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
       if (!response.ok) throw data;
-      if (data.item) {
-        setPayments((current) => [data.item!, ...current]);
-      }
+
       resetForm();
       setFormOpen(false);
       setError(null);
+      void loadData();
       void loadOptions();
     } catch (err) {
       setApiError("Could not record payment", "We could not save the tax payment.", err);
@@ -177,17 +191,29 @@ export function TaxPaymentWidget() {
     if (!deleteTarget) return;
     setBusyAction("delete");
     try {
-      const response = await apiFetch(`/api/tax-payments/${deleteTarget.id}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok && response.status !== 204) {
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        throw data;
+      if (deleteTarget.source === "expense" && deleteTarget.expense_id != null) {
+        const response = await apiFetch(
+          `/api/expenses/${deleteTarget.expense_id}/payments?paymentId=${deleteTarget.source_id}`,
+          { method: "DELETE", headers: { Accept: "application/json" } }
+        );
+        if (!response.ok) {
+          const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+          throw data;
+        }
+      } else {
+        const response = await apiFetch(`/api/tax-payments/${deleteTarget.source_id}`, {
+          method: "DELETE",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok && response.status !== 204) {
+          const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+          throw data;
+        }
       }
-      setPayments((current) => current.filter((p) => p.id !== deleteTarget.id));
+
       setDeleteTarget(null);
       setError(null);
+      void loadData();
     } catch (err) {
       setApiError("Could not delete payment", "We could not delete the tax payment.", err);
     } finally {
@@ -195,33 +221,97 @@ export function TaxPaymentWidget() {
     }
   };
 
-  const totalPaid = payments.reduce((sum, p) => sum + (p.amount ?? 0), 0);
+  const formatDisplayDate = (value: string | null) => {
+    if (!value) return "—";
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  };
+
   const inputCls = "w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm";
+  const balanceColor =
+    summary == null
+      ? "text-[var(--ui-muted)]"
+      : summary.balance_due > 0
+        ? "text-[var(--ui-yellow)]"
+        : summary.balance_due < 0
+          ? "text-[var(--ui-red)]"
+          : "text-[var(--ui-green)]";
 
-  return (
-    <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--ui-title)]">Tax payments</h3>
-          <p className="text-sm text-[var(--ui-muted)]">
-            {loading
-              ? "Loading..."
-              : `${payments.length} payment${payments.length !== 1 ? "s" : ""} recorded · Total remitted: ${fmt(totalPaid)}`}
-          </p>
-        </div>
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={() => {
-            resetForm();
-            setFormOpen(!formOpen);
-          }}
-        >
-          {formOpen ? "Cancel" : "Record payment"}
-        </Button>
+  const wrapperClass = embedded
+    ? "h-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+    : "rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm";
+
+  const metricCardClass = embedded
+    ? ""
+    : "rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4";
+  const labelClass = embedded
+    ? "text-xs text-[var(--ui-muted)]"
+    : "text-xs uppercase tracking-wide text-[var(--ui-muted)]";
+  const valueClass = embedded
+    ? "mt-1 text-lg font-semibold"
+    : "mt-2 text-xl font-semibold";
+
+  const summaryCards = summary ? (
+    <div className={`grid grid-cols-2 gap-3 ${embedded ? "sm:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-4"} ${embedded ? "" : "mb-4"}`}>
+      <div className={metricCardClass}>
+        <p className={labelClass}>Tax collected</p>
+        <p className={`${valueClass} text-[var(--ui-title)]`}>{fmt(summary.tax_collected)}</p>
+        {!embedded ? <p className="mt-1 text-xs text-[var(--ui-muted)]">from active orders</p> : null}
       </div>
+      <div className={metricCardClass}>
+        <p className={labelClass}>Total remitted</p>
+        <p className={`${valueClass} text-[var(--ui-title)]`}>{fmt(summary.total_remitted)}</p>
+        <p className="mt-1 text-xs text-[var(--ui-muted)]">
+          {embedded ? fmt(summary.current_year_paid) + " YTD" : `${fmt(summary.current_year_paid)} this year`}
+        </p>
+      </div>
+      <div className={metricCardClass}>
+        <p className={labelClass}>Balance due</p>
+        <p className={`${valueClass} ${balanceColor}`}>{fmt(summary.balance_due)}</p>
+        {!embedded ? <p className="mt-1 text-xs text-[var(--ui-muted)]">collected minus remitted</p> : null}
+      </div>
+      <div className={metricCardClass}>
+        <p className={labelClass}>Last payment</p>
+        <p className={`${valueClass} text-[var(--ui-title)]`}>
+          {formatDisplayDate(summary.last_payment_date)}
+        </p>
+        {!embedded && (
+          <p className="mt-1 text-xs text-[var(--ui-muted)]">
+            {summary.last_payment_date ? "most recent remittance" : "none recorded yet"}
+          </p>
+        )}
+      </div>
+    </div>
+  ) : null;
 
-      {/* ─── Add payment form ─── */}
+  const inner = (
+    <>
+      <WidgetHeader
+        title="Tax payments"
+        subtitle={
+          embedded
+            ? undefined
+            : loading
+              ? "Loading…"
+              : `${summary?.payments_count ?? payments.length} payment${(summary?.payments_count ?? payments.length) !== 1 ? "s" : ""} recorded`
+        }
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setFormOpen(!formOpen);
+            }}
+            className="text-xs font-medium text-[var(--ui-accent)] hover:underline"
+          >
+            {formOpen ? "Cancel" : "Record payment"}
+          </button>
+        }
+      />
+
+      {summaryCards}
+
       {formOpen && (
         <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
           <p className="mb-3 text-sm font-semibold text-[var(--ui-title)]">New tax payment</p>
@@ -313,14 +403,13 @@ export function TaxPaymentWidget() {
         </div>
       )}
 
-      {/* ─── Payments list ─── */}
-      {loading ? (
+      {!embedded && loading ? (
         <p className="text-xs text-[var(--ui-muted)]">Loading payments...</p>
-      ) : payments.length === 0 ? (
+      ) : !embedded && payments.length === 0 ? (
         <p className="text-sm text-[var(--ui-muted)]">
           No tax payments recorded yet. Click &quot;Record payment&quot; to log your first tax remittance.
         </p>
-      ) : (
+      ) : !embedded ? (
         <div className="max-h-64 overflow-auto">
           <table className="w-full text-sm">
             <thead>
@@ -335,10 +424,7 @@ export function TaxPaymentWidget() {
             </thead>
             <tbody>
               {payments.map((p) => (
-                <tr
-                  key={p.id}
-                  className="border-b border-[var(--ui-border)]/50"
-                >
+                <tr key={p.id} className="border-b border-[var(--ui-border)]/50">
                   <td className="py-2 pr-3 text-[var(--ui-body)]">{p.payment_date}</td>
                   <td className="py-2 pr-3 text-[var(--ui-body)]">{p.payee ?? "-"}</td>
                   <td className="py-2 pr-3">
@@ -351,7 +437,7 @@ export function TaxPaymentWidget() {
                   <td className="py-2 pr-3 text-xs text-[var(--ui-muted)]">
                     {p.period_from && p.period_to
                       ? `${p.period_from} – ${p.period_to}`
-                      : p.period_from ?? p.period_to ?? "-"}
+                      : (p.period_from ?? p.period_to ?? "-")}
                   </td>
                   <td className="py-2 pr-3 text-right font-medium text-[var(--ui-body)]">
                     {fmt(p.amount)}
@@ -371,18 +457,21 @@ export function TaxPaymentWidget() {
             </tbody>
             <tfoot>
               <tr className="border-t border-[var(--ui-border)]">
-                <td colSpan={4} className="py-2 pr-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+                <td
+                  colSpan={4}
+                  className="py-2 pr-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]"
+                >
                   Total remitted
                 </td>
                 <td className="py-2 pr-3 text-right font-semibold text-[var(--ui-title)]">
-                  {fmt(totalPaid)}
+                  {fmt(summary?.total_remitted ?? payments.reduce((sum, p) => sum + p.amount, 0))}
                 </td>
                 <td />
               </tr>
             </tfoot>
           </table>
         </div>
-      )}
+      ) : null}
 
       <ConfirmDialog
         open={deleteTarget != null}
@@ -399,6 +488,12 @@ export function TaxPaymentWidget() {
         confirmVariant="danger"
         busy={busyAction === "delete"}
       />
-    </section>
+    </>
   );
+
+  if (embedded) {
+    return <div className={wrapperClass}>{inner}</div>;
+  }
+
+  return <section className={wrapperClass}>{inner}</section>;
 }

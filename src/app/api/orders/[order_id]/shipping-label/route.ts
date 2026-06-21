@@ -98,7 +98,7 @@ export async function GET(
         status: 400,
         code: "VALIDATION_ERROR",
         message: "Shipping Info missing",
-        userMessage: `Shipping Info is needed for ${shipper} labels. Go to Config → Shipping Info to add it.`,
+        userMessage: `Shipping Info is needed for ${shipper} labels. Go to Settings → Shipping Info to add it.`,
         actions: [
           "Open Config → Shipping Info",
           "Add return address and any required account number.",
@@ -130,7 +130,7 @@ export async function GET(
         code: "INTERNAL_ERROR",
         message: "Failed to generate shipping label",
         userMessage: "We could not generate the shipping label.",
-        actions: ["Check ship-to address and Shipping Info in Config.", "Try again."],
+        actions: ["Check ship-to address and Shipping Info in Settings.", "Try again."],
       })
     );
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getDb } from "@/lib/sqlite";
+import { logActivity } from "@/lib/activity-log";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -137,7 +138,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
-    const receipt = db.prepare("SELECT * FROM receipts WHERE id = ?").get(receiptId);
+    const receipt = db.prepare("SELECT * FROM receipts WHERE id = ?").get(receiptId) as { vendor_name?: string } | undefined;
     const items = db
       .prepare(
         `SELECT ri.*, i.item_number, i.description AS inventory_description
@@ -148,6 +149,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       )
       .all(receiptId);
 
+    logActivity({ action: "receipt.updated", entityType: "receipt", entityId: receiptId, entityLabel: receipt?.vendor_name ?? undefined });
     return NextResponse.json({ ok: true, receipt, items });
   } catch (error) {
     return errorResponse(
@@ -191,9 +193,11 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       );
     }
 
+    const vendorName = (existing as { vendor_name?: string }).vendor_name;
     db.prepare("DELETE FROM receipt_items WHERE receipt_id = ?").run(receiptId);
     db.prepare("DELETE FROM receipts WHERE id = ?").run(receiptId);
 
+    logActivity({ action: "receipt.deleted", entityType: "receipt", entityId: receiptId, entityLabel: vendorName ?? undefined });
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return errorResponse(

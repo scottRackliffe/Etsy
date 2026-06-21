@@ -4,7 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { computeListingScore } from "@/lib/listing-score";
-import { getSetting } from "@/lib/settings-store";
+import { getMinQualityScore } from "@/lib/settings-store";
 import { getInventory } from "@/lib/records";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -35,8 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       });
     }
 
-    const minScoreStr = getSetting("listing.min_quality_score");
-    const minScore = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
+    const minScore = getMinQualityScore();
     const result = computeListingScore(item, minScore);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

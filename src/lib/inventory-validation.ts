@@ -111,7 +111,7 @@ export function validatePublishReadiness(
 
   const returnPolicyId = item.etsy_return_policy_id ?? (Number(settings["etsy.publish.return_policy_id"]) || null);
   if (returnPolicyId == null) {
-    errors.push("A return policy is required. Set one on this item or configure a default in Config → Etsy Publish Defaults.");
+    errors.push("A return policy is required. Set one on this item or configure a default in Settings → Etsy Publish Defaults.");
   }
 
   const shippingProfileId = item.etsy_shipping_profile_id ?? (Number(settings["etsy.publish.shipping_profile_id"]) || null);

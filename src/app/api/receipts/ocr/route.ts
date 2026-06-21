@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const config = getAiConfig();
     if (!config) {
       return NextResponse.json(
-        { ok: false, error: { code: "AI_NOT_CONFIGURED", message: "AI not configured", userMessage: "AI needs to be configured in Config before scanning receipts.", actions: ["Go to Config and set up AI."] } },
+        { ok: false, error: { code: "AI_NOT_CONFIGURED", message: "AI not configured", userMessage: "AI needs to be configured in Settings before scanning receipts.", actions: ["Go to Settings and set up AI."] } },
         { status: 400 }
       );
     }

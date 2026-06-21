@@ -36,7 +36,7 @@ export async function GET(
             code: "NOT_FOUND",
             message: "Taxonomy node not found",
             user_message:
-              "Category not found. Try syncing categories from Config first.",
+              "Category not found. Try syncing categories from Settings first.",
           },
         },
         { status: 404 }
@@ -64,7 +64,7 @@ export async function GET(
         message: "Failed to load taxonomy properties",
         userMessage:
           "Could not load category attributes. Check your Etsy API credentials and try again.",
-        actions: ["Verify Etsy API credentials in Config.", "Try again later."],
+        actions: ["Verify Etsy API credentials in Settings.", "Try again later."],
         canRetry: true,
       })
     );

@@ -55,7 +55,7 @@ interface Notification {
   read: boolean; // default false
   action?: {
     label: string; // e.g., "View order", "Reload", "Open config"
-    url: string; // Internal route, e.g., "/sales?orderId=123"
+    url: string; // Internal route, e.g., "/orders?orderId=123"
   };
 }
 ```

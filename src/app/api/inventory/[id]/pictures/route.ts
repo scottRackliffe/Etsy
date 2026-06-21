@@ -20,6 +20,7 @@ import {
   validateImageBuffer,
 } from "@/lib/picture-storage";
 import { logActivity } from "@/lib/activity-log";
+import { recomputeAndStoreListingPhase } from "@/lib/listing-phase";
 
 type PictureType = "main" | "condition";
 
@@ -116,6 +117,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
       if (picType === "main") await generateThumbnail(inventoryId);
 
+      recomputeAndStoreListingPhase(inventoryId);
       const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
       logActivity({
         action: "inventory.picture_uploaded",
@@ -179,6 +181,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           id: inventoryId,
         });
         if (picType === "main") await generateThumbnail(inventoryId);
+        recomputeAndStoreListingPhase(inventoryId);
         const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
         logActivity({
           action: "inventory.picture_uploaded",
@@ -210,6 +213,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       id: inventoryId,
     });
     if (picType === "main") await generateThumbnail(inventoryId);
+    recomputeAndStoreListingPhase(inventoryId);
     const item = db.prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     logActivity({
       action: "inventory.picture_uploaded",

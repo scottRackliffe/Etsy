@@ -118,6 +118,68 @@ When the tabbed layout (ADR-009) exists:
 ### Extensions (updated 2026-05-24)
 
 - **KPI widgets (ADR-024, ADR-038, ADR-064, ADR-066):** In addition to Etsy receipts preview, the dashboard shows local-order KPIs via `GET /api/dashboard`, `GET /api/dashboard/inventory-value`, and `GET /api/dashboard/stats` (ADR-018 §10). Persisted `orders` are authoritative for revenue metrics; receipts are not the long-term data store (ADR-019).
-- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries (e.g. last 20). The widget uses the `GET /api/activity?limit=20` endpoint. Each entry shows timestamp, action description, and an optional link to the related entity. This supplements the summary cards mentioned in section 5 above.
+- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries (e.g. last 20). The widget uses the `GET /api/activity?limit=20` endpoint. Each entry shows timestamp, action description, and an optional link to the related entity. This supplements the summary cards mentioned in section 5 above. **(Superseded by the 2026-06-21 Activity views block below for the exact row count, layout, and width.)**
 - **Shared components (ADR-028):** All dashboard UI elements (buttons, loading states, error states, empty states, badges) use the shared component library (`Button`, `LoadingSpinner`, `EmptyState`, `ErrorPanel`, `Badge`). The receipts table uses the `DataTable` component.
 - **Setup wizard (ADR-044):** First-run wizard overlays the dashboard when `setup.completed` is not `"true"`.
+
+### Extensions (updated 2026-06-21) — Activity views (WS-B) and Low-quality inventory widget (WS-D)
+
+Source: `documents/PROGRAM_2026-06-21_major-enhancements.md` (workstreams B and D).
+
+#### 6. Activity views — "Recent Activity" and "Activity log" (WS-B)
+
+The dashboard presents **two views of the same activity data** (`activity_log`, served by
+`GET /api/activity`). They are not different datasets — only different presentations.
+
+- **Side-by-side row:** The two views sit in one responsive row. **Width split is fixed at
+  Recent Activity = 1/3, Activity log = 2/3** on `lg` and up (implemented as a 3-column grid
+  with `col-span-1` / `col-span-2`). Below `lg` they stack full width (Recent Activity first).
+  The narrower Recent Activity column exists specifically so the Activity log can show **all**
+  of its columns without horizontal crowding.
+
+- **Recent Activity (left, 1/3):**
+  - Shows the **newest 25 records only** (`GET /api/activity?limit=25`, newest first). It is a
+    fixed snapshot — **no pagination, no footer, no "load more."** (This supersedes the earlier
+    `limit=20` and any paginated compact behavior.)
+  - **Single-spaced** rows. Three columns: **Time | Activity | Originator**, with column
+    headers. The **Activity** column truncates with an ellipsis when it overflows and shows the
+    full text on hover (native `title`). **Originator** maps `source`: `user`→User,
+    `system`→System, `etsy_sync`→Etsy.
+  - Rows for entities that still exist link to the record (deep-link per ADR-035). Rows for
+    **deleted** records show **no link** (WS-A decision). Header actions: "View all →" (scrolls
+    to / focuses the Activity log) and "Refresh".
+
+- **Activity log (right, 2/3):** The full, searchable, filterable, **paginated** view
+  (entity-type filter chips, search, page size). Its filter taxonomy and the set of logged
+  entity types are specified in **ADR-037** (expanded by WS-A); this ADR fixes only its
+  placement and width on the dashboard.
+
+#### 7. Low-quality inventory widget (WS-D)
+
+A dashboard widget listing **current inventory items below the listing-quality threshold**, so
+the user can quickly find items needing work.
+
+- **Inclusion:** items whose listing quality score is **below the pass threshold**. Pass =
+  **score ≥ 85** (85 passes); therefore the widget lists items with **score < 85**. (The target
+  threshold will rise toward ≈98% when the WS-G quality rubric lands; the widget reads whatever
+  the current threshold is and does not hard-code 85 beyond this default.)
+- **Exclusions:** items with status **Sold, Retired,** or **Inactive** are never shown (out of
+  scope). Only active/listable items appear.
+- **Presentation:** a **scrollable**, single-spaced list, **sorted lowest score first**.
+  Each row shows at minimum: item number, listing title (or description fallback), and the
+  quality score; clicking a row deep-links to the inventory detail for that item
+  (`/inventory?itemId=<id>`, ADR-035).
+- **Data source:** listing quality score per ADR-068 (`GET /api/inventory/[id]/listing-score`
+  and/or a list endpoint exposing the score; the exact list endpoint is specified in ADR-018
+  when WS-D is implemented). Empty state: a positive message (e.g. "All active items meet the
+  quality threshold.").
+
+**Implementation note (WS-D):** the widget reads the existing `listing.min_quality_score` setting
+(default 80) so it matches the Inventory list badge and Outstanding; the 85/`listing.quality_threshold`
+target will be unified under WS-G.
+
+**Cross-references checked (per .cursorrules §1b):** ADR-037 (activity data + taxonomy — WS-A
+will expand), ADR-035 (deep-link targets), ADR-064 (widget pattern), ADR-068 (quality score),
+ADR-018 (endpoints), ADR-028 (shared components). No contradictions introduced; ADR-037/018
+updates for the expanded activity taxonomy and the WS-D list endpoint are tracked in the program
+doc and will be made when those workstreams execute.

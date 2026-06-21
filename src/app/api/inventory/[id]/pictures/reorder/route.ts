@@ -11,6 +11,7 @@ import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 import { reorderPictures } from "@/lib/picture-storage";
+import { recomputeAndStoreListingPhase } from "@/lib/listing-phase";
 
 async function getInventoryId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -54,6 +55,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
     await reorderPictures(inventoryId, newOrder);
 
+    recomputeAndStoreListingPhase(inventoryId);
     const item = getDb().prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     if (!item) {
       throw new ApiRouteError({

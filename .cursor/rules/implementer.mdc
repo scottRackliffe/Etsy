@@ -1,0 +1,54 @@
+---
+description: Guardrails for implementing ADR-backed tickets in the Etsy Sales Manager. Tells the assistant how to consume a ticket + its ADRs, what "done" means, and exactly when to STOP and escalate to the human/architect.
+globs: src/**/*.{ts,tsx,js,jsx,css}
+alwaysApply: false
+---
+
+# Implementer guardrails (for assistant models building from tickets)
+
+You are implementing a **single ticket** from `documents/tickets/`. The architecture is already
+decided in the ADRs. **Your job is to build exactly what the ticket and its referenced ADRs
+specify — not to redesign.**
+
+## Before you write code
+1. Read the **ticket** in full. Read the **ADR sections it cites** (they are the source of truth).
+2. Also obey the repo's `.cursorrules` (schema, API envelope, color tokens, code style).
+3. If anything in the ticket is unclear, contradicts an ADR, or an ADR is silent — **STOP and ask**
+   (see Escalation). Do not guess on architecture.
+
+## How to work
+- Touch **only** the files listed in the ticket's "Files" section (plus obvious imports). If you
+  need to touch a file not listed, that's a signal to STOP and confirm scope.
+- Follow the ticket's **Steps** in order. Keep changes minimal and focused on the ticket.
+- Match existing patterns in neighboring code (components, hooks, API routes).
+- Use shared UI components (ADR-028) and CSS variables — **never hardcoded hex** (`.cursorrules` §4).
+- Parameterized SQL only; standard API error envelope; no secrets to the client.
+- Do **not** add narration comments; comments only for non-obvious intent.
+
+## Definition of done (every ticket)
+- All ticket **Acceptance criteria** are met.
+- `ReadLints` is clean on every file you edited (fix lints you introduced).
+- The project **builds** (`npm run build`) and type-checks.
+- You did **not** change any database schema, API contract, enum, or settings key unless the
+  ticket explicitly says to (those live in ADR-017/018/037 and `.cursorrules`).
+- You wrote a short summary of what changed and how you verified it.
+
+## STOP and escalate to the human/architect (do not proceed) when:
+- A **schema change, migration, new column/table, enum value, or settings key** seems needed.
+- The change touches **auth/tokens, money/financial math, tax, Etsy publish, or payments/shipping
+  label purchase** logic.
+- The ticket and an ADR **conflict**, or the ADR doesn't cover a decision you must make.
+- The change would span **many files** beyond the ticket's listed scope, or require a new
+  dependency.
+- Tests/build **cannot be made to pass** without altering behavior the ticket didn't ask for.
+- You'd need to **delete order/purchase rows**, weaken a business rule (e.g. mark-shipped paid
+  check), or send any non-transactional customer message (ADR-078 compliance).
+
+When escalating, state: the ticket, the exact blocker, the relevant ADR section, and the options
+you see. Then wait.
+
+## What you must NOT do
+- Do not invent new architecture, endpoints, tables, or UI patterns.
+- Do not refactor unrelated code "while you're here."
+- Do not edit ADRs, `.cursorrules`, or tickets (those are the architect's; propose changes
+  instead).

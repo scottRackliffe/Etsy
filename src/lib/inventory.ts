@@ -66,6 +66,11 @@ export type InventoryRecord = {
   listing_export_id: string | null;
   listing_approved_at: string | null;
   listing_published_at: string | null;
+  listing_phase: string | null;
+  listing_source_hash: string | null;
+  listing_generated_at: string | null;
+  shot_list_json: string | null;
+  dimension_annotation_json: string | null;
   is_listed: number | null;
   updated_at: string | null;
 };

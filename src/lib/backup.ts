@@ -55,7 +55,7 @@ async function ensureBackupDir(): Promise<string> {
         code: "INTERNAL_ERROR",
         message: `Cannot access backup directory: ${dir}`,
         userMessage: `The backup directory "${dir}" cannot be accessed. Check that the application has read/write permissions for this folder.`,
-        actions: ["Change the backup directory in Config → Backup & Restore, or fix folder permissions."],
+        actions: ["Change the backup directory in Settings → Backup & Restore, or fix folder permissions."],
         canRetry: false,
       });
     }
@@ -141,7 +141,7 @@ export async function createBackup(options?: {
         "Database failed integrity check. Cannot create a reliable backup. Please contact support.",
       actions: [
         "Try again later.",
-        "Go to Config → Backup & Restore to restore from a prior backup.",
+        "Go to Settings → Backup & Restore to restore from a prior backup.",
       ],
       canRetry: false,
     });

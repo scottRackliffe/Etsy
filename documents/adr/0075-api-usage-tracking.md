@@ -45,6 +45,7 @@ Design choices:
 - **No request/response payloads** — this is a counter, not a debug log. Keeps the table small.
 - **`status_code` is nullable** — some SDK calls may not surface a status code cleanly.
 - **`endpoint` includes a qualifier** — e.g. `responses.create/listing-coach` vs `responses.create/improve-listing` to distinguish OpenAI call sites.
+- **Model lane (WS-AICOST):** the economy-eligible tasks (`responses.create/listing-photo-quality`, `.../shot-list`, `.../measure`) honor the optional `ai.economy_model` setting via `resolveModelForTask()`; the endpoint label is unchanged regardless of which model lane runs, so per-call-site attribution is preserved.
 - **Fire-and-forget** — the `logApiCall()` helper never throws; failures are logged to the structured logger and silently ignored.
 
 ### 2. Instrumentation points
@@ -72,6 +73,7 @@ For retry loops (429 handling), each attempt is logged separately so the operato
 | `src/lib/listing-generator.ts` → `generateListingFromAi()` | `responses.create/generate-listing` |
 | `src/lib/listing-coach.ts` → `callAiJson()` | `responses.create/listing-coach` |
 | `src/app/api/inventory/[id]/improve-listing/route.ts` | `responses.create/improve-listing` |
+| `src/lib/listing-photo-vision.ts` → `evaluatePhotoQuality()` | `responses.create/listing-photo-quality` |
 | `src/lib/ai-config.ts` → `testAiConnection()` | `responses.create/test-connection` |
 
 ### 3. Query API
@@ -149,7 +151,7 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 | `src/lib/ai-config.ts` | Added `logApiCall('openai', ...)` |
 | `src/app/api/inventory/[id]/improve-listing/route.ts` | Added `logApiCall('openai', ...)` |
 | `src/app/api/usage/route.ts` | New endpoint — `GET /api/usage` |
-| `src/app/(app)/config/page.tsx` | New "API Usage" section in Config UI |
+| `src/app/(app)/settings/page.tsx` | New "API Usage" section in Config UI |
 
 ### Cross-references
 

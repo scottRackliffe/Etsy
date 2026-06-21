@@ -142,8 +142,8 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         setSampleConfirmOpen(false);
         setError({
           title: "Sample data already loaded",
-          message: "Remove existing sample data from Config before loading again.",
-          actions: ["Open Config → Sample data to remove demo records."],
+          message: "Remove existing sample data from Settings before loading again.",
+          actions: ["Open Settings → Sample data to remove demo records."],
         });
         return;
       }
@@ -153,7 +153,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
       setError({
         title: "Sample data loaded",
         message: "Demo inventory, customers, and orders are ready to explore.",
-        actions: ["Remove sample data anytime from Config."],
+          actions: ["Remove sample data anytime from Settings."],
       });
     } catch (err) {
       setApiError("Could not load sample data", "We could not load sample data.", err);
@@ -215,7 +215,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           <>
             <h2 className="text-xl font-semibold text-[var(--ui-title)]">Your Business</h2>
             <p className="mt-1 text-sm text-[var(--ui-muted)]">
-              Tell us about your shop. You can change these anytime in Config.
+              Tell us about your shop. You can change these anytime in Settings.
             </p>
             <div className="mt-4 space-y-2">
               <label className="block text-xs text-[var(--ui-muted)]">
@@ -357,11 +357,11 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               </button>
               <button
                 type="button"
-                onClick={() => void finish("/sales", connectedShop != null)}
+                onClick={() => void finish("/orders", connectedShop != null)}
                 className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 text-left hover:border-[var(--ui-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent)]"
               >
                 <p className="font-medium text-[var(--ui-title)]">
-                  {connectedShop ? "Sync Etsy Orders" : "Explore Sales"}
+                  {connectedShop ? "Sync Etsy Orders" : "Explore Orders"}
                 </p>
                 <p className="text-xs text-[var(--ui-muted)]">
                   {connectedShop

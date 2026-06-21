@@ -45,7 +45,7 @@ export function setEasyPostApiKey(plainKey: string): void {
   setSetting("easypost.api_key_encrypted", encryptValue(plainKey));
   logActivity({
     action: "easypost.api_key_updated",
-    entityType: "settings",
+    entityType: "setting",
     source: "user",
   });
 }
@@ -55,7 +55,7 @@ export function setEasyPostTestApiKey(plainKey: string): void {
   setSetting("easypost.test_api_key_encrypted", encryptValue(plainKey));
   logActivity({
     action: "easypost.test_api_key_updated",
-    entityType: "settings",
+    entityType: "setting",
     source: "user",
   });
 }

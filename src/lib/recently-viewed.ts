@@ -42,7 +42,7 @@ export function recentlyViewedHref(entry: RecentlyViewedEntry): string {
     case "inventory":
       return `/inventory?itemId=${entry.id}`;
     case "order":
-      return `/sales?orderId=${entry.id}`;
+      return `/orders?orderId=${entry.id}`;
     case "customer":
       return `/customers?customerId=${entry.id}`;
   }

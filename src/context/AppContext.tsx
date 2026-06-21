@@ -186,7 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [publishConfig, setPublishConfig] = useState<PublishConfig>({
     taxonomyId: "",
     shippingProfileId: "",
-    minQualityScore: "80",
+    minQualityScore: "85",
     returnPolicyId: "",
     readinessStateId: "",
     imageIds: "",
@@ -539,7 +539,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         allowPartialImageUpload: allowPartialImageUpload || "false",
         imageUploadAttempts: imageUploadAttempts || "3",
         developerMode: developerMode || "false",
-        minQualityScore: minQualityScore || "80",
+        minQualityScore: minQualityScore || "85",
       });
       setIconConfig({
         screenHeaderPath: screenHeaderPath || "/brand/aice-dark.png",

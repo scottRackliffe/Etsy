@@ -1,52 +1,91 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { ProgressModal } from "@/components/ui/ProgressModal";
+import { formatCurrency } from "@/lib/format-currency";
 import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
-import { EtsySyncStatus } from "@/components/dashboard/EtsySyncStatus";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
 import { TaxPaymentWidget } from "@/components/dashboard/TaxPaymentWidget";
-import { useEtsySync } from "@/hooks/useEtsySync";
-import { useToast } from "@/hooks/useToast";
+import { BillPaymentsWidget } from "@/components/dashboard/BillPaymentsWidget";
+import { KpiTile } from "@/components/dashboard/KpiTile";
+import { WidgetHeader } from "@/components/dashboard/WidgetHeader";
+import { getInventoryAgingCounts } from "@/lib/inventory-aging";
+
+function SectionLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <h3
+      className={`mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)] ${className}`}
+    >
+      {children}
+    </h3>
+  );
+}
 
 export default function DashboardPage() {
-  const {
-    shops,
-    selectedShopId,
-    setSelectedShopId,
-    receipts,
-    receiptsLoading,
-    count,
-    setBusyAction,
-    setApiError,
-    setError,
-    currencyCode,
-  } = useApp();
+  const { shops, selectedShopId, setSelectedShopId, currencyCode } = useApp();
 
-  const router = useRouter();
-  const [repeatCustomersMonth, setRepeatCustomersMonth] = useState<number | null>(null);
-  const [activityLogKey, setActivityLogKey] = useState(0);
   const activityLogRef = useRef<HTMLDivElement>(null);
-  const { modal: syncModal, runSync } = useEtsySync();
-  const toast = useToast();
+
+  type DashboardKpis = {
+    total_orders: number;
+    paid_orders: number;
+    shipped_orders: number;
+    unshipped_orders: number;
+    unpaid_orders: number;
+    unpaid_receivables: number;
+    gross_revenue: number;
+    orders_this_month: number;
+    revenue_this_month: number;
+    orders_last_7_days: number;
+    aov_this_month: number;
+    repeat_customers_this_month: number;
+    outstanding_count: number;
+    not_listed_count: number;
+    total_profit_this_month: number;
+    total_profit_ytd: number;
+    avg_margin_this_month: number | null;
+    avg_margin_this_month_count: number;
+    last_etsy_sync_at: string | null;
+  };
+
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
 
   const [agingItems, setAgingItems] = useState<
     Array<{ date_purchased: string | null; date_listed: string | null; created_at: string | null; status: string | null }>
   >([]);
 
-  useEffect(() => {
-    void fetch("/api/dashboard/stats", { headers: { Accept: "application/json" } })
+  const loadDashboardKpis = () => {
+    void fetch("/api/dashboard", { headers: { Accept: "application/json" }, credentials: "include" })
       .then((r) => r.json())
-      .then((data: { repeat_customers_this_month?: number }) =>
-        setRepeatCustomersMonth(data.repeat_customers_this_month ?? 0)
+      .then((data: Partial<DashboardKpis>) =>
+        setKpis({
+          total_orders: data.total_orders ?? 0,
+          paid_orders: data.paid_orders ?? 0,
+          shipped_orders: data.shipped_orders ?? 0,
+          unshipped_orders: data.unshipped_orders ?? 0,
+          unpaid_orders: data.unpaid_orders ?? 0,
+          unpaid_receivables: data.unpaid_receivables ?? 0,
+          gross_revenue: data.gross_revenue ?? 0,
+          orders_this_month: data.orders_this_month ?? 0,
+          revenue_this_month: data.revenue_this_month ?? 0,
+          orders_last_7_days: data.orders_last_7_days ?? 0,
+          aov_this_month: data.aov_this_month ?? 0,
+          repeat_customers_this_month: data.repeat_customers_this_month ?? 0,
+          outstanding_count: data.outstanding_count ?? 0,
+          not_listed_count: data.not_listed_count ?? 0,
+          total_profit_this_month: data.total_profit_this_month ?? 0,
+          total_profit_ytd: data.total_profit_ytd ?? 0,
+          avg_margin_this_month: data.avg_margin_this_month ?? null,
+          avg_margin_this_month_count: data.avg_margin_this_month_count ?? 0,
+          last_etsy_sync_at: data.last_etsy_sync_at ?? null,
+        })
       )
-      .catch(() => setRepeatCustomersMonth(null));
+      .catch(() => setKpis(null));
+  };
+
+  useEffect(() => {
+    loadDashboardKpis();
 
     void fetch("/api/inventory?limit=1000", { headers: { Accept: "application/json" } })
       .then((r) => r.json())
@@ -56,64 +95,7 @@ export default function DashboardPage() {
       .catch(() => setAgingItems([]));
   }, []);
 
-  const agingCount = useMemo(() => {
-    const now = Date.now();
-    return agingItems.filter((item) => {
-      if (item.status !== "In stock" && item.status !== "Listed") return false;
-      const candidates = [item.date_purchased, item.date_listed, item.created_at].filter(
-        Boolean
-      ) as string[];
-      if (candidates.length === 0) return false;
-      const timestamps = candidates.map((d) => new Date(d).getTime()).filter((t) => !isNaN(t));
-      if (timestamps.length === 0) return false;
-      const days = Math.floor((now - Math.min(...timestamps)) / (1000 * 60 * 60 * 24));
-      return days > 90;
-    }).length;
-  }, [agingItems]);
-
-  const paidCount = receipts.filter((r) => r.was_paid).length;
-  const shippedCount = receipts.filter((r) => r.was_shipped).length;
-  const grossTotal = receipts.reduce((sum, r) => sum + parseFloat(r.total_price || "0"), 0);
-  const grossCurrency = receipts[0]?.currency_code ?? currencyCode;
-
-  const formatDate = (ts: number) =>
-    new Date(ts * 1000).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  const formatMoney = (value: string, code: string) =>
-    new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: code || currencyCode,
-    }).format(parseFloat(value || "0"));
-
-  const syncFromEtsy = () => {
-    if (!selectedShopId) return;
-    setBusyAction("sync-etsy");
-    void runSync(selectedShopId, {
-      onSuccess: (result) => {
-        setActivityLogKey((k) => k + 1);
-        const synced = result.synced ?? 0;
-        toast.showToast(
-          synced > 0
-            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} from Etsy.`
-            : "Etsy sync complete — no new orders to import.",
-          synced > 0 ? "success" : "info"
-        );
-      },
-      onCancelled: (result) => {
-        const n = result.synced ?? 0;
-        toast.showToast(
-          n > 0 ? `Sync cancelled. ${n} receipts were processed before cancel.` : "Sync cancelled.",
-          "info"
-        );
-      },
-      onError: () => {
-        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", null);
-      },
-    }).finally(() => setBusyAction(null));
-  };
+  const agingCounts = useMemo(() => getInventoryAgingCounts(agingItems), [agingItems]);
 
   const scrollToActivityLog = () => {
     activityLogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -121,192 +103,147 @@ export default function DashboardPage() {
 
   return (
     <>
-      <ProgressModal {...syncModal} />
-      <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--ui-title)]">Dashboard</h2>
-            <p className="text-sm text-[var(--ui-muted)]">
-              Live order snapshot for your selected Etsy shop.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-[var(--ui-muted)]">Shop</label>
-            <select
-              value={selectedShopId ?? ""}
-              onChange={(e) => setSelectedShopId(Number(e.target.value))}
-              className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm text-[var(--ui-body)] shadow-inner focus:border-[var(--ui-accent)] focus:outline-none"
-            >
-              {shops.map((s) => (
-                <option key={s.shop_id} value={s.shop_id}>
-                  {s.shop_name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {shops.length > 1 && (
+        <div className="mb-3 flex items-center justify-end gap-2">
+          <label className="text-sm font-medium text-[var(--ui-muted)]">Shop</label>
+          <select
+            value={selectedShopId ?? ""}
+            onChange={(e) => setSelectedShopId(Number(e.target.value))}
+            className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm text-[var(--ui-body)] shadow-inner focus:border-[var(--ui-accent)] focus:outline-none"
+          >
+            {shops.map((s) => (
+              <option key={s.shop_id} value={s.shop_id}>
+                {s.shop_name}
+              </option>
+            ))}
+          </select>
         </div>
+      )}
 
-        <div className="mb-4">
-          <EtsySyncStatus connected={shops.length > 0} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Receipts</p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">{count}</p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Paid</p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-green)]">{paidCount}</p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Shipped</p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-accent)]">{shippedCount}</p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
-              Repeat customers (month)
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">
-              {repeatCustomersMonth ?? "—"}
-            </p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Gross total</p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-title)]">
-              {new Intl.NumberFormat(undefined, {
-                style: "currency",
-                currency: grossCurrency,
-              }).format(grossTotal)}
-            </p>
-          </article>
-        </div>
-
-        <div className="mt-4">
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
-              Aging Inventory
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ui-yellow)]">{agingCount}</p>
-            <p className="mt-1 text-xs text-[var(--ui-muted)]">
-              items &gt; 90 days in stock
-            </p>
-            <Link
-              href="/reports?report_type=inventory-aging"
-              className="mt-2 inline-block text-xs font-medium text-[var(--ui-accent)] hover:underline"
-            >
-              View aging report →
-            </Link>
-          </article>
-        </div>
-      </section>
-
-      <InventoryValueWidget />
-
-      <TaxPaymentWidget />
-
-      <ActivityFeed
-        onViewAll={scrollToActivityLog}
-        onSyncComplete={() => setActivityLogKey((k) => k + 1)}
-      />
-
-      <div ref={activityLogRef}>
-        <ActivityLogSection key={activityLogKey} id="activity-log" />
+      <SectionLabel>Performance · this month</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <KpiTile
+          label="Revenue (mo)"
+          value={kpis ? formatCurrency(kpis.revenue_this_month, currencyCode) : "—"}
+          sub={kpis ? `${formatCurrency(kpis.gross_revenue, currencyCode)} all-time` : undefined}
+          href="/orders"
+        />
+        <KpiTile
+          label="Profit (mo)"
+          value={kpis ? formatCurrency(kpis.total_profit_this_month, currencyCode) : "—"}
+          tone={
+            kpis && kpis.total_profit_this_month < 0
+              ? "bad"
+              : kpis && kpis.total_profit_this_month > 0
+                ? "good"
+                : "default"
+          }
+          sub={kpis ? `${formatCurrency(kpis.total_profit_ytd, currencyCode)} YTD` : undefined}
+        />
+        <KpiTile
+          label="Avg margin (mo)"
+          value={
+            kpis && kpis.avg_margin_this_month != null
+              ? `${kpis.avg_margin_this_month.toFixed(1)}%`
+              : "—"
+          }
+          tone={kpis && (kpis.avg_margin_this_month ?? 0) > 0 ? "good" : "default"}
+          sub={kpis ? `${kpis.avg_margin_this_month_count} sold` : undefined}
+        />
+        <KpiTile
+          label="Avg order value"
+          value={kpis ? formatCurrency(kpis.aov_this_month, currencyCode) : "—"}
+          sub={kpis ? `${kpis.orders_this_month} orders this month` : undefined}
+        />
+        <KpiTile
+          label="Repeat customers (mo)"
+          value={kpis?.repeat_customers_this_month ?? "—"}
+        />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">
-          <div>
-            <h3 className="text-lg font-semibold text-[var(--ui-title)]">Recent orders</h3>
-            <p className="text-sm text-[var(--ui-muted)]">
-              {count} receipt(s) with paid/shipped status.
-            </p>
-          </div>
-          <span className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[var(--ui-muted)]">
-            Updated live
-          </span>
-        </div>
+      <SectionLabel className="mt-6">Needs attention</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <KpiTile
+          label="Awaiting shipment"
+          value={kpis?.unshipped_orders ?? "—"}
+          tone={kpis && kpis.unshipped_orders > 0 ? "warn" : "default"}
+          sub={kpis ? `${kpis.shipped_orders} shipped` : undefined}
+          href="/shipping"
+        />
+        <KpiTile
+          label="Unpaid orders"
+          value={kpis?.unpaid_orders ?? "—"}
+          tone={kpis && kpis.unpaid_orders > 0 ? "warn" : "default"}
+          sub={kpis ? `${formatCurrency(kpis.unpaid_receivables, currencyCode)} owed` : undefined}
+          subTone={kpis && kpis.unpaid_receivables > 0 ? "warn" : "default"}
+          href="/orders"
+        />
+        <KpiTile
+          label="Not listed"
+          value={kpis?.not_listed_count ?? "—"}
+          tone={kpis && kpis.not_listed_count > 0 ? "warn" : "default"}
+          sub="in stock"
+          href="/inventory"
+        />
+        <KpiTile
+          label="Outstanding"
+          value={kpis?.outstanding_count ?? "—"}
+          tone={kpis && kpis.outstanding_count > 0 ? "warn" : "default"}
+          sub="tasks needing attention"
+          href="/outstanding"
+        />
+        <KpiTile
+          label="Active orders"
+          value={kpis?.total_orders ?? "—"}
+          sub={kpis ? `${kpis.orders_last_7_days} in last 7 days` : undefined}
+          href="/orders"
+        />
+      </div>
 
-        {receiptsLoading ? (
-          <div className="space-y-2 p-5">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div key={idx} className="h-12 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
-            ))}
-          </div>
-        ) : receipts.length === 0 ? (
-          <EmptyState
-            message="No orders yet."
-            primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
-            secondaryAction={
-              shops.length > 0
-                ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-                : {
-                    label: "Connect Etsy first",
-                    onClick: () => router.push("/config#etsy-connection"),
-                    variant: "secondary",
-                  }
-            }
+      <SectionLabel className="mt-6">Inventory</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <InventoryValueWidget embedded />
+        </div>
+        <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
+          <WidgetHeader
+            title="Aging inventory"
+            subtitle="in-stock & listed items"
+            href="/reports?report_type=inventory-aging"
+            viewLabel="View report"
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs uppercase tracking-wide text-[var(--ui-muted)]">
-                  <th className="px-5 py-3 font-semibold">Date</th>
-                  <th className="px-5 py-3 font-semibold">Order #</th>
-                  <th className="px-5 py-3 font-semibold">Ship to</th>
-                  <th className="px-5 py-3 font-semibold">Total</th>
-                  <th className="px-5 py-3 font-semibold">Paid</th>
-                  <th className="px-5 py-3 font-semibold">Shipped</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipts.map((r, i) => (
-                  <tr
-                    key={r.receipt_id}
-                    className="border-b border-[var(--ui-border)]/70 transition hover:bg-[var(--ui-list-hover)]/60"
-                    style={{
-                      backgroundColor: i % 2 === 0 ? "var(--ui-list-dark)" : "var(--ui-list-light)",
-                    }}
-                  >
-                    <td className="px-5 py-3 text-[var(--ui-body)]">
-                      {formatDate(r.creation_tsz)}
-                    </td>
-                    <td className="px-5 py-3 font-mono text-[var(--ui-title)]">{r.receipt_id}</td>
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-[var(--ui-title)]">{r.name}</p>
-                      <p className="text-xs text-[var(--ui-muted)]">
-                        {r.first_line}, {r.city} {r.state} {r.zip} {r.country_iso}
-                      </p>
-                    </td>
-                    <td className="px-5 py-3 text-[var(--ui-body)]">
-                      {formatMoney(r.total_price, r.currency_code)}
-                      {parseFloat(r.total_shipping_cost) > 0 && (
-                        <span className="text-xs text-[var(--ui-muted)]">
-                          {" "}
-                          + {formatMoney(r.total_shipping_cost, r.currency_code)} ship
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge
-                        label={r.was_paid ? "Paid" : "Unpaid"}
-                        variant={r.was_paid ? "success" : "warning"}
-                      />
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge
-                        label={r.was_shipped ? "Shipped" : "Pending"}
-                        variant={r.was_shipped ? "success" : "neutral"}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <p className="text-xs text-[var(--ui-muted)]">&gt; 30 days</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--ui-body)]">{agingCounts.over_30}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--ui-muted)]">&gt; 60 days</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--ui-yellow)]">{agingCounts.over_60}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--ui-muted)]">&gt; 90 days</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--ui-yellow)]">{agingCounts.over_90}</p>
+            </div>
           </div>
-        )}
-      </section>
+        </article>
+      </div>
+
+      <SectionLabel className="mt-6">Finances</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <TaxPaymentWidget embedded />
+        <BillPaymentsWidget embedded />
+      </div>
+
+      <SectionLabel className="mt-6">Activity</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch lg:min-h-[36rem]">
+        <div className="flex min-h-0 flex-col lg:col-span-1 lg:h-full">
+          <ActivityFeed compact onViewAll={scrollToActivityLog} />
+        </div>
+        <div ref={activityLogRef} className="flex min-h-0 flex-col lg:col-span-2 lg:h-full">
+          <ActivityLogSection id="activity-log" compact />
+        </div>
+      </div>
     </>
   );
 }

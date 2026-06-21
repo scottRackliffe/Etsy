@@ -20,7 +20,7 @@ export async function POST() {
         message: "Failed to sync Etsy taxonomy",
         userMessage:
           "Could not sync Etsy categories. Check your Etsy API credentials and try again.",
-        actions: ["Verify Etsy API credentials in Config.", "Try again later."],
+        actions: ["Verify Etsy API credentials in Settings.", "Try again later."],
         canRetry: true,
       })
     );

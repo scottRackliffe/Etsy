@@ -6,7 +6,8 @@ import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 
 const TABS: Array<{ id: string; label: string; href: string }> = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard" },
-  { id: "sales", label: "Sales", href: "/sales" },
+  { id: "orders", label: "Orders", href: "/orders" },
+  { id: "shipping", label: "Shipping", href: "/shipping" },
   { id: "inventory", label: "Inventory", href: "/inventory" },
   { id: "receipts", label: "Receipts", href: "/receipts" },
   { id: "customers", label: "Customers", href: "/customers" },
@@ -15,7 +16,7 @@ const TABS: Array<{ id: string; label: string; href: string }> = [
   { id: "reports", label: "Reports", href: "/reports" },
   { id: "outstanding", label: "Outstanding", href: "/outstanding" },
   { id: "tutorial", label: "Tutorial & tips", href: "/tutorial" },
-  { id: "config", label: "Config", href: "/config" },
+  { id: "settings", label: "Settings", href: "/settings" },
 ];
 
 export function TabBar() {

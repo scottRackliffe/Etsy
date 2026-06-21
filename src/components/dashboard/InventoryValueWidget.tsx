@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { formatCurrency } from "@/lib/format-currency";
+import { WidgetHeader } from "@/components/dashboard/WidgetHeader";
 
 type InventoryValue = {
   at_cost: number;
@@ -19,7 +20,7 @@ type ProfitKpis = {
   total_profit_ytd: number;
 };
 
-export function InventoryValueWidget() {
+export function InventoryValueWidget({ embedded = false }: { embedded?: boolean }) {
   const { currencyCode } = useApp();
   const formatMoney = (value: number) => formatCurrency(value, currencyCode);
   const [value, setValue] = useState<InventoryValue | null>(null);
@@ -71,46 +72,64 @@ export function InventoryValueWidget() {
           ? "text-[var(--ui-red)]"
           : "text-[var(--ui-muted)]";
 
-  return (
-    <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-      <h3 className="mb-1 text-lg font-semibold text-[var(--ui-title)]">Inventory value</h3>
-      <p className="mb-4 text-sm text-[var(--ui-muted)]">
-        {loading
-          ? "Loading…"
-          : value
-            ? `${value.item_count} unsold items`
-            : "Could not load inventory value"}
-      </p>
+  const labelClass = embedded
+    ? "text-xs text-[var(--ui-muted)]"
+    : "text-xs uppercase tracking-wide text-[var(--ui-muted)]";
+  const metricClass = embedded
+    ? "mt-1 text-lg font-semibold"
+    : "mt-2 text-xl font-semibold";
+
+  const wrapperClass = embedded
+    ? "h-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+    : "rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm";
+
+  const inner = (
+    <>
+      <WidgetHeader
+        title="Inventory value"
+        subtitle={
+          loading
+            ? "Loading…"
+            : value
+              ? `${value.item_count} unsold items`
+              : "Could not load inventory value"
+        }
+        href="/inventory"
+      />
       {value ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">At cost</p>
-            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">
-              {formatMoney(value.at_cost)}
-            </p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">At sale price</p>
-            <p className="mt-2 text-xl font-semibold text-[var(--ui-title)]">
-              {formatMoney(value.at_sale_price)}
-            </p>
-          </article>
-          <article className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">
-              Potential margin
-            </p>
-            <p className={`mt-2 text-xl font-semibold ${marginColor}`}>
-              {formatMoney(value.potential_margin)}
-              {value.potential_margin_pct != null ? (
-                <span className="ml-1 text-sm font-normal">
-                  ({value.potential_margin_pct.toFixed(1)}%)
-                </span>
-              ) : null}
-            </p>
-          </article>
+        <div className={`grid grid-cols-3 ${embedded ? "mt-3 gap-2" : "gap-3"}`}>
+          {(
+            [
+              { label: "At cost", amount: value.at_cost, color: "text-[var(--ui-title)]" },
+              { label: "At asking price", amount: value.at_sale_price, color: "text-[var(--ui-title)]" },
+              {
+                label: "Potential margin",
+                amount: value.potential_margin,
+                color: marginColor,
+                pct: value.potential_margin_pct,
+              },
+            ] as const
+          ).map((metric) => (
+            <div
+              key={metric.label}
+              className={
+                embedded ? "" : "rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+              }
+            >
+              <p className={labelClass}>{metric.label}</p>
+              <p className={`${metricClass} ${metric.color}`}>
+                {formatMoney(metric.amount)}
+                {"pct" in metric && metric.pct != null ? (
+                  <span className={`ml-1 font-normal ${embedded ? "text-xs" : "text-sm"}`}>
+                    ({metric.pct.toFixed(1)}%)
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          ))}
         </div>
       ) : null}
-      {profit ? (
+      {profit && !embedded ? (
         <div className="mt-4 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 text-sm text-[var(--ui-body)]">
           <p className="font-medium text-[var(--ui-title)]">
             Avg margin this month:{" "}
@@ -127,6 +146,12 @@ export function InventoryValueWidget() {
           </p>
         </div>
       ) : null}
-    </section>
+    </>
   );
+
+  if (embedded) {
+    return <div className={wrapperClass}>{inner}</div>;
+  }
+
+  return <section className={wrapperClass}>{inner}</section>;
 }

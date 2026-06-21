@@ -26,6 +26,11 @@ The Outstanding page navigates to target pages using URL query params (`?orderId
 | Inventory (`/inventory`) | `itemId={id}`     | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior.                                               |
 | Inventory (`/inventory`) | `openWorkshop=1`  | After selecting the item (requires `itemId`), automatically open the listing workshop panel (ADR-030, ADR-072).             |
 | Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses.                                                           |
+| Receipts (`/receipts`)   | `receiptId={id}`  | Select/expand the vendor receipt with `id = receiptId`. Fetch-if-missing behavior.                                          |
+| Vendors (`/vendors`)     | `vendorId={id}`   | Select the vendor with `id = vendorId` (ADR-076). Fetch-if-missing behavior.                                               |
+| Expenses (`/expenses`)   | `expenseId={id}`  | Select the business expense with `id = expenseId` (ADR-077).                                                                |
+| Expenses (`/expenses`)   | `taxPaymentId={id}` | Open the Tax section and select the tax payment with `id = taxPaymentId` (ADR-039).                                       |
+| Shipping (`/shipping`)   | `orderId={id}`    | (After WS-F) Select the order's shipping context. **Until WS-F ships, shipping activity links to `/orders?orderId={id}`.** |
 
 ---
 
@@ -50,7 +55,7 @@ Each page adds a `useEffect` that runs on mount (and when `searchParams` change)
 The Outstanding page's current click handler navigates like:
 
 ```typescript
-router.push(`/sales?orderId=${item.record_id}`);
+router.push(`/orders?orderId=${item.record_id}`);
 ```
 
 This pattern is correct and does not change. The fix is entirely on the receiving pages.
@@ -67,8 +72,17 @@ Beyond Outstanding, other pages may produce deep links:
 | Sales → customer name link (ADR-031)    | Customers    | `customerId`                              |
 | Customers → order history (future)      | Sales        | `customerId` (filters orders by customer) |
 | Reports → per-order drill-down (future) | Sales        | `orderId`                                 |
+| **Activity views (ADR-037, WS-A)**      | per entity   | `itemId` / `orderId` / `customerId` / `receiptId` / `vendorId` / `expenseId` / `taxPaymentId` |
+| Dashboard low-quality widget (WS-D)     | Inventory    | `itemId`                                  |
 
 The query param contract above covers all these cases. Pages should handle any combination of params they define.
+
+> **Extension (2026-06-21, WS-A/WS-D):** The Recent Activity and Activity log views
+> (ADR-016 §6, ADR-037 §A3) link each row's `entity_label` to the target above, **except** rows
+> for deleted records, which render with no link (locked WS-A decision). The `/receipts`,
+> `/vendors`, `/expenses` pages must implement the read-param-select-clean pattern in
+> "Implementation per page." The `/shipping` page arrives with WS-F (ADR-080); until then,
+> shipping rows link to `/orders?orderId=`.
 
 ---
 
@@ -85,7 +99,7 @@ When a record is selected via deep link, the `DataTable` row must be visible wit
 
 Some deep links may include filter context:
 
-- `/sales?orderId=42&payment=unpaid` — select order 42 and set payment filter to "Unpaid."
+- `/orders?orderId=42&payment=unpaid` — select order 42 and set payment filter to "Unpaid."
 - `/inventory?itemId=7&status=in_stock` — select item 7 and set status filter to "In stock."
 
 Pages should read filter-related params alongside the record selection param. This ties into the URL state sync described in ADR-029.

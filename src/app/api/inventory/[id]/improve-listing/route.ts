@@ -15,7 +15,7 @@ import { getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { getAiConfig } from "@/lib/ai-config";
 import { computeListingScore } from "@/lib/listing-score";
-import { getSetting } from "@/lib/settings-store";
+import { getMinQualityScore } from "@/lib/settings-store";
 import { logger } from "@/lib/logging";
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -51,8 +51,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         status: 400,
         code: "AI_NOT_CONFIGURED",
         message: "AI configuration missing",
-        userMessage: "AI is not configured. Set your API key in Config → AI Settings.",
-        actions: ["Go to Config and enter your OpenAI API key."],
+        userMessage: "AI is not configured. Set your API key in Settings → AI Settings.",
+        actions: ["Go to Settings and enter your OpenAI API key."],
         canRetry: false,
       });
     }
@@ -77,8 +77,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       });
     }
 
-    const minScoreStr = getSetting("listing.min_quality_score");
-    const minScore = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
+    const minScore = getMinQualityScore();
     const scoreResult = computeListingScore(item, minScore);
     const { breakdown, tips } = scoreResult;
 
@@ -373,8 +372,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         status: 401,
         code: "LISTING_IMPROVEMENT_FAILED",
         message: "OpenAI authentication failed",
-        userMessage: "Your AI API key is invalid or expired. Go to Config → AI Settings and update it.",
-        actions: ["Go to Config → AI Settings and check your API key."],
+        userMessage: "Your AI API key is invalid or expired. Go to Settings → AI Settings and update it.",
+        actions: ["Go to Settings → AI Settings and check your API key."],
         canRetry: false,
       }));
     }

@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         userMessage: "We could not compose your listing right now.",
         actions: [
           "Try again in a moment.",
-          "Verify AI configuration in Config if this keeps failing.",
+          "Verify AI configuration in Settings if this keeps failing.",
         ],
       })
     );

@@ -1,5 +1,14 @@
 import { getDb } from "@/lib/sqlite";
 
+export const DEFAULT_MIN_QUALITY_SCORE = 85;
+
+export function getMinQualityScore(): number {
+  const raw = getSetting("listing.min_quality_score");
+  if (raw == null) return DEFAULT_MIN_QUALITY_SCORE;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MIN_QUALITY_SCORE;
+}
+
 export function getSetting(key: string): string | null {
   const db = getDb();
   const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as

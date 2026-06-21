@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getDb } from "@/lib/sqlite";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
       .prepare("SELECT * FROM receipt_items WHERE receipt_id = ? ORDER BY id")
       .all(receiptId);
 
+    logActivity({ action: "receipt.created", entityType: "receipt", entityId: receiptId, entityLabel: vendorName });
     return NextResponse.json({ ok: true, receipt, items: receiptItems }, { status: 201 });
   } catch (error) {
     return errorResponse(

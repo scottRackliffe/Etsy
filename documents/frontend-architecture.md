@@ -12,14 +12,14 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | ---------------- | -------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `/`              | `src/app/page.tsx`                     | —           | Redirects to `/dashboard`                                                                                                    |
 | `/dashboard`     | `src/app/(app)/dashboard/page.tsx`     | Dashboard   | KPI cards, recent orders, sync status                                                                                        |
-| `/sales`         | `src/app/(app)/sales/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
+| `/sales`         | `src/app/(app)/orders/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
 | `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list, detail panel, pictures, listing workshop (ADR-030)                                                                |
 | `/listing-coach` | `src/app/(app)/listing-coach/page.tsx` | — (focus)   | Guided new listing wizard — paste photos, Google screenshot, AI compose (ADR-072). Tab bar hidden. Entry from Inventory CTA. |
 | `/customers`     | `src/app/(app)/customers/page.tsx`     | Customers   | Customer list, detail panel, addresses, purchase history                                                                     |
 | `/reports`       | `src/app/(app)/reports/page.tsx`       | Reports     | Report chooser, options, viewer                                                                                              |
 | `/outstanding`   | `src/app/(app)/outstanding/page.tsx`   | Outstanding | Full-page outstanding list                                                                                                   |
 | `/tutorial`      | `src/app/(app)/tutorial/page.tsx`      | Tutorial    | Search, index, articles, tips folder links                                                                                   |
-| `/config`        | `src/app/(app)/config/page.tsx`        | Config      | Etsy connection, business details, AI settings, backup                                                                       |
+| `/config`        | `src/app/(app)/settings/page.tsx`        | Config      | Etsy connection, business details, AI settings, backup                                                                       |
 
 ---
 

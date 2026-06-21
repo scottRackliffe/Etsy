@@ -29,6 +29,8 @@ import {
 } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { ConditionPictureGrid } from "@/components/inventory/ConditionPictureGrid";
+import { ShotListPanel } from "@/components/inventory/ShotListPanel";
+import { MeasurementPhotoPanel } from "@/components/inventory/MeasurementPhotoPanel";
 import { apiFetch } from "@/lib/api-fetch";
 import { stampUiError } from "@/lib/ui-error";
 import { clearDraft, draftKey } from "@/lib/form-draft";
@@ -182,6 +184,7 @@ function InventoryPageInner() {
 
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [phaseFilter, setPhaseFilter] = useState<string | null>(null);
   const [storeCategoryOptions, setStoreCategoryOptions] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
 
@@ -279,6 +282,7 @@ function InventoryPageInner() {
     if (debouncedInventorySearch.trim()) params.set("search", debouncedInventorySearch.trim());
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("store_category", categoryFilter);
+    if (phaseFilter) params.set("listing_phase", phaseFilter);
     if (sort) {
       params.set("sort_by", sort.key);
       params.set("sort_dir", sort.dir);
@@ -299,7 +303,7 @@ function InventoryPageInner() {
       }
     }
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, sort, setInventory, setTotal, selectedItemId, setSelectedItemId, setSelectedItem]);
+  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, phaseFilter, sort, setInventory, setTotal, selectedItemId, setSelectedItemId, setSelectedItem]);
 
   useEffect(() => {
     void reloadInventory().catch((err) =>
@@ -387,7 +391,7 @@ function InventoryPageInner() {
         header: "Quality",
         sortable: true,
         sortKey: "listing_score",
-        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} minScore={parseInt(publishConfig.minQualityScore, 10) || 80} />,
+        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} minScore={parseInt(publishConfig.minQualityScore, 10) || 85} />,
       },
     ],
     []
@@ -396,7 +400,7 @@ function InventoryPageInner() {
   const inventoryTableData = useMemo(() => {
     if (sort?.key !== "listing_score") return inventory;
     return [...inventory].sort((a, b) => {
-      const ms = parseInt(publishConfig.minQualityScore, 10) || 80;
+      const ms = parseInt(publishConfig.minQualityScore, 10) || 85;
       const scoreA = computeListingScore(a, ms).score;
       const scoreB = computeListingScore(b, ms).score;
       return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
@@ -701,6 +705,21 @@ function InventoryPageInner() {
             options={storeCategoryOptions.map((cat) => ({ value: cat, label: cat }))}
           />
         )}
+        <FilterChipRow
+          label="Listing phase"
+          value={phaseFilter}
+          onChange={(value) => {
+            setPage(0);
+            setPhaseFilter(value);
+          }}
+          options={[
+            { value: "needs_data", label: "Needs data" },
+            { value: "ready_to_generate", label: "Ready to generate" },
+            { value: "generated", label: "Generated" },
+            { value: "needs_quality_remediation", label: "Needs quality fixes" },
+            { value: "listing_ready", label: "Listing ready" },
+          ]}
+        />
         {listTotal === 0 ? (
           <EmptyState
             message={
@@ -779,7 +798,7 @@ function InventoryPageInner() {
         regenerateAiBusy={busyAction === "generate-ai"}
       />
 
-      <div className="mb-4 space-y-4">
+      <div id="pictures" className="mb-4 space-y-4">
         <PictureGrid
           inventoryId={selectedItemId}
           item={selectedItem}
@@ -792,6 +811,19 @@ function InventoryPageInner() {
           item={selectedItem}
           disabled={busyAction != null}
           onItemUpdated={handlePictureItemUpdated}
+          onError={(title, message, err) => setApiError(title, message, err)}
+        />
+        <ShotListPanel
+          inventoryId={selectedItemId}
+          itemVersion={selectedItem?.updated_at ?? null}
+          disabled={busyAction != null}
+          onError={(title, message, err) => setApiError(title, message, err)}
+        />
+        <MeasurementPhotoPanel
+          inventoryId={selectedItemId}
+          item={selectedItem}
+          disabled={busyAction != null}
+          onItemUpdated={(item) => handlePictureItemUpdated(item as InventoryItem)}
           onError={(title, message, err) => setApiError(title, message, err)}
         />
       </div>

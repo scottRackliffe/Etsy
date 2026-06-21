@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConnection } from "@/context/ConnectionContext";
@@ -22,10 +21,7 @@ import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addToPrintQueue, printQueueTypeLabel, type PrintQueueDocType } from "@/lib/print-queue";
-import { RateShoppingModal } from "@/components/sales/RateShoppingModal";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
-
-const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
 
 type OrderDetailPanelProps = {
   orderId: number | null;
@@ -36,7 +32,7 @@ type OrderDetailPanelProps = {
   onError: (title: string, message: string, err?: unknown) => void;
   onSuccess?: (title: string, message: string) => void;
   onMarkPaid: () => void;
-  onMarkShipped: () => void;
+  onMarkShipped?: () => void;
   onVoid: () => void;
   onCancel?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -52,21 +48,13 @@ type DraftFields = {
   ship_to_postal_code: string;
   ship_to_country: string;
   shipping_total: string;
-  seller_shipping_cost: string;
   tax_total: string;
   discount_total: string;
   discount_reason: string;
-  shipper: string;
-  shipping_date: string;
-  tracking_number: string;
-  package_weight_oz: string;
-  package_length_in: string;
-  package_width_in: string;
-  package_height_in: string;
   notes: string;
 };
 
-function orderToDraft(order: Order, defaults?: PackageDefaults): DraftFields {
+function orderToDraft(order: Order): DraftFields {
   return {
     ship_to_first_name: order.ship_to_first_name ?? "",
     ship_to_last_name: order.ship_to_last_name ?? "",
@@ -77,27 +65,13 @@ function orderToDraft(order: Order, defaults?: PackageDefaults): DraftFields {
     ship_to_postal_code: order.ship_to_postal_code ?? "",
     ship_to_country: order.ship_to_country ?? "",
     shipping_total: String(order.shipping_total ?? ""),
-    seller_shipping_cost: String(order.seller_shipping_cost ?? ""),
     tax_total: String(order.tax_total ?? ""),
     discount_total: String(order.discount_total ?? ""),
-    discount_reason: (order as Record<string, unknown>).discount_reason as string ?? "",
-    shipper: order.shipper ?? "",
-    shipping_date: order.shipping_date ?? "",
-    tracking_number: order.tracking_number ?? "",
-    package_weight_oz: order.package_weight_oz != null ? String(order.package_weight_oz) : (defaults?.weight_oz ?? ""),
-    package_length_in: order.package_length_in != null ? String(order.package_length_in) : (defaults?.length_in ?? ""),
-    package_width_in: order.package_width_in != null ? String(order.package_width_in) : (defaults?.width_in ?? ""),
-    package_height_in: order.package_height_in != null ? String(order.package_height_in) : (defaults?.height_in ?? ""),
+    discount_reason:
+      ((order as Record<string, unknown>).discount_reason as string) ?? "",
     notes: order.notes ?? "",
   };
 }
-
-type PackageDefaults = {
-  weight_oz: string;
-  length_in: string;
-  width_in: string;
-  height_in: string;
-};
 
 function inventoryLabel(inventoryId: number, items: InventoryItem[]): string {
   const item = items.find((row) => row.id === inventoryId);
@@ -154,23 +128,14 @@ export function OrderDetailPanel({
   const [lineItemQty, setLineItemQty] = useState("1");
   const [removeLineTarget, setRemoveLineTarget] = useState<OrderItem | null>(null);
   const [lineItemBusy, setLineItemBusy] = useState(false);
-  const [labelError, setLabelError] = useState<{
-    message: string;
-    isShippingInfo?: boolean;
-  } | null>(null);
   const [recoveryApplied, setRecoveryApplied] = useState(false);
   const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
   const [discountReasons, setDiscountReasons] = useState<string[]>([]);
   const [addingNewReason, setAddingNewReason] = useState(false);
   const [newReasonText, setNewReasonText] = useState("");
-  const [rateModalOpen, setRateModalOpen] = useState(false);
-  const [voidLabelConfirm, setVoidLabelConfirm] = useState(false);
-  const pkgDefaultsRef = useRef<PackageDefaults>({ weight_oz: "", length_in: "", width_in: "", height_in: "" });
-  const router = useRouter();
-
   const isDirty = useMemo(() => {
     if (!order || !draft) return false;
-    return !formStatesEqual(draft, orderToDraft(order, pkgDefaultsRef.current));
+    return !formStatesEqual(draft, orderToDraft(order));
   }, [order, draft]);
 
   const { registerOnDiscard } = useUnsavedChanges();
@@ -187,7 +152,7 @@ export function OrderDetailPanel({
   useEffect(() => {
     if (!order) return;
     return registerOnDiscard(() => {
-      setDraft(orderToDraft(order, pkgDefaultsRef.current));
+      setDraft(orderToDraft(order));
       setRecoveryApplied(false);
     });
   }, [order, registerOnDiscard]);
@@ -244,35 +209,27 @@ export function OrderDetailPanel({
     async (id: number) => {
       setLoading(true);
       try {
-        const [orderRes, settingsRes] = await Promise.all([
-          fetch(`/api/orders/${id}`, { headers: { Accept: "application/json" } }),
-          fetch("/api/settings", { headers: { Accept: "application/json" }, credentials: "include" }),
-        ]);
-        const data = (await orderRes.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
+        const orderRes = await fetch(`/api/orders/${id}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await orderRes.json().catch(() => ({}))) as ApiErrorShape & {
+          order?: Order;
+        };
         if (!orderRes.ok) throw data;
-
-        let defaults = pkgDefaultsRef.current;
-        if (settingsRes.ok) {
-          const settingsData = (await settingsRes.json().catch(() => ({}))) as { items?: Array<{ key: string; value: string }> };
-          if (settingsData.items) {
-            const map = new Map(settingsData.items.map((s) => [s.key, s.value]));
-            defaults = {
-              weight_oz: map.get("easypost.default_weight_oz") || "",
-              length_in: map.get("easypost.default_length_in") || "",
-              width_in: map.get("easypost.default_width_in") || "",
-              height_in: map.get("easypost.default_height_in") || "",
-            };
-            pkgDefaultsRef.current = defaults;
-          }
-        }
 
         if (data.order) {
           setOrder(data.order);
-          setDraft(orderToDraft(data.order, defaults));
-          setLinkCustomerId(data.order.customer_id ? String(data.order.customer_id) : "");
+          setDraft(orderToDraft(data.order));
+          setLinkCustomerId(
+            data.order.customer_id ? String(data.order.customer_id) : ""
+          );
         }
       } catch (err) {
-        onErrorRef.current("Could not load order", "We could not load order details.", err);
+        onErrorRef.current(
+          "Could not load order",
+          "We could not load order details.",
+          err
+        );
         setOrder(null);
         setDraft(null);
       } finally {
@@ -329,7 +286,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
+        setDraft(orderToDraft(data.order));
         onOrderUpdated(data.order);
       }
       setAddItemOpen(false);
@@ -354,7 +311,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
+        setDraft(orderToDraft(data.order));
         onOrderUpdated(data.order);
       }
       setRemoveLineTarget(null);
@@ -384,52 +341,6 @@ export function OrderDetailPanel({
     }
   };
 
-  const printShippingLabel = async () => {
-    if (!orderId) return;
-    try {
-      const response = await fetch(`/api/orders/${orderId}/shipping-label?format=html`, {
-        headers: { Accept: "text/html" },
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        const msg = data.error?.user_message ?? "We could not generate the shipping label.";
-        setLabelError({
-          message: msg,
-          isShippingInfo: msg.toLowerCase().includes("shipping info"),
-        });
-        return;
-      }
-      const html = await response.text();
-      const win = window.open("", "_blank");
-      if (!win) {
-        onError("Pop-up blocked", "Allow pop-ups to print the shipping label.");
-        return;
-      }
-      win.document.write(html);
-      win.document.close();
-    } catch (err) {
-      onError("Could not print label", "We could not open the shipping label.", err);
-    }
-  };
-
-  const handleVoidLabel = async () => {
-    if (!orderId || !order) return;
-    try {
-      const res = await fetch(`/api/orders/${orderId}/shipping-refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as ApiErrorShape;
-        throw new Error(data.error?.user_message ?? "Could not void the label.");
-      }
-      onSuccess?.("Label voided", "The shipping label refund has been submitted.");
-      void loadOrder(orderId);
-    } catch (err) {
-      onError("Void label failed", err instanceof Error ? err.message : "Could not void the label.", err);
-    }
-  };
-
   const saveChanges = async () => {
     if (!orderId || !order || !draft) return;
     setSaving(true);
@@ -443,20 +354,14 @@ export function OrderDetailPanel({
         ship_to_state_province: draft.ship_to_state_province.trim() || null,
         ship_to_postal_code: draft.ship_to_postal_code.trim() || null,
         ship_to_country: draft.ship_to_country.trim() || null,
-        shipping_total: draft.shipping_total.trim() ? Number(draft.shipping_total) : null,
-        seller_shipping_cost: draft.seller_shipping_cost.trim()
-          ? Number(draft.seller_shipping_cost)
+        shipping_total: draft.shipping_total.trim()
+          ? Number(draft.shipping_total)
           : null,
         tax_total: draft.tax_total.trim() ? Number(draft.tax_total) : null,
-        discount_total: draft.discount_total.trim() ? Number(draft.discount_total) : null,
+        discount_total: draft.discount_total.trim()
+          ? Number(draft.discount_total)
+          : null,
         discount_reason: draft.discount_reason.trim() || null,
-        shipper: draft.shipper.trim() || null,
-        shipping_date: draft.shipping_date.trim() || null,
-        tracking_number: draft.tracking_number.trim() || null,
-        package_weight_oz: draft.package_weight_oz.trim() ? Number(draft.package_weight_oz) : null,
-        package_length_in: draft.package_length_in.trim() ? Number(draft.package_length_in) : null,
-        package_width_in: draft.package_width_in.trim() ? Number(draft.package_width_in) : null,
-        package_height_in: draft.package_height_in.trim() ? Number(draft.package_height_in) : null,
         notes: draft.notes.trim() || null,
       };
       const { previousState, newState } = pickChangedFields(
@@ -473,7 +378,7 @@ export function OrderDetailPanel({
         pickRecord: (data) => (data.order as Order | undefined) ?? null,
         onPatched: (updated) => {
           setOrder(updated);
-          setDraft(orderToDraft(updated, pkgDefaultsRef.current));
+          setDraft(orderToDraft(updated));
           onOrderUpdated(updated);
         },
       });
@@ -517,7 +422,7 @@ export function OrderDetailPanel({
       if (!response.ok) throw data;
       if (data.order) {
         setOrder(data.order);
-        setDraft(orderToDraft(data.order, pkgDefaultsRef.current));
+        setDraft(orderToDraft(data.order));
         onOrderUpdated(data.order);
       }
     } catch (err) {
@@ -795,12 +700,19 @@ export function OrderDetailPanel({
             </span>
           </p>
           {field("shipping_total", "Shipping (buyer pays)", "text", "Amount the buyer paid for shipping.")}
-          {field(
-            "seller_shipping_cost",
-            "Shipping cost (seller)",
-            "text",
-            "What you paid the carrier to ship this order to the buyer."
-          )}
+          <p className="text-xs text-[var(--ui-muted)]">
+            Seller shipping cost{" "}
+            <HelpTooltip text="The postage you paid — editable in the Shipping tab." />
+            <span className="block text-sm text-[var(--ui-body)]">
+              {fmtMoney(order.seller_shipping_cost)}
+            </span>
+            <a
+              href={`/shipping?orderId=${order.id}`}
+              className="text-[var(--ui-accent)] hover:underline text-xs"
+            >
+              Edit in Shipping →
+            </a>
+          </p>
           <div>
             {field("tax_total", "Tax", "text", "Total sales tax collected on this order.")}
             {defaultTaxRate != null && !isVoid && (
@@ -889,137 +801,6 @@ export function OrderDetailPanel({
       </section>
 
       <section className="mb-4">
-        <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Shipping</h5>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <FormField label="Carrier" helpText="Carrier used to ship this order.">
-            <select
-              value={draft.shipper}
-              onChange={(e) => setDraft((c) => (c ? { ...c, shipper: e.target.value } : c))}
-              disabled={busy || saving || isVoid}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm disabled:opacity-50"
-            >
-              <option value="">—</option>
-              {SHIPPERS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          {field("shipping_date", "Ship date", "date")}
-          <div className="sm:col-span-2">
-            {field(
-              "tracking_number",
-              "Tracking number",
-              "text",
-              "The carrier tracking number for this shipment. Customers can use this to track their package."
-            )}
-          </div>
-          {order.shipping_carrier_service ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--ui-muted)]">Service:</span>
-              <span className="text-sm text-[var(--ui-body)]">{order.shipping_carrier_service}</span>
-            </div>
-          ) : null}
-          {order.shipping_rate_cents != null && order.shipping_rate_cents > 0 ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--ui-muted)]">Postage:</span>
-              <span className="text-sm text-[var(--ui-body)]">{fmtMoney(order.shipping_rate_cents / 100)}</span>
-            </div>
-          ) : null}
-          {order.tracking_number ? (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(order.tracking_number ?? "");
-                  onSuccess?.("Copied", "Tracking number copied to clipboard.");
-                }}
-              >
-                Copy tracking #
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="mb-4">
-        <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Package dimensions</h5>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <FormField label="Weight (oz)" helpText="Pre-filled from Config defaults.">
-            <input
-              id="pkg-weight"
-              type="number"
-              min="0"
-              step="0.1"
-              value={draft.package_weight_oz}
-              onChange={(e) => setDraft((c) => c ? { ...c, package_weight_oz: e.target.value } : c)}
-              disabled={busy || saving || isVoid}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
-            />
-          </FormField>
-          <FormField label="Length (in)">
-            <input
-              id="pkg-length"
-              type="number"
-              min="0"
-              step="0.1"
-              value={draft.package_length_in}
-              onChange={(e) => setDraft((c) => c ? { ...c, package_length_in: e.target.value } : c)}
-              disabled={busy || saving || isVoid}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
-            />
-          </FormField>
-          <FormField label="Width (in)">
-            <input
-              id="pkg-width"
-              type="number"
-              min="0"
-              step="0.1"
-              value={draft.package_width_in}
-              onChange={(e) => setDraft((c) => c ? { ...c, package_width_in: e.target.value } : c)}
-              disabled={busy || saving || isVoid}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
-            />
-          </FormField>
-          <FormField label="Height (in)">
-            <input
-              id="pkg-height"
-              type="number"
-              min="0"
-              step="0.1"
-              value={draft.package_height_in}
-              onChange={(e) => setDraft((c) => c ? { ...c, package_height_in: e.target.value } : c)}
-              disabled={busy || saving || isVoid}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)] disabled:opacity-50"
-            />
-          </FormField>
-        </div>
-      </section>
-
-      {order.label_url ? (
-        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 mt-3 mb-4">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-[var(--ui-muted)] mb-2">
-            Purchased Label
-          </h4>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => window.open(`/api/orders/${order.id}/shipping-label?format=pdf`, "_blank")}
-            >
-              Print Label
-            </Button>
-            <span className="text-sm text-[var(--ui-body)]">
-              {order.shipping_carrier_service ?? "Label"}
-              {order.shipping_rate_cents ? ` — ${fmtMoney(order.shipping_rate_cents / 100)}` : ""}
-            </span>
-          </div>
-        </div>
-      ) : null}
-
-      <section className="mb-4">
         <h5 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Notes</h5>
         <textarea
           value={draft.notes}
@@ -1064,54 +845,12 @@ export function OrderDetailPanel({
             Mark paid
           </Button>
         ) : null}
-        {!isShipped && !isVoid ? (
-          <Button
-            variant="accent"
-            size="sm"
-            onClick={onMarkShipped}
-            disabled={busy || saving}
-          >
-            Mark shipped…
-          </Button>
-        ) : null}
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={() => setRateModalOpen(true)}
-          disabled={busy || saving || isVoid || !!order.label_url}
-        >
-          Buy &amp; Print Label
-        </Button>
-        {order.label_url && !isShipped ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setVoidLabelConfirm(true)}
-            disabled={busy || saving}
-          >
-            Void label
-          </Button>
-        ) : null}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void printShippingLabel()}
-          disabled={busy || saving || isVoid}
-        >
-          Print address label
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => queueDocument("label")}
-          disabled={busy || saving || isVoid}
-        >
-          Add label to queue
-        </Button>
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => window.open(`/api/reports/invoice/${order.id}?format=pdf`, "_blank")}
+          onClick={() =>
+            window.open(`/api/reports/invoice/${order.id}?format=pdf`, "_blank")
+          }
         >
           Print invoice
         </Button>
@@ -1236,19 +975,6 @@ export function OrderDetailPanel({
       ) : null}
 
       <ConfirmDialog
-        open={labelError != null}
-        onClose={() => setLabelError(null)}
-        onConfirm={() => {
-          setLabelError(null);
-          if (labelError?.isShippingInfo) router.push("/config#shipping");
-        }}
-        title="Cannot print shipping label"
-        description={labelError?.message ?? ""}
-        confirmLabel={labelError?.isShippingInfo ? "Go to Config" : "OK"}
-        confirmVariant={labelError?.isShippingInfo ? "accent" : "danger"}
-      />
-
-      <ConfirmDialog
         open={removeLineTarget != null}
         onClose={() => setRemoveLineTarget(null)}
         onConfirm={() => void removeLineItem()}
@@ -1263,31 +989,6 @@ export function OrderDetailPanel({
         busy={lineItemBusy}
       />
 
-      <ConfirmDialog
-        open={voidLabelConfirm}
-        onClose={() => setVoidLabelConfirm(false)}
-        onConfirm={() => {
-          setVoidLabelConfirm(false);
-          void handleVoidLabel();
-        }}
-        title="Void shipping label?"
-        description="The postage will be refunded to your EasyPost wallet. This cannot be undone if the carrier has already scanned the label."
-        confirmLabel="Void label"
-        confirmVariant="danger"
-      />
-
-      <RateShoppingModal
-        open={rateModalOpen}
-        orderId={orderId}
-        order={order}
-        onClose={() => setRateModalOpen(false)}
-        onLabelPurchased={() => {
-          setRateModalOpen(false);
-          if (orderId) void loadOrder(orderId);
-          onSuccess?.("Label purchased", "Your shipping label is ready to print.");
-        }}
-        onError={onError}
-      />
     </div>
   );
 }

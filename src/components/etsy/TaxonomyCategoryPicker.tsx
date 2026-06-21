@@ -252,7 +252,7 @@ export default function TaxonomyCategoryPicker({
 
             {!loading && !showSearch && children.length === 0 && breadcrumb.length === 0 && (
               <p className="px-3 py-3 text-center text-xs text-[var(--ui-yellow)]">
-                No categories loaded. Sync Etsy categories from Config first.
+                No categories loaded. Sync Etsy categories from Settings first.
               </p>
             )}
 

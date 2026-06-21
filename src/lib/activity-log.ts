@@ -94,8 +94,17 @@ export function listActivity(options: {
   const params: Array<string | number> = [];
 
   if (options.entityType) {
-    where.push("entity_type = ?");
-    params.push(options.entityType);
+    const types = options.entityType
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (types.length === 1) {
+      where.push("entity_type = ?");
+      params.push(types[0]);
+    } else if (types.length > 1) {
+      where.push(`entity_type IN (${types.map(() => "?").join(", ")})`);
+      params.push(...types);
+    }
   }
   if (options.entityId != null) {
     where.push("entity_id = ?");

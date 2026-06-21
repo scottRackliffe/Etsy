@@ -79,6 +79,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | ------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `listing.draft_saved`    | `inventory` | Manual draft saved                                                                                                                 |
 | `listing.ai_generated`   | `inventory` | AI listing content generated                                                                                                       |
+| `listing.quality_evaluated` | `inventory` | Listing quality reviewed (ADR-081/082). `detail_json`: `{ score, issue_count }`                                                  |
+| `listing.shot_list_generated` | `inventory` | AI shot list generated (ADR-083). `detail_json`: `{ shot_count }`                                                            |
+| `inventory.dimensions_annotated` | `inventory` | Measurement photo rendered (ADR-084). `detail_json`: `{ length, width, height, unit, slot }`                              |
 | `listing.coach_complete` | `inventory` | Listing Coach saved new item. `detail_json`: `{ picture_count, google_photos_count, price_confidence, sale_revenue_set: boolean }` |
 | `listing.exported`       | `inventory` | Portable AI package exported. `detail_json`: `{ export_id }`                                                                       |
 | `listing.imported`       | `inventory` | Portable AI draft imported. `detail_json`: `{ export_id, source_label }`                                                           |
@@ -270,3 +273,168 @@ logActivity({
   - Every mutation endpoint gains a `logActivity` call — increases code in all routes.
   - Activity log table grows continuously; retention cleanup mitigates this.
   - Adds one more table and API endpoint to the system.
+
+---
+
+## Extensions (2026-06-21) — WS-A: full activity coverage, deep-links, and filters
+
+Source: `documents/PROGRAM_2026-06-21_major-enhancements.md` (workstream A). This block is
+**authoritative** where it overlaps the original sections above. No schema change: the existing
+`activity_log` table (ADR-017) is unchanged; we only broaden the **values** used in
+`entity_type` / `action` and specify the UI taxonomy.
+
+### A1. Expanded `entity_type` value set (canonical)
+
+The complete, closed set of `entity_type` values is now:
+
+`inventory` · `order` · `customer` · `address` · `receipt` · `vendor` · `expense` ·
+`tax_payment` · `shipping` · `report` · `communication` · `setting` · `sync` · `backup` · `system`
+
+> `communication` (ADR-078) covers outreach sends (payment reminders, thank-you notes).
+
+Notes:
+- **`order`** covers all customer sales (in this data model "Sales" = `orders`; there is no
+  separate `sale` entity_type — see A4 for the chip).
+- **`receipt`** = vendor purchase receipts (buying trips).
+- **`expense`** = business expenses / AP Lite (ADR-077). **`tax_payment`** = tax remittances
+  (ADR-039).
+- **`shipping`** = label/rate operations (ADR-074); `entity_id` holds the related **order id**.
+- **`report`** = report generation (was previously logged under `setting`; see A2 note).
+- **`setting`** = config/settings + auth events (chip label "Config"; auth shown under System).
+
+### A2. New / reclassified action catalog entries
+
+**Receipt actions (entity_type `receipt`, entity_id = receipt id):**
+
+| Action | Logged when |
+| --- | --- |
+| `receipt.created` | Vendor receipt created (scan or manual) |
+| `receipt.updated` | Receipt fields changed |
+| `receipt.deleted` | Receipt deleted (cascades items) |
+| `receipt.scanned` | OCR scan completed. `detail_json`: `{ item_count }` |
+| `receipt.item_linked` | Receipt item linked to inventory. `detail_json`: `{ inventory_id }` |
+| `receipt.item_unlinked` | Receipt item unlinked from inventory |
+
+**Vendor actions (entity_type `vendor`, entity_id = vendor id) — ADR-076:**
+
+| Action | Logged when |
+| --- | --- |
+| `vendor.created` | Vendor created |
+| `vendor.updated` | Vendor fields changed |
+| `vendor.deleted` | Vendor soft-deleted (`is_active=0`) |
+
+**Expense / AP Lite actions (entity_type `expense`, entity_id = expense id) — ADR-077:**
+
+| Action | Logged when |
+| --- | --- |
+| `expense.created` | Business expense created |
+| `expense.updated` | Expense fields changed |
+| `expense.deleted` | Expense deleted |
+| `expense.payment_recorded` | A payment recorded against an expense/bill. `detail_json`: `{ amount }` |
+| `expense.scanned` | OCR invoice scan completed |
+| `expense.recurring_generated` | Recurring expense instance generated. `detail_json`: `{ source_id }` |
+
+**Tax payment actions (entity_type `tax_payment`, entity_id = payment id) — ADR-039:**
+
+| Action | Logged when |
+| --- | --- |
+| `tax_payment.created` | Tax remittance recorded |
+| `tax_payment.updated` | Tax payment changed |
+| `tax_payment.deleted` | Tax payment deleted |
+
+**Shipping actions (entity_type `shipping`, entity_id = order id) — ADR-074:**
+
+| Action | Logged when |
+| --- | --- |
+| `shipping.rates_fetched` | Live rates retrieved for an order |
+| `shipping.label_purchased` | Label bought. `detail_json`: `{ carrier_service, rate_cents, tracking_number }` |
+| `shipping.label_refunded` | Label refund requested |
+| `shipping.batch_purchased` | Batch label buy (ADR-040). `detail_json`: `{ count, ids }` |
+
+> Note: `order.marked_shipped` remains an **order** action (status change). Carrier
+> label/rate operations are **shipping** actions. Both are valid and distinct.
+
+**Report actions — reclassified:** `report.generated` now uses **entity_type `report`**
+(previously `setting`). `detail_json`: `{ report_name, format }`. `entity_id` is null (reports
+have no persistent record row to select; see A3). `logActivity()` continues to accept the old
+form, but new code uses `entity_type: "report"`.
+
+**Config actions:** `settings.updated` (entity_type `setting`) is shown under the **Config**
+chip. Auth events (`auth.connected`, `auth.disconnected`, `auth.token_refreshed`) keep
+entity_type `setting` but are surfaced under the **System** chip (see A4).
+
+### A3. Deep-link mapping (with ADR-035) and the **deleted = no link** rule
+
+Each activity row's `entity_label` becomes a link to the underlying record **only** when a
+target exists and the record still exists. Mapping (`activityEntityHref(entity_type, entity_id)`):
+
+| entity_type | Link target (ADR-035) |
+| --- | --- |
+| `inventory` | `/inventory?itemId={id}` |
+| `order` | `/orders?orderId={id}` |
+| `customer` | `/customers?customerId={id}` |
+| `address` | `/customers?customerId={customer_id}` (parent customer) |
+| `receipt` | `/receipts?receiptId={id}` |
+| `vendor` | `/vendors?vendorId={id}` |
+| `expense` | `/expenses?expenseId={id}` |
+| `tax_payment` | `/expenses?taxPaymentId={id}` (Tax section) |
+| `shipping` | `/orders?orderId={id}` until WS-F ships, then `/shipping?orderId={id}` |
+| `report` | no link (no persistent record) |
+| `setting` | no link (config has no per-row record) |
+| `sync` / `backup` / `system` | no link |
+
+**Deleted = no link (locked WS-A decision):** for any action that **removes** a record, the row
+renders with **no link** even though `entity_id` is present, because the target no longer
+exists. Closed list of "removal" actions: `*.deleted` (`inventory.deleted`, `customer.deleted`,
+`address.deleted`, `receipt.deleted`, `vendor.deleted`, `expense.deleted`, `tax_payment.deleted`)
+and `customer.batch_deleted`. **Status-only changes keep their link** (e.g. `order.voided`,
+`vendor.deleted` is a soft-delete so it *may* still resolve — but for consistency we treat all
+`*.deleted` actions as no-link). Implementation: `activityEntityHref` returns `null` when the
+action matches the removal list.
+
+### A4. Filter-chip taxonomy (Activity log)
+
+The Activity log (full view; ADR-016 §6 right column) shows these chips. Each chip maps to one or
+more `entity_type` values passed to `GET /api/activity` (see A5):
+
+| Chip label | Maps to entity_type(s) |
+| --- | --- |
+| All | (no filter) |
+| Inventory | `inventory` (includes listing.* actions) |
+| Sales / Orders | `order` |
+| Customers | `customer`, `address` |
+| Receipts | `receipt` |
+| Vendors | `vendor` |
+| AP Lite | `expense`, `tax_payment` |
+| Reports | `report` |
+| Shipping | `shipping` |
+| Communications | `communication` (ADR-078) |
+| Config | `setting` (excluding auth.* which show under System) |
+| Sync | `sync` |
+| System | `system`, plus `auth.*` actions |
+| Backup | `backup` |
+
+Both the **Recent Activity** (newest 25, no filters — ADR-016 §6) and the **Activity log** (full,
+filterable) draw from the **same** `activity_log` data; only the Activity log exposes the chips.
+
+### A5. API — filter by multiple entity types
+
+`GET /api/activity` (ADR-018) gains support for a **comma-separated** `entity_type` value so a
+single chip can cover multiple types (e.g. `entity_type=expense,tax_payment` for AP Lite;
+`entity_type=customer,address` for Customers). Single-value usage is unchanged and backward
+compatible. The `source` filter (`user|system|etsy_sync`) and existing params are unchanged.
+System chip additionally matches `action LIKE 'auth.%'`; this composite is resolved server-side
+(documented in ADR-018 WS-A addendum).
+
+### A6. Coverage requirement
+
+Every mutating route for the entities above MUST call `logActivity()` after success (per the
+original "Integration points" section), using the canonical `entity_type`/`action` values in A1–A2.
+This is the WS-A "all records listed on both reports" requirement: because both dashboard views
+read the same table, full logging coverage automatically populates both.
+
+**Cross-references checked (.cursorrules §1b):** ADR-016 (dashboard views render this data),
+ADR-035 (deep-link targets — A3 adds receipt/vendor/expense/tax_payment/shipping; ADR-035 updated
+accordingly), ADR-018 (`/api/activity` multi-type filter — A5), ADR-039/057/058/069/074/076/077
+(action sources), ADR-017 (no schema change). `.cursorrules` "Activity log source" enum and the
+entity_type list to be updated when WS-A implements.

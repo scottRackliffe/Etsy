@@ -101,6 +101,12 @@ One row per inventory item. Source: ADR-002.
 | listing_approved_at            | TEXT    | —                         | ISO 8601 timestamp when draft approved.                                                                         |
 | listing_published_at           | TEXT    | —                         | ISO 8601 timestamp when published to Etsy.                                                                      |
 | is_listed                      | INTEGER | DEFAULT 0                 | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
+| listing_phase                  | TEXT    | —                         | Listing lifecycle phase (ADR-081): needs_data, ready_to_generate, generated, needs_quality_remediation, listing_ready. Derived-but-stored; separate from `status`. |
+| listing_source_hash            | TEXT    | —                         | Hash of contributing inputs at generation time, for drift detection (ADR-081).                                  |
+| listing_generated_at           | TEXT    | —                         | ISO 8601 timestamp of last successful listing generation (ADR-081).                                             |
+| listing_quality_json           | TEXT    | —                         | Cached latest listing-quality result JSON: score, categories, remediation (ADR-082).                            |
+| shot_list_json                 | TEXT    | —                         | AI-generated photo shot list JSON: array of {shot_type, name, purpose, pass_spec, tips, required} (ADR-083). `captured` is derived at read time. |
+| dimension_annotation_json      | TEXT    | —                         | Confirmed dimensions + rendered measurement-photo metadata (slot, alt_text, optional ruler ref) for re-render (ADR-084). |
 | notes                          | TEXT    | —                         | Optional.                                                                                                       |
 | created_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
 | updated_at                     | TEXT    | —                         | ISO 8601 timestamp.                                                                                             |
@@ -684,6 +690,12 @@ CREATE TABLE inventory (
   listing_approved_at TEXT,
   listing_published_at TEXT,
   is_listed INTEGER DEFAULT 0,
+  listing_phase TEXT,
+  listing_source_hash TEXT,
+  listing_generated_at TEXT,
+  listing_quality_json TEXT,
+  shot_list_json TEXT,
+  dimension_annotation_json TEXT,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT
@@ -1068,7 +1080,34 @@ CREATE TABLE IF NOT EXISTS business_expenses (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- 6h. communication_log (ADR-078) — customer outreach audit (payment reminders, thank-you notes)
+CREATE TABLE IF NOT EXISTS communication_log (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_type  TEXT NOT NULL,                  -- payment_reminder | thank_you | (future)
+  channel       TEXT NOT NULL,                  -- email | print
+  order_id      INTEGER,
+  customer_id   INTEGER,
+  recipient     TEXT,                           -- email address, or 'print'
+  subject       TEXT,
+  body_snapshot TEXT,
+  status        TEXT NOT NULL DEFAULT 'queued', -- queued | sent | printed | failed
+  error         TEXT,
+  sent_at       TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL,
+  FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comm_log_order ON communication_log(order_id);
+CREATE INDEX IF NOT EXISTS idx_comm_log_type ON communication_log(message_type);
+CREATE INDEX IF NOT EXISTS idx_comm_log_created ON communication_log(created_at);
 ```
+
+> **§6h `communication_log` (ADR-078):** outreach send tracking. `message_type`:
+> `payment_reminder | thank_you` (extensible). `channel`: `email | print`. `status`:
+> `queued | sent | printed | failed`. Related `settings` keys (ADR-078 §4–§5, ADR-034):
+> `email.smtp_host/port/secure/user`, `email.smtp_pass_encrypted`, `email.from_name`,
+> `email.from_address`, `email.enabled`, and `comm.template.<type>.subject|body`.
 
 ---
 

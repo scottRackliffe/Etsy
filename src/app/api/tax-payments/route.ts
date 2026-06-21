@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/sqlite";
+import { getAllTaxPayments } from "@/lib/tax-payments";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET() {
-  const rows = getDb()
-    .prepare(
-      `SELECT id, payment_date, amount, payee, reason,
-              period_from, period_to, reference_number, notes, created_at
-       FROM tax_payments
-       ORDER BY payment_date DESC`
-    )
-    .all();
-
-  return NextResponse.json({ ok: true, items: rows });
+  const items = getAllTaxPayments();
+  return NextResponse.json({ ok: true, items });
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +26,8 @@ export async function POST(request: NextRequest) {
     )
     .run(payment_date, amount, payee || null, reason || null, period_from || null, period_to || null, reference_number || null, notes || null);
 
-  const row = getDb().prepare("SELECT * FROM tax_payments WHERE id = ?").get(result.lastInsertRowid);
+  const row = getDb().prepare("SELECT * FROM tax_payments WHERE id = ?").get(result.lastInsertRowid) as { id?: number; payee?: string; reason?: string } | undefined;
+  logActivity({ action: "tax_payment.created", entityType: "tax_payment", entityId: row?.id ?? undefined, entityLabel: payee || reason || "Tax payment" });
 
   return NextResponse.json({ ok: true, item: row }, { status: 201 });
 }

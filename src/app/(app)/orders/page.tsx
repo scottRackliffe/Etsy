@@ -709,7 +709,7 @@ function SalesPageInner() {
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-[var(--ui-title)]">Sales / Orders</h3>
+        <h3 className="text-lg font-semibold text-[var(--ui-title)]">Orders</h3>
         <Button variant="secondary" size="lg" onClick={syncEtsyOrders} busy={busyAction === "sync-etsy"} disabled={selectedShopId == null}>
           Sync Etsy receipts
         </Button>
@@ -964,7 +964,7 @@ function SalesPageInner() {
                 ? { label: "Sync from Etsy", onClick: () => void syncEtsyOrders() }
                 : {
                     label: "Connect Etsy first",
-                    onClick: () => router.push("/config#etsy-connection"),
+                    onClick: () => router.push("/settings#etsy-connection"),
                     variant: "secondary",
                   }
           }

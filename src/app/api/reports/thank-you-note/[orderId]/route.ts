@@ -2,6 +2,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { buildSingleOrderThankYou } from "@/lib/reporting";
 import { reportResponse, resolveReportFormat } from "@/lib/report-http";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: Request, context: { params: Promise<{ orderId: string }> }) {
   try {
@@ -38,6 +39,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
         canRetry: false,
       });
     }
+    logActivity({ action: "report.generated", entityType: "report", entityLabel: `thank-you #${orderId}`, detail: { report_name: "thank-you-note", format } });
     return await reportResponse(report.report_name, report, format);
   } catch (error) {
     return errorResponse(

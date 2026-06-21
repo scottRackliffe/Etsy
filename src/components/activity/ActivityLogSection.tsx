@@ -19,17 +19,35 @@ import {
 const ENTITY_FILTERS = [
   { value: "inventory", label: "Inventory" },
   { value: "order", label: "Orders" },
-  { value: "customer", label: "Customers" },
+  { value: "customer,address", label: "Customers" },
+  { value: "receipt", label: "Receipts" },
+  { value: "vendor", label: "Vendors" },
+  { value: "expense,tax_payment", label: "AP Lite" },
+  { value: "report", label: "Reports" },
+  { value: "shipping", label: "Shipping" },
+  { value: "setting", label: "Settings" },
   { value: "sync", label: "Sync" },
   { value: "system", label: "System" },
   { value: "backup", label: "Backup" },
 ];
 
-export function ActivityLogSection({ id }: { id?: string }) {
+/** Dashboard compact view: sized to fill the activity row beside Recent Activity. */
+const COMPACT_DASHBOARD_PAGE_SIZE = 19;
+
+export function ActivityLogSection({
+  id,
+  compact = false,
+  pageSize: pageSizeProp,
+}: {
+  id?: string;
+  compact?: boolean;
+  pageSize?: number;
+}) {
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
-  const { page, pageSize, offset, total, setPage, setTotal } = usePagination(25);
+  const initialPageSize = pageSizeProp ?? (compact ? COMPACT_DASHBOARD_PAGE_SIZE : 25);
+  const { page, pageSize, offset, total, setPage, setTotal } = usePagination(initialPageSize);
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,27 +93,32 @@ export function ActivityLogSection({ id }: { id?: string }) {
   return (
     <section
       id={id}
-      className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm"
+      className={`overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
     >
-      <div className="border-b border-[var(--ui-border)] px-5 py-4">
-        <h3 className="text-lg font-semibold text-[var(--ui-title)]">Activity log</h3>
-        <p className="text-sm text-[var(--ui-muted)]">Audit trail of changes across the app.</p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <label className="flex-1 min-w-[12rem] text-sm">
-            <span className="mb-1 block text-[var(--ui-muted)]">Search</span>
+      <div className={`shrink-0 border-b border-[var(--ui-border)] ${compact ? "px-3 py-2" : "px-5 py-4"}`}>
+        <h3 className={`font-semibold text-[var(--ui-title)] ${compact ? "text-base" : "text-lg"}`}>
+          Activity log
+        </h3>
+        {!compact && (
+          <p className="text-sm text-[var(--ui-muted)]">Audit trail of changes across the app.</p>
+        )}
+        <div className={`flex flex-wrap items-end gap-2 ${compact ? "mt-1.5" : "mt-3 gap-3"}`}>
+          <label className={`${compact ? "min-w-[7rem] flex-1 text-xs" : "min-w-[12rem] flex-1 text-sm"}`}>
+            {!compact && <span className="mb-1 block text-[var(--ui-muted)]">Search</span>}
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Record label or action…"
-              className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              aria-label="Search activity log"
+              className={`w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-[var(--ui-body)] shadow-inner focus:border-[var(--ui-accent)] focus:outline-none ${compact ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm"}`}
             />
           </label>
           <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
             Refresh
           </Button>
         </div>
-        <div className="mt-3">
+        <div className={compact ? "mt-1.5" : "mt-3"}>
           <FilterChipRow
             label="Entity type"
             value={entityFilter}
@@ -106,9 +129,12 @@ export function ActivityLogSection({ id }: { id?: string }) {
       </div>
 
       {loading ? (
-        <div className="space-y-2 p-5">
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <div key={idx} className="h-10 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
+        <div className={`space-y-1 ${compact ? "px-2 py-1" : "space-y-2 p-5"}`}>
+          {Array.from({ length: compact ? 8 : 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className={`animate-pulse rounded bg-[var(--ui-list-light)] ${compact ? "h-[18px]" : "h-10 rounded-lg"}`}
+            />
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -123,62 +149,94 @@ export function ActivityLogSection({ id }: { id?: string }) {
           }}
         />
       ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+        <div className={compact ? "flex min-h-0 flex-1 flex-col" : undefined}>
+          <div
+            className={`overflow-x-auto ${compact ? "min-h-0 flex-1 overflow-y-auto px-2 py-1" : ""}`}
+          >
+            <table
+              className={`w-full text-left ${compact ? "min-w-0 text-xs leading-tight" : "min-w-[640px] text-sm"}`}
+            >
               <thead>
-                <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs uppercase tracking-wide text-[var(--ui-muted)]">
-                  <th className="px-5 py-3 font-semibold">Time</th>
-                  <th className="px-5 py-3 font-semibold">Action</th>
-                  <th className="px-5 py-3 font-semibold">Record</th>
-                  <th className="px-5 py-3 font-semibold">Details</th>
-                  <th className="px-5 py-3 font-semibold">Source</th>
+                <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-bg)] text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
+                  <th className={`font-semibold ${compact ? "px-2 pb-1 pt-0" : "px-5 py-3"}`}>Time</th>
+                  <th className={`font-semibold ${compact ? "px-2 pb-1 pt-0" : "px-5 py-3"}`}>Action</th>
+                  <th className={`font-semibold ${compact ? "px-2 pb-1 pt-0" : "px-5 py-3"}`}>Record</th>
+                  {!compact && (
+                    <>
+                      <th className="px-5 py-3 font-semibold">Details</th>
+                      <th className="px-5 py-3 font-semibold">Source</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {items.map((entry, i) => {
-                  const href = activityEntityHref(entry.entity_type, entry.entity_id);
+                  const href = activityEntityHref(entry.entity_type, entry.entity_id, entry.action);
                   const detail = formatActivityDetail(entry.detail);
+                  const cellPad = compact ? "px-2 py-0.5" : "px-5 py-3";
                   return (
                     <tr
                       key={entry.id}
-                      className="border-b border-[var(--ui-border)]/70"
+                      className={`border-b ${compact ? "border-[var(--ui-border)]/30" : "border-[var(--ui-border)]/70"}`}
                       style={{
                         backgroundColor:
                           i % 2 === 0 ? "var(--ui-list-dark)" : "var(--ui-list-light)",
                       }}
                     >
-                      <td className="px-5 py-3 text-xs text-[var(--ui-muted)] whitespace-nowrap">
+                      <td
+                        className={`whitespace-nowrap text-[var(--ui-muted)] ${compact ? "text-[10px]" : "text-xs"} ${cellPad}`}
+                      >
                         {formatActivityTimestamp(entry.created_at)}
                       </td>
-                      <td className="px-5 py-3 font-medium text-[var(--ui-title)]">
+                      <td className={`font-medium text-[var(--ui-title)] ${cellPad}`}>
                         {formatActivityAction(entry.action)}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className={`min-w-0 ${cellPad}`}>
                         {entry.entity_label && href ? (
-                          <Link href={href} className="text-[var(--ui-accent)] hover:underline">
+                          <Link
+                            href={href}
+                            className="block truncate text-[var(--ui-accent)] hover:underline"
+                            title={entry.entity_label}
+                          >
                             {entry.entity_label}
                           </Link>
                         ) : (
-                          <span className="text-[var(--ui-body)]">{entry.entity_label ?? "—"}</span>
+                          <span
+                            className="block truncate text-[var(--ui-body)]"
+                            title={entry.entity_label ?? undefined}
+                          >
+                            {entry.entity_label ?? "—"}
+                          </span>
                         )}
                       </td>
-                      <td className="px-5 py-3 max-w-xs truncate text-xs text-[var(--ui-muted)]">
-                        {detail ?? "—"}
-                      </td>
-                      <td className="px-5 py-3 text-xs uppercase text-[var(--ui-muted)]">
-                        {entry.source}
-                      </td>
+                      {!compact && (
+                        <>
+                          <td className="max-w-xs truncate px-5 py-3 text-xs text-[var(--ui-muted)]">
+                            {detail ?? "—"}
+                          </td>
+                          <td className="px-5 py-3 text-xs uppercase text-[var(--ui-muted)]">
+                            {entry.source}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <div className="border-t border-[var(--ui-border)] px-5 py-3">
-            <PaginationBar page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+          <div
+            className={`shrink-0 border-t border-[var(--ui-border)] ${compact ? "px-3 py-1.5" : "px-5 py-3"}`}
+          >
+            <PaginationBar
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              dense={compact}
+            />
           </div>
-        </>
+        </div>
       )}
     </section>
   );

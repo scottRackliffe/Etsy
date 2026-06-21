@@ -106,7 +106,7 @@ Vertical list of order cards, each showing:
 
 Each order card shows the following fields at a glance:
 
-1. **order_number** — clickable link that navigates to Sales tab with deep-link param (`/sales?orderId=<id>`)
+1. **order_number** — clickable link that navigates to Sales tab with deep-link param (`/orders?orderId=<id>`)
 2. **order_date** — formatted per app's `ui.date_format` setting
 3. **grand_total** — formatted per currency setting (`ui.currency_code`)
 4. **payment_status badge** — green "Paid", yellow "Unpaid", or grey "Refunded"
@@ -121,7 +121,7 @@ Each order card shows the following fields at a glance:
 
 ### Click behavior
 
-- Clicking an order number or the order card navigates to `/sales?orderId=<id>` (ADR-035 deep link).
+- Clicking an order number or the order card navigates to `/orders?orderId=<id>` (ADR-035 deep link).
 - The Sales page reads the `orderId` param, selects the order, and opens the detail panel.
 
 ### Empty state

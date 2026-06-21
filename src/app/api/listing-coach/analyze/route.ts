@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         userMessage: `We could not analyze your photos right now. (${detail})`,
         actions: [
           "Try again in a moment.",
-          "Verify AI configuration in Config if this keeps failing.",
+          "Verify AI configuration in Settings if this keeps failing.",
         ],
       })
     );

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { useApp } from "@/context/AppContext";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   activityEntityHref,
@@ -12,21 +11,92 @@ import {
   formatActivityTimestamp,
   type ActivityItem,
 } from "@/lib/activity-display";
-import { ProgressModal } from "@/components/ui/ProgressModal";
-import { useEtsySync } from "@/hooks/useEtsySync";
-import { useToast } from "@/hooks/useToast";
+import { usePagination } from "@/hooks/usePagination";
+
+const COMPACT_LIMIT = 25;
+const COMPACT_GRID_COLS = "grid-cols-[4.25rem_minmax(0,1fr)_auto]";
+const COMPACT_COL_GAP = "gap-x-[0.3rem]";
+
+function formatActivitySource(source: string): string {
+  switch (source) {
+    case "user":
+      return "User";
+    case "system":
+      return "System";
+    case "etsy_sync":
+      return "Etsy";
+    default:
+      return source.replace(/_/g, " ");
+  }
+}
+
+function formatCompactActivityText(entry: ActivityItem): string {
+  const action = formatActivityAction(entry.action);
+  return entry.entity_label ? `${action} · ${entry.entity_label}` : action;
+}
+
+function CompactActivityRows({ items }: { items: ActivityItem[] }) {
+  return (
+    <ul className="space-y-0">
+      {items.map((entry) => {
+        const href = activityEntityHref(entry.entity_type, entry.entity_id, entry.action);
+        const activityText = formatCompactActivityText(entry);
+        return (
+          <li
+            key={entry.id}
+            className={`grid ${COMPACT_GRID_COLS} ${COMPACT_COL_GAP} items-start border-b border-[var(--ui-border)]/30 py-0.5 last:border-b-0`}
+          >
+            <time className="text-[10px] leading-tight text-[var(--ui-muted)] whitespace-nowrap">
+              {formatActivityTimestamp(entry.created_at)}
+            </time>
+            <p
+              className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-tight text-[var(--ui-body)]"
+              title={activityText}
+            >
+              <span className="font-medium text-[var(--ui-title)]">
+                {formatActivityAction(entry.action)}
+              </span>
+              {entry.entity_label ? (
+                <>
+                  {" · "}
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="text-[var(--ui-accent)] hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {entry.entity_label}
+                    </Link>
+                  ) : (
+                    <span>{entry.entity_label}</span>
+                  )}
+                </>
+              ) : null}
+            </p>
+            <span className="shrink-0 text-[10px] leading-tight text-[var(--ui-muted)] whitespace-nowrap">
+              {formatActivitySource(entry.source)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export function ActivityFeed({
   onViewAll,
-  onSyncComplete,
+  compact = false,
 }: {
   onViewAll?: () => void;
-  onSyncComplete?: () => void;
+  compact?: boolean;
 }) {
-  const { shops, selectedShopId, setBusyAction, setApiError } = useApp();
-  const { modal: syncModal, runSync } = useEtsySync();
-  const toast = useToast();
   const router = useRouter();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const {
+    pageSize: defaultPageSize,
+    offset: defaultOffset,
+    setTotal: setDefaultTotal,
+  } = usePagination(10);
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -35,61 +105,75 @@ export function ActivityFeed({
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch("/api/activity?limit=10", {
+      const params = new URLSearchParams({
+        limit: String(compact ? COMPACT_LIMIT : defaultPageSize),
+      });
+      if (!compact && defaultOffset > 0) {
+        params.set("offset", String(defaultOffset));
+      }
+      const response = await fetch(`/api/activity?${params}`, {
         headers: { Accept: "application/json" },
       });
       const data = (await response.json().catch(() => ({}))) as {
         items?: ActivityItem[];
+        pagination?: { total: number };
       };
       if (!response.ok) {
         setLoadError("Could not load recent activity.");
         setItems([]);
+        if (!compact) {
+          setDefaultTotal(0);
+        }
         return;
       }
       setItems(data.items ?? []);
+      if (!compact) {
+        setDefaultTotal(data.pagination?.total ?? data.items?.length ?? 0);
+      }
     } catch {
       setLoadError("Could not load recent activity.");
       setItems([]);
+      if (!compact) {
+        setDefaultTotal(0);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [compact, defaultPageSize, defaultOffset, setDefaultTotal]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const syncFromEtsy = () => {
-    if (!selectedShopId) return;
-    setBusyAction("sync-etsy");
-    void runSync(selectedShopId, {
-      onSuccess: async (result) => {
-        await load();
-        onSyncComplete?.();
-        const synced = result.synced ?? 0;
-        toast.showToast(
-          synced > 0
-            ? `Synced ${synced} order${synced !== 1 ? "s" : ""} from Etsy.`
-            : "Etsy sync complete — no new orders to import.",
-          synced > 0 ? "success" : "info"
-        );
-      },
-      onError: (err) => {
-        setApiError("Could not sync from Etsy", "We could not sync Etsy receipts.", err);
-      },
-    }).finally(() => setBusyAction(null));
-  };
+  const columnHeader = (
+    <div
+      className={`sticky top-0 z-10 grid ${COMPACT_GRID_COLS} ${COMPACT_COL_GAP} items-center border-b border-[var(--ui-border)]/50 bg-[var(--ui-card-bg)] pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-muted)]`}
+    >
+      <span>Time</span>
+      <span>Activity</span>
+      <span className="text-right">Originator</span>
+    </div>
+  );
 
   return (
     <>
-      <ProgressModal {...syncModal} />
-      <section className="overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4">
+      <section
+        className={`overflow-hidden rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] shadow-sm ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
+      >
+        <div
+          className={`flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border)] ${compact ? "px-3 py-2" : "px-5 py-4"}`}
+        >
           <div>
-            <h3 className="text-lg font-semibold text-[var(--ui-title)]">Recent activity</h3>
-            <p className="text-sm text-[var(--ui-muted)]">
-              Latest changes across orders, inventory, and customers.
-            </p>
+            <h3
+              className={`font-semibold text-[var(--ui-title)] ${compact ? "text-base" : "text-lg"}`}
+            >
+              Recent activity
+            </h3>
+            {!compact && (
+              <p className="text-sm text-[var(--ui-muted)]">
+                Latest changes across orders, inventory, and customers.
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {onViewAll ? (
@@ -103,32 +187,62 @@ export function ActivityFeed({
           </div>
         </div>
 
-        {loading ? (
+        {loadError ? (
+          <p className="p-5 text-sm text-[var(--ui-red)]">{loadError}</p>
+        ) : compact ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              ref={bodyRef}
+              className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1"
+            >
+              {columnHeader}
+              {loading ? (
+                <div className="space-y-1 py-1">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="h-[18px] animate-pulse rounded bg-[var(--ui-list-light)]"
+                    />
+                  ))}
+                </div>
+              ) : items.length === 0 ? (
+                <EmptyState
+                  message="No recent activity yet. Add inventory or process an order to get started."
+                  primaryAction={{
+                    label: "Go to Inventory",
+                    onClick: () => router.push("/inventory"),
+                  }}
+                  secondaryAction={{
+                    label: "View orders",
+                    onClick: () => router.push("/orders"),
+                    variant: "secondary",
+                  }}
+                />
+              ) : (
+                <CompactActivityRows items={items.slice(0, COMPACT_LIMIT)} />
+              )}
+            </div>
+          </div>
+        ) : loading ? (
           <div className="space-y-2 p-5">
             {Array.from({ length: 4 }).map((_, idx) => (
               <div key={idx} className="h-10 animate-pulse rounded-lg bg-[var(--ui-list-light)]" />
             ))}
           </div>
-        ) : loadError ? (
-          <p className="p-5 text-sm text-[var(--ui-red)]">{loadError}</p>
         ) : items.length === 0 ? (
           <EmptyState
-            message="No recent activity. Start by adding inventory or syncing orders from Etsy."
+            message="No recent activity yet. Add inventory or process an order to get started."
             primaryAction={{ label: "Go to Inventory", onClick: () => router.push("/inventory") }}
-            secondaryAction={
-              shops.length > 0
-                ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
-                : {
-                    label: "Connect Etsy first",
-                    onClick: () => router.push("/config#etsy-connection"),
-                    variant: "secondary",
-                  }
-            }
+            secondaryAction={{
+              label: "View orders",
+              onClick: () => router.push("/orders"),
+              variant: "secondary",
+            }}
           />
         ) : (
           <ul className="divide-y divide-[var(--ui-border)]/70">
             {items.map((entry) => {
-              const href = activityEntityHref(entry.entity_type, entry.entity_id);
+              const href = activityEntityHref(entry.entity_type, entry.entity_id, entry.action);
               return (
                 <li key={entry.id} className="px-5 py-3 text-sm">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">

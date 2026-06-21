@@ -99,3 +99,10 @@ We use a standard format for all ADRs:
 | [ADR-075](0075-api-usage-tracking.md)                              | API usage tracking — per-service monthly call counts (Etsy, OpenAI)                     |
 | [ADR-076](0076-vendor-subsystem.md)                                | Vendor subsystem — normalized vendor records, CRUD API, dedicated Vendors tab           |
 | [ADR-077](0077-business-expenses.md)                               | Business expenses — general overhead and operating cost tracking                        |
+| [ADR-078](0078-communications-and-customer-outreach.md)            | Communications & customer outreach — payment reminders, thank-you notes (Etsy-safe)     |
+| [ADR-079](0079-standard-entity-management-screen.md)               | Standard Entity Management Screen (SEMS) — one consistent form/list pattern             |
+| [ADR-080](0080-top-level-shipping-module.md)                       | Top-level Shipping module — split shipping out of Sales                                  |
+| [ADR-081](0081-listing-lifecycle-and-phases.md)                    | Listing lifecycle and phases — unified evaluate/generate/quality flow                    |
+| [ADR-082](0082-listing-quality-rubric.md)                          | Listing quality rubric — per-field and per-photo specifications                          |
+| [ADR-083](0083-ai-shot-list-generation.md)                         | AI shot-list generation from the primary photo                                           |
+| [ADR-084](0084-ai-dimension-annotation.md)                         | AI dimension annotation from a reference-ruler photo                                     |

@@ -7,7 +7,7 @@ import { logActivity } from "@/lib/activity-log";
 import { getInventoryById, validateItemForListingRequest } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { computeListingScore } from "@/lib/listing-score";
-import { getSetting } from "@/lib/settings-store";
+import { getMinQualityScore } from "@/lib/settings-store";
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -57,8 +57,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
-    const minScoreStr = getSetting("listing.min_quality_score");
-    const minScore = minScoreStr != null ? parseInt(minScoreStr, 10) : 80;
+    const minScore = getMinQualityScore();
     if (minScore > 0) {
       const scoreResult = computeListingScore(item, minScore);
       if (scoreResult.score < minScore) {

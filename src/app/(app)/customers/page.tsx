@@ -1167,7 +1167,7 @@ function CustomersPageInner() {
                 ? { label: "Sync from Etsy", onClick: () => void syncFromEtsy() }
                 : {
                     label: "Connect Etsy first",
-                    onClick: () => router.push("/config#etsy-connection"),
+                    onClick: () => router.push("/settings#etsy-connection"),
                     variant: "secondary",
                   }
           }

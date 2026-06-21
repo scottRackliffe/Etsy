@@ -157,7 +157,7 @@ function buildNavResults(data: SearchResponse | null, q: string, currCode = "USD
     const secondary = [name, formatMoney(order.grand_total, currCode)].filter(Boolean).join(" • ");
     items.push({
       key: `order-${order.id}`,
-      href: `/sales?orderId=${order.id}`,
+      href: `/orders?orderId=${order.id}`,
       primary: order.order_number,
       secondary,
       badge: order.order_status,
@@ -353,7 +353,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
             <ResultSection
               title="Orders"
               total={orders.total}
-              seeAllHref={`/sales?search=${encodeURIComponent(q)}`}
+              seeAllHref={`/orders?search=${encodeURIComponent(q)}`}
               onSeeAll={(href) => navigate(href, q)}
             >
               {orders.items.map((order) => {
@@ -374,7 +374,7 @@ export function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: (
                     onMouseEnter={() =>
                       setHighlightIndex(navResults.findIndex((n) => n.key === key))
                     }
-                    onClick={() => navigate(`/sales?orderId=${order.id}`, q)}
+                    onClick={() => navigate(`/orders?orderId=${order.id}`, q)}
                   />
                 );
               })}

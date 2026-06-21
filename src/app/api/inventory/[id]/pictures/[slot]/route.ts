@@ -12,6 +12,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
 import { removePicture } from "@/lib/picture-storage";
 import { logActivity } from "@/lib/activity-log";
+import { recomputeAndStoreListingPhase } from "@/lib/listing-phase";
 
 type PictureType = "main" | "condition";
 
@@ -60,6 +61,7 @@ export async function DELETE(
 
     await removePicture(inventoryId, slot, picType);
 
+    recomputeAndStoreListingPhase(inventoryId);
     const item = getDb().prepare("SELECT * FROM inventory WHERE id = ?").get(inventoryId);
     if (!item) {
       throw new ApiRouteError({

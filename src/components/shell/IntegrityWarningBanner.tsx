@@ -36,8 +36,8 @@ export function IntegrityWarningBanner() {
       className="border-b border-[var(--ui-red)]/50 bg-[var(--ui-red)]/20 px-4 py-2 text-center text-sm text-[var(--ui-red)]"
     >
       Database integrity issue detected. Please restore from backup (
-      <Link href="/config#backup-restore" className="underline underline-offset-2">
-        Config → Backup &amp; Restore
+      <Link href="/settings#backup-restore" className="underline underline-offset-2">
+        Settings → Backup &amp; Restore
       </Link>
       ).
     </div>

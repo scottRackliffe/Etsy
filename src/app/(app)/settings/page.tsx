@@ -1110,6 +1110,7 @@ export default function ConfigPage() {
         body: JSON.stringify({
           provider: "openai",
           model: aiConfig?.model ?? "gpt-4.1-mini",
+          economy_model: aiConfig?.economyModel ?? "",
           api_key: aiApiKeyDraft || undefined,
           base_url: aiConfig?.baseUrl ?? "",
           timeout_ms: aiConfig?.timeoutMs ?? 30000,
@@ -1197,7 +1198,7 @@ export default function ConfigPage() {
         },
         {
           key: "listing.min_quality_score",
-          value: publishConfig.minQualityScore.trim() || "80",
+          value: publishConfig.minQualityScore.trim() || "85",
         },
       ];
       for (const update of updates) {
@@ -1287,7 +1288,7 @@ export default function ConfigPage() {
     <>
       <ProgressModal {...progressModal} />
       <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-        <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Configuration</h3>
+        <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Settings</h3>
         <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4 lg:col-span-2">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Business profile</h4>
@@ -2206,6 +2207,7 @@ export default function ConfigPage() {
                   setAiConfig((current) => ({
                     provider: current?.provider ?? "openai",
                     model: e.target.value,
+                    economyModel: current?.economyModel ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2214,6 +2216,28 @@ export default function ConfigPage() {
                   }));
                 }}
                 placeholder="gpt-4.1-mini"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="Economy model (optional)"
+              helpText="Used for high-volume vision tasks (photo quality, shot list, measurements). Leave blank to use the primary model for everything."
+            >
+              <input
+                value={aiConfig?.economyModel ?? ""}
+                onChange={(e) => {
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: current?.model ?? "",
+                    economyModel: e.target.value,
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                placeholder="e.g. gpt-4.1-nano (blank = use primary model)"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
             </FormField>
@@ -2468,7 +2492,7 @@ export default function ConfigPage() {
                   onChange={(e) =>
                     setPublishConfig((c) => ({ ...c, minQualityScore: e.target.value }))
                   }
-                  placeholder="80"
+                  placeholder="85"
                   type="number"
                   min="0"
                   max="100"

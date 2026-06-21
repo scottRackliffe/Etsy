@@ -48,7 +48,7 @@ There is no way to quickly return to records the user was just working on. Users
 - Each entry shows the `label` and a relative timestamp ("2 min ago", "yesterday").
 - Clicking an entry navigates to the correct page with the appropriate deep-link query param:
   - Inventory → `/inventory?itemId=<id>`
-  - Orders → `/sales?orderId=<id>`
+  - Orders → `/orders?orderId=<id>`
   - Customers → `/customers?customerId=<id>`
 - A "Clear history" text button at the bottom of the dropdown clears all entries from `localStorage` and closes the dropdown.
 - If the list is empty, the dropdown shows "No recently viewed items."

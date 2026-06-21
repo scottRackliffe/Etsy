@@ -135,7 +135,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         action: triggerNewRecord,
         enabled:
           pathname.startsWith("/inventory") ||
-          pathname.startsWith("/sales") ||
+          pathname.startsWith("/orders") ||
           pathname.startsWith("/customers") ||
           pathname.startsWith("/vendors") ||
           pathname.startsWith("/expenses"),
@@ -168,7 +168,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         enabled:
           shops.length > 0 &&
           Boolean(selectedShopId) &&
-          (pathname.startsWith("/dashboard") || pathname.startsWith("/sales")),
+          (pathname.startsWith("/dashboard") || pathname.startsWith("/orders")),
       },
       {
         key: "z",
@@ -256,7 +256,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               Local mode — Etsy not connected
             </p>
             <p className="mt-1 text-sm text-[var(--ui-body)]">
-              Your API key may still be pending approval. Use Config → Sample Data to explore
+              Your API key may still be pending approval. Use Settings → Sample Data to explore
               inventory, customers, and orders locally. Connect Etsy when your key is active to
               sync.
             </p>
@@ -276,10 +276,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             ) : null}
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
-            <div className="mt-4 py-2 text-center text-xs text-[var(--ui-muted)] border-t border-[var(--ui-border)]">
-              The term &ldquo;Etsy&rdquo; is a trademark of Etsy, Inc. This application uses the
-              Etsy API but is not endorsed or certified by Etsy, Inc.
-            </div>
           </>
         )}
       </main>

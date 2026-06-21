@@ -4,6 +4,13 @@
 
 Accepted
 
+> **WS-F update (2026-06-21, ADR-080):** The Shipping section (carrier, ship date, tracking),
+> Package dimensions, the Label section + RateShoppingModal, "Mark as shipped", and the editable
+> `seller_shipping_cost` field have **moved to the top-level Shipping module** (`/shipping`,
+> `src/components/shipping/ShippingPanel.tsx`). The Sales order-detail panel retains header/status,
+> line items, editable ship-to address, Financials (read-only `seller_shipping_cost` mirror), Notes,
+> Mark-as-paid, Void/Cancel, and document actions. See ADR-080 for the authoritative split.
+
 ## Date
 
 2026-05-24
@@ -94,6 +101,16 @@ On screens < `lg`, panels stack vertically.
 | `tax_total`            | Tax                         | Yes       |                                                |
 | `discount_total`       | Discount                    | Yes       |                                                |
 | `grand_total`          | Grand total                 | Read-only | Computed: subtotal + shipping + tax − discount |
+
+> **Update (2026-06-21, ADR-080 / WS-F):** The **Shipping section, Package dimensions, and Label
+> section below are being moved OUT of the Sales order-detail panel into the new top-level
+> Shipping module (ADR-080).** After WS-F implements: Sales no longer renders these; the Shipping
+> module owns carrier/ship-date/tracking, package dimensions, seller shipping cost (editable
+> there), the Label section, and the EasyPost Rate Shopping Modal, plus the "Mark as shipped"
+> action (ADR-021 paid-check rule unchanged). In the Financials section above,
+> `seller_shipping_cost` becomes **read-only here** (set in Shipping, mirrored for the financial
+> summary). Ship-to address stays editable in Sales and is shown read-only in Shipping. Until
+> WS-F ships, the sections below remain as specified.
 
 **Shipping section:**
 

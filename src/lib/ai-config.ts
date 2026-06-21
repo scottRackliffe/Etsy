@@ -19,6 +19,32 @@ const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_RETRY_COUNT = 1;
 const DEFAULT_TOKEN_BUDGET = 2000;
 
+/**
+ * Task identifiers for model-lane selection (WS-AICOST). Economy-eligible tasks
+ * use `ai.economy_model` when set; all others use the primary `ai.model`.
+ */
+export type AiTask =
+  | "generate-listing"
+  | "listing-coach"
+  | "improve-listing"
+  | "photo-quality"
+  | "shot-list"
+  | "measure"
+  | "test";
+
+const ECONOMY_TASKS = new Set<AiTask>(["photo-quality", "shot-list", "measure"]);
+
+/**
+ * Resolve the model for a task: the economy model for economy-eligible tasks
+ * when one is configured, otherwise the primary model. Never throws; falls back
+ * to the primary model on a blank/whitespace economy value.
+ */
+export function resolveModelForTask(config: AiConfig, task: AiTask): string {
+  if (!ECONOMY_TASKS.has(task)) return config.model;
+  const economy = (getSetting("ai.economy_model") ?? "").trim();
+  return economy || config.model;
+}
+
 function parseIntSetting(value: string | null, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -52,7 +78,11 @@ export function getAiConfig(): AiConfig | null {
   };
 }
 
-export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & { apiKeyConfigured: boolean } {
+export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
+  apiKeyConfigured: boolean;
+  economyModel: string;
+} {
+  const economyModel = (getSetting("ai.economy_model") ?? "").trim();
   const config = getAiConfig();
   if (!config) {
     return {
@@ -63,6 +93,7 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & { apiKeyConfigur
       retryCount: parseIntSetting(getSetting("ai.retry_count"), DEFAULT_RETRY_COUNT),
       tokenBudget: parseIntSetting(getSetting("ai.token_budget"), DEFAULT_TOKEN_BUDGET),
       apiKeyConfigured: false,
+      economyModel,
     };
   }
   return {
@@ -73,12 +104,14 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & { apiKeyConfigur
     retryCount: config.retryCount,
     tokenBudget: config.tokenBudget,
     apiKeyConfigured: true,
+    economyModel,
   };
 }
 
 export function saveAiConfig(input: {
   provider?: string;
   model?: string;
+  economyModel?: string;
   apiKey?: string;
   baseUrl?: string | null;
   timeoutMs?: number;
@@ -91,6 +124,10 @@ export function saveAiConfig(input: {
   }
   if (input.model !== undefined) {
     setSetting("ai.model", input.model.trim() || DEFAULT_MODEL);
+  }
+  if (input.economyModel !== undefined) {
+    // Blank = use the primary model for economy-eligible tasks.
+    setSetting("ai.economy_model", input.economyModel.trim());
   }
   if (input.apiKey !== undefined) {
     setSetting("ai.api_key", input.apiKey.trim());

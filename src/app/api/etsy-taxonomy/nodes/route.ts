@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
         code: "INTERNAL_ERROR",
         message: "Failed to list taxonomy nodes",
         userMessage:
-          "Could not load Etsy categories. Try syncing categories from Config first.",
-        actions: ["Sync categories from Config.", "Try again later."],
+          "Could not load Etsy categories. Try syncing categories from Settings first.",
+        actions: ["Sync categories from Settings.", "Try again later."],
       })
     );
   }

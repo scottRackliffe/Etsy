@@ -198,7 +198,7 @@ One outstanding item per inventory row. Display: e.g. "Item &lt;item_number&gt; 
 
 When a user clicks an outstanding item in the Outstanding tab, the app navigates to the relevant page (Sales, Inventory, or Customers) with a deep-link query parameter that selects, scrolls to, and highlights the target record. ADR-035 defines the full deep-link protocol:
 
-- Paid-not-shipped / Unpaid / Missing-shipping-cost / Orders-missing-customer → navigates to `/sales?orderId=<id>`
+- Paid-not-shipped / Unpaid / Missing-shipping-cost / Orders-missing-customer → navigates to `/orders?orderId=<id>`
 - Not-listed / Missing-era-or-category → navigates to `/inventory?itemId=<id>`
 - Missing-address → navigates to `/customers?customerId=<id>`
 
