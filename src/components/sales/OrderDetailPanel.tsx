@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { RepeatCustomerBadge } from "@/components/customers/RepeatCustomerBadge";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConnection } from "@/context/ConnectionContext";
 import { formatCurrency } from "@/lib/format-currency";
@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
-import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { pickChangedFields, useUndoRedo } from "@/context/UndoRedoContext";
 import { useEntityDraft } from "@/hooks/useEntityDraft";
 import { formStatesEqual } from "@/lib/deep-equal-form";
@@ -23,6 +22,16 @@ import { addNotificationEntry } from "@/lib/notifications";
 import { addToPrintQueue, printQueueTypeLabel, type PrintQueueDocType } from "@/lib/print-queue";
 import { SendCommunicationModal } from "@/components/communications/SendCommunicationModal";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
+
+/** Imperative handle so the parent SEMS editor shell can trigger save/discard/reload. */
+export type OrderDetailPanelHandle = {
+  /** Persist the current draft. Returns true on success, false on error. */
+  save: () => Promise<boolean>;
+  /** Discard draft changes, resetting to the last loaded order. */
+  discard: () => void;
+  /** Force-reload the order from the server (e.g. after an external mutation). */
+  reload: () => void;
+};
 
 type OrderDetailPanelProps = {
   orderId: number | null;
@@ -37,6 +46,8 @@ type OrderDetailPanelProps = {
   onVoid: () => void;
   onCancel?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  /** Called when the panel's internal saving spinner state changes. */
+  onSavingChange?: (saving: boolean) => void;
 };
 
 type DraftFields = {
@@ -95,7 +106,8 @@ function formatTimestamp(ts: string | null | undefined): string {
   }
 }
 
-export function OrderDetailPanel({
+export const OrderDetailPanel = forwardRef<OrderDetailPanelHandle, OrderDetailPanelProps>(
+function OrderDetailPanel({
   orderId,
   customers,
   inventory,
@@ -108,7 +120,8 @@ export function OrderDetailPanel({
   onVoid,
   onCancel,
   onDirtyChange,
-}: OrderDetailPanelProps) {
+  onSavingChange,
+}, ref) {
   const { currencyCode } = useApp();
   const { state: connectionState } = useConnection();
   const isOffline = connectionState !== "online";
@@ -140,7 +153,6 @@ export function OrderDetailPanel({
     return !formStatesEqual(draft, orderToDraft(order));
   }, [order, draft]);
 
-  const { registerOnDiscard } = useUnsavedChanges();
   const { patchWithUndo } = useUndoRedo();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
     entityType: "order",
@@ -150,14 +162,6 @@ export function OrderDetailPanel({
     isDirty,
     enabled: Boolean(orderId && order),
   });
-
-  useEffect(() => {
-    if (!order) return;
-    return registerOnDiscard(() => {
-      setDraft(orderToDraft(order));
-      setRecoveryApplied(false);
-    });
-  }, [order, registerOnDiscard]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -343,9 +347,10 @@ export function OrderDetailPanel({
     }
   };
 
-  const saveChanges = async () => {
-    if (!orderId || !order || !draft) return;
+  const saveChanges = async (): Promise<boolean> => {
+    if (!orderId || !order || !draft) return false;
     setSaving(true);
+    onSavingChange?.(true);
     try {
       const payload: Record<string, unknown> = {
         ship_to_first_name: draft.ship_to_first_name.trim() || null,
@@ -390,26 +395,52 @@ export function OrderDetailPanel({
           "Record changed elsewhere",
           "This order was modified in another tab. We reloaded the latest version — re-apply your changes and save again."
         );
-        return;
+        return false;
       }
       if (result.status === "error") {
         throw new Error(result.message);
       }
       markDraftClean();
+      return true;
     } catch (err) {
       if (err instanceof MutationQueuedError) {
         onSuccess?.("Saved locally", err.message);
-        return;
+        return true;
       }
       if (err instanceof MutationQueueFullError) {
         onError("Too many pending changes", err.message, err);
-        return;
+        return false;
       }
       onError("Could not save order", "We could not save order changes.", err);
+      return false;
     } finally {
       setSaving(false);
+      onSavingChange?.(false);
     }
   };
+
+  const saveChangesRef = useRef(saveChanges);
+  saveChangesRef.current = saveChanges;
+
+  const discardDraft = useCallback(() => {
+    if (!order) return;
+    setDraft(orderToDraft(order));
+    setRecoveryApplied(false);
+  }, [order]);
+  const discardDraftRef = useRef(discardDraft);
+  discardDraftRef.current = discardDraft;
+
+  const reloadOrder = useCallback(() => {
+    if (orderId) void loadOrder(orderId);
+  }, [orderId, loadOrder]);
+  const reloadOrderRef = useRef(reloadOrder);
+  reloadOrderRef.current = reloadOrder;
+
+  useImperativeHandle(ref, () => ({
+    save: () => saveChangesRef.current(),
+    discard: () => discardDraftRef.current(),
+    reload: () => reloadOrderRef.current(),
+  }));
 
   const linkCustomer = async () => {
     if (!orderId || !linkCustomerId) return;
@@ -500,7 +531,7 @@ export function OrderDetailPanel({
   const showRecovery = recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
   return (
-    <div className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+    <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
       {showRecovery ? (
         <DraftRecoveryBanner
           savedAtLabel={recoveryLabel}
@@ -828,15 +859,6 @@ export function OrderDetailPanel({
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-[var(--ui-border)] pt-4">
-        <Button
-          variant="accent"
-          onClick={() => void saveChanges()}
-          disabled={busy || isVoid}
-          busy={saving}
-          title="Save (⌘S)"
-        >
-          Save changes
-        </Button>
         {!isPaid && !isVoid ? (
           <Button
             variant="accent"
@@ -1025,4 +1047,6 @@ export function OrderDetailPanel({
 
     </div>
   );
-}
+});
+
+OrderDetailPanel.displayName = "OrderDetailPanel";

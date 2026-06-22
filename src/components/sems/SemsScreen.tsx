@@ -57,6 +57,9 @@ export function SemsScreen<T extends { id?: number | string }>({
   controllerRef,
   keyboardNav = true,
   batchSelection,
+  onInlineEdit,
+  onRowPatched,
+  scrollToId,
 }: {
   entityLabel: string;
   entityLabelPlural: string;
@@ -82,6 +85,12 @@ export function SemsScreen<T extends { id?: number | string }>({
   keyboardNav?: boolean;
   /** Optional batch-selection state forwarded to DataTable (for entities that support batch operations). */
   batchSelection?: DataTableSelection;
+  /** Optional inline-edit handler forwarded to DataTable. */
+  onInlineEdit?: (row: T, columnKey: string, value: string | number | boolean) => Promise<import("@/components/ui/DataTable").InlineEditResult<T>>;
+  /** Optional row-patched callback forwarded to DataTable. */
+  onRowPatched?: (rowId: number, patch: Partial<T>) => void;
+  /** Optional scroll-to-row id forwarded to DataTable. */
+  scrollToId?: number | string | null;
 }) {
   const { confirmLeave } = useUnsavedChanges();
   // editing === undefined → list mode; editing === null → new record; editing === T → editing record
@@ -206,6 +215,9 @@ export function SemsScreen<T extends { id?: number | string }>({
         onSortChange={(next) => onSortChange(next)}
         emptyMessage={`No ${entityLabelPlural.toLowerCase()} on this page.`}
         keyboardNav={keyboardNav}
+        onInlineEdit={onInlineEdit}
+        onRowPatched={onRowPatched}
+        scrollToId={scrollToId}
       />
       <PaginationBar
         page={pagination.page}
