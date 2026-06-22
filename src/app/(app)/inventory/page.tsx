@@ -1,56 +1,393 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useConnection } from "@/context/ConnectionContext";
-import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { useTrackRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { useUndoRedo } from "@/context/UndoRedoContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BatchActionsBar } from "@/components/ui/BatchActionsBar";
 import { Button } from "@/components/ui/Button";
-import { DataTable, type SortState } from "@/components/ui/DataTable";
-import { ProgressModal } from "@/components/ui/ProgressModal";
-import { useBatchOperation } from "@/hooks/useBatchOperation";
-import { useBatchSelection } from "@/hooks/useBatchSelection";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
-import { PaginationBar } from "@/components/ui/PaginationBar";
+import { ProgressModal } from "@/components/ui/ProgressModal";
+import { SemsScreen, type SemsScreenController } from "@/components/sems/SemsScreen";
+import { SemsEditor } from "@/components/sems/SemsEditor";
+import { useSemsEditorGuard } from "@/components/sems/useSemsEditorGuard";
 import {
   InventoryDetailPanel,
   type InventoryItemDetail,
 } from "@/components/inventory/InventoryDetailPanel";
 import { InventoryImportModal } from "@/components/inventory/InventoryImportModal";
-import {
-  ListingQualityScoreBadge,
-} from "@/components/inventory/ListingQualityScore";
+import { ListingQualityScoreBadge } from "@/components/inventory/ListingQualityScore";
 import { PictureGrid } from "@/components/inventory/PictureGrid";
 import { ConditionPictureGrid } from "@/components/inventory/ConditionPictureGrid";
 import { ShotListPanel } from "@/components/inventory/ShotListPanel";
 import { MeasurementPhotoPanel } from "@/components/inventory/MeasurementPhotoPanel";
+import { DuplicateWarning } from "@/components/ui/DuplicateWarning";
 import { apiFetch } from "@/lib/api-fetch";
 import { stampUiError } from "@/lib/ui-error";
-import { clearDraft, draftKey } from "@/lib/form-draft";
+import { useDirtyTracking } from "@/hooks/useDirtyTracking";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useListSearchFromUrl } from "@/hooks/useListSearchFromUrl";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePagination } from "@/hooks/usePagination";
-import { Badge } from "@/components/ui/Badge";
+import { useBatchOperation } from "@/hooks/useBatchOperation";
+import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { inventoryRecentlyViewedLabel } from "@/lib/recently-viewed";
-import { computeListingScore } from "@/lib/listing-score";
+import { computeRubricFastScore, type InventoryRowLike } from "@/lib/listing-rubric";
 import { patchHeaders } from "@/lib/patch-json";
-import type { InlineEditResult } from "@/components/ui/DataTable";
-import type {
-  ApiErrorShape,
-  InventoryItem,
-  PaginationInfo,
-} from "@/types";
+import type { InlineEditResult, SortState } from "@/components/ui/DataTable";
+import type { ApiErrorShape, InventoryItem, PaginationInfo } from "@/types";
 
 const INVENTORY_STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 const SLOW_MOVER_DAYS = 90;
+const CONDITION_CODES = ["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"] as const;
+
+/* ─────────────────────────── Inline create form ─────────────────────────── */
+
+type CreateFormFields = {
+  item_number: string;
+  description: string;
+  condition_code: string;
+  purchase_cost: string;
+  hero_file_name: string;
+};
+
+const EMPTY_CREATE_FORM: CreateFormFields = {
+  item_number: "",
+  description: "",
+  condition_code: "",
+  purchase_cost: "",
+  hero_file_name: "",
+};
+
+type InventoryDuplicate = { id: number; item_number: string | null; description: string | null };
+
+function InventoryCreateForm({
+  requestClose,
+  done,
+  onSaved,
+}: {
+  requestClose: () => void;
+  done: () => void;
+  onSaved: (item: InventoryItem) => void;
+}) {
+  const { setApiError, setError } = useApp();
+  const { current, setCurrent, savedState, isDirty, markClean } =
+    useDirtyTracking<CreateFormFields>(EMPTY_CREATE_FORM);
+  const form = current ?? EMPTY_CREATE_FORM;
+
+  const heroFileRef = useRef<File | null>(null);
+  const [heroPreviewUrl, setHeroPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof CreateFormFields, string>>>(
+    {}
+  );
+  const [duplicates, setDuplicates] = useState<InventoryDuplicate[]>([]);
+  const [dupDismissed, setDupDismissed] = useState(false);
+
+  // Fetch suggested item number on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/inventory/next-number", {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await res.json().catch(() => ({}))) as { next_number?: string };
+        if (res.ok && data.next_number) {
+          setCurrent((prev) => ({ ...(prev ?? EMPTY_CREATE_FORM), item_number: data.next_number! }));
+        }
+      } catch {
+        /* non-critical */
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const set = useCallback(
+    <K extends keyof CreateFormFields>(key: K, value: CreateFormFields[K]) => {
+      setCurrent((prev) => ({ ...(prev ?? EMPTY_CREATE_FORM), [key]: value }));
+    },
+    [setCurrent]
+  );
+
+  const checkDuplicate = useCallback(async () => {
+    const desc = (current ?? EMPTY_CREATE_FORM).description.trim();
+    if (!desc) {
+      setDuplicates([]);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ description: desc });
+      const res = await fetch(`/api/inventory/check-duplicate?${params}`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { duplicates?: InventoryDuplicate[] };
+      if (res.ok) {
+        setDuplicates(data.duplicates ?? []);
+        setDupDismissed(false);
+      }
+    } catch {
+      setDuplicates([]);
+    }
+  }, [current]);
+
+  const applyFile = useCallback(
+    (file: File) => {
+      heroFileRef.current = file;
+      setCurrent((prev) => ({ ...(prev ?? EMPTY_CREATE_FORM), hero_file_name: file.name }));
+      setHeroPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
+    },
+    [setCurrent]
+  );
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) applyFile(file);
+          break;
+        }
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [applyFile]);
+
+  useEffect(
+    () => () => {
+      if (heroPreviewUrl) URL.revokeObjectURL(heroPreviewUrl);
+    },
+    [heroPreviewUrl]
+  );
+
+  const discard = useCallback(() => {
+    setCurrent(savedState);
+    heroFileRef.current = null;
+    setHeroPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFieldErrors({});
+    setDuplicates([]);
+    setDupDismissed(false);
+  }, [savedState, setCurrent]);
+
+  const save = useCallback(async (): Promise<boolean> => {
+    const value = current ?? EMPTY_CREATE_FORM;
+    const errs: Partial<Record<keyof CreateFormFields, string>> = {};
+    if (!value.item_number.trim()) errs.item_number = "Item number is required.";
+    if (!value.description.trim()) errs.description = "Description is required.";
+    if (!value.condition_code) errs.condition_code = "Condition is required.";
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return false;
+
+    setBusy(true);
+    try {
+      const res = await apiFetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          item_number: value.item_number.trim(),
+          description: value.description.trim(),
+          condition_code: value.condition_code,
+          purchase_cost: value.purchase_cost.trim() ? Number(value.purchase_cost) : null,
+          status: "Draft",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as ApiErrorShape & {
+        item?: InventoryItem;
+      };
+      if (!res.ok) throw data;
+      const newItem = data.item!;
+
+      // Upload hero photo if provided (non-fatal if it fails)
+      if (heroFileRef.current) {
+        try {
+          const fd = new FormData();
+          fd.append("file", heroFileRef.current);
+          fd.append("slot", "1");
+          fd.append("type", "main");
+          const picRes = await apiFetch(`/api/inventory/${newItem.id}/pictures`, {
+            method: "POST",
+            body: fd,
+          });
+          const picData = (await picRes.json().catch(() => ({}))) as ApiErrorShape & {
+            item?: InventoryItem;
+          };
+          if (picRes.ok && picData.item) Object.assign(newItem, picData.item);
+        } catch {
+          /* hero photo upload failure is non-fatal; user can upload in the detail editor */
+        }
+      }
+
+      markClean(value);
+      setError(null);
+      onSaved(newItem);
+      return true;
+    } catch (err) {
+      setApiError("Could not create item", "We could not create the inventory item.", err);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [current, markClean, onSaved, setApiError, setError]);
+
+  useSemsEditorGuard({ isDirty, onSave: save, onDiscard: discard });
+
+  const handleSaveClick = useCallback(() => {
+    void (async () => {
+      const ok = await save();
+      if (ok) done();
+    })();
+  }, [save, done]);
+
+  const inputCls =
+    "w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm text-[var(--ui-body)] placeholder-[var(--ui-muted)]";
+  const labelCls = "mb-1 block text-xs font-medium text-[var(--ui-muted)]";
+
+  return (
+    <SemsEditor
+      title="New inventory item"
+      isDirty={isDirty}
+      busy={busy}
+      saveLabel="Create item"
+      onSave={handleSaveClick}
+      onCancel={requestClose}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Item number */}
+        <div>
+          <label className={labelCls}>Item number *</label>
+          <input
+            className={`${inputCls}${fieldErrors.item_number ? " border-[var(--ui-red)]" : ""}`}
+            value={form.item_number}
+            onChange={(e) => set("item_number", e.target.value)}
+            placeholder="e.g. ITEM-0001"
+          />
+          {fieldErrors.item_number ? (
+            <p className="mt-1 text-xs text-[var(--ui-red)]">{fieldErrors.item_number}</p>
+          ) : null}
+        </div>
+
+        {/* Condition */}
+        <div>
+          <label className={labelCls}>Condition *</label>
+          <select
+            className={`${inputCls}${fieldErrors.condition_code ? " border-[var(--ui-red)]" : ""}`}
+            value={form.condition_code}
+            onChange={(e) => set("condition_code", e.target.value)}
+          >
+            <option value="">Select condition…</option>
+            {CONDITION_CODES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {fieldErrors.condition_code ? (
+            <p className="mt-1 text-xs text-[var(--ui-red)]">{fieldErrors.condition_code}</p>
+          ) : null}
+        </div>
+
+        {/* Description — full width */}
+        <div className="sm:col-span-2">
+          <label className={labelCls}>Description *</label>
+          <textarea
+            rows={3}
+            className={`${inputCls}${fieldErrors.description ? " border-[var(--ui-red)]" : ""}`}
+            value={form.description}
+            onChange={(e) => {
+              set("description", e.target.value);
+              setDuplicates([]);
+            }}
+            onBlur={() => void checkDuplicate()}
+            placeholder="Brief description of the item"
+          />
+          {fieldErrors.description ? (
+            <p className="mt-1 text-xs text-[var(--ui-red)]">{fieldErrors.description}</p>
+          ) : null}
+          {duplicates.length > 0 && !dupDismissed ? (
+            <DuplicateWarning
+              message={`${duplicates.length} similar item${duplicates.length > 1 ? "s" : ""} found. Review before creating.`}
+              links={duplicates.map((d) => ({
+                href: `/inventory?itemId=${d.id}`,
+                label: `${d.item_number ?? `#${d.id}`}: ${(d.description ?? "").slice(0, 60)}`,
+              }))}
+              onDismiss={() => setDupDismissed(true)}
+            />
+          ) : null}
+        </div>
+
+        {/* Purchase cost — optional */}
+        <div>
+          <label className={labelCls}>Purchase cost (optional)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            className={inputCls}
+            value={form.purchase_cost}
+            onChange={(e) => set("purchase_cost", e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+
+        {/* Hero photo */}
+        <div>
+          <label className={labelCls}>Hero photo — picture_1 (optional)</label>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+          <div
+            className="flex min-h-[96px] cursor-pointer items-center justify-center rounded-lg border border-dashed border-[var(--ui-border)] bg-[var(--ui-card-bg)] text-center text-xs text-[var(--ui-muted)] transition-colors hover:border-[var(--ui-accent)] hover:bg-[var(--ui-accent)]/5"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files[0];
+              if (file) applyFile(file);
+            }}
+          >
+            {heroPreviewUrl ? (
+              <img
+                src={heroPreviewUrl}
+                alt="Hero photo preview"
+                className="max-h-20 max-w-full rounded object-contain"
+              />
+            ) : (
+              <span>
+                Drag, paste, or click to add
+                <br />a hero photo
+              </span>
+            )}
+          </div>
+          {form.hero_file_name ? (
+            <p className="mt-1 truncate text-xs text-[var(--ui-muted)]">{form.hero_file_name}</p>
+          ) : null}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) applyFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+    </SemsEditor>
+  );
+}
 
 function getDaysInStock(item: InventoryItem): number {
   const candidates = [item.date_purchased, item.date_listed, item.created_at].filter(
@@ -61,6 +398,136 @@ function getDaysInStock(item: InventoryItem): number {
   if (timestamps.length === 0) return 0;
   return Math.floor((Date.now() - Math.min(...timestamps)) / (1000 * 60 * 60 * 24));
 }
+
+/* ─────────────────────────── Editor shell (Region 2 + Region 3) ─────────────────────────── */
+
+type InventoryEditorShellProps = {
+  item: InventoryItemDetail | null;
+  busy: boolean;
+  onItemUpdated: (item: InventoryItemDetail) => void;
+  onError: (title: string, message: string, err?: unknown) => void;
+  onSuccess: (title: string, message: string) => void;
+  onReloadItem: () => Promise<void>;
+  onRegenerateAi: (ctx?: { googlePhotos?: File[]; googleText?: string }) => void;
+  regenerateAiBusy: boolean;
+  lastGenerateResult?: import("@/components/inventory/InventoryDetailPanel").GenerateResult | null;
+  requestClose: () => void;
+  done: () => void;
+  context: ReactNode;
+};
+
+function InventoryEditorShell({
+  item,
+  busy,
+  onItemUpdated,
+  onError,
+  onSuccess,
+  onReloadItem,
+  onRegenerateAi,
+  regenerateAiBusy,
+  lastGenerateResult,
+  requestClose,
+  done,
+  context,
+}: InventoryEditorShellProps) {
+  const [isDirty, setIsDirty] = useState(false);
+  // Stable ref that always points to the latest saveChanges closure in InventoryDetailPanel.
+  const saveRef = useRef<(() => Promise<boolean>) | null>(null);
+
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!saveRef.current) return false;
+    return saveRef.current();
+  }, []);
+
+  // Panel handles its own discard (registerOnDiscard via useEntityDraft + baseline reset).
+  const discard = useCallback(() => {}, []);
+
+  useSemsEditorGuard({ isDirty, onSave: save, onDiscard: discard });
+
+  const handleSaveClick = useCallback(() => {
+    void (async () => {
+      const ok = await save();
+      if (ok) done();
+    })();
+  }, [save, done]);
+
+  // Generate/quality actions validate the PERSISTED item (server-side), so flush any unsaved
+  // form edits (e.g. the just-typed sale price) before generating. Abort if the save fails.
+  const handleRegenerate = useCallback(
+    (ctx?: { googlePhotos?: File[]; googleText?: string }) => {
+      void (async () => {
+        if (isDirty) {
+          const ok = await save();
+          if (!ok) return;
+        }
+        onRegenerateAi(ctx);
+      })();
+    },
+    [isDirty, save, onRegenerateAi]
+  );
+
+  if (!item) return null;
+
+  const subtitle = (
+    <span className="text-xs text-[var(--ui-muted)]">
+      Item ID {item.id}
+      {item.etsy_listing_id ? (
+        <>
+          {" · Etsy listing "}
+          <a
+            href={`https://www.etsy.com/listing/${item.etsy_listing_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--ui-accent)] hover:underline"
+          >
+            {item.etsy_listing_id}
+          </a>
+        </>
+      ) : null}
+      {item.created_at
+        ? ` · Created ${new Date(item.created_at).toLocaleString()}`
+        : null}
+      {item.updated_at
+        ? ` · Updated ${new Date(item.updated_at).toLocaleString()}`
+        : null}
+    </span>
+  );
+
+  return (
+    <SemsEditor
+      title={`Item ${item.item_number ?? `#${item.id}`}`}
+      subtitle={subtitle}
+      badges={
+        <Badge
+          label={item.is_listed ? "Listed on Etsy" : "Not listed"}
+          variant={item.is_listed ? "success" : "neutral"}
+        />
+      }
+      isDirty={isDirty}
+      busy={busy || false}
+      saveLabel="Save changes"
+      onSave={handleSaveClick}
+      onCancel={requestClose}
+      context={context}
+    >
+      <InventoryDetailPanel
+        item={item}
+        busy={busy}
+        onItemUpdated={onItemUpdated}
+        onError={onError}
+        onSuccess={onSuccess}
+        onReloadItem={onReloadItem}
+        onDirtyChange={setIsDirty}
+        onRegenerateAi={handleRegenerate}
+        regenerateAiBusy={regenerateAiBusy}
+        lastGenerateResult={lastGenerateResult}
+        saveRef={saveRef}
+      />
+    </SemsEditor>
+  );
+}
+
+/* ─────────────────────────── Page inner ─────────────────────────── */
 
 function InventoryPageInner() {
   const {
@@ -89,79 +556,28 @@ function InventoryPageInner() {
   );
 
   const inventoryRecentRow =
-    selectedItem ?? inventory.find((row) => row.id === selectedItemId) ?? null;
+    (selectedItem as InventoryItem | null) ??
+    inventory.find((row) => row.id === selectedItemId) ??
+    null;
   useTrackRecentlyViewed(
     "inventory",
     selectedItemId,
-    inventoryRecentRow ? inventoryRecentlyViewedLabel(inventoryRecentRow) : null
+    inventoryRecentRow ? inventoryRecentlyViewedLabel(inventoryRecentRow as InventoryItem) : null
   );
 
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [scrollToItemId, setScrollToItemId] = useState<number | null>(null);
 
-  useEffect(() => {
-    const raw = searchParams.get("itemId");
-    if (!raw) return;
-    const id = Number(raw);
-    if (!Number.isFinite(id)) return;
+  const controllerRef = useRef<SemsScreenController<InventoryItem> | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
-    const applyDeepLink = async () => {
-      if (inventory.some((row) => row.id === id)) {
-        const row = inventory.find((r) => r.id === id) ?? null;
-        setSelectedItemId(id);
-        setSelectedItem(row);
-        setScrollToItemId(id);
-        router.replace(pathname);
-        return;
-      }
-      try {
-        const response = await fetch(`/api/inventory/${id}`, {
-          headers: { Accept: "application/json" },
-        });
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-          item?: InventoryItem;
-        };
-        if (!response.ok || !data.item) {
-          setError({
-            title: "Item not found",
-            message: "That inventory item may have been deleted.",
-            actions: ["Choose another item from the list."],
-          });
-          router.replace(pathname);
-          return;
-        }
-        const addIfMissing = (current: InventoryItem[]) =>
-          current.some((row) => row.id === id) ? current : [data.item!, ...current];
-        setInventory(addIfMissing);
-        setGlobalInventory(addIfMissing);
-        setSelectedItemId(id);
-        setSelectedItem(data.item!);
-        setScrollToItemId(id);
-        router.replace(pathname);
-      } catch (err) {
-        setApiError("Could not open item", "We could not load the linked inventory item.", err);
-      }
-    };
-
-    void applyDeepLink();
-  }, [searchParams, inventory, setSelectedItemId, setSelectedItem, setInventory, setGlobalInventory, router, pathname, setError, setApiError]);
-
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchRetireOpen, setBatchRetireOpen] = useState(false);
   const [batchStatusValue, setBatchStatusValue] = useState<string>("In stock");
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
   const [inventorySearch, setInventorySearch] = useState("");
-  const [detailDirty, setDetailDirty] = useState(false);
-  const [pendingItemId, setPendingItemId] = useState<number | null>(null);
-  const [discardDirtyOpen, setDiscardDirtyOpen] = useState(false);
-  const { setFormDirty } = useUnsavedChanges();
-
-  useEffect(() => {
-    setFormDirty(detailDirty);
-  }, [detailDirty, setFormDirty]);
   const [importOpen, setImportOpen] = useState(false);
   const debouncedInventorySearch = useDebouncedValue(inventorySearch, 300);
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
@@ -174,17 +590,20 @@ function InventoryPageInner() {
       modifiers: ["meta", "shift"],
       action: () => setImportOpen(true),
     },
+    {
+      key: "n",
+      modifiers: ["meta"],
+      action: () => controllerRef.current?.openRecord(null),
+    },
   ]);
-
-  useEffect(() => {
-    const handler = () => router.push("/listing-coach");
-    window.addEventListener("esm-new-record", handler);
-    return () => window.removeEventListener("esm-new-record", handler);
-  }, [router]);
 
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<string | null>(null);
+  // WS-L3: last generate result (price, citations, compliance) surfaced from generate call
+  const [lastGenerateResult, setLastGenerateResult] = useState<
+    import("@/components/inventory/InventoryDetailPanel").GenerateResult | null
+  >(null);
   const [storeCategoryOptions, setStoreCategoryOptions] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState>({ key: "updated_at", dir: "desc" });
 
@@ -232,17 +651,32 @@ function InventoryPageInner() {
     [batch.selectAllMatching, batch.selectedIdList, inventoryBatchFilter]
   );
 
-  const handlePictureItemUpdated = (item: InventoryItem) => {
-    setSelectedItem(item);
-    const updateRow = (current: InventoryItem[]) =>
-      current.map((row) => (row.id === item.id ? item : row));
-    setInventory(updateRow);
-    setGlobalInventory(updateRow);
-  };
-
   const handleDetailItemUpdated = useCallback(
     (item: InventoryItemDetail) => {
       setSelectedItem(item);
+      const updateRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === item.id ? item : row));
+      setInventory(updateRow);
+      setGlobalInventory(updateRow);
+    },
+    [setSelectedItem, setInventory, setGlobalInventory]
+  );
+
+  // Called after inline create: add the new item to the list, then open in edit mode.
+  const handleNewItemSaved = useCallback(
+    (item: InventoryItem) => {
+      const addToList = (prev: InventoryItem[]) => [item, ...prev];
+      setInventory(addToList);
+      setGlobalInventory(addToList);
+      // Defer so done() (called by the create form) can clear the create-mode state first.
+      setTimeout(() => controllerRef.current?.openRecord(item), 0);
+    },
+    [setInventory, setGlobalInventory]
+  );
+
+  const handlePictureItemUpdated = useCallback(
+    (item: InventoryItem) => {
+      setSelectedItem(item as InventoryItemDetail);
       const updateRow = (current: InventoryItem[]) =>
         current.map((row) => (row.id === item.id ? item : row));
       setInventory(updateRow);
@@ -262,17 +696,6 @@ function InventoryPageInner() {
     if (!response.ok || !data.item) throw data;
     handleDetailItemUpdated(data.item);
   }, [selectedItemId, handleDetailItemUpdated]);
-
-  const selectInventoryItem = (id: number) => {
-    if (detailDirty && id !== selectedItemId) {
-      setPendingItemId(id);
-      setDiscardDirtyOpen(true);
-      return;
-    }
-    const row = inventory.find((r) => r.id === id) ?? null;
-    setSelectedItemId(id);
-    setSelectedItem(row);
-  };
 
   const reloadInventory = useCallback(async () => {
     const params = new URLSearchParams({
@@ -295,15 +718,9 @@ function InventoryPageInner() {
       pagination?: PaginationInfo;
     };
     if (!response.ok) throw data;
-    if (data.items) {
-      setInventory(data.items);
-      if (selectedItemId != null && !data.items.some((row) => row.id === selectedItemId)) {
-        setSelectedItemId(data.items[0]?.id ?? null);
-        setSelectedItem(data.items[0] ?? null);
-      }
-    }
+    if (data.items) setInventory(data.items);
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, phaseFilter, sort, setInventory, setTotal, selectedItemId, setSelectedItemId, setSelectedItem]);
+  }, [debouncedInventorySearch, pageSize, offset, statusFilter, categoryFilter, phaseFilter, sort, setInventory, setTotal]);
 
   useEffect(() => {
     void reloadInventory().catch((err) =>
@@ -311,11 +728,312 @@ function InventoryPageInner() {
     );
   }, [reloadInventory, setApiError]);
 
+  // onOpenChange: called by SemsScreen when the user opens or closes an item.
+  const handleOpenChange = useCallback(
+    (record: InventoryItem | null) => {
+      setIsEditMode(record !== null);
+      if (record) {
+        setSelectedItemId(record.id);
+        setSelectedItem(record as InventoryItemDetail);
+        batch.clearSelection();
+        // Fetch full InventoryItemDetail (includes other_costs_total, net_profit, etc.)
+        void (async () => {
+          try {
+            const resp = await fetch(`/api/inventory/${record.id}`, {
+              headers: { Accept: "application/json" },
+            });
+            const data = (await resp.json().catch(() => ({}))) as ApiErrorShape & {
+              item?: InventoryItemDetail;
+            };
+            if (data.item) handleDetailItemUpdated(data.item);
+          } catch { /* panel shows basic item until refresh */ }
+        })();
+      } else {
+        setSelectedItemId(null);
+        setSelectedItem(null);
+      }
+    },
+    [setSelectedItemId, setSelectedItem, handleDetailItemUpdated, batch]
+  );
+
+  // Deep link: ?itemId=<id> → open in editor via controllerRef.
+  useEffect(() => {
+    const raw = searchParams.get("itemId");
+    if (!raw) return;
+    const id = Number(raw);
+    router.replace(pathname);
+    if (!Number.isFinite(id)) return;
+    void (async () => {
+      const existing = inventory.find((r) => r.id === id);
+      if (existing) {
+        controllerRef.current?.openRecord(existing);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/inventory/${id}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          item?: InventoryItemDetail;
+        };
+        if (!response.ok || !data.item) {
+          setError({
+            title: "Item not found",
+            message: "That inventory item may have been deleted.",
+            actions: ["Choose another item from the list."],
+          });
+          return;
+        }
+        const addIfMissing = (current: InventoryItem[]) =>
+          current.some((r) => r.id === id) ? current : [data.item!, ...current];
+        setInventory(addIfMissing);
+        setGlobalInventory(addIfMissing);
+        controllerRef.current?.openRecord(data.item!);
+      } catch (err) {
+        setApiError("Could not open item", "We could not load the linked inventory item.", err);
+      }
+    })();
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { patchWithUndo, clearStacks } = useUndoRedo();
 
   useEffect(() => {
     clearStacks();
   }, [selectedItemId, clearStacks]);
+
+  const handleInventoryRowPatched = useCallback(
+    (rowId: number, patch: Partial<InventoryItem>) => {
+      const patchRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === rowId ? { ...row, ...patch } : row));
+      setInventory(patchRow);
+      setGlobalInventory(patchRow);
+      if (selectedItemId === rowId) {
+        setSelectedItem((current) => (current ? { ...current, ...patch } : current));
+      }
+    },
+    [selectedItemId, setInventory, setGlobalInventory, setSelectedItem]
+  );
+
+  const handleInventoryInlineEdit = useCallback(
+    async (
+      row: InventoryItem,
+      columnKey: string,
+      value: string | number | boolean
+    ): Promise<InlineEditResult<InventoryItem>> => {
+      const body =
+        columnKey === "status" ? { status: String(value) } : { sale_revenue: Number(value) };
+      const previousState =
+        columnKey === "status"
+          ? { status: row.status ?? null }
+          : { sale_revenue: row.sale_revenue ?? null };
+      const action =
+        columnKey === "status"
+          ? `Changed status to ${String(value)}`
+          : `Changed price to $${Number(value).toFixed(2)}`;
+      return patchWithUndo({
+        action,
+        entity: "inventory",
+        id: row.id,
+        updatedAt: row.updated_at,
+        previousState,
+        newState: body,
+        pickRecord: (data) => (data.item as InventoryItem | undefined) ?? null,
+        onPatched: (record) => handleInventoryRowPatched(row.id, record),
+      });
+    },
+    [patchWithUndo, handleInventoryRowPatched]
+  );
+
+  const patchSelectedItem = async (payload: Record<string, unknown>) => {
+    if (!selectedItemId) return;
+    const response = await apiFetch(`/api/inventory/${selectedItemId}`, {
+      method: "PATCH",
+      headers: patchHeaders((selectedItem as InventoryItem | null)?.updated_at),
+      body: JSON.stringify(payload),
+    });
+    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+      item?: InventoryItem;
+    };
+    if (!response.ok) throw data;
+    if (data.item) {
+      setSelectedItem(data.item as InventoryItemDetail);
+      const updateRow = (current: InventoryItem[]) =>
+        current.map((row) => (row.id === data.item!.id ? data.item! : row));
+      setInventory(updateRow);
+      setGlobalInventory(updateRow);
+    }
+  };
+
+  const generateIntegrated = async (ctx?: {
+    googlePhotos?: File[];
+    googleText?: string;
+  }) => {
+    if (!selectedItemId) return;
+    setBusyAction("generate-ai");
+    try {
+      let response: Response;
+      if (ctx?.googlePhotos?.length || ctx?.googleText?.trim()) {
+        // Send multipart when Google context is present (WS-L3)
+        const fd = new FormData();
+        ctx.googlePhotos?.forEach((f) => fd.append("google_photos", f));
+        if (ctx.googleText?.trim()) fd.append("google_text", ctx.googleText.trim());
+        response = await apiFetch(
+          `/api/inventory/${selectedItemId}/generate-listing-content`,
+          { method: "POST", body: fd }
+        );
+      } else {
+        response = await apiFetch(
+          `/api/inventory/${selectedItemId}/generate-listing-content`,
+          { method: "POST", headers: { Accept: "application/json" } }
+        );
+      }
+
+      type GenerateApiData = ApiErrorShape & {
+        price?: import("@/components/inventory/InventoryDetailPanel").GenerateResult["price"];
+        citations?: import("@/components/inventory/InventoryDetailPanel").GenerateResult["citations"];
+        compliance_check?: import("@/components/inventory/InventoryDetailPanel").GenerateResult["compliance_check"];
+      };
+      const data = (await response.json().catch(() => ({}))) as GenerateApiData;
+
+      if (!response.ok) {
+        const fieldErrors =
+          data?.fields ??
+          (data as { error?: { fields?: Record<string, string[]> } })?.error?.fields;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const missing = Object.values(fieldErrors).flat().join(" ");
+          setError(
+            stampUiError({
+              title: "Missing info for AI generation",
+              message: missing,
+              actions: data?.error?.actions ?? [
+                "Fill in the missing fields in the detail panel, then try again.",
+              ],
+            })
+          );
+        } else {
+          throw data;
+        }
+        return;
+      }
+
+      // WS-L3: capture price/citations/compliance from generate response
+      if (data.price || data.citations || data.compliance_check) {
+        setLastGenerateResult({
+          price: data.price,
+          citations: data.citations,
+          compliance_check: data.compliance_check,
+        });
+      }
+
+      await patchSelectedItem({});
+      setError(null);
+    } catch (err) {
+      setApiError("Could not generate listing", "We could not generate listing content.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  // WS-L3: reset generate result when selected item changes
+  useEffect(() => {
+    setLastGenerateResult(null);
+  }, [selectedItemId]);
+
+  const deleteItem = async (item: InventoryItem) => {
+    setBusyAction("delete-inventory");
+    try {
+      const response = await apiFetch(`/api/inventory/${item.id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      const removeItem = (current: InventoryItem[]) =>
+        current.filter((row) => row.id !== item.id);
+      setInventory(removeItem);
+      setGlobalInventory(removeItem);
+      if (selectedItemId === item.id) {
+        setSelectedItemId(null);
+        setSelectedItem(null);
+        controllerRef.current?.closeToList();
+      }
+      setDeleteTarget(null);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not delete inventory", "We could not delete the selected item.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const batchChangeStatus = async (status: string) => {
+    if (batch.selectionCount === 0) return;
+    setBusyAction("batch-status");
+    try {
+      const { ok, feedback } = await runBatch(
+        "/api/inventory/batch",
+        buildInventoryBatchBody("change_status", { status }),
+        { entity: "item", actionPast: `set to ${status}`, count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
+      await reloadInventory();
+      setBatchStatusOpen(false);
+      batch.clearSelection();
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
+    } catch (err) {
+      setApiError("Batch status failed", "We could not update selected items.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const batchDeleteInventory = async () => {
+    if (batch.selectionCount === 0) return;
+    setBusyAction("batch-delete");
+    try {
+      const { ok, feedback, result } = await runBatch(
+        "/api/inventory/batch",
+        buildInventoryBatchBody("delete"),
+        { entity: "item", actionPast: "deleted", count: batch.selectionCount }
+      );
+      if (!ok) throw new Error(feedback.message);
+      const removed = new Set(
+        batch.selectAllMatching
+          ? []
+          : batch.selectedIdList.filter((id) => !(result?.failed ?? []).some((f) => f.id === id))
+      );
+      if (batch.selectAllMatching) await reloadInventory();
+      else {
+        const filterRemoved = (current: InventoryItem[]) =>
+          current.filter((row) => !removed.has(row.id));
+        setInventory(filterRemoved);
+        setGlobalInventory(filterRemoved);
+        if (selectedItemId && removed.has(selectedItemId)) {
+          setSelectedItemId(null);
+          setSelectedItem(null);
+        }
+      }
+      setBatchDeleteOpen(false);
+      batch.clearSelection();
+      setError({ title: feedback.title, message: feedback.message, actions: [] });
+    } catch (err) {
+      setApiError("Batch delete failed", "We could not delete selected items.", err);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  // Client-side Quality sort — preserves the listing_score column sort.
+  const inventoryTableData = useMemo(() => {
+    if (sort?.key !== "listing_score") return inventory;
+    return [...inventory].sort((a, b) => {
+      const scoreA = computeRubricFastScore(a as unknown as InventoryRowLike).score;
+      const scoreB = computeRubricFastScore(b as unknown as InventoryRowLike).score;
+      return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
+    });
+  }, [inventory, sort, publishConfig.minQualityScore]);
 
   const inventoryColumns = useMemo(
     () => [
@@ -391,235 +1109,142 @@ function InventoryPageInner() {
         header: "Quality",
         sortable: true,
         sortKey: "listing_score",
-        render: (item: InventoryItem) => <ListingQualityScoreBadge item={item} minScore={parseInt(publishConfig.minQualityScore, 10) || 85} />,
+        render: (item: InventoryItem) => (
+          <ListingQualityScoreBadge
+            item={item}
+            minScore={parseInt(publishConfig.minQualityScore, 10) || 85}
+          />
+        ),
       },
     ],
-    []
+    [publishConfig.minQualityScore]
   );
 
-  const inventoryTableData = useMemo(() => {
-    if (sort?.key !== "listing_score") return inventory;
-    return [...inventory].sort((a, b) => {
-      const ms = parseInt(publishConfig.minQualityScore, 10) || 85;
-      const scoreA = computeListingScore(a, ms).score;
-      const scoreB = computeListingScore(b, ms).score;
-      return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
-    });
-  }, [inventory, sort]);
-
-  const handleInventoryRowPatched = useCallback(
-    (rowId: number, patch: Partial<InventoryItem>) => {
-      const patchRow = (current: InventoryItem[]) =>
-        current.map((row) => (row.id === rowId ? { ...row, ...patch } : row));
-      setInventory(patchRow);
-      setGlobalInventory(patchRow);
-      if (selectedItemId === rowId) {
-        setSelectedItem((current) => (current ? { ...current, ...patch } : current));
-      }
-    },
-    [selectedItemId, setInventory, setGlobalInventory, setSelectedItem]
+  const filters = (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={inventorySearch}
+          onChange={(e) => {
+            setPage(0);
+            setInventorySearch(e.target.value);
+          }}
+          placeholder="Search item #, description, status…"
+          title="Search (⌘K)"
+          className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+        />
+        <Button variant="secondary" onClick={() => setImportOpen(true)} title="Import CSV (⌘⇧I)">
+          Import CSV
+        </Button>
+      </div>
+      <FilterChipRow
+        label="Status"
+        value={statusFilter}
+        onChange={(value) => {
+          setPage(0);
+          setStatusFilter(value);
+        }}
+        options={INVENTORY_STATUSES.map((status) => ({ value: status, label: status }))}
+      />
+      {storeCategoryOptions.length > 0 && (
+        <FilterChipRow
+          label="Category"
+          value={categoryFilter}
+          onChange={(value) => {
+            setPage(0);
+            setCategoryFilter(value);
+          }}
+          options={storeCategoryOptions.map((cat) => ({ value: cat, label: cat }))}
+        />
+      )}
+      <FilterChipRow
+        label="Listing phase"
+        value={phaseFilter}
+        onChange={(value) => {
+          setPage(0);
+          setPhaseFilter(value);
+        }}
+        options={[
+          { value: "needs_data", label: "Needs data" },
+          { value: "ready_to_generate", label: "Ready to generate" },
+          { value: "generated", label: "Generated" },
+          { value: "needs_quality_remediation", label: "Needs quality fixes" },
+          { value: "listing_ready", label: "Listing ready" },
+        ]}
+      />
+    </div>
   );
 
-  const handleInventoryInlineEdit = useCallback(
-    async (
-      row: InventoryItem,
-      columnKey: string,
-      value: string | number | boolean
-    ): Promise<InlineEditResult<InventoryItem>> => {
-      const body =
-        columnKey === "status" ? { status: String(value) } : { sale_revenue: Number(value) };
-      const previousState =
-        columnKey === "status"
-          ? { status: row.status ?? null }
-          : { sale_revenue: row.sale_revenue ?? null };
-      const action =
-        columnKey === "status"
-          ? `Changed status to ${String(value)}`
-          : `Changed price to $${Number(value).toFixed(2)}`;
-      return patchWithUndo({
-        action,
-        entity: "inventory",
-        id: row.id,
-        updatedAt: row.updated_at,
-        previousState,
-        newState: body,
-        pickRecord: (data) => (data.item as InventoryItem | undefined) ?? null,
-        onPatched: (record) => handleInventoryRowPatched(row.id, record),
-      });
-    },
-    [patchWithUndo, handleInventoryRowPatched]
+  const emptyState = (
+    <EmptyState
+      message={
+        inventorySearch.trim() || statusFilter || categoryFilter
+          ? "No items match your filters."
+          : "No items yet. Add your first inventory item to get started."
+      }
+      primaryAction={
+        inventorySearch.trim() || statusFilter || categoryFilter
+          ? {
+              label: "Clear filters",
+              onClick: () => {
+                setInventorySearch("");
+                setStatusFilter(null);
+                setCategoryFilter(null);
+                setPage(0);
+              },
+            }
+          : {
+              label: "Add your first item",
+              onClick: () => controllerRef.current?.openRecord(null),
+            }
+      }
+      secondaryAction={
+        inventorySearch.trim() || statusFilter || categoryFilter
+          ? undefined
+          : { label: "Import from CSV", onClick: () => setImportOpen(true) }
+      }
+    />
   );
 
-  const batchChangeStatus = async (status: string) => {
-    if (batch.selectionCount === 0) return;
-    setBusyAction("batch-status");
-    try {
-      const { ok, feedback } = await runBatch(
-        "/api/inventory/batch",
-        buildInventoryBatchBody("change_status", { status }),
-        { entity: "item", actionPast: `set to ${status}`, count: batch.selectionCount }
-      );
-      if (!ok) throw new Error(feedback.message);
-      await reloadInventory();
-      setBatchStatusOpen(false);
-      batch.clearSelection();
-      setError({ title: feedback.title, message: feedback.message, actions: [] });
-    } catch (err) {
-      setApiError("Batch status failed", "We could not update selected items.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const batchDeleteInventory = async () => {
-    if (batch.selectionCount === 0) return;
-    setBusyAction("batch-delete");
-    try {
-      const { ok, feedback, result } = await runBatch(
-        "/api/inventory/batch",
-        buildInventoryBatchBody("delete"),
-        { entity: "item", actionPast: "deleted", count: batch.selectionCount }
-      );
-      if (!ok) throw new Error(feedback.message);
-      const removed = new Set(
-        batch.selectAllMatching
-          ? []
-          : batch.selectedIdList.filter((id) => !(result?.failed ?? []).some((f) => f.id === id))
-      );
-      if (batch.selectAllMatching) await reloadInventory();
-      else {
-        const filterRemoved = (current: InventoryItem[]) =>
-          current.filter((row) => !removed.has(row.id));
-        setInventory(filterRemoved);
-        setGlobalInventory(filterRemoved);
-        if (selectedItemId && removed.has(selectedItemId)) {
-          const remaining = inventory.filter((row) => !removed.has(row.id));
-          setSelectedItemId(remaining[0]?.id ?? null);
-          setSelectedItem(remaining[0] ?? null);
-        }
-      }
-      setBatchDeleteOpen(false);
-      batch.clearSelection();
-      setError({ title: feedback.title, message: feedback.message, actions: [] });
-    } catch (err) {
-      setApiError("Batch delete failed", "We could not delete selected items.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const patchSelectedItem = async (payload: Record<string, unknown>) => {
-    if (!selectedItemId) return;
-    const response = await apiFetch(`/api/inventory/${selectedItemId}`, {
-      method: "PATCH",
-      headers: patchHeaders(selectedItem?.updated_at),
-      body: JSON.stringify(payload),
-    });
-    const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-      item?: InventoryItem;
-    };
-    if (!response.ok) throw data;
-    if (data.item) {
-      setSelectedItem(data.item);
-      const updateRow = (current: InventoryItem[]) =>
-        current.map((row) => (row.id === data.item!.id ? data.item! : row));
-      setInventory(updateRow);
-      setGlobalInventory(updateRow);
-    }
-  };
-
-  const generateIntegrated = async () => {
-    if (!selectedItemId) return;
-    setBusyAction("generate-ai");
-    try {
-      const response = await apiFetch(`/api/inventory/${selectedItemId}/generate-listing-content`, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-      if (!response.ok) {
-        const fieldErrors =
-          data?.fields ??
-          (data as { error?: { fields?: Record<string, string[]> } })?.error?.fields;
-        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
-          const missing = Object.values(fieldErrors).flat().join(" ");
-          setError(
-            stampUiError({
-              title: "Missing info for AI generation",
-              message: missing,
-              actions: data?.error?.actions ?? [
-                "Fill in the missing fields in the detail panel, then try again.",
-              ],
-            })
-          );
-        } else {
-          throw data;
-        }
-        return;
-      }
-      await patchSelectedItem({});
-      setError(null);
-    } catch (err) {
-      setApiError("Could not generate listing", "We could not generate listing content.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-
-  const deleteSelectedInventory = async () => {
-    if (!selectedItemId) return;
-    setBusyAction("delete-inventory");
-    try {
-      const response = await apiFetch(`/api/inventory/${selectedItemId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok && response.status !== 204) {
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        throw data;
-      }
-      const removeItem = (current: InventoryItem[]) =>
-        current.filter((row) => row.id !== selectedItemId);
-      setInventory((current) => {
-        const remaining = removeItem(current);
-        setSelectedItemId(remaining[0]?.id ?? null);
-        setSelectedItem(remaining[0] ?? null);
-        return remaining;
-      });
-      setGlobalInventory(removeItem);
-      setError(null);
-    } catch (err) {
-      setApiError("Could not delete inventory", "We could not delete the selected item.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
+  // Region-3 panels (immediate-commit; rendered below the editor in SemsEditor.context).
+  const region3 = selectedItemId ? (
+    <div id="pictures" className="space-y-4">
+      <PictureGrid
+        inventoryId={selectedItemId}
+        item={selectedItem as InventoryItem | null}
+        disabled={busyAction != null}
+        onItemUpdated={handlePictureItemUpdated}
+        onError={(title, message, err) => setApiError(title, message, err)}
+      />
+      <ConditionPictureGrid
+        inventoryId={selectedItemId}
+        item={selectedItem as InventoryItem | null}
+        disabled={busyAction != null}
+        onItemUpdated={handlePictureItemUpdated}
+        onError={(title, message, err) => setApiError(title, message, err)}
+      />
+      <ShotListPanel
+        inventoryId={selectedItemId}
+        itemVersion={(selectedItem as InventoryItem | null)?.updated_at ?? null}
+        disabled={busyAction != null}
+        onError={(title, message, err) => setApiError(title, message, err)}
+      />
+      <MeasurementPhotoPanel
+        inventoryId={selectedItemId}
+        item={selectedItem as InventoryItem | null}
+        disabled={busyAction != null}
+        onItemUpdated={(item) => handlePictureItemUpdated(item as InventoryItem)}
+        onError={(title, message, err) => setApiError(title, message, err)}
+      />
+    </div>
+  ) : null;
 
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
-      {/* Items toolbar */}
-      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/listing-coach"
-              className="rounded-lg bg-[var(--ui-green)] px-4 py-2 text-sm font-semibold text-black hover:opacity-90"
-            >
-              Add New Item
-            </Link>
-            <Button variant="danger" onClick={() => setDeleteConfirmOpen(true)} disabled={busyAction != null || !selectedItemId || isOffline} title={isOffline ? "Unavailable while offline" : "Delete selected item"}>
-              Delete selected
-            </Button>
-          </div>
-          {selectedItemId ? (
-            <p className="mt-2 text-xs text-[var(--ui-muted)]">
-              Selected: <strong className="text-[var(--ui-body)]">{selectedItem?.item_number ?? `#${selectedItemId}`}</strong>
-              {selectedItem?.listing_title ? ` — ${selectedItem.listing_title}` : ""}
-            </p>
-          ) : null}
-        </div>
+      <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Inventory</h3>
 
-      {batch.selectionCount > 0 ? (
+      {/* Batch bar — list mode only */}
+      {batch.selectionCount > 0 && !isEditMode ? (
         <BatchActionsBar
           selectionLabel={
             batch.selectAllMatching
@@ -668,166 +1293,59 @@ function InventoryPageInner() {
         </BatchActionsBar>
       ) : null}
 
-      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <p className="text-sm font-semibold text-[var(--ui-title)]">Inventory items</p>
-          <input
-            value={inventorySearch}
-            onChange={(e) => {
-              setPage(0);
-              setInventorySearch(e.target.value);
-            }}
-            placeholder="Search item #, description, status…"
-            title="Search (⌘K)"
-            className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-          />
-          <Button variant="secondary" onClick={() => setImportOpen(true)} title="Import CSV (⌘⇧I)">
-            Import CSV
-          </Button>
-        </div>
-        <FilterChipRow
-          label="Status"
-          value={statusFilter}
-          onChange={(value) => {
-            setPage(0);
-            setStatusFilter(value);
-          }}
-          options={INVENTORY_STATUSES.map((status) => ({ value: status, label: status }))}
-        />
-        {storeCategoryOptions.length > 0 && (
-          <FilterChipRow
-            label="Category"
-            value={categoryFilter}
-            onChange={(value) => {
-              setPage(0);
-              setCategoryFilter(value);
-            }}
-            options={storeCategoryOptions.map((cat) => ({ value: cat, label: cat }))}
-          />
-        )}
-        <FilterChipRow
-          label="Listing phase"
-          value={phaseFilter}
-          onChange={(value) => {
-            setPage(0);
-            setPhaseFilter(value);
-          }}
-          options={[
-            { value: "needs_data", label: "Needs data" },
-            { value: "ready_to_generate", label: "Ready to generate" },
-            { value: "generated", label: "Generated" },
-            { value: "needs_quality_remediation", label: "Needs quality fixes" },
-            { value: "listing_ready", label: "Listing ready" },
-          ]}
-        />
-        {listTotal === 0 ? (
-          <EmptyState
-            message={
-              inventorySearch.trim() || statusFilter || categoryFilter
-                ? "No items match your filters."
-                : "No items yet. Add your first inventory item to get started."
-            }
-            primaryAction={
-              inventorySearch.trim() || statusFilter || categoryFilter
-                ? {
-                    label: "Clear filters",
-                    onClick: () => {
-                      setInventorySearch("");
-                      setStatusFilter(null);
-                      setCategoryFilter(null);
-                      setPage(0);
-                    },
-                  }
-                : { label: "Add your first item", onClick: () => router.push("/listing-coach") }
-            }
-            secondaryAction={
-              inventorySearch.trim() || statusFilter || categoryFilter
-                ? undefined
-                : { label: "Import from CSV", onClick: () => setImportOpen(true) }
-            }
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={inventoryColumns}
-              data={inventoryTableData}
-              selectedId={selectedItemId}
-              selection={{
-                selectedIds: batch.selectedIds,
-                onToggleRow: batch.toggleRow,
-                onToggleAllVisible: batch.toggleAllVisible,
-                allVisibleSelected: batch.allVisibleSelected,
-                indeterminate: batch.headerIndeterminate,
-              }}
-              onRowClick={(item) => selectInventoryItem(item.id)}
-              onDeleteRow={(item) => {
-                setSelectedItemId(item.id);
-                setSelectedItem(item);
-                setDeleteConfirmOpen(true);
-              }}
-              onInlineEdit={handleInventoryInlineEdit}
-              onRowPatched={handleInventoryRowPatched}
-              sort={sort}
-              onSortChange={(next) => {
-                setPage(0);
-                setSort(next ?? { key: "updated_at", dir: "desc" });
-              }}
-              emptyMessage="No items on this page."
-              scrollToId={scrollToItemId}
-              keyboardNav
+      <SemsScreen<InventoryItem>
+        entityLabel="Item"
+        entityLabelPlural="Inventory items"
+        columns={inventoryColumns}
+        data={inventoryTableData}
+        getRowTitle={(item) => item.item_number ?? `#${item.id}`}
+        sort={sort}
+        onSortChange={(next) => {
+          setPage(0);
+          setSort(next ?? { key: "updated_at", dir: "desc" });
+        }}
+        filters={filters}
+        pagination={{ page, pageSize, total: listTotal, onPageChange: setPage }}
+        emptyState={emptyState}
+        onDeleteRow={(item) => setDeleteTarget(item)}
+        onOpenChange={handleOpenChange}
+        controllerRef={controllerRef}
+        addNewLabel="Add new item"
+        batchSelection={{
+          selectedIds: batch.selectedIds,
+          onToggleRow: batch.toggleRow,
+          onToggleAllVisible: batch.toggleAllVisible,
+          allVisibleSelected: batch.allVisibleSelected,
+          indeterminate: batch.headerIndeterminate,
+        }}
+        renderEditor={({ record, requestClose, done }) =>
+          record === null ? (
+            <InventoryCreateForm
+              requestClose={requestClose}
+              done={done}
+              onSaved={handleNewItemSaved}
             />
-            <PaginationBar
-              page={page}
-              pageSize={pageSize}
-              total={listTotal}
-              onPageChange={setPage}
+          ) : (
+            <InventoryEditorShell
+              key={selectedItemId ?? "none"}
+              item={selectedItem as InventoryItemDetail | null}
+              busy={busyAction != null}
+              onItemUpdated={handleDetailItemUpdated}
+              onError={(title, message, err) => setApiError(title, message, err)}
+              onSuccess={(title, message) => setError({ title, message, actions: [] })}
+              onReloadItem={reloadSelectedInventoryItem}
+              onRegenerateAi={(ctx) => void generateIntegrated(ctx)}
+              regenerateAiBusy={busyAction === "generate-ai"}
+              lastGenerateResult={lastGenerateResult}
+              requestClose={requestClose}
+              done={done}
+              context={region3}
             />
-          </>
-        )}
-      </div>
-
-      <InventoryDetailPanel
-        item={selectedItem as InventoryItemDetail | null}
-        busy={busyAction != null}
-        onItemUpdated={handleDetailItemUpdated}
-        onError={(title, message, err) => setApiError(title, message, err)}
-        onSuccess={(title, message) => setError({ title, message, actions: [] })}
-        onReloadItem={reloadSelectedInventoryItem}
-        onDirtyChange={setDetailDirty}
-        onRegenerateAi={() => void generateIntegrated()}
-        regenerateAiBusy={busyAction === "generate-ai"}
+          )
+        }
       />
 
-      <div id="pictures" className="mb-4 space-y-4">
-        <PictureGrid
-          inventoryId={selectedItemId}
-          item={selectedItem}
-          disabled={busyAction != null}
-          onItemUpdated={handlePictureItemUpdated}
-          onError={(title, message, err) => setApiError(title, message, err)}
-        />
-        <ConditionPictureGrid
-          inventoryId={selectedItemId}
-          item={selectedItem}
-          disabled={busyAction != null}
-          onItemUpdated={handlePictureItemUpdated}
-          onError={(title, message, err) => setApiError(title, message, err)}
-        />
-        <ShotListPanel
-          inventoryId={selectedItemId}
-          itemVersion={selectedItem?.updated_at ?? null}
-          disabled={busyAction != null}
-          onError={(title, message, err) => setApiError(title, message, err)}
-        />
-        <MeasurementPhotoPanel
-          inventoryId={selectedItemId}
-          item={selectedItem}
-          disabled={busyAction != null}
-          onItemUpdated={(item) => handlePictureItemUpdated(item as InventoryItem)}
-          onError={(title, message, err) => setApiError(title, message, err)}
-        />
-      </div>
-
+      {/* Import modal */}
       <InventoryImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
@@ -836,6 +1354,7 @@ function InventoryPageInner() {
         onSuccess={(title, message) => setError({ title, message, actions: [] })}
       />
 
+      {/* Batch status picker */}
       {batchStatusOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -859,7 +1378,11 @@ function InventoryPageInner() {
               <Button variant="secondary" onClick={() => setBatchStatusOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="accent" onClick={() => void batchChangeStatus(batchStatusValue)} disabled={busyAction != null}>
+              <Button
+                variant="accent"
+                onClick={() => void batchChangeStatus(batchStatusValue)}
+                disabled={busyAction != null}
+              >
                 Apply
               </Button>
             </div>
@@ -875,6 +1398,7 @@ function InventoryPageInner() {
         current={progressCurrent}
         total={progressTotal}
       />
+
       <ConfirmDialog
         open={batchRetireOpen}
         onClose={() => setBatchRetireOpen(false)}
@@ -887,6 +1411,7 @@ function InventoryPageInner() {
         confirmLabel="Retire items"
         confirmVariant="danger"
       />
+
       <ConfirmDialog
         open={batchDeleteOpen}
         onClose={() => setBatchDeleteOpen(false)}
@@ -899,37 +1424,12 @@ function InventoryPageInner() {
       />
 
       <ConfirmDialog
-        open={discardDirtyOpen}
-        onClose={() => {
-          setDiscardDirtyOpen(false);
-          setPendingItemId(null);
-        }}
-        onConfirm={() => {
-          if (selectedItemId != null) {
-            clearDraft(draftKey("inventory", selectedItemId));
-          }
-          setDiscardDirtyOpen(false);
-          if (pendingItemId != null) setSelectedItemId(pendingItemId);
-          setPendingItemId(null);
-          setDetailDirty(false);
-        }}
-        title="Unsaved changes"
-        description="You have unsaved changes that will be lost. What would you like to do?"
-        cancelLabel="Keep editing"
-        confirmLabel="Discard changes"
-        confirmVariant="danger"
-      />
-
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={() => {
-          setDeleteConfirmOpen(false);
-          void deleteSelectedInventory();
-        }}
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) void deleteItem(deleteTarget); }}
         title="Delete item?"
         description="This will permanently delete the item. Items linked to orders cannot be deleted."
-        affectedLabel={selectedItem?.item_number ? `Item ${selectedItem.item_number}` : undefined}
+        affectedLabel={deleteTarget?.item_number ? `Item ${deleteTarget.item_number}` : undefined}
         confirmLabel="Delete"
         confirmVariant="danger"
         busy={busyAction === "delete-inventory"}

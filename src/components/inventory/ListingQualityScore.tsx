@@ -3,118 +3,133 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
-  computeListingScore,
-  listingScoreGradeColor,
-  type ListingScoreBreakdown,
-  type ListingScoreInput,
-  type ListingScoreResult,
-} from "@/lib/listing-score";
+  computeRubricFastScore,
+  rubricScoreColor,
+  evaluateListingQuality,
+  type InventoryRowLike,
+  type QualityCategory,
+  type QualityRemediationItem,
+} from "@/lib/listing-rubric";
+import type { InventoryRecord } from "@/lib/inventory";
+import type { InventoryItem } from "@/types";
 
-type ListingQualityScoreProps = {
-  item: ListingScoreInput;
-  score?: ListingScoreResult | null;
-  compact?: boolean;
-  minScore?: number;
-};
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-type BreakdownRow = {
-  label: string;
-  earned: number;
-  max: number;
-};
+/** Any inventory row with at least an id and listing_quality_json. */
+type ItemLike = (InventoryItem | InventoryRecord) & { id: number };
 
-const BREAKDOWN_META: { key: keyof ListingScoreBreakdown; label: string; max: number }[] = [
-  { key: "title_length", label: "Title length (60–140 chars)", max: 15 },
-  { key: "title_keywords", label: "Category keyword in title", max: 10 },
-  { key: "description_length", label: "Description length (500+ chars)", max: 15 },
-  { key: "picture_count", label: "Photos (10+ slots filled)", max: 15 },
-  { key: "tags_filled", label: "Search tags (13 filled)", max: 10 },
-  { key: "condition_code", label: "Condition code set", max: 5 },
-  { key: "condition_notes", label: "Condition notes (if issue)", max: 5 },
-  { key: "sale_revenue", label: "Sale price set", max: 5 },
-  { key: "item_number", label: "Item number assigned", max: 5 },
-  { key: "category_tags", label: "Category tags added", max: 5 },
-  { key: "description_dimensions", label: "Dimensions in description", max: 5 },
-  { key: "description_materials", label: "Materials in description", max: 5 },
-  { key: "etsy_when_made", label: "Era / when made", max: 3 },
-  { key: "etsy_taxonomy_id", label: "Etsy category ID", max: 3 },
-  { key: "materials_field", label: "Materials field populated", max: 3 },
-  { key: "measurements", label: "Weight or dimensions entered", max: 3 },
-  { key: "video", label: "Video uploaded", max: 3 },
-  { key: "picture_classifications", label: "Photo variety (3+ types)", max: 3 },
-];
+export type AiImproveStatus = null | "analyzing" | "calling-ai" | "saving" | "done" | `retry-${number}`;
 
-function buildBreakdownRows(breakdown: ListingScoreBreakdown): BreakdownRow[] {
-  return BREAKDOWN_META.map(({ key, label, max }) => ({
-    label,
-    earned: breakdown[key],
-    max,
-  }));
-}
+// ---------------------------------------------------------------------------
+// Rubric category breakdown panel (replaces legacy ScoreBreakdownPanel)
+// ---------------------------------------------------------------------------
 
-function ScoreBreakdownPanel({ breakdown, score }: { breakdown: ListingScoreBreakdown; score: number }) {
-  const rows = buildBreakdownRows(breakdown);
-  const earned = rows.reduce((s, r) => s + r.earned, 0);
-  const maxPossible = rows.reduce((s, r) => s + r.max, 0);
+function RubricBreakdownPanel({
+  categories,
+  remediation,
+  score,
+}: {
+  categories: QualityCategory[];
+  remediation: QualityRemediationItem[];
+  score: number;
+}) {
+  const top3 = remediation.slice(0, 3);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-[var(--ui-title)]">Score breakdown</p>
-        <p className="text-xs text-[var(--ui-muted)]">
-          {earned} of {maxPossible} points (capped at 100)
-        </p>
+        <p className="text-xs text-[var(--ui-muted)]">Total: {score}/100</p>
       </div>
       <div className="space-y-0.5">
-        {rows.map((row) => {
-          const pct = row.max > 0 ? (row.earned / row.max) * 100 : 0;
-          const full = row.earned === row.max;
+        {categories.map((cat) => {
+          const pct = cat.possible > 0 ? (cat.earned / cat.possible) * 100 : 0;
+          const full = cat.earned >= cat.possible;
           return (
-            <div key={row.label} className="flex items-center gap-2 text-xs">
-              <div className="w-[180px] shrink-0 truncate text-[var(--ui-body)]" title={row.label}>
-                {row.label}
-              </div>
+            <div key={cat.name} className="flex items-center gap-2 text-xs">
+              <div className="w-[120px] shrink-0 capitalize text-[var(--ui-body)]">{cat.name}</div>
               <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[var(--ui-border)]">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full transition-all"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: full ? "var(--ui-green)" : pct > 0 ? "var(--ui-yellow)" : "var(--ui-red)",
+                    backgroundColor: full
+                      ? "var(--ui-green)"
+                      : pct > 0
+                        ? "var(--ui-yellow)"
+                        : "var(--ui-red)",
                   }}
                 />
               </div>
               <span
-                className="w-10 shrink-0 text-right font-mono"
+                className="w-12 shrink-0 text-right font-mono"
                 style={{
                   color: full
                     ? "var(--ui-green)"
-                    : row.earned > 0
+                    : cat.earned > 0
                       ? "var(--ui-yellow)"
                       : "var(--ui-muted)",
                 }}
               >
-                {row.earned}/{row.max}
+                {cat.earned}/{cat.possible}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="border-t border-[var(--ui-border)] pt-1 text-right text-xs font-semibold text-[var(--ui-title)]">
-        Total: {score}/100
-      </div>
+      {top3.length > 0 && (
+        <div className="border-t border-[var(--ui-border)] pt-2">
+          <p className="mb-1 text-xs font-semibold text-[var(--ui-title)]">Top improvements</p>
+          <ul className="list-disc space-y-0.5 pl-4 text-xs text-[var(--ui-body)]">
+            {top3.map((r) => (
+              <li key={r.ref + r.shortcoming}>{r.shortcoming}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-export function ListingQualityScore({
-  item,
-  score: scoreOverride,
-  compact = false,
-  minScore = 80,
-}: ListingQualityScoreProps) {
+// ---------------------------------------------------------------------------
+// ListingQualityScore — full panel (used in inventory detail)
+// ---------------------------------------------------------------------------
+
+type ListingQualityScoreProps = {
+  item: ItemLike;
+  compact?: boolean;
+  minScore?: number;
+};
+
+export function ListingQualityScore({ item, compact = false, minScore = 85 }: ListingQualityScoreProps) {
   const [expanded, setExpanded] = useState(false);
-  const score = scoreOverride ?? computeListingScore(item, minScore);
-  const color = listingScoreGradeColor(score.grade);
+
+  const { score, categories, remediation } = useMemo(() => {
+    const fast = computeRubricFastScore(item as unknown as InventoryRowLike);
+    if (fast.source === "cached_full") {
+      // For cached results, still run the fast evaluator to get category breakdown
+      try {
+        const full = evaluateListingQuality(item as unknown as InventoryRecord, {
+          minScore,
+          itemId: item.id,
+        });
+        return { score: fast.score, categories: full.categories, remediation: full.quality_remediation };
+      } catch {
+        return { score: fast.score, categories: [] as QualityCategory[], remediation: [] as QualityRemediationItem[] };
+      }
+    }
+    try {
+      const result = evaluateListingQuality(item as unknown as InventoryRecord, { minScore, itemId: item.id });
+      return { score: result.score, categories: result.categories, remediation: result.quality_remediation };
+    } catch {
+      return { score: fast.score, categories: [] as QualityCategory[], remediation: [] as QualityRemediationItem[] };
+    }
+  }, [item, minScore]);
+
+  const color = rubricScoreColor(score);
+  const tips = remediation.slice(0, 3).map((r) => r.shortcoming);
 
   return (
     <div className={compact ? "flex items-center gap-2" : "space-y-3"}>
@@ -131,21 +146,21 @@ export function ListingQualityScore({
               backgroundColor: `color-mix(in srgb, ${color} 25%, transparent)`,
               border: `2px solid ${color}`,
             }}
-            aria-label={`Listing quality score ${score.score} out of 100`}
+            aria-label={`Listing quality score ${score} out of 100`}
           >
-            {score.score}
+            {score}
           </div>
           <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--ui-muted)]">
             Quality
           </span>
         </button>
-        {!compact && score.tips.length > 0 ? (
+        {!compact && tips.length > 0 ? (
           <div className="min-w-[12rem] flex-1">
             <p className="mb-1 text-xs font-semibold text-[var(--ui-title)]">
               Tips to improve your listing
             </p>
             <ul className="list-disc space-y-1 pl-4 text-xs text-[var(--ui-body)]">
-              {score.tips.map((tip) => (
+              {tips.map((tip) => (
                 <li key={tip}>{tip}</li>
               ))}
             </ul>
@@ -154,7 +169,7 @@ export function ListingQualityScore({
       </div>
       {expanded ? (
         <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
-          <ScoreBreakdownPanel breakdown={score.breakdown} score={score.score} />
+          <RubricBreakdownPanel categories={categories} remediation={remediation} score={score} />
         </div>
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setExpanded(true)}>
@@ -165,25 +180,39 @@ export function ListingQualityScore({
   );
 }
 
-export type AiImproveStatus = null | "analyzing" | "calling-ai" | "saving" | "done" | `retry-${number}`;
+// ---------------------------------------------------------------------------
+// QualityChecklist — sidebar checklist (used in inventory detail panel)
+// ---------------------------------------------------------------------------
 
 export function QualityChecklist({
   item,
-  minScore = 80,
+  minScore = 85,
   onImproveWithAi,
   aiStatus,
   aiConfigured,
 }: {
-  item: ListingScoreInput;
+  item: ItemLike;
   minScore?: number;
   onImproveWithAi?: () => void;
   aiStatus?: AiImproveStatus;
   aiConfigured?: boolean;
 }) {
-  const result = useMemo(() => computeListingScore(item, minScore), [item, minScore]);
-  const color = listingScoreGradeColor(result.grade);
-  const rows = useMemo(() => buildBreakdownRows(result.breakdown), [result.breakdown]);
-  const completedCount = rows.filter((r) => r.earned === r.max).length;
+  const { score, categories, remediation } = useMemo(() => {
+    try {
+      const result = evaluateListingQuality(item as unknown as InventoryRecord, {
+        minScore,
+        itemId: item.id,
+      });
+      return { score: result.score, categories: result.categories, remediation: result.quality_remediation };
+    } catch {
+      const fast = computeRubricFastScore(item as unknown as InventoryRowLike);
+      return { score: fast.score, categories: [] as QualityCategory[], remediation: [] as QualityRemediationItem[] };
+    }
+  }, [item, minScore]);
+
+  const color = rubricScoreColor(score);
+  const completedCount = categories.filter((c) => c.earned >= c.possible).length;
+  const tips = remediation.slice(0, 3).map((r) => r.shortcoming);
 
   return (
     <div className="sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
@@ -195,36 +224,40 @@ export function QualityChecklist({
             border: `2px solid ${color}`,
           }}
         >
-          {result.score}
+          {score}
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--ui-title)]">Quality Score</p>
           <p className="text-[10px] text-[var(--ui-muted)]">
-            {completedCount}/{rows.length} checks passed
+            {completedCount}/{categories.length} categories full
           </p>
         </div>
       </div>
 
       <div className="space-y-1">
-        {rows.map((row) => {
-          const full = row.earned === row.max;
-          const partial = !full && row.earned > 0;
+        {categories.map((cat) => {
+          const full = cat.earned >= cat.possible;
+          const partial = !full && cat.earned > 0;
           return (
-            <div key={row.label} className="flex items-start gap-2 text-xs">
+            <div key={cat.name} className="flex items-start gap-2 text-xs">
               <span className="mt-0.5 shrink-0">
                 {full ? (
                   <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="var(--ui-green)">
                     <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zm3.78 5.22a.75.75 0 0 0-1.06 0L7 8.94 5.28 7.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.06 0l4.25-4.25a.75.75 0 0 0 0-1.06z" />
                   </svg>
                 ) : (
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill={partial ? "var(--ui-yellow)" : "var(--ui-red)"}>
+                  <svg
+                    className="h-3.5 w-3.5"
+                    viewBox="0 0 16 16"
+                    fill={partial ? "var(--ui-yellow)" : "var(--ui-red)"}
+                  >
                     <circle cx="8" cy="8" r="8" opacity="0.2" />
                     <circle cx="8" cy="8" r="4" />
                   </svg>
                 )}
               </span>
               <span
-                className="leading-tight"
+                className="leading-tight capitalize"
                 style={{
                   color: full
                     ? "var(--ui-green)"
@@ -233,12 +266,10 @@ export function QualityChecklist({
                       : "var(--ui-red)",
                 }}
               >
-                {row.label}
-                {!full && (
-                  <span className="ml-1 font-mono text-[10px] opacity-70">
-                    {row.earned}/{row.max}
-                  </span>
-                )}
+                {cat.name}
+                <span className="ml-1 font-mono text-[10px] opacity-70">
+                  {cat.earned}/{cat.possible}
+                </span>
               </span>
             </div>
           );
@@ -247,12 +278,10 @@ export function QualityChecklist({
 
       <div className="mt-3 border-t border-[var(--ui-border)] pt-2">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-[var(--ui-title)]">
-            Total: {result.score}/100
-          </span>
-          {result.score >= 90 ? (
+          <span className="font-semibold text-[var(--ui-title)]">Total: {score}/100</span>
+          {score >= 90 ? (
             <span className="font-semibold text-[var(--ui-green)]">Ready</span>
-          ) : result.score >= minScore ? (
+          ) : score >= minScore ? (
             <span className="font-semibold text-[var(--ui-yellow)]">Acceptable</span>
           ) : (
             <span className="font-semibold text-[var(--ui-red)]">Below minimum ({minScore})</span>
@@ -260,13 +289,13 @@ export function QualityChecklist({
         </div>
       </div>
 
-      {result.tips.length > 0 ? (
+      {tips.length > 0 ? (
         <div className="mt-2 border-t border-[var(--ui-border)] pt-2">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
             Top fixes
           </p>
           <ul className="space-y-0.5 text-xs text-[var(--ui-body)]">
-            {result.tips.map((tip) => (
+            {tips.map((tip) => (
               <li key={tip} className="flex gap-1.5">
                 <span className="shrink-0 text-[var(--ui-yellow)]">→</span>
                 {tip}
@@ -276,7 +305,7 @@ export function QualityChecklist({
         </div>
       ) : null}
 
-      {result.score < 90 && aiConfigured && onImproveWithAi ? (
+      {score < 90 && aiConfigured && onImproveWithAi ? (
         <div className="mt-3">
           <button
             type="button"
@@ -310,11 +339,28 @@ export function QualityChecklist({
   );
 }
 
-export function ListingQualityScoreBadge({ item, minScore = 80 }: { item: ListingScoreInput; minScore?: number }) {
-  const result = computeListingScore(item, minScore);
-  const color = listingScoreGradeColor(result.grade);
+// ---------------------------------------------------------------------------
+// ListingQualityScoreBadge — compact inline badge for list views
+// ---------------------------------------------------------------------------
+
+export function ListingQualityScoreBadge({ item, minScore = 85 }: { item: ItemLike; minScore?: number }) {
+  const fast = computeRubricFastScore(item as unknown as InventoryRowLike);
+  const color = rubricScoreColor(fast.score);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const { categories, remediation } = useMemo(() => {
+    if (!open) return { categories: [] as QualityCategory[], remediation: [] as QualityRemediationItem[] };
+    try {
+      const result = evaluateListingQuality(item as unknown as InventoryRecord, {
+        minScore,
+        itemId: item.id,
+      });
+      return { categories: result.categories, remediation: result.quality_remediation };
+    } catch {
+      return { categories: [] as QualityCategory[], remediation: [] as QualityRemediationItem[] };
+    }
+  }, [open, item, minScore]);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -330,7 +376,7 @@ export function ListingQualityScoreBadge({ item, minScore = 80 }: { item: Listin
         style={{ color, backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)` }}
         title="Click to see score breakdown"
       >
-        {result.score}
+        {fast.score}
       </button>
       {open ? (
         <>
@@ -345,25 +391,22 @@ export function ListingQualityScoreBadge({ item, minScore = 80 }: { item: Listin
                     border: `2px solid ${color}`,
                   }}
                 >
-                  {result.score}
+                  {fast.score}
                 </span>
                 <span className="text-sm font-semibold text-[var(--ui-title)]">Listing Quality</span>
+                {fast.source === "fast_path" && (
+                  <span className="text-[10px] text-[var(--ui-muted)]">(estimated)</span>
+                )}
               </div>
               <Button variant="ghost" size="sm" onClick={close}>
                 Close
               </Button>
             </div>
-            <ScoreBreakdownPanel breakdown={result.breakdown} score={result.score} />
-            {result.tips.length > 0 ? (
-              <div className="mt-3 border-t border-[var(--ui-border)] pt-2">
-                <p className="mb-1 text-xs font-semibold text-[var(--ui-title)]">Top improvements</p>
-                <ul className="list-disc space-y-0.5 pl-4 text-xs text-[var(--ui-body)]">
-                  {result.tips.map((tip) => (
-                    <li key={tip}>{tip}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+            {categories.length > 0 ? (
+              <RubricBreakdownPanel categories={categories} remediation={remediation} score={fast.score} />
+            ) : (
+              <p className="text-xs text-[var(--ui-muted)]">Run "Evaluate Listing Quality" for a full breakdown.</p>
+            )}
           </div>
         </>
       ) : null}

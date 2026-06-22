@@ -2,7 +2,18 @@
 
 ## Status
 
-Accepted
+**Superseded by ADR-085 (2026-06-21).**
+
+> **Note (2026-06-21):** The "four operator-facing paths" model and the `listing_draft_state`
+> machine (`draft → generated|imported → approved → published`) described below are **retired**.
+> There is now a single listing system — the three-processor lifecycle (ADR-081) scored by the
+> single rubric (ADR-082), ending in Publish-to-Etsy gated on `listing_phase = 'listing_ready'`.
+> Direct field editing survives as plain editing (not a named "mode"); the integrated AI generate
+> absorbs the former Listing Coach research/authoring; portable export/import, approve/reject, and
+> the draft-state machine are removed. See **ADR-085** for the authoritative decision. This ADR is
+> retained for historical context only.
+
+Accepted (historical)
 
 ## Date
 

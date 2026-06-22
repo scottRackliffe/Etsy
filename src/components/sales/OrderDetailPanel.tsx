@@ -21,6 +21,7 @@ import { formStatesEqual } from "@/lib/deep-equal-form";
 import { MutationQueuedError, MutationQueueFullError } from "@/lib/api-fetch";
 import { addNotificationEntry } from "@/lib/notifications";
 import { addToPrintQueue, printQueueTypeLabel, type PrintQueueDocType } from "@/lib/print-queue";
+import { SendCommunicationModal } from "@/components/communications/SendCommunicationModal";
 import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@/types";
 
 type OrderDetailPanelProps = {
@@ -133,6 +134,7 @@ export function OrderDetailPanel({
   const [discountReasons, setDiscountReasons] = useState<string[]>([]);
   const [addingNewReason, setAddingNewReason] = useState(false);
   const [newReasonText, setNewReasonText] = useState("");
+  const [commModal, setCommModal] = useState<{ type: "payment_reminder" | "thank_you"; channel: "email" | "print" } | null>(null);
   const isDirty = useMemo(() => {
     if (!order || !draft) return false;
     return !formStatesEqual(draft, orderToDraft(order));
@@ -879,6 +881,25 @@ export function OrderDetailPanel({
         >
           Add thank-you to queue
         </Button>
+        {/* Communications send actions (ADR-078) */}
+        {!isVoid && order.source_channel === "manual" && !isPaid && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setCommModal({ type: "payment_reminder", channel: "email" })}
+            disabled={busy || saving}
+          >
+            Send payment reminder
+          </Button>
+        )}
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setCommModal({ type: "thank_you", channel: order.source_channel === "etsy" ? "print" : "email" })}
+          disabled={busy || saving || isVoid}
+        >
+          Send thank-you
+        </Button>
         {!isVoid ? (
           <Button
             variant="danger"
@@ -988,6 +1009,19 @@ export function OrderDetailPanel({
         confirmVariant="danger"
         busy={lineItemBusy}
       />
+
+      {commModal && order && (
+        <SendCommunicationModal
+          type={commModal.type}
+          orderIds={[order.id]}
+          channel={commModal.channel}
+          onClose={() => setCommModal(null)}
+          onSent={() => {
+            setCommModal(null);
+            onSuccess?.("Sent", "Message sent successfully.");
+          }}
+        />
+      )}
 
     </div>
   );

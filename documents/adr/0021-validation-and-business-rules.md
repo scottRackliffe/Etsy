@@ -141,13 +141,19 @@ inventory_id is set by the API path (POST /api/inventory/[id]/other-costs); no c
 - “Non-empty string after trim” means: value is string, and after trimming leading/trailing whitespace, length > 0. Empty string or whitespace-only is invalid when field is required.
 - Client and server must both enforce these rules; server is authoritative (client may validate for UX but server must reject invalid data).
 
-### Listing Coach (ADR-072)
+### Listing generation gate (ADR-081 / ADR-085)
 
-Validation for `POST /api/listing-coach/*` is defined in **ADR-072 § Validation**. Coach **complete** uses the same `item_number` uniqueness and inventory field rules as `POST /api/inventory`. Composed listing fields must satisfy listing title/description/tags rules before workshop **Approve** (same as integrated AI generation).
+AI listing generation (`POST /api/inventory/[id]/generate-listing-content`) is allowed once the
+item has: `item_number`, `description`, `condition_code`, and **at least one picture**. **Price
+(`sale_revenue`) is NOT required to generate (ADR-085)** — the AI recommends it. Listing title /
+description / tags rules still apply to the generated content. (The former Listing Coach validation
+in ADR-072 is retired with the Coach.)
 
 ### 8. Listing publish / List on Etsy validation
 
-These rules apply when publishing a listing to Etsy (`listing_draft_state` transition to `published`). They are **not** required for draft creation or AI generation — only at publish time.
+These rules apply when publishing a listing to Etsy. Publishing is gated on **`listing_phase =
+'listing_ready'`** (ADR-085 §5 — the rubric passed) **plus** the Etsy field checks below. They are
+**not** required for draft creation or AI generation — only at publish time.
 
 | Field | Rule | Error message if violated |
 | --- | --- | --- |

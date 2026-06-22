@@ -227,6 +227,23 @@ export default function ConfigPage() {
   const [taxonomySyncing, setTaxonomySyncing] = useState(false);
   const [taxonomyLastSync, setTaxonomyLastSync] = useState<string | null>(null);
   const [taxonomyNodeCount, setTaxonomyNodeCount] = useState(0);
+  // Email / SMTP settings (ADR-078)
+  const [emailSmtpHost, setEmailSmtpHost] = useState("");
+  const [emailSmtpPort, setEmailSmtpPort] = useState("587");
+  const [emailSmtpSecure, setEmailSmtpSecure] = useState("false");
+  const [emailSmtpUser, setEmailSmtpUser] = useState("");
+  const [emailSmtpPass, setEmailSmtpPass] = useState(""); // plaintext input only; never stored
+  const [emailSmtpPassSet, setEmailSmtpPassSet] = useState(false);
+  const [emailFromName, setEmailFromName] = useState("");
+  const [emailFromAddress, setEmailFromAddress] = useState("");
+  const [emailEnabled, setEmailEnabled] = useState("false");
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  // Communication template settings (ADR-078 §4)
+  const [commReminderSubject, setCommReminderSubject] = useState("");
+  const [commReminderBody, setCommReminderBody] = useState("");
+  const [commThankYouSubject, setCommThankYouSubject] = useState("");
+  const [commThankYouBody, setCommThankYouBody] = useState("");
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<Map<string, string>>(new Map());
   const [configBaseline, setConfigBaseline] = useState<ConfigFormSnapshot | null>(null);
   const { setFormDirty, registerOnDiscard } = useUnsavedChanges();
@@ -536,6 +553,143 @@ export default function ConfigPage() {
   useEffect(() => {
     void loadBusinessProfile();
   }, [loadBusinessProfile]);
+
+  // ---------------------------------------------------------------------------
+  // Email settings (ADR-078) — loaded separately (password never in main bulk)
+  // ---------------------------------------------------------------------------
+  const loadEmailSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/email", { headers: { Accept: "application/json" } });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        config?: {
+          smtp_host?: string;
+          smtp_port?: string;
+          smtp_secure?: string;
+          smtp_user?: string;
+          smtp_pass_set?: boolean;
+          from_name?: string;
+          from_address?: string;
+          enabled?: string;
+        };
+      };
+      if (data.ok && data.config) {
+        setEmailSmtpHost(data.config.smtp_host ?? "");
+        setEmailSmtpPort(data.config.smtp_port ?? "587");
+        setEmailSmtpSecure(data.config.smtp_secure ?? "false");
+        setEmailSmtpUser(data.config.smtp_user ?? "");
+        setEmailSmtpPassSet(data.config.smtp_pass_set ?? false);
+        setEmailFromName(data.config.from_name ?? "");
+        setEmailFromAddress(data.config.from_address ?? "");
+        setEmailEnabled(data.config.enabled ?? "false");
+      }
+    } catch {
+      // non-fatal; email section will just start blank
+    }
+  }, []);
+
+  const loadCommTemplates = useCallback(async () => {
+    try {
+      const keys = [
+        "comm.template.payment_reminder.subject",
+        "comm.template.payment_reminder.body",
+        "comm.template.thank_you.subject",
+        "comm.template.thank_you.body",
+      ];
+      const results = await Promise.all(
+        keys.map((k) =>
+          fetch(`/api/settings/${encodeURIComponent(k)}`, { headers: { Accept: "application/json" } })
+            .then((r) => r.json() as Promise<{ value?: string }>)
+            .catch(() => ({ value: "" }))
+        )
+      );
+      setCommReminderSubject(results[0]?.value ?? "");
+      setCommReminderBody(results[1]?.value ?? "");
+      setCommThankYouSubject(results[2]?.value ?? "");
+      setCommThankYouBody(results[3]?.value ?? "");
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadEmailSettings();
+    void loadCommTemplates();
+  }, [loadEmailSettings, loadCommTemplates]);
+
+  const saveEmailSettings = async () => {
+    setEmailLoading(true);
+    setEmailTestResult(null);
+    try {
+      const body: Record<string, string> = {
+        smtp_host: emailSmtpHost,
+        smtp_port: emailSmtpPort,
+        smtp_secure: emailSmtpSecure,
+        smtp_user: emailSmtpUser,
+        from_name: emailFromName,
+        from_address: emailFromAddress,
+        enabled: emailEnabled,
+      };
+      if (emailSmtpPass.trim()) body.smtp_pass = emailSmtpPass;
+      const res = await fetch("/api/settings/email", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; config?: { smtp_pass_set?: boolean } };
+      if (!res.ok || !data.ok) throw data;
+      if (data.config?.smtp_pass_set) setEmailSmtpPassSet(true);
+      setEmailSmtpPass(""); // clear after save
+      setError({ title: "Email settings saved", message: "SMTP configuration was saved.", actions: [] });
+    } catch (err) {
+      setApiError("Save failed", "Could not save email settings.", err);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const testEmailConnection = async () => {
+    setEmailLoading(true);
+    setEmailTestResult(null);
+    try {
+      const res = await fetch("/api/settings/email/test-connection", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      setEmailTestResult({ ok: data.ok ?? false, message: data.message ?? "Unknown result." });
+    } catch {
+      setEmailTestResult({ ok: false, message: "Could not reach the test endpoint." });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const saveCommTemplates = async () => {
+    setEmailLoading(true);
+    try {
+      const pairs: [string, string][] = [
+        ["comm.template.payment_reminder.subject", commReminderSubject],
+        ["comm.template.payment_reminder.body", commReminderBody],
+        ["comm.template.thank_you.subject", commThankYouSubject],
+        ["comm.template.thank_you.body", commThankYouBody],
+      ];
+      await Promise.all(
+        pairs.map(([k, v]) =>
+          fetch(`/api/settings/${encodeURIComponent(k)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ value: v }),
+          })
+        )
+      );
+      setError({ title: "Templates saved", message: "Communication templates were updated.", actions: [] });
+    } catch (err) {
+      setApiError("Save failed", "Could not save communication templates.", err);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   const saveBusinessProfile = async () => {
     setBusinessLoading(true);
@@ -2610,6 +2764,185 @@ export default function ConfigPage() {
               Save content settings
             </Button>
           </div>
+        </div>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* Email / SMTP settings (ADR-078 §5a)                             */}
+        {/* ---------------------------------------------------------------- */}
+        <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <h4 className="mb-1 text-sm font-semibold text-[var(--ui-title)]">Email (SMTP)</h4>
+          <p className="mb-3 text-xs text-[var(--ui-muted)]">
+            Used to send payment reminders and thank-you notes. Password is stored encrypted.
+          </p>
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-sm text-[var(--ui-body)]">Email sending:</span>
+            <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+              <input
+                type="radio"
+                name="email-enabled"
+                value="true"
+                checked={emailEnabled === "true"}
+                onChange={() => setEmailEnabled("true")}
+                className="h-4 w-4"
+              />
+              <span className={emailEnabled === "true" ? "font-semibold text-[var(--ui-title)]" : "text-[var(--ui-muted)]"}>Enabled</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+              <input
+                type="radio"
+                name="email-enabled"
+                value="false"
+                checked={emailEnabled !== "true"}
+                onChange={() => setEmailEnabled("false")}
+                className="h-4 w-4"
+              />
+              <span className={emailEnabled !== "true" ? "font-semibold text-[var(--ui-title)]" : "text-[var(--ui-muted)]"}>Disabled</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="SMTP Host">
+              <input
+                value={emailSmtpHost}
+                onChange={(e) => setEmailSmtpHost(e.target.value)}
+                placeholder="smtp.example.com"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="SMTP Port">
+              <input
+                value={emailSmtpPort}
+                onChange={(e) => setEmailSmtpPort(e.target.value)}
+                placeholder="587"
+                type="number"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="SMTP Username">
+              <input
+                value={emailSmtpUser}
+                onChange={(e) => setEmailSmtpUser(e.target.value)}
+                placeholder="user@example.com"
+                autoComplete="off"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="SMTP Password"
+              helpText={emailSmtpPassSet ? "Password is saved. Enter a new one to replace it." : "Will be stored encrypted."}
+            >
+              <input
+                type="password"
+                value={emailSmtpPass}
+                onChange={(e) => setEmailSmtpPass(e.target.value)}
+                placeholder={emailSmtpPassSet ? "••••••••" : "Enter password"}
+                autoComplete="new-password"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="From Name">
+              <input
+                value={emailFromName}
+                onChange={(e) => setEmailFromName(e.target.value)}
+                placeholder="Trudy's Classic Treasures"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField label="From Address">
+              <input
+                value={emailFromAddress}
+                onChange={(e) => setEmailFromAddress(e.target.value)}
+                placeholder="hello@example.com"
+                type="email"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ui-body)]">
+              <input
+                type="checkbox"
+                checked={emailSmtpSecure === "true"}
+                onChange={(e) => setEmailSmtpSecure(e.target.checked ? "true" : "false")}
+                className="accent-[var(--ui-accent)]"
+              />
+              Use TLS/SSL (port 465)
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="accent" size="lg" onClick={() => void saveEmailSettings()} disabled={emailLoading}>
+              Save email settings
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void testEmailConnection()} disabled={emailLoading}>
+              Test connection
+            </Button>
+          </div>
+          {emailTestResult && (
+            <p className={`mt-2 text-sm ${emailTestResult.ok ? "text-[var(--ui-green)]" : "text-[var(--ui-red)]"}`}>
+              {emailTestResult.ok ? "✓ " : "✗ "}{emailTestResult.message}
+            </p>
+          )}
+        </div>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* Communication templates (ADR-078 §4)                             */}
+        {/* ---------------------------------------------------------------- */}
+        <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+          <h4 className="mb-1 text-sm font-semibold text-[var(--ui-title)]">Message Templates</h4>
+          <p className="mb-3 text-xs text-[var(--ui-muted)]">
+            Customize the subject and body for each message type. Leave blank to use the built-in default.
+            Supported tokens: <code className="text-[var(--ui-body)]">{"{{customer_first_name}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{order_number}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{order_total}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{amount_due}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{business_name}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{tracking_number}}"}</code>,{" "}
+            <code className="text-[var(--ui-body)]">{"{{shipper}}"}</code>.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--ui-muted)]">Payment Reminder</h5>
+              <FormField label="Subject">
+                <input
+                  value={commReminderSubject}
+                  onChange={(e) => setCommReminderSubject(e.target.value)}
+                  placeholder="Payment reminder for order {{order_number}}"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Body">
+                <textarea
+                  value={commReminderBody}
+                  onChange={(e) => setCommReminderBody(e.target.value)}
+                  rows={5}
+                  placeholder={"Dear {{customer_first_name}},\n\nThis is a friendly reminder that your order {{order_number}} has a balance of {{amount_due}} that remains unpaid.\n\nThank you,\n{{business_name}}"}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm font-mono"
+                />
+              </FormField>
+            </div>
+            <div>
+              <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--ui-muted)]">Thank-You Note</h5>
+              <FormField label="Subject">
+                <input
+                  value={commThankYouSubject}
+                  onChange={(e) => setCommThankYouSubject(e.target.value)}
+                  placeholder="Thank you for your order {{order_number}}!"
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Body">
+                <textarea
+                  value={commThankYouBody}
+                  onChange={(e) => setCommThankYouBody(e.target.value)}
+                  rows={5}
+                  placeholder={"Dear {{customer_first_name}},\n\nThank you for your order!\n\nWith gratitude,\n{{business_name}}"}
+                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm font-mono"
+                />
+              </FormField>
+            </div>
+          </div>
+          <Button variant="accent" size="lg" onClick={() => void saveCommTemplates()} disabled={emailLoading} className="mt-3">
+            Save templates
+          </Button>
         </div>
 
         <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">

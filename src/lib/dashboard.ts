@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/sqlite";
 import { getSetting, getMinQualityScore } from "@/lib/settings-store";
 import { getOutstandingCount } from "@/lib/outstanding";
-import { computeListingScore, type ListingScoreInput } from "@/lib/listing-score";
+import { computeRubricFastScore } from "@/lib/listing-rubric";
 
 const UNSOLD_STATUSES = ["Draft", "In stock", "Listed", "Reserved"];
 
@@ -216,7 +216,7 @@ export function getLowQualityInventory(): {
 
   const items: LowQualityInventoryItem[] = [];
   for (const row of rows) {
-    const { score } = computeListingScore(row as ListingScoreInput, minScore);
+    const { score } = computeRubricFastScore(row as { id: number; [key: string]: unknown });
     if (score < minScore) {
       const title =
         (row.listing_title as string)?.trim() ||

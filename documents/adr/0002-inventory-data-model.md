@@ -61,10 +61,14 @@ Store the following in the database:
 
 ## Notes
 
-- **Listing lifecycle (ADR-081):** three additive columns support the listing phase machine —
-  `listing_phase` (needs_data / ready_to_generate / generated / needs_quality_remediation /
-  listing_ready; derived-but-stored, separate from `status`), `listing_source_hash` (drift detection),
-  and `listing_generated_at` (generation timestamp). They do not change existing inventory semantics.
+- **Listing lifecycle (ADR-081, made canonical by ADR-085):** three additive columns support the
+  single listing phase machine — `listing_phase` (needs_data / ready_to_generate / generated /
+  needs_quality_remediation / listing_ready; derived-but-stored, separate from `status`),
+  `listing_source_hash` (drift detection), and `listing_generated_at` (generation timestamp).
+- **Deprecated listing columns (ADR-085, 2026-06-21):** `listing_draft_state`,
+  `listing_draft_source`, `listing_export_id`, and `listing_approved_at` are retired (the ADR-023
+  draft-state machine, modes, portable handoff, and approve step are gone). The columns remain in
+  the table for back-compat but are no longer read or written.
 - **Listing quality / shot list (ADR-082/083):** `listing_quality_json` caches the latest quality
   result, and `shot_list_json` stores the AI-generated photo shot list (per-photo `captured` status
   is derived at read time from existing pictures + classifications). Both are additive.

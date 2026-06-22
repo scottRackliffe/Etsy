@@ -60,6 +60,9 @@ export function activityEntityHref(
       return `/expenses?expenseId=${entityId}`;
     case "tax_payment":
       return `/expenses?taxPaymentId=${entityId}`;
+    case "communication":
+      // Deep-link to the associated order when there's a single-order entity_id
+      return entityId ? `/orders?orderId=${entityId}` : null;
     default:
       return null;
   }

@@ -1,5 +1,5 @@
 # Etsy Sales Manager — Cursor Rules
-# Last updated: 2026-06-17 (ADR updates: vendors, expenses, tax payments, financial reports)
+# Last updated: 2026-06-21 (WS-C: Communications/Outreach Center — ADR-078 implemented)
 # These rules tell Cursor exactly where to look and what to follow for every domain.
 # When in doubt: read the ADR first, then implement.
 
@@ -64,9 +64,9 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Customer interaction notes | `documents/adr/0065-customer-interaction-notes.md` |
 | Repeat customer badge | `documents/adr/0066-repeat-customer-badge.md` |
 | Undo/redo | `documents/adr/0067-undo-redo.md` |
-| Listing quality score and SEO hints | `documents/adr/0068-listing-quality-score.md` |
+| Listing quality score and SEO hints (SUPERSEDED by ADR-082/085; computeListingScore retired) | `documents/adr/0068-listing-quality-score.md` |
 | Sample/demo data for new users | `documents/adr/0069-sample-demo-data.md` |
-| Listing Coach (guided new listing) | `documents/adr/0072-listing-coach-guided-new-listing-flow.md` |
+| Listing Coach (guided new listing) — REMOVED, SUPERSEDED by ADR-085 | `documents/adr/0072-listing-coach-guided-new-listing-flow.md` |
 | Vendor purchase receipts (scan, link, manage) | ADR-018 §31, API routes at `/api/receipts/*` |
 | User guide: Listing Coach | `system/tips/Listing_Coach_Guide.md` |
 | API usage tracking (per-service monthly counts) | `documents/adr/0075-api-usage-tracking.md` |
@@ -75,8 +75,9 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Communications & outreach (payment reminders, thank-you, SMTP, comm log) | `documents/adr/0078-communications-and-customer-outreach.md` |
 | Standard Entity Management Screen (list+editor+dirty guard) | `documents/adr/0079-standard-entity-management-screen.md` |
 | Top-level Shipping module (split out of Sales) | `documents/adr/0080-top-level-shipping-module.md` |
+| **Unified listing lifecycle (single processor — START HERE for listing)** | `documents/adr/0085-unified-listing-lifecycle.md` |
 | Listing lifecycle & phases (evaluate/generate/quality button) | `documents/adr/0081-listing-lifecycle-and-phases.md` |
-| Listing quality rubric (per-field + per-photo specs) | `documents/adr/0082-listing-quality-rubric.md` |
+| Listing quality rubric (per-field + per-photo specs; single quality engine) | `documents/adr/0082-listing-quality-rubric.md` |
 | AI shot-list generation (from primary photo) | `documents/adr/0083-ai-shot-list-generation.md` |
 | AI dimension annotation (reference-ruler photo) | `documents/adr/0084-ai-dimension-annotation.md` |
 | Major enhancements program (workstreams A–H, sequencing) | `documents/PROGRAM_2026-06-21_major-enhancements.md` |
@@ -96,7 +97,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Token refresh middleware | `documents/adr/0025-token-refresh-middleware.md` |
 | Backup and restore | `documents/adr/0027-backup-and-restore.md` |
 | Item pick list | `documents/adr/0015-add-sale-to-current-customer-item-pick-list.md` |
-| Listing content generation modes | `documents/adr/0023-listing-content-generation-modes.md` |
+| Listing content generation modes (SUPERSEDED by ADR-085) | `documents/adr/0023-listing-content-generation-modes.md` |
 | Listing template and AI inputs | `documents/etsy-listing-template-and-requirements.md` |
 | Etsy compliance | `documents/adr/0011-compliance-with-etsy-rules.md` + `documents/etsy-compliance.md` |
 | Etsy API acceptance and usage requirements | `documents/adr/0073-etsy-api-acceptance-and-usage-requirements.md` |
@@ -142,7 +143,7 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-021** (Validation rules) | ADR-017 (schema mapping: /api/purchases → /api/orders, purchase fields → orders fields). |
 | **ADR-022** (Delete behavior) | ADR-017 (schema mapping: purchase → orders + order_items, customer_address → addresses). |
 | **ADR-024** (Frontend arch) | ADR-028 (component adoption), ADR-029 (pagination), ADR-030 (inventory detail+listing inline), ADR-031 (sales master-detail), ADR-033 (PictureGrid). **No detail sub-routes** (`[id]/page.tsx` removed). Receipts tab at `/receipts`. Vendors tab at `/vendors` (ADR-076). Listing Workshop removed from inventory. |
-| **ADR-023** (Listing modes) | ADR-002, 010/026 pictures, 017 listing_* columns, 068 quality score |
+| **ADR-023** (Listing modes) | **SUPERSEDED by ADR-085** (modes + draft-state machine retired). Historical: ADR-002, 010/026 pictures, 017 listing_* columns, 068 quality score |
 | **ADR-025** (Token refresh) | ADR-007 OAuth, 019 sync, 018 auth proxy routes |
 | **ADR-026** (Picture storage) | ADR-010, 033 upload UI, 018 §16 `/api/uploads` |
 | **ADR-027** (Backup) | ADR-034 Config UI, 018 §19, 043 jobs, 058 integrity |
@@ -186,9 +187,9 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-065** (Customer notes) | ADR-017 `customer_notes`, 052 timeline, 018 §25 |
 | **ADR-066** (Repeat badge) | ADR-003 customers, 016/052 lists, settings threshold |
 | **ADR-067** (Undo/redo) | ADR-037 audit optional, 021 mutation scope |
-| **ADR-068** (Listing quality) | ADR-023 workshop, 030 inventory, 018 §24 |
+| **ADR-068** (Listing quality) | **SUPERSEDED by ADR-082/085** (`computeListingScore` retired; single rubric engine). Historical: ADR-030 inventory, 018 §24 |
 | **ADR-069** (Sample data) | ADR-044 wizard, 034 Config, `fixtures/sample-data.sql`, 018 §27 |
-| **ADR-072** (Listing Coach) | ADR-023 (4th mode), 018 §29, 024 `/listing-coach`, 030/033 pictures, 068 score, 037 activity, ui-design §5.3, Listing_Coach_Guide.md |
+| **ADR-072** (Listing Coach) | **SUPERSEDED by ADR-085** (standalone Coach removed; AI brain absorbed into lifecycle Generate). Historical: ADR-023, 018 §29, 024, 030/033 pictures, 037 activity. Photo shot taxonomy now owned by ADR-082/083. |
 | **ADR-073** (Etsy API) | ADR-025 tokens, 018 auth, 007 OAuth, 011 compliance |
 | **ADR-074** (Shipping API) | ADR-013 thank-you/invoice, 017 orders columns, 018 endpoints, 025 encryption, 027 backup, 031 order detail, 032 confirm, 034 config, 037 activity, 038 profit, 040 batch, 043 progress, shipping-label-carrier-templates.md |
 | **ADR-075** (API usage) | ADR-017 `api_call_log` table, 018 `GET /api/usage`, 034 Config UI section, 037 retention pattern, 074 EasyPost future instrumentation |
@@ -197,8 +198,9 @@ developer will guess — which means bugs. Before finishing any ADR change:
 | **ADR-078** (Communications/outreach) | ADR-017 §6h (`communication_log`, email/template settings), 018 §39 (comm API), 034 (Config Email section + templates), 013/036 (payment-reminder letter), 037 (`communication` entity_type/actions/chip), 011 + etsy-compliance (transactional-only), 031 (order-detail send actions), 055 (print channel), 070 (scope) |
 | **ADR-079** (SEMS) | ADR-024 (canonical screen pattern, inline detail), 030/031 (field defs kept, scaffold follows SEMS), 042 (3-button unsaved dialog), 028 (components), 029 (list filters), 032 (confirm), 061 (responsive), 062 (inline edit), 022 (delete rules). Pilot on Vendors (076) first. |
 | **ADR-080** (Shipping module) | ADR-031 (shipping moves out of order detail; `seller_shipping_cost` read-only mirror), 024 (`/shipping` tab/route), 074 (EasyPost UI home), 009 + ui-design (tab bar), 021 (mark-shipped rule), 035 (`/shipping?orderId=`), 037 (`shipping` links). **No ADR-017 change.** |
-| **ADR-081** (Listing lifecycle/phases) | ADR-017/002 (`listing_phase`, `listing_source_hash` columns), 023 (draft state alignment), 068 (score→rubric), 072 (Coach uses same button), 018 (readiness/generate/quality endpoints), 037 (`listing.quality_evaluated`), 030 (detail button), 082 (rubric). |
-| **ADR-082** (Quality rubric) | ADR-068 (supersedes authoritative quality def; keep light score), 081 (consumes remediation+phase), 083 (shot coverage), 084 (measurement photo), 023 (publish gate), 072 (photo taxonomy), 018 (`listing-quality` endpoint), 075 (AI usage). Evidence: research doc 2026-06-21. |
+| **ADR-085** (Unified listing lifecycle — single processor) | **Supersedes 023/068/072.** Amends 081 (canonical lifecycle; publish gate=`listing_ready`; no sale_revenue prereq), 082 (single quality engine + deterministic fast path), 017/002 (deprecate `listing_draft_state`/`_source`/`_export_id`/`_approved_at`; retire `listing_exports`/`imports`/`publish_previews`), 018 (remove coach/export/import/approve/reject/improve routes; add `listing-refine`/`listing-video`; re-gate publish), 021 (gates), 020 (Outstanding on `listing_phase`), 024/030/033 (inline create + Generate UI + clipboard paste), 037 (retire coach/draft/approve actions), 016 (dashboard reads rubric), 034 (config), 070 (scope), 075 (AI sites), ui-design, `.cursorrules` §5/§6/§13. |
+| **ADR-081** (Listing lifecycle/phases) | **Made canonical by ADR-085.** ADR-017/002 (`listing_phase`, `listing_source_hash` columns), 082 (single rubric), 018 (readiness/generate/quality/publish endpoints), 037 (`listing.quality_evaluated`), 030 (detail button), 020 (Outstanding). Publish gate=`listing_ready`; no `sale_revenue` prereq. |
+| **ADR-082** (Quality rubric) | **Single quality engine (ADR-085).** Supersedes 068 (`computeListingScore` retired); deterministic fast path serves list/Outstanding/dashboard/aging. 081 (consumes remediation+phase), 083 (shot coverage), 084 (measurement photo), 016 (dashboard widget), 018 (`listing-quality` endpoint), 075 (AI usage). Evidence: research doc 2026-06-21. |
 | **ADR-083** (AI shot-list) | ADR-017/002 (`shot_list_json`), 018 (shot-list endpoints), 033 (picture UI), 072 (shot taxonomy + Coach), 082 (required-shot→remediation), 075 (AI usage), 037 (`listing.shot_list_generated`). |
 | **ADR-084** (AI dimension annotation) | ADR-026/033 (picture storage + UI), 072 (`measurement` shot), 082 (measurement rubric), 017/002 (optional `dimension_annotation_json`; dimension fields exist), 018 (measure/annotate endpoints), 075 (AI usage), 037 (`inventory.dimensions_annotated`). |
 | **ADR-070** (Scope) | All store-owner capabilities: v1 / post-v1 / etsy-only / never |
@@ -213,17 +215,17 @@ developer will guess — which means bugs. Before finishing any ADR change:
 - **Customer note type:** `general`, `shipping_preference`, `communication`, `follow_up`, `complaint` (ADR-065)
 - **Activity log source:** `user`, `system`, `etsy_sync` (ADR-037)
 - **Activity entity_type (ADR-037 §A1, expanded by WS-A/ADR-078):** `inventory`, `order`, `customer`, `address`, `receipt`, `vendor`, `expense`, `tax_payment`, `shipping`, `report`, `communication`, `setting`, `sync`, `backup`, `system`
-- **Listing draft state:** `draft`, `generated`, `imported`, `approved`, `published`
-- **Listing phase (ADR-081):** `needs_data`, `ready_to_generate`, `generated`, `needs_quality_remediation`, `listing_ready` (separate dimension from `status`)
+- **Listing draft state:** ~~`draft`, `generated`, `imported`, `approved`, `published`~~ **RETIRED (ADR-085)** — the draft-state machine is gone; use `listing_phase`.
+- **Listing phase (ADR-081/085 — the canonical listing dimension):** `needs_data`, `ready_to_generate`, `generated`, `needs_quality_remediation`, `listing_ready` (separate dimension from `status`; `listing_ready` is the publish gate)
 - **Communication message_type (ADR-078):** `payment_reminder`, `thank_you` (extensible)
 - **Communication channel (ADR-078):** `email`, `print`
 - **Communication status (ADR-078):** `queued`, `sent`, `printed`, `failed`
-- **Listing draft source:** `manual`, `integrated_ai`, `portable_import`
+- **Listing draft source:** ~~`manual`, `integrated_ai`, `portable_import`~~ **RETIRED (ADR-085)** — modes removed.
 - **Etsy who_made:** `i_did`, `someone_else`, `collective` (ADR-017 §1b; default `someone_else` for vintage)
 - **Etsy when_made:** `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700` (ADR-017 §1a)
 - **Weight unit:** `oz`, `lb`, `g`, `kg` (ADR-017)
 - **Dimensions unit:** `in`, `ft`, `mm`, `cm`, `m` (ADR-017)
-- **Photo shot type:** `hero`, `angle`, `detail`, `backstamp`, `scale`, `imperfection`, `underside`, `grouping`, `lifestyle`, `measurement`, `extra` (ADR-072 §Photo classification)
+- **Photo shot type:** `hero`, `angle`, `detail`, `backstamp`, `scale`, `imperfection`, `underside`, `grouping`, `lifestyle`, `measurement`, `extra` (ADR-082/083; taxonomy originally from ADR-072)
 - **Source channel:** `etsy`, `manual`
 - **Shipper:** `USPS`, `UPS`, `FedEx`, `DHL`, `Other` (ADR-004)
 
@@ -326,8 +328,9 @@ notes, created_at, updated_at
 - `dimension_annotation_json` (ADR-084, optional): confirmed dimensions + source ruler ref
 - `status`: Draft | In stock | Listed | Sold | Reserved | Retired
 - `condition_code`: Mint/Near Mint | Excellent | Very Good | Good | Fair/As-Is
-- `listing_draft_state`: draft | generated | imported | approved | published
-- `listing_draft_source`: manual | integrated_ai | portable_import
+- `listing_draft_state`: ~~draft | generated | imported | approved | published~~ **DEPRECATED (ADR-085)** — not read/written; use `listing_phase`
+- `listing_draft_source`: ~~manual | integrated_ai | portable_import~~ **DEPRECATED (ADR-085)**
+- `listing_export_id`, `listing_approved_at`: **DEPRECATED (ADR-085)** — portable handoff + approve step retired
 - `etsy_when_made`: made_to_order | 2020_2026 | 2010_2019 | 2004_2009 | 2000_2003 | 1990s | 1980s | 1970s | 1960s | 1950s | 1940s | 1930s | 1920s | 1910s | 1900s | 1800s | 1700s | before_1700
 - `etsy_who_made`: i_did | someone_else | collective (default `someone_else` for vintage)
 
@@ -387,7 +390,8 @@ id, customer_id, note_text, note_type, created_at
 id, receipt_id, shop_id, receipt_json, synced_at
 ```
 
-### `listing_exports`, `listing_imports`, `listing_publish_previews` — listing workflow audit
+### `listing_exports`, `listing_imports`, `listing_publish_previews` — **RETIRED (ADR-085)**
+Tables remain for back-compat but are no longer written (portable handoff + publish-preview hash gate removed).
 ```
 listing_exports: id, export_id, inventory_id, payload_json, created_at
 listing_imports: id, inventory_id, export_id, payload_json, source_label, created_at
@@ -538,14 +542,14 @@ id, service, endpoint, status_code, created_at
 NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `bg-[var(--ui-*)]`.
 
 ### Layout structure (ADR-024 updated, ui-design.md §1)
-- Tabs: top, full width — Dashboard | Orders | Inventory | Receipts | Customers | Vendors | AP Lite | Reports | Tutorial & Tips | Outstanding | Settings
+- Tabs: top, full width — Dashboard | Orders | Inventory | Receipts | Customers | Vendors | Expenses | Reports | Tutorial & Tips | Outstanding | Settings
 - **Terminology (locked 2026-06-21):** UI label **Orders** = domain `order` (table `orders`, `/api/orders`, route `/orders`, entity_type `order`); UI label **Settings** = domain `setting` (table `settings`, `/api/settings`, route `/settings`, entity_type `setting`). The entity_type enums are unchanged; only UI labels + page routes were standardized. Old `/sales` and `/config` URLs permanently redirect.
 - **v1 layout:** Header + Tab bar + Main content (full width). No side panels.
 - **Deferred to post-v1:** Commands panel and Outstanding side panel (ADR-009 notes)
 - Header: app name, Etsy connection status, shop selector
 - All pages use shared components: `Button`, `DataTable`, `FormField`, `Modal`, `Toast`, `EmptyState`, `LoadingSpinner`, `Badge`, `ErrorPanel` (ADR-028)
 - Destructive actions use `ConfirmDialog` wrapper (ADR-032)
-- **Tab order (locked 2026-06-21):** Dashboard · Orders · **Shipping** · Inventory · Receipts · Customers · Vendors · AP Lite · Reports · Outstanding · Tutorial & tips · Settings. Shipping tab added by WS-F (ADR-080).
+- **Tab order (locked 2026-06-21):** Dashboard · Orders · **Shipping** · Inventory · Receipts · Customers · **Communications** · Vendors · Expenses · Reports · Outstanding · Tutorial & tips · Settings. Shipping tab added by WS-F (ADR-080). Communications tab added by WS-C (ADR-078). **Terminology (locked 2026-06-21):** the expenses tab UI label is **Expenses** (domain `expense`, table `business_expenses`, route `/expenses`, `/api/expenses`); the legacy "AP Lite" label is retired. Internal identifiers (table/route/migration `012_ap_lite.sql`) unchanged.
 
 ### Tabs and their commands: `documents/ui-design.md` §2 and §3 — read before building any tab
 
@@ -577,8 +581,9 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 ### Key rules to always enforce:
 - **Mark as shipped**: blocked until order is paid UNLESS user explicitly chooses "Ship anyway"
   → store `shipped_without_paid_override` audit flag on **orders** when overridden (ADR-021, ADR-040)
-- **List on Etsy / publish**: blocked until listing_draft_state = 'approved' AND `etsy_when_made` set AND `etsy_taxonomy_id` set AND (`etsy_return_policy_id` or global default) AND (`etsy_shipping_profile_id` or global default)
-- **Listing generation**: blocked until item has item_number + description + condition_code + sale_revenue > 0 + at least one picture
+- **List on Etsy / publish** (ADR-085): blocked until `listing_phase = 'listing_ready'` (rubric passed, no blocking remediation) AND `etsy_when_made` set AND `etsy_taxonomy_id` set AND (`etsy_return_policy_id` or global default) AND (`etsy_shipping_profile_id` or global default). The retired `listing_draft_state = 'approved'` gate no longer applies.
+- **Re-publish guard** (ADR-085 §5): if an item already has `etsy_listing_id`, publishing again requires explicit user choice via ConfirmDialog — **Update existing listing** (Etsy `updateListing`, no duplicate) or **Create new listing** (duplicate) — plus Cancel. Server enforces: `POST /api/inventory/[id]/publish-to-etsy` returns **409 `ALREADY_PUBLISHED`** when a re-publish lacks an explicit `mode` (`"create"|"update"`). Never silently duplicate a live listing.
+- **Listing generation** (ADR-085): blocked until item has item_number + description + condition_code + at least one picture. **`sale_revenue` is NOT required** — the AI recommends the price during Generate.
 - **Can't list until complete**: listing_title + listing_description + listing_tags must all be non-empty
 - **Publish-time field resolution**: per-item Etsy fields override global settings defaults (ADR-017 §1c)
 - **Delete with purchases**: 409 if inventory item has associated order_items; can retire instead
@@ -589,18 +594,24 @@ NEVER use hardcoded hex values in components. Always `var(--ui-*)` or Tailwind `
 
 ---
 
-## 6. LISTING AUTHORING MODES (ADR-023)
+## 6. UNIFIED LISTING LIFECYCLE (ADR-085 — supersedes ADR-023 modes)
 
-Four modes — always respect all four (note: the separate "Listing Workshop" panel has been removed; listing fields are inline in `InventoryDetailPanel`):
-1. **Manual** — edit listing fields directly in the inventory detail panel: title, description, tags, title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist
-2. **Integrated AI** — "Regenerate with AI" button on detail panel sends ALL pictures (picture_1..10 + condition_picture_1..5) + item context to AI provider; AI returns structured JSON saved to inventory
-3. **Hybrid/Portable** — export package → user pastes into external AI → import JSON draft (deferred to post-v1)
-4. **Listing Coach** (ADR-072) — 2-phase flow for new listings: log purchase + unified AI-populated editable form with per-field and global refinement
+There is **one** listing system: the three-processor lifecycle on the inventory detail editor,
+driven by `listing_phase`, scored by the single ADR-082 rubric, ending in Publish-to-Etsy.
 
-State machine: `draft → generated|imported → approved → published`
-Only `approved` drafts can be published to Etsy.
-Always send ALL non-empty pictures to AI — never generate listing content without full visual context.
-Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/adr/0023-listing-content-generation-modes.md`
+```
+Evaluate Data → Generate Listing → Evaluate Listing Quality → (listing_ready) → Publish to Etsy
+```
+
+1. **Create** — new items use the inline SEMS editor on `/inventory` (basics + **hero photo only**); no standalone Coach. "Add new item" and ⌘N open the inline editor. (The `/listing-coach` route is removed.)
+2. **Generate Listing** — the single AI step (absorbs the former Listing Coach brain): web-search **price recommendation** (writes recommended `sale_revenue`, editable), identification, and ALL listing fields, plus suggested `etsy_when_made`/`etsy_taxonomy_id`/materials/dimensions/`picture_classifications`, evidence/citations/compliance, Google paste, clipboard photo paste, auto video, and per-field/global refine.
+3. **Evaluate Listing Quality** — the single ADR-082 rubric (deterministic + AI per-photo). Drives `listing_ready` / `needs_quality_remediation`.
+4. **Publish** — available at `listing_phase = 'listing_ready'` + Etsy field checks.
+
+- Direct field editing of listing fields in `InventoryDetailPanel` is always allowed (this is plain editing, not a named "mode").
+- Always send ALL non-empty pictures to AI — never generate listing content without full visual context.
+- **Retired (ADR-085):** the four "modes," the `draft → generated|imported → approved → published` state machine, portable export/import, approve/reject, the Listing Coach, `improve-listing`, and `computeListingScore`.
+- Full spec: `documents/adr/0085-unified-listing-lifecycle.md`, `documents/adr/0081-...`, `documents/adr/0082-...`, `documents/etsy-listing-template-and-requirements.md`
 
 ---
 
@@ -734,7 +745,7 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Undo/redo (ADR-067): UndoRedoContext, undo/redo stacks, Cmd+Z/Shift+Z, toast with undo action
 - Listing quality score (ADR-068): scoring rubric, tips, circular badge, sortable column
 - Sample/demo data (ADR-069): fixture SQL, load/remove API, wizard integration, Config UI
-- Listing Coach (ADR-072): 2-phase flow (log purchase + unified editable form), photo paste, Google paste, AI compose with refinement, activity log
+- Listing Coach (ADR-072): 2-phase flow — **being removed/absorbed into the unified lifecycle (ADR-085, WS-L)**; its AI brain (research, price, full fields, Google paste, photo paste, refine, video) moves into the inventory Generate step
 - Customer enhancements: copy/clone with ship-to addresses, single delete with referential integrity check, default ship-to selection, cancel button on create form
 - Address enhancements: ZIP code lookup with city/state autofill (Zippopotam.us), postal code validation warning, phone number formatting (libphonenumber-js)
 - Order auto-numbering: configurable prefix/padding in Config, `GET /api/orders/next-number` endpoint
@@ -750,7 +761,9 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - **Listing lifecycle & quality engine (WS-G, ADR-081/082):** `listing_phase`/`listing_source_hash`/`listing_generated_at`/`listing_quality_json` columns; `listing-phase.ts` phase machine + drift detection; single context-aware button (Evaluate Data / Generate Listing / Evaluate Listing Quality) in `ListingLifecycleControls`; deterministic ADR-082 rubric (`listing-rubric.ts`) + AI-vision per-photo §8b (`listing-photo-vision.ts`, graceful degrade); `listing-readiness` + `listing-quality` endpoints; `listing_phase` inventory filter.
 - **Tiered AI economy lane (WS-AICOST):** optional `ai.economy_model` routes high-volume vision tasks (photo-quality, shot-list, measure) to a cheaper model via `resolveModelForTask`; text generation keeps the primary `ai.model`.
 - **AI shot-list (WS-H1, ADR-083):** `shot_list_json` column; `shot-list.ts` AI generation from `picture_1` + context (economy lane); `GET/POST /api/inventory/[id]/shot-list`; `ShotListPanel` checklist with derived `captured` flags; `listing.shot_list_generated` activity.
+- **Standard Entity Management Screen (WS-E1, ADR-079):** reusable SEMS scaffold (`src/components/sems/SemsScreen` list + Add-New first affordance + trailing Edit/Delete + double-click-to-edit + guarded mode switch; `SemsEditor` full-width editor body + Region-3 context slot + sticky Cancel/Save bar; `useSemsEditorGuard` wires dirty/save/discard into the guard). `UnsavedChangesContext` upgraded to a 3-button dialog (`UnsavedChangesDialog`: Save changes / Discard changes / Keep editing) with `registerSaveHandler` + its own `ToastContainer`, and a **2-button fallback** for forms without a save handler. `Button` now forwards `data-save-button`; `DataTable` gained `onRowDoubleClick`. **Piloted on Vendors** (Add-New first row, full-width editor, `useDirtyTracking`, preserved fields/validation/ZIP/deactivate-reactivate/purchase-history/`?vendorId=` deep link).
 - **AI dimension annotation (WS-H2, ADR-084):** `dimension_annotation_json` column; `dimension-annotation.ts` (AI estimate via economy lane + Sharp dual-unit overlay onto a hero copy, saved to a secondary `measurement` slot, hero kept clean); `POST /api/inventory/[id]/measure` + `/annotate-dimensions`; `MeasurementPhotoPanel` (upload → mandatory confirm → render); `inventory.dimensions_annotated` activity.
+- **Communications/Outreach Center (WS-C, ADR-078):** `communication_log` table (bootstrap + migration 017); `src/lib/secret-crypto.ts` (shared AES-256-GCM); `src/lib/email.ts` (nodemailer, encrypted SMTP); `src/lib/communications.ts` (catalog, candidate queries, render, send orchestrator); `buildSingleOrderPaymentReminder` in `reporting.ts`; API routes at `/api/communications/candidates`, `/preview`, `/send`, `/log`, `/api/reports/payment-reminder/[orderId]`, `/api/settings/email`, `/api/settings/email/test-connection`; Communications tab (`/communications`); `SendCommunicationModal`; order-detail send actions; Settings Email + template editors; `communication` entity in activity display + filter chip. Compliance gate enforced server-side: `payment_reminder` only for `source_channel='manual'`.
 
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint
@@ -759,11 +772,12 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
   - **A** Activity coverage expansion (ADR-037/035/018) — receipts/vendors/AP/shipping/reports/config in both views; deep-links; deleted=no-link; multi-type filter.
   - **B** Dashboard Recent Activity = newest 25, 1/3 width; Activity log 2/3 (ADR-016 §6).
   - **D** Dashboard low-quality inventory widget, score < threshold, excludes Sold/Retired/Inactive (ADR-016 §7).
-  - **C** Communications/Outreach Center: payment reminders (manual-channel only) + thank-you notes; SMTP email + PDF; `communication_log` (ADR-078).
-  - **E** Standard Entity Management Screen (SEMS): list-first + Add New first row + inline editor + sticky Save + strict dirty guard (3-button dialog). Pilot on Vendors (ADR-079, ADR-042).
+  - ~~**C** Communications/Outreach Center: payment reminders (manual-channel only) + thank-you notes; SMTP email + PDF; `communication_log` (ADR-078).~~ **Implemented (WS-C, 2026-06-21).**
+  - **E** Standard Entity Management Screen (SEMS): list-first + Add New first row + inline editor + sticky Save + strict dirty guard (3-button dialog). **Scaffold + Vendors pilot implemented (WS-E1, 2026-06-21).** Remaining rollout pending — tickets drafted 2026-06-21: Customers (`documents/tickets/WS-E2_sems-customers.md`) → Receipts (`WS-E3_sems-receipts.md`) → Expenses (`WS-E4_sems-expenses.md`) → Inventory (`WS-E5_sems-inventory.md`) → Orders (`WS-E6_sems-orders.md`) (ADR-079, ADR-042).
   - **F** ~~Top-level Shipping module split out of Sales (ADR-080).~~ **Implemented (WS-F, 2026-06-21).**
   - **G** ~~Listing lifecycle/phases + one context-aware button + quality rubric (ADR-081, ADR-082).~~ **Implemented (WS-G + WS-AICOST, 2026-06-21).**
   - **H** ~~AI shot-list generation (ADR-083) + AI dimension annotation (ADR-084).~~ **Implemented (WS-H1/H2, 2026-06-21).**
+- **Listing consolidation (WS-L, ADR-085, 2026-06-21) — DOCS COMPLETE, code pending.** Collapse to a single listing system: remove Listing Coach + ADR-023 modes/draft-state + export/import + approve/reject + `improve-listing` + `computeListingScore`. Workstreams: **L1** Generate engine (research + price + all fields; remove `sale_revenue` gate); **L2** inline create (basics + hero photo; wire ⌘N); **L3** port Coach UI (Google paste, evidence/citations/compliance, clipboard paste, video, refine) into detail panel; **L4** single rubric everywhere (retire `computeListingScore`); **L5** publish re-gate on `listing_ready` + surface Publish action; **L6** delete dead code.
 
 ---
 
@@ -773,7 +787,8 @@ Full spec: `documents/etsy-listing-template-and-requirements.md` and `documents/
 - Never expose OAuth tokens, API keys, or session secrets to the client
 - Never delete purchase/order rows — void/cancel by status change only
 - Never generate listing content without sending ALL item pictures to the AI
-- Never allow publish-to-Etsy unless listing_draft_state = 'approved'
+- Never allow publish-to-Etsy unless `listing_phase = 'listing_ready'` (+ required Etsy fields) — ADR-085
+- Never re-publish an item that already has `etsy_listing_id` without explicit user confirmation (Update existing vs Create new) — ADR-085 §5
 - Never allow Mark as shipped without paid check (or explicit override + audit flag)
 - Never connect to carrier APIs (USPS, UPS, FedEx, DHL) — label generation is local only
 - Never cache Etsy HTTP API responses for reuse (per Etsy API Terms). The `etsy_receipts` table is operational data persistence, not caching.

@@ -14,7 +14,7 @@ import { logApiCall } from "@/lib/api-usage";
 import { getInventoryById } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
 import { getAiConfig } from "@/lib/ai-config";
-import { computeListingScore } from "@/lib/listing-score";
+import { computeRubricFastScore, evaluateListingQuality } from "@/lib/listing-rubric";
 import { getMinQualityScore } from "@/lib/settings-store";
 import { logger } from "@/lib/logging";
 
@@ -78,16 +78,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
 
     const minScore = getMinQualityScore();
-    const scoreResult = computeListingScore(item, minScore);
-    const { breakdown, tips } = scoreResult;
+    const fast = computeRubricFastScore(item);
+    const scoreResult = { score: fast.score };
+    let rubricResult: Awaited<ReturnType<typeof evaluateListingQuality>> | null = null;
+    try { rubricResult = evaluateListingQuality(item, { minScore, itemId: id }); } catch { /* ignore */ }
 
-    const weakAreas: string[] = [];
-    if (breakdown.title_length < 15) weakAreas.push("title is too short or missing — aim for 60–140 characters");
-    if (breakdown.title_keywords < 10) weakAreas.push("title should include a category keyword from the item's tags");
-    if (breakdown.description_length < 15) weakAreas.push("description should be at least 500 characters with rich detail");
-    if (breakdown.tags_filled < 10) weakAreas.push("need more search tags — aim for exactly 13 unique tags");
-    if (breakdown.description_dimensions < 5) weakAreas.push("description should include measurements/dimensions");
-    if (breakdown.description_materials < 5) weakAreas.push("description should mention materials (e.g. ceramic, glass, wood)");
+    const weakAreas: string[] = rubricResult
+      ? rubricResult.quality_remediation.slice(0, 6).map((r) => r.shortcoming)
+      : [];
 
     const emptyAuthoring: string[] = [];
     if (!item.category_tags?.trim()) emptyAuthoring.push("category_tags: comma-separated category keywords for this item");
@@ -337,7 +335,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     db.prepare(`UPDATE inventory SET ${setClauses.join(", ")} WHERE id = @id`).run(params);
 
     const refreshed = getInventoryById(id);
-    const newScore = refreshed ? computeListingScore(refreshed, minScore) : null;
+    const newScore = refreshed ? { score: computeRubricFastScore(refreshed).score } : null;
 
     logActivity({
       action: "listing.ai_improved",

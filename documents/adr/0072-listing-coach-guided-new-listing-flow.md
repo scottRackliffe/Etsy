@@ -2,7 +2,19 @@
 
 ## Status
 
-Accepted (revised 2026-06-15: 2-phase flow with AI refinement)
+**Superseded by ADR-085 (2026-06-21).**
+
+> **Note (2026-06-21):** The standalone Listing Coach (`/listing-coach` wizard) is **removed**. Its
+> entire AI capability — web-search price recommendation, identification + full-field authoring,
+> Google Visual Search screenshot paste, evidence/citations/compliance self-check, clipboard photo
+> paste, auto video generation, and per-field/global refine — is **absorbed into the lifecycle
+> Generate step** on the inventory detail editor (ADR-081 / ADR-085 §3). New items are created with
+> the same inline SEMS editor as every other entity (basics + hero photo), then the three
+> processors take over. No capability is lost; only the separate wizard is gone. See **ADR-085**.
+> This ADR is retained for historical context (and as the source spec for the photo shot taxonomy,
+> now owned by ADR-082/083).
+
+Accepted (historical; revised 2026-06-15: 2-phase flow with AI refinement)
 
 ## Date
 

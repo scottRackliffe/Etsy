@@ -43,7 +43,7 @@ Proposed top-level tabs. Order can change; names are placeholders.
 | **Dashboard**         | Home. Snapshot of today: recent activity, quick stats (e.g. orders this week, revenue MTD), and a feed or summary.               | Summary cards, recent orders, link into “outstanding” items.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **Orders**    | Everything about orders and completing a sale.                                                                                   | List of orders (from Etsy and/or local). Filters (date, status, paid/shipped). Select an order → detail → run through “complete sale” process.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Shipping** | All shipping operations across orders (ADR-080). | Order list with status filter chips (Needs label · Label purchased · Shipped · All) + search. Select an order → ShippingPanel: carrier, ship date, tracking, package dims, seller shipping cost, EasyPost label purchase, mark-as-shipped. Read-only ship-to for context. Deep-link: `/shipping?orderId={id}`. |
-| **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List + detail + listing workshop. **Primary add:** **Listing Coach** (ADR-072) at `/listing-coach` — paste Photos, optional Google Visual Search screenshot, AI-composed listing. Quick **Add item** for item number only. Picture upload (paste, drag, file picker). Status (Draft, In stock, Listed, Sold, etc.).                                                                                                                                                                                                                                                                           |
+| **Inventory**         | Your items: add, edit, pictures, costs, dates (purchased, listed, sale, shipping).                                               | List + inline detail editor with the unified listing lifecycle (ADR-085). **Add new item** (or ⌘N) opens the inline editor (basics + hero photo); the lifecycle button drives Generate (AI research + price + all fields) → Evaluate Quality → Publish at `listing_ready`. Picture upload (paste, drag, file picker). Status (Draft, In stock, Listed, Sold, etc.).                                                                                                                                                                                                                            |
 | **Receipts**          | Vendor purchase receipts — what you bought and where.                                                                            | Upload receipt photo (OCR scan) or manual entry. Expandable receipt rows show items. Link receipt items to inventory (pick list or create new item). Linking pushes vendor, cost, and date into inventory and creates a purchases record. Bidirectional unlink cleanup. |
 | **Customers**         | Buyers and addresses.                                                                                                            | Customer list. Add / edit customer (name, address). View order history per customer (ADR-052). Notes log (ADR-065).                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **Vendors**           | Suppliers from whom you buy inventory.                                                                                           | Master-detail layout: vendor list (search, sort by name/city/contact) + vendor detail panel (name, address, contact person, email, phone, notes, purchase history table). Add / edit / soft-delete vendors. Linked to `purchases` and `receipts` via `vendor_id` FK (ADR-076). Deep-link: `?vendorId=<id>`.                                                                                                                                                                                                                                                                                   |
@@ -85,7 +85,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ### Inventory
 
-- **Add new listing with Listing Coach** (ADR-072) — recommended for new items; navigates to `/listing-coach`.
+- **Add new item** (ADR-085) — opens the inline editor; the lifecycle button then runs Generate → Quality → Publish.
 - **Add item** (quick: item number + description only).
 - **Edit** (selected item).
 - **Add / Import pictures** (selected item: **file picker + drag-and-drop upload** → **preview thumbnails** → confirm → assign to slots 1–20; per ADR-033). Show **link to "Why pictures matter"** doc.
@@ -180,12 +180,12 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 
 ### 5.3 Add an inventory item
 
-**Recommended — Listing Coach (ADR-072):**
+**Unified listing lifecycle (ADR-085):**
 
-1. **Inventory** tab → **Add new listing with Listing Coach** → `/listing-coach`.
-2. **Phase 1 (Log the purchase):** Paste item photos from macOS **Photos** (⌘C in Photos, ⌘V in coach). Enter purchase details (description, date, price, condition, store category). Click **Research and compose listing**.
-3. **Phase 2 (Unified form):** AI fills all internal and Etsy fields in a single editable form. Review, edit directly, or use **per-field Fix** buttons and **global Fix** to refine AI output. Enter **item number** → **Save to inventory**.
-4. Approve draft and publish when ready (§5.4). User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
+1. **Inventory** tab → **Add new item** (or ⌘N) → inline SEMS editor. Enter basic data (item number, description, condition, cost) and the **hero photo** (paste from macOS Photos with ⌘V, drag, or file picker). Save.
+2. **Generate Listing:** Click the lifecycle button. The AI researches the item (web-search comps), **recommends a price**, and writes all listing fields, suggested era/category/materials/dimensions, and photo classifications. Optionally paste Google Visual Search screenshots, and use **per-field Fix** / **global Fix** to refine.
+3. **Add the remaining photos** (guided by the shot list), then **Evaluate Listing Quality** (ADR-082 rubric). Fix any remediation items and re-evaluate.
+4. When the item reaches **listing_ready**, **Publish to Etsy** becomes available (§5.4).
 
 **Quick add (unchanged):**
 
@@ -194,13 +194,12 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 3. Save. Status “In stock” (or “Draft” if we support that).
 4. When listed: set **date listed**, optional Etsy listing ID; status → “Listed.”
 
-### 5.4 List item for sale (optional flow)
+### 5.4 Publish to Etsy (ADR-085)
 
-1. **Inventory** tab: select item.
-2. **Generate listing content** (optional): User runs "Generate listing content" (or equivalent). The app **sends all item pictures** (picture_1…picture_20 and condition_picture_1…condition_picture_5 — every non-empty one) to the AI with item context and the listing template/requirements. The AI returns title, description, and 13 tags; the app saves them to the item. Do not generate listing content without providing all associated pictures. Full requirements: **[documents/etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md)**.
-3. Command **Mark as listed** (or “List on Etsy” if we integrate listing creation). Item cannot be listed until required listing content is complete per the template doc.
-4. Set **date listed**. Optionally link Etsy listing ID when listed on Etsy.
-5. Status → “Listed.”
+1. **Inventory** tab: select item. Work the lifecycle button to `listing_ready` (Generate → Evaluate Quality, fixing remediation). Generating sends **all** item pictures to the AI (never generate without all pictures). Full requirements: **[documents/etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md)**.
+2. Once `listing_ready` (rubric passed) and the required Etsy fields are set (era, category, return policy, shipping profile — per-item or global default), **Publish to Etsy** becomes available.
+3. **First publish:** confirm "Publish to Etsy?" → the app creates and activates the Etsy listing, stores the Etsy listing ID, sets status → "Listed", date listed, `is_listed`.
+4. **Already on Etsy (re-publish):** if the item already has an Etsy listing ID, a dialog appears — "Already on Etsy as #{id}" — with two explicit choices: **Update existing** (updates that listing, no duplicate) or **Create new** (creates a separate listing), plus Cancel. The app never silently re-sends a live listing.
 
 ### 5.5 Run a report
 
@@ -246,7 +245,7 @@ Each inventory item can have up to **20 pictures** (picture 1 = primary; order m
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **File picker**           | User picks one or more files from a file dialog. App assigns them to slots 1–20 in order; user can reorder or replace.                                                               |
 | **Drag-and-drop**         | User drags image files onto the upload grid (ADR-033). App previews thumbnails and assigns to slots.                                                                                  |
-| **Paste (Listing Coach)** | In Listing Coach (ADR-072), user can paste images from macOS Photos (⌘C/⌘V).                                                                                                        |
+| **Paste (PictureGrid)** | In the inventory detail PictureGrid (ADR-085), user can paste images from macOS Photos (⌘C/⌘V).                                                                                       |
 | **URL** (optional)        | User pastes a URL for a picture (e.g. already hosted). App stores the URL in the corresponding picture slot.                                                                          |
 
 **Process: add or replace pictures for an item**
@@ -411,6 +410,14 @@ Each list tab (Sales, Inventory, Customers) uses a **toolbar** above the table:
 - **Clear filters:** Resets chips + search; restores default sort.
 - **Pagination:** Bottom of table; page size from `settings.ui.page_size` (ADR-034).
 - **Loading:** Skeleton rows (5) then data per ADR-071 §7.
+
+**Standard Entity Management Screen (ADR-079, implemented WS-E1):** entity management tabs use one
+scaffold — a full-width list with **"+ Add New"** as the first affordance and trailing **Edit/Delete**
+row actions (double-click a row = Edit). Opening a record replaces the list with a **full-width
+editor** (compact breadcrumb header "← All &lt;entities&gt; / &lt;record&gt;") that has a **sticky
+Cancel/Save action bar** at the bottom. Leaving a dirty editor triggers the **3-button** unsaved
+dialog (Save changes / Discard changes / Keep editing). Piloted on Vendors; rolling out to other
+entities (Customers → Receipts → Expenses → Inventory → Orders).
 
 ---
 

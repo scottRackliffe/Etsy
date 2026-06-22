@@ -49,14 +49,15 @@ src/app/
       page.tsx                  # Tutorial and tips tab
     config/
       page.tsx                  # Config/Settings tab
-    listing-coach/
-      page.tsx                  # Listing Coach wizard (ADR-072) — new listing flow
+  # listing-coach/ REMOVED (ADR-085) — new items use inline SEMS create on /inventory
   page.tsx                      # Root redirect → /dashboard
 ```
 
 The `(app)` route group wraps all tabbed pages in a shared layout without adding a URL segment.
 
 **Note (updated 2026-06-17):** The original ADR-024 included `inventory/[id]/page.tsx` and `customers/[id]/page.tsx` detail routes. These are removed. The Listing Workshop panel has been removed from the inventory page; listing fields (title, description, tags, etc.) are now consolidated into the `InventoryDetailPanel` component. A "Regenerate with AI" button replaces the separate workshop modes. Receipts (vendor purchase records) have been extracted into a dedicated `/receipts` tab. A dedicated `/vendors` tab has been added for normalized vendor management (ADR-076). ADR-030 and ADR-031 specify that detail views are inline panels on the list page (master-detail layout), not separate routes. This avoids unnecessary page transitions and keeps context visible. Deep-link query parameters (`?itemId=`, `?orderId=`, `?customerId=`, `?vendorId=`) select and scroll to the target record within the list page (ADR-035).
+
+**Note (updated 2026-06-21, WS-E1):** The canonical scaffold for entity **management screens** is the Standard Entity Management Screen (**ADR-079**), implemented in `src/components/sems/` (`SemsScreen`, `SemsEditor`, `useSemsEditorGuard`). Detail editing stays **inline** (no detail sub-routes — consistent with this ADR); SEMS standardizes the inline list+editor presentation (full-width list, "Add New" first affordance, full-width editor that replaces the list with a compact breadcrumb header, sticky Cancel/Save bar, strict 3-button dirty guard). Piloted on `/vendors`; remaining entities migrate per ADR-079 §6.
 
 ### 2. App shell layout (`(app)/layout.tsx`)
 

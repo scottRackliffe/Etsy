@@ -6,7 +6,7 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { logActivity } from "@/lib/activity-log";
 import { getInventoryById, validateItemForListingRequest } from "@/lib/inventory";
 import { getDb } from "@/lib/sqlite";
-import { computeListingScore } from "@/lib/listing-score";
+import { computeRubricFastScore, evaluateListingQuality } from "@/lib/listing-rubric";
 import { getMinQualityScore } from "@/lib/settings-store";
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -59,15 +59,20 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
     const minScore = getMinQualityScore();
     if (minScore > 0) {
-      const scoreResult = computeListingScore(item, minScore);
-      if (scoreResult.score < minScore) {
+      const fast = computeRubricFastScore(item);
+      if (fast.score < minScore) {
+        let remediationHints: string[] = [];
+        try {
+          const full = evaluateListingQuality(item, { minScore, itemId: id });
+          remediationHints = full.quality_remediation.slice(0, 3).map((r) => r.shortcoming);
+        } catch { /* ignore */ }
         throw new ApiRouteError({
           status: 400,
           code: "QUALITY_SCORE_TOO_LOW",
-          message: `Listing quality score ${scoreResult.score} is below the minimum ${minScore}`,
-          userMessage: `This listing's quality score is ${scoreResult.score}/100 — the minimum for approval is ${minScore}. Improve the listing or use AI to boost the score.`,
+          message: `Listing quality score ${fast.score} is below the minimum ${minScore}`,
+          userMessage: `This listing's quality score is ${fast.score}/100 — the minimum for approval is ${minScore}. Improve the listing or use AI to boost the score.`,
           actions: [
-            ...scoreResult.tips,
+            ...remediationHints,
             "Or use the 'Improve with AI' button to automatically enhance weak areas.",
           ],
           canRetry: true,

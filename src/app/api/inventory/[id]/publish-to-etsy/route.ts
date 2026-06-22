@@ -6,9 +6,9 @@ import { getValidAccessToken } from "@/lib/auth-session";
 import { logActivity } from "@/lib/activity-log";
 import { getAllPictureReferences, getInventoryById } from "@/lib/inventory";
 import { validatePublishReadiness } from "@/lib/inventory-validation";
+import { computeListingPhase } from "@/lib/listing-phase";
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
-import { getLatestPublishPreview } from "@/lib/listing-review";
 import {
   createDraftListing,
   updateListingDetails,
@@ -54,11 +54,14 @@ async function sleep(ms: number): Promise<void> {
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  // Hoisted for failure-activity logging in the catch (ADR-085 §5 / ADR-037).
+  let activityId: number | null = null;
+  let activityLabel = "";
   try {
     const token = await getValidAccessToken(await cookies());
-    const body = (await _request.json().catch(() => ({}))) as { preview_hash?: unknown };
-    const providedPreviewHash =
-      typeof body.preview_hash === "string" ? body.preview_hash.trim() : "";
+    const body = (await _request.json().catch(() => ({}))) as { mode?: unknown };
+    const requestedMode: "create" | "update" | null =
+      body.mode === "create" || body.mode === "update" ? body.mode : null;
     const id = parsePositiveInt((await context.params).id);
     if (!id) {
       throw new ApiRouteError({
@@ -83,6 +86,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    activityId = id;
+    activityLabel = item.item_number || item.description || `Item ${id}`;
 
     const publishSettings: Record<string, string> = {};
     const returnPolicySetting = getSetting("etsy.publish.return_policy_id");
@@ -102,74 +107,41 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       });
     }
 
-    if (item.listing_draft_state !== "approved") {
+    // Publish gate (ADR-085 §5): listing must have passed the quality rubric.
+    const currentPhase = computeListingPhase(item);
+    if (currentPhase !== "listing_ready") {
       throw new ApiRouteError({
         status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Only approved drafts can be published",
-        userMessage: "Approve the listing draft before publishing to Etsy.",
-        actions: ["Approve draft and retry publish."],
+        code: "PUBLISH_NOT_READY",
+        message: "Listing is not quality-ready for publish",
+        userMessage:
+          "This listing must pass the quality review before publishing. Run Evaluate Listing Quality and resolve any remediation items.",
+        actions: ["Run Evaluate Listing Quality.", "Fix remediation items, then retry publish."],
         canRetry: false,
       });
     }
-    if (!item.listing_approved_at) {
+
+    // Re-publish guard (ADR-085 §5): never silently duplicate a live listing.
+    const existingListingId = (item.etsy_listing_id ?? "").trim();
+    if (existingListingId && !requestedMode) {
       throw new ApiRouteError({
         status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Listing draft has no approval timestamp",
-        userMessage: "Approve the listing draft before publishing to Etsy.",
-        actions: ["Approve draft and retry publish."],
+        code: "ALREADY_PUBLISHED",
+        message: "Item already has an Etsy listing",
+        userMessage: `This item is already on Etsy as listing #${existingListingId}. Choose whether to update that listing or create a new one.`,
+        actions: [
+          "Update the existing Etsy listing, or",
+          "Create a new (separate) Etsy listing.",
+        ],
+        fields: {
+          etsy_listing_id: [existingListingId],
+          available_modes: ["update", "create"],
+        },
         canRetry: false,
       });
     }
-    if (
-      item.updated_at &&
-      new Date(item.updated_at).getTime() > new Date(item.listing_approved_at).getTime()
-    ) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Listing changed after approval",
-        userMessage: "Listing content changed after approval. Re-approve before publishing.",
-        actions: ["Review listing changes.", "Approve draft again, then retry publish."],
-        canRetry: false,
-      });
-    }
-    const latestPreview = getLatestPublishPreview(id);
-    if (!latestPreview || !providedPreviewHash) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Publish review is required before push",
-        userMessage: "Review the exact publish payload before pushing to Etsy.",
-        actions: ["Click Review and then retry publish."],
-        canRetry: false,
-      });
-    }
-    if (latestPreview.preview_hash !== providedPreviewHash) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Provided preview hash does not match latest review",
-        userMessage: "The publish preview is stale. Review again before publishing.",
-        actions: ["Click Review to generate a fresh preview, then publish."],
-        canRetry: false,
-      });
-    }
-    const previewPayload = JSON.parse(latestPreview.payload_json) as {
-      item_state_snapshot?: { updated_at?: string | null };
-    };
-    const previewUpdatedAt = previewPayload.item_state_snapshot?.updated_at ?? null;
-    if ((item.updated_at ?? null) !== (previewUpdatedAt ?? null)) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Item changed after review",
-        userMessage: "Item data changed after review. Generate a new review before publishing.",
-        actions: ["Click Review again and confirm the payload."],
-        canRetry: false,
-      });
-    }
+    // First publish (no existing id) is always a create; re-publish uses the chosen mode.
+    const mode: "create" | "update" = existingListingId ? (requestedMode as "create" | "update") : "create";
 
     const shopId = parseNumberSetting("etsy.active_shop_id");
     const globalTaxonomyId = parseNumberSetting("etsy.publish.default_taxonomy_id");
@@ -255,93 +227,116 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       }
     }
 
-    const etsyListing = await createDraftListing(token, {
-      shopId: resolvedShopId,
-      title: item.listing_title,
-      description: item.listing_description,
-      price: Number(item.sale_revenue ?? 0),
-      quantity: Math.max(1, Number(item.quantity ?? 1)),
-      taxonomyId: resolvedTaxonomyId,
-      whoMade,
-      whenMade,
-      shippingProfileId: resolvedShippingProfileId,
-      returnPolicyId: resolvedReturnPolicyId,
-      readinessStateId: resolvedReadinessStateId,
-      imageIds: imageIds.length > 0 ? imageIds : undefined,
-      tags,
-      materials,
-      itemWeight: item.item_weight ? Number(item.item_weight) : undefined,
-      itemWeightUnit: item.item_weight_unit || undefined,
-      itemLength: item.item_length ? Number(item.item_length) : undefined,
-      itemWidth: item.item_width ? Number(item.item_width) : undefined,
-      itemHeight: item.item_height ? Number(item.item_height) : undefined,
-      itemDimensionsUnit: item.item_dimensions_unit || undefined,
-      isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
-    });
-
+    let etsyListingId: number;
+    let etsyState: string | null = null;
     let uploadedImageCount = 0;
     const failedUploads: string[] = [];
-    for (const reference of pictureReferences) {
-      let uploaded = false;
-      let lastError: unknown = null;
-      for (let attempt = 1; attempt <= maxImageUploadAttempts; attempt += 1) {
-        try {
-          await uploadListingImageFromReference(token, {
-            shopId: resolvedShopId,
-            listingId: etsyListing.listing_id,
-            reference,
-            transform: {
-              maxDimension: imageMaxDimension,
-              targetDensityDpi: imageTargetDpi,
-              jpegQuality: imageJpegQuality,
-            },
-          });
-          uploadedImageCount += 1;
-          uploaded = true;
-          break;
-        } catch (error) {
-          lastError = error;
-          if (attempt < maxImageUploadAttempts) {
-            await sleep(attempt * 300);
+
+    if (mode === "create") {
+      const etsyListing = await createDraftListing(token, {
+        shopId: resolvedShopId,
+        title: item.listing_title,
+        description: item.listing_description,
+        price: Number(item.sale_revenue ?? 0),
+        quantity: Math.max(1, Number(item.quantity ?? 1)),
+        taxonomyId: resolvedTaxonomyId,
+        whoMade,
+        whenMade,
+        shippingProfileId: resolvedShippingProfileId,
+        returnPolicyId: resolvedReturnPolicyId,
+        readinessStateId: resolvedReadinessStateId,
+        imageIds: imageIds.length > 0 ? imageIds : undefined,
+        tags,
+        materials,
+        itemWeight: item.item_weight ? Number(item.item_weight) : undefined,
+        itemWeightUnit: item.item_weight_unit || undefined,
+        itemLength: item.item_length ? Number(item.item_length) : undefined,
+        itemWidth: item.item_width ? Number(item.item_width) : undefined,
+        itemHeight: item.item_height ? Number(item.item_height) : undefined,
+        itemDimensionsUnit: item.item_dimensions_unit || undefined,
+        isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
+      });
+      etsyListingId = etsyListing.listing_id;
+      etsyState = etsyListing.state ?? null;
+
+      for (const reference of pictureReferences) {
+        let uploaded = false;
+        let lastError: unknown = null;
+        for (let attempt = 1; attempt <= maxImageUploadAttempts; attempt += 1) {
+          try {
+            await uploadListingImageFromReference(token, {
+              shopId: resolvedShopId,
+              listingId: etsyListingId,
+              reference,
+              transform: {
+                maxDimension: imageMaxDimension,
+                targetDensityDpi: imageTargetDpi,
+                jpegQuality: imageJpegQuality,
+              },
+            });
+            uploadedImageCount += 1;
+            uploaded = true;
+            break;
+          } catch (error) {
+            lastError = error;
+            if (attempt < maxImageUploadAttempts) {
+              await sleep(attempt * 300);
+            }
           }
         }
+        if (!uploaded) {
+          const errorMessage =
+            lastError instanceof Error ? lastError.message : "unknown upload error";
+          failedUploads.push(`${reference}: ${errorMessage}`);
+        }
       }
-      if (!uploaded) {
-        const errorMessage =
-          lastError instanceof Error ? lastError.message : "unknown upload error";
-        failedUploads.push(`${reference}: ${errorMessage}`);
+      if (!allowPartialImageUpload && failedUploads.length > 0) {
+        throw new ApiRouteError({
+          status: 409,
+          code: "ETSY_API_FAILED",
+          message: "One or more listing images failed to upload",
+          userMessage:
+            "Some listing images failed to upload. Publish is paused to protect listing quality.",
+          actions: [
+            "Fix missing/unreadable image paths and retry publish.",
+            "Optionally allow partial image upload via etsy.publish.allow_partial_image_upload.",
+          ],
+          fields: {
+            failed_images: failedUploads,
+          },
+          canRetry: false,
+        });
       }
-    }
-    if (!allowPartialImageUpload && failedUploads.length > 0) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "ETSY_API_FAILED",
-        message: "One or more listing images failed to upload",
-        userMessage:
-          "Some listing images failed to upload. Publish is paused to protect listing quality.",
-        actions: [
-          "Fix missing/unreadable image paths and retry publish.",
-          "Optionally allow partial image upload via etsy.publish.allow_partial_image_upload.",
-        ],
-        fields: {
-          failed_images: failedUploads,
-        },
-        canRetry: false,
-      });
-    }
-    if (uploadedImageCount === 0 && imageIds.length === 0) {
-      throw new ApiRouteError({
-        status: 409,
-        code: "VALIDATION_ERROR",
-        message: "Listing created in draft state without images",
-        userMessage:
-          "Etsy requires at least one listing image to activate a listing. No images were uploaded.",
-        actions: [
-          "Confirm item picture file paths are valid and retry publish.",
-          "Or configure etsy.publish.image_ids with existing Etsy image ids.",
-        ],
-        canRetry: false,
-      });
+      if (uploadedImageCount === 0 && imageIds.length === 0) {
+        throw new ApiRouteError({
+          status: 409,
+          code: "VALIDATION_ERROR",
+          message: "Listing created in draft state without images",
+          userMessage:
+            "Etsy requires at least one listing image to activate a listing. No images were uploaded.",
+          actions: [
+            "Confirm item picture file paths are valid and retry publish.",
+            "Or configure etsy.publish.image_ids with existing Etsy image ids.",
+          ],
+          canRetry: false,
+        });
+      }
+    } else {
+      // Update an existing Etsy listing (ADR-085 §5). Re-uses the stored listing id;
+      // text/details/attributes are refreshed below. Images are left as-is to avoid
+      // appending duplicates (image replace is a separate follow-on).
+      etsyListingId = Number(existingListingId);
+      if (!Number.isInteger(etsyListingId) || etsyListingId <= 0) {
+        throw new ApiRouteError({
+          status: 409,
+          code: "VALIDATION_ERROR",
+          message: "Stored Etsy listing id is invalid",
+          userMessage:
+            "This item's stored Etsy listing reference is invalid. Choose 'Create new listing' to publish a fresh listing.",
+          actions: ["Re-publish and choose Create new listing."],
+          canRetry: false,
+        });
+      }
     }
     // Push structured taxonomy attributes to Etsy
     let attributesPushed = 0;
@@ -378,7 +373,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
           try {
             await updateListingProperty(token, {
               shopId: resolvedShopId,
-              listingId: etsyListing.listing_id,
+              listingId: etsyListingId,
               propertyId,
               valueIds,
               values: [valueName.trim()],
@@ -395,10 +390,16 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
 
     const isDeveloperMode = parseBooleanSetting("etsy.developer_mode", false);
-    if (uploadedImageCount > 0 || imageIds.length > 0) {
+    // Create: only update details/activate once images are attached. Update: always refresh.
+    const shouldApplyDetails =
+      mode === "update" || uploadedImageCount > 0 || imageIds.length > 0;
+    // Developer mode only suppresses activation on a fresh create; an update to an
+    // already-live listing stays live.
+    const treatAsDraft = mode === "create" && isDeveloperMode;
+    if (shouldApplyDetails) {
       await updateListingDetails(token, {
         shopId: resolvedShopId,
-        listingId: etsyListing.listing_id,
+        listingId: etsyListingId,
         title: item.listing_title,
         description: item.listing_description,
         price: Number(item.sale_revenue ?? 0),
@@ -417,19 +418,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         itemDimensionsUnit: item.item_dimensions_unit || undefined,
         isSupply: item.is_supply != null ? Boolean(item.is_supply) : undefined,
       });
-      if (!isDeveloperMode) {
+      if (!treatAsDraft) {
         await updateListingState(token, {
           shopId: resolvedShopId,
-          listingId: etsyListing.listing_id,
+          listingId: etsyListingId,
           state: "active",
         });
       }
     }
 
     const now = new Date().toISOString();
-    const listingId = String(etsyListing.listing_id);
-    const finalStatus = isDeveloperMode ? "Draft" : "Listed";
-    const finalDraftState = isDeveloperMode ? "approved" : "published";
+    const listingId = String(etsyListingId);
+    const finalStatus = treatAsDraft ? "Draft" : "Listed";
+    const finalDraftState = treatAsDraft ? "approved" : "published";
     getDb()
       .prepare(
         `
@@ -447,21 +448,21 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       .run({
         id,
         draft_state: finalDraftState,
-        published_at: isDeveloperMode ? null : now,
+        published_at: treatAsDraft ? null : now,
         status: finalStatus,
-        is_listed: isDeveloperMode ? 0 : 1,
-        date_listed: isDeveloperMode ? null : now.slice(0, 10),
+        is_listed: treatAsDraft ? 0 : 1,
+        date_listed: treatAsDraft ? null : now.slice(0, 10),
         etsy_listing_id: listingId,
         updated_at: now,
       });
     const updated = getInventoryById(id);
 
     logActivity({
-      action: isDeveloperMode ? "listing.published_draft" : "listing.published",
+      action: treatAsDraft ? "listing.published_draft" : "listing.published",
       entityType: "inventory",
       entityId: id,
       entityLabel: item.item_number || item.description || `Item ${id}`,
-      detail: { etsy_listing_id: listingId, developer_mode: isDeveloperMode },
+      detail: { etsy_listing_id: listingId, mode, developer_mode: isDeveloperMode },
       source: "user",
     });
 
@@ -470,9 +471,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       item: updated,
       publish_result: {
         success: true,
-        status: isDeveloperMode ? "draft_on_etsy" : "published",
+        status: treatAsDraft ? "draft_on_etsy" : mode === "update" ? "updated" : "published",
+        mode,
         listing_id: listingId,
-        etsy_state: isDeveloperMode ? "draft" : (etsyListing.state ?? null),
+        etsy_state: treatAsDraft ? "draft" : etsyState ?? (mode === "update" ? "active" : null),
         developer_mode: isDeveloperMode,
         uploaded_image_count: uploadedImageCount,
         failed_upload_count: failedUploads.length,
@@ -480,15 +482,31 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         attributes_pushed: attributesPushed,
         attribute_errors: attributeErrors,
         staged_steps: {
-          draft_create: true,
+          draft_create: mode === "create",
           image_uploads: failedUploads.length === 0,
           attributes_set: attributeErrors.length === 0,
-          listing_text_update: true,
-          listing_activate: !isDeveloperMode,
+          listing_text_update: shouldApplyDetails,
+          listing_activate: shouldApplyDetails && !treatAsDraft,
         },
       },
     });
   } catch (error) {
+    // Log only genuine failures. Intentional control-flow guards (not-ready,
+    // ALREADY_PUBLISHED, missing config, etc.) are thrown as ApiRouteError and are not failures.
+    if (activityId != null && !(error instanceof ApiRouteError)) {
+      try {
+        logActivity({
+          action: "listing.publish_failed",
+          entityType: "inventory",
+          entityId: activityId,
+          entityLabel: activityLabel,
+          detail: { error: error instanceof Error ? error.message : String(error) },
+          source: "user",
+        });
+      } catch {
+        // never let activity logging mask the original error
+      }
+    }
     return errorResponse(
       fromUnknownError(error, {
         code: "ETSY_API_FAILED",

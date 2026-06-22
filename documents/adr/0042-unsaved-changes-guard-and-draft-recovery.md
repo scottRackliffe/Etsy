@@ -65,6 +65,12 @@ When `isDirty` is true and the user attempts to navigate away, a confirmation di
 
 > **Updated 2026-06-21 (ADR-079 / WS-E): the dialog now has THREE choices, including Save.**
 > This supersedes the prior two-button form below.
+>
+> **Implemented (WS-E1, 2026-06-21):** the dialog is `src/components/ui/UnsavedChangesDialog.tsx`,
+> driven by `UnsavedChangesContext`. The active editor registers a validate-and-save handler via
+> `registerSaveHandler()` (SEMS editors do this through `useSemsEditorGuard`). **Fallback:** if a
+> dirty form has *not* registered a save handler, the dialog shows the original **two** buttons
+> (Discard changes / Keep editing) — so legacy forms behave exactly as before.
 
 - Title: "Unsaved Changes"
 - Body: "You have unsaved changes. What would you like to do?"

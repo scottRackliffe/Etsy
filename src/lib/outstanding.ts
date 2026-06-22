@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/sqlite";
-import { computeListingScore, type ListingScoreInput } from "@/lib/listing-score";
+import { computeRubricFastScore } from "@/lib/listing-rubric";
 import { getMinQualityScore } from "@/lib/settings-store";
 
 export type OutstandingItem = {
@@ -208,10 +208,10 @@ export function queryOutstandingItems(): OutstandingItem[] {
        WHERE listing_draft_state IN ('draft','generated','imported','approved','published')
          AND listing_title IS NOT NULL AND listing_title <> ''`
     )
-    .all() as Array<ListingScoreInput & { id: number; item_number: string | null; description: string | null; created_at: string | null }>;
+    .all() as Array<{ id: number; item_number: string | null; description: string | null; created_at: string | null; [key: string]: unknown }>;
 
   for (const row of listingCandidates) {
-    const scoreResult = computeListingScore(row, configuredMin);
+    const scoreResult = computeRubricFastScore(row);
     if (scoreResult.score >= 90) continue;
     const desc = row.description
       ? row.description.length > 40
@@ -222,7 +222,7 @@ export function queryOutstandingItems(): OutstandingItem[] {
     items.push({
       type: "low_quality_score",
       type_label: belowMin ? "Below minimum score" : "Quality improveable",
-      label: `Item ${row.item_number ?? `#${row.id}`}${desc ? ` – ${desc}` : ""} – quality score ${scoreResult.score}/100${belowMin ? ` (minimum: ${configuredMin})` : ""}`,
+      label: `Item ${row.item_number ?? `#${String(row.id)}`}${desc ? ` – ${desc}` : ""} – quality score ${scoreResult.score}/100${belowMin ? ` (minimum: ${configuredMin})` : ""}`,
       target_tab: "inventory",
       record_id: row.id,
       date: row.created_at ?? null,

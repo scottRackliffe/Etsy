@@ -24,6 +24,7 @@ export function Button({
   type = "button",
   className,
   title,
+  "data-save-button": dataSaveButton,
 }: {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "danger" | "accent" | "ghost";
@@ -34,6 +35,7 @@ export function Button({
   type?: "button" | "submit";
   className?: string;
   title?: string;
+  "data-save-button"?: boolean;
 }) {
   return (
     <button
@@ -41,6 +43,7 @@ export function Button({
       disabled={disabled || busy}
       onClick={onClick}
       title={title}
+      data-save-button={dataSaveButton ? "" : undefined}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className ?? ""}`}
     >
       {busy && (

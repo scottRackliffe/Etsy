@@ -106,7 +106,7 @@ Status snapshot:
 
 Status snapshot:
 
-- **Done:** All three listing modes implemented in backend (manual form fields, integrated AI generation, portable export/import). Approval gate enforced in API.
+- **Done (now superseded by ADR-085, 2026-06-21):** The former three listing modes + approval gate are consolidated into a single listing lifecycle — direct editing + AI Generate (research/price/all fields) + Evaluate Quality, publish gated on `listing_phase = 'listing_ready'`. Portable export/import and approve/reject are retired.
 - **Done:** AI connection settings API with masked values and connection test.
 - **Done:** Listing authoring task cards documented in `documents/listing-authoring-task-cards.md`.
 - Remaining: Frontend component for the manual guided form (UI task cards in listing-authoring-task-cards.md §1.1).
@@ -298,7 +298,7 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 50. ~~**Undo/redo**~~ ✅ Complete (UndoRedoContext, stacks, Cmd+Z/Shift+Z per ADR-067).
 51. ~~**Listing quality score and SEO hints**~~ ✅ Complete (scoring rubric, tips, sortable column per ADR-068).
 52. ~~**Sample/demo data for new users**~~ ✅ Complete (fixture SQL, load/remove, wizard integration per ADR-069).
-53. ~~**Listing Coach (guided new listing)**~~ ✅ Complete (8-step wizard, photo/Google paste, AI compose per ADR-072).
+53. ~~**Listing Coach (guided new listing)**~~ ✅ Complete (ADR-072) — **later removed/absorbed into the unified listing lifecycle (ADR-085, 2026-06-21).**
 
 When all priorities are complete, the build is ready for autonomous implementation without developer clarification loops.
 

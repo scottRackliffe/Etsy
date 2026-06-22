@@ -41,6 +41,7 @@ export function DataTable<T extends { id?: number | string }>({
   columns,
   data,
   onRowClick,
+  onRowDoubleClick,
   selectedId,
   selection,
   emptyMessage = "No records found.",
@@ -56,6 +57,7 @@ export function DataTable<T extends { id?: number | string }>({
   columns: Column<T>[];
   data: T[];
   onRowClick?: (row: T) => void;
+  onRowDoubleClick?: (row: T) => void;
   selectedId?: number | string | null;
   selection?: DataTableSelection;
   emptyMessage?: string;
@@ -190,7 +192,7 @@ export function DataTable<T extends { id?: number | string }>({
       setFocusIndex((i) => Math.max(0, i - 10));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      onRowClick?.(data[focusIndex]);
+      (onRowDoubleClick ?? onRowClick)?.(data[focusIndex]);
     } else if ((event.key === "Delete" || event.key === "Backspace") && onDeleteRow) {
       event.preventDefault();
       onDeleteRow(data[focusIndex]);
@@ -341,6 +343,7 @@ export function DataTable<T extends { id?: number | string }>({
                   }
                 }}
                 onClick={() => onRowClick?.(row)}
+                onDoubleClick={() => onRowDoubleClick?.(row)}
                 className={`border-b border-[var(--ui-border)] transition-colors ${
                   onRowClick ? "cursor-pointer" : ""
                 } ${

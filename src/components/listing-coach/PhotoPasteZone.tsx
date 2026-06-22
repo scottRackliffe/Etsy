@@ -63,10 +63,6 @@ export function PhotoPasteZone({
   const addFiles = useCallback(
     (files: FileList | File[]) => {
       const incoming = Array.from(files);
-      /* eslint-disable no-console */
-      console.log(`[Photos] addFiles: ${incoming.length} file(s) received`);
-      incoming.forEach((f, i) => console.log(`  [${i}] ${f.name} type="${f.type}" size=${f.size}`));
-      /* eslint-enable no-console */
       if (incoming.length === 0) return;
       const room = maxPhotos - photos.length;
       if (room <= 0) {
@@ -111,6 +107,10 @@ export function PhotoPasteZone({
       }
       if (files.length > 0) {
         event.preventDefault();
+        // Stop the native event from reaching the document-level paste listener in
+        // PictureGrid (WS-L3), which would otherwise also upload the screenshot into a
+        // picture slot. React's stopPropagation() calls the native stopPropagation().
+        event.stopPropagation();
         addFiles(files);
       }
     },

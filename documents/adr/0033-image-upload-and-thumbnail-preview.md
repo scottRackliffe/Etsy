@@ -73,7 +73,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
   - `✕` (top-right corner): delete this picture (confirmation per ADR-032: "Remove picture from slot {n}?").
   - `👁` or expand icon (center): open full-size preview in a `Modal`.
 - Slot 1 indicator: a small `★` badge in the bottom-left corner ("Primary image").
-- **Shot type badge:** If `picture_classifications` contains an entry for this slot, display a small label badge in the top-left corner with the shot type (e.g. "Hero", "Detail", "Backstamp"). Badge color: `var(--ui-accent)` background with white text. In edit mode (Listing Coach review or inventory detail), the badge is a compact dropdown: first option "OK" (accept current), followed by the full shot type enum (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). See ADR-072 §Photo classification.
+- **Shot type badge:** If `picture_classifications` contains an entry for this slot, display a small label badge in the top-left corner with the shot type (e.g. "Hero", "Detail", "Backstamp"). Badge color: `var(--ui-accent)` background with white text. In edit mode (inventory detail), the badge is a compact dropdown: first option "OK" (accept current), followed by the full shot type enum (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). See ADR-072 §Photo classification.
 - Draggable: the card can be dragged to another slot position to reorder. When reordering, classifications move with their photos (the classification is bound to the image, not the slot number).
 
 **Empty slot:**
@@ -172,5 +172,5 @@ The "+ Add" button supports multi-file selection:
 
 ## Notes
 
-- **Listing Coach (ADR-072):** Uses the same file type/size limits (ADR-026) but adds **clipboard paste** (`⌘V` from macOS Photos) on `/listing-coach`. Pasted images are held in client memory until **complete** uploads to inventory via picture API. Inventory `PictureGrid` may add paste in post-v1; v1 paste is coach-only.
+- **Clipboard paste (ADR-085):** The inventory `PictureGrid` supports **clipboard paste** (`⌘V` from macOS Photos), ported from the former Listing Coach. Same file type/size limits (ADR-026). Pasted images upload to the item via the picture API immediately (the standalone Coach is removed).
 - **Photo slot limit:** 20 item photos (`picture_1..picture_20`). Condition photos remain at 5 (`condition_picture_1..condition_picture_5`).

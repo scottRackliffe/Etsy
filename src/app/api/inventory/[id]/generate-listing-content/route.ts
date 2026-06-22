@@ -1,17 +1,18 @@
 /**
  * POST /api/inventory/[id]/generate-listing-content
- * Generates Etsy listing content from item context + all item pictures.
+ * Runs the full research + compose AI engine (ADR-085 §3, WS-L1).
+ * No sale_revenue gate — price is an output of generation, not an input.
  */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { generateListingFromAi } from "@/lib/listing-generator";
+import type { CoachPhotoFile } from "@/lib/listing-ai";
 import {
   getAllPictureReferences,
   getInventoryById,
   updateListingContent,
   validateItemForListingRequest,
 } from "@/lib/inventory";
-import { loadListingGuidance } from "@/lib/listing-guidance";
 import { markListingGenerated } from "@/lib/listing-phase";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { logActivity } from "@/lib/activity-log";
@@ -26,7 +27,7 @@ function parseInventoryId(idParam: string): number | null {
   return parsed;
 }
 
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const cookieStore = await cookies();
     requireEtsyAccessToken(cookieStore);
@@ -72,45 +73,92 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         userMessage: "This item is missing required listing data.",
         actions: [
           "Open the item and complete all missing fields.",
-          "Add at least one picture, set condition, and set price.",
+          "Add at least one picture, set condition code, and add a description.",
         ],
         fields: validation.fields,
         canRetry: false,
       });
     }
 
-    const pictureReferences = getAllPictureReferences(item);
-    const guidance = await loadListingGuidance();
-    const generated = await generateListingFromAi({
-      item,
-      pictureReferences,
-      guidance,
-    });
+    // Extract optional Google context from multipart body (WS-L3)
+    let googlePhotos: CoachPhotoFile[] = [];
+    let googleText = "";
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      try {
+        const formData = await request.formData();
+        const googlePhotoFiles = formData.getAll("google_photos");
+        for (const f of googlePhotoFiles) {
+          if (f instanceof File) {
+            const buffer = Buffer.from(await f.arrayBuffer());
+            googlePhotos.push({ buffer, filename: f.name || "google.jpg" });
+          }
+        }
+        const textField = formData.get("google_text");
+        if (typeof textField === "string") googleText = textField;
+      } catch {
+        // multipart parse failure — proceed without Google context
+      }
+    }
 
-    const updatedItem = updateListingContent(inventoryId, {
-      ...generated,
+    const generated = await generateListingFromAi({ item, googlePhotos, googleText });
+
+    const saleRevenueSet =
+      (item.sale_revenue == null || Number(item.sale_revenue) === 0) &&
+      generated.suggested_sale_revenue != null &&
+      generated.suggested_sale_revenue > 0;
+
+    updateListingContent(inventoryId, {
+      listing_title: generated.listing_title,
+      listing_description: generated.listing_description,
+      listing_tags: generated.listing_tags,
+      listing_category_path: generated.listing_category_path,
+      listing_title_strategy: generated.listing_title_strategy,
+      listing_product_story: generated.listing_product_story,
+      listing_condition_clarity: generated.listing_condition_clarity,
+      listing_attributes: generated.listing_attributes,
+      listing_pricing_shipping_notes: generated.listing_pricing_shipping_notes,
+      listing_quality_checklist: generated.listing_quality_checklist,
       listing_draft_source: "integrated_ai",
+      etsy_when_made: generated.suggested_etsy_when_made ?? undefined,
+      etsy_taxonomy_id: generated.suggested_taxonomy_id ?? undefined,
+      materials: generated.suggested_materials_json ?? undefined,
+      picture_classifications: generated.picture_classifications_json ?? undefined,
+      sale_revenue_if_unset:
+        generated.suggested_sale_revenue != null && generated.suggested_sale_revenue > 0
+          ? generated.suggested_sale_revenue
+          : null,
     });
 
+    const updatedItem = getInventoryById(inventoryId);
     const listingPhase = markListingGenerated(inventoryId);
 
     logActivity({
-      action: "listing.generated",
+      action: "listing.ai_generated",
       entityType: "inventory",
       entityId: inventoryId,
       entityLabel: item.item_number || item.description || `Item ${inventoryId}`,
-      detail: { listing_draft_source: "integrated_ai" },
+      detail: {
+        price_confidence: generated.price.confidence,
+        sale_revenue_set: saleRevenueSet,
+      },
       source: "user",
     });
+
+    const pictureCount = getAllPictureReferences(item).length;
 
     return NextResponse.json(
       {
         item_id: inventoryId,
-        used_picture_count: pictureReferences.length,
+        used_picture_count: pictureCount,
         listing_title: generated.listing_title,
         listing_description: generated.listing_description,
         listing_tags: generated.listing_tags,
         listing_category_path: generated.listing_category_path ?? null,
+        price: generated.price,
+        evidence: null,
+        citations: generated.citations,
+        compliance_check: generated.compliance_check,
         listing_phase: listingPhase,
         updated_at: updatedItem?.updated_at ?? null,
       },
@@ -125,7 +173,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         userMessage: "We could not generate listing content right now.",
         actions: [
           "Try again in a moment.",
-          "If this keeps failing, verify AI configuration and image paths.",
+          "If this keeps failing, verify AI configuration and photo paths.",
         ],
       })
     );

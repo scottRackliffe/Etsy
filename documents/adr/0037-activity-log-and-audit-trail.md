@@ -77,18 +77,13 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 
 | Action                   | entity_type | Logged when                                                                                                                        |
 | ------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `listing.draft_saved`    | `inventory` | Manual draft saved                                                                                                                 |
-| `listing.ai_generated`   | `inventory` | AI listing content generated                                                                                                       |
+| `listing.ai_generated`   | `inventory` | AI listing generated (research + price + all fields, ADR-085). `detail_json`: `{ price_confidence, sale_revenue_set }`             |
 | `listing.quality_evaluated` | `inventory` | Listing quality reviewed (ADR-081/082). `detail_json`: `{ score, issue_count }`                                                  |
 | `listing.shot_list_generated` | `inventory` | AI shot list generated (ADR-083). `detail_json`: `{ shot_count }`                                                            |
 | `inventory.dimensions_annotated` | `inventory` | Measurement photo rendered (ADR-084). `detail_json`: `{ length, width, height, unit, slot }`                              |
-| `listing.coach_complete` | `inventory` | Listing Coach saved new item. `detail_json`: `{ picture_count, google_photos_count, price_confidence, sale_revenue_set: boolean }` |
-| `listing.exported`       | `inventory` | Portable AI package exported. `detail_json`: `{ export_id }`                                                                       |
-| `listing.imported`       | `inventory` | Portable AI draft imported. `detail_json`: `{ export_id, source_label }`                                                           |
-| `listing.approved`       | `inventory` | Draft approved for publishing                                                                                                      |
-| `listing.rejected`       | `inventory` | Draft rejected back to draft state                                                                                                 |
-| `listing.published`      | `inventory` | Published to Etsy. `detail_json`: `{ etsy_listing_id }`                                                                            |
+| `listing.published`      | `inventory` | Published to Etsy. `detail_json`: `{ etsy_listing_id, mode: "create" \| "update" }` (ADR-085 §5 re-publish)                         |
 | `listing.publish_failed` | `inventory` | Publish attempt failed. `detail_json`: `{ error }`                                                                                 |
+| ~~`listing.draft_saved`~~, ~~`listing.coach_complete`~~, ~~`listing.exported`~~, ~~`listing.imported`~~, ~~`listing.approved`~~, ~~`listing.rejected`~~ | — | **RETIRED (ADR-085):** draft-state machine, Listing Coach, portable handoff, and approve/reject removed. |
 
 **Order actions:**
 
@@ -143,8 +138,12 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | `system.sample_data_loaded`      | `system`    | Sample data loaded (ADR-069)                                                           |
 | `system.sample_data_removed`     | `system`    | Sample data removed (ADR-069)                                                          |
 | `system.integrity_check_failed`  | `system`    | SQLite integrity check failed (ADR-058)                                                |
+| `communication.sent`             | `communication` | Message batch sent or printed. `detail_json: { message_type, channel, count, order_ids }` (ADR-078) |
+| `communication.failed`           | `communication` | Send failed. `detail_json: { message_type, error }` (ADR-078)                      |
 
-> **Reconciliation note (2026-06-09):** `inventory.batch_status_changed` and `inventory.batch_deleted` moved to the Inventory actions table above (they were previously duplicated here). `inventory.bulk_imported` (ADR-047) and `customer.batch_deleted` (ADR-040) added to their respective tables. `sync.started`/`sync.completed` confirmed present in Sync actions. `listing.coach_complete` confirmed present in Listing actions. Source field values: `user`, `system`, `etsy_sync`.
+> **Update (2026-06-21, WS-C):** `communication` entity_type added. Deep-link target: single-order entity_id → `/orders?orderId=` when entity_id is set, else no link. "Communications" filter chip maps to `entity_type='communication'`.
+
+> **Reconciliation note (2026-06-09):** `inventory.batch_status_changed` and `inventory.batch_deleted` moved to the Inventory actions table above (they were previously duplicated here). `inventory.bulk_imported` (ADR-047) and `customer.batch_deleted` (ADR-040) added to their respective tables. `sync.started`/`sync.completed` confirmed present in Sync actions. Source field values: `user`, `system`, `etsy_sync`. (Note 2026-06-21, ADR-085: `listing.coach_complete` and the draft-state/portable/approve actions are retired.)
 
 ---
 
@@ -296,7 +295,7 @@ Notes:
 - **`order`** covers all customer sales (in this data model "Sales" = `orders`; there is no
   separate `sale` entity_type — see A4 for the chip).
 - **`receipt`** = vendor purchase receipts (buying trips).
-- **`expense`** = business expenses / AP Lite (ADR-077). **`tax_payment`** = tax remittances
+- **`expense`** = business expenses (ADR-077). **`tax_payment`** = tax remittances
   (ADR-039).
 - **`shipping`** = label/rate operations (ADR-074); `entity_id` holds the related **order id**.
 - **`report`** = report generation (was previously logged under `setting`; see A2 note).
@@ -323,7 +322,7 @@ Notes:
 | `vendor.updated` | Vendor fields changed |
 | `vendor.deleted` | Vendor soft-deleted (`is_active=0`) |
 
-**Expense / AP Lite actions (entity_type `expense`, entity_id = expense id) — ADR-077:**
+**Expense actions (entity_type `expense`, entity_id = expense id) — ADR-077:**
 
 | Action | Logged when |
 | --- | --- |
@@ -405,7 +404,7 @@ more `entity_type` values passed to `GET /api/activity` (see A5):
 | Customers | `customer`, `address` |
 | Receipts | `receipt` |
 | Vendors | `vendor` |
-| AP Lite | `expense`, `tax_payment` |
+| Expenses | `expense`, `tax_payment` |
 | Reports | `report` |
 | Shipping | `shipping` |
 | Communications | `communication` (ADR-078) |
@@ -420,7 +419,7 @@ filterable) draw from the **same** `activity_log` data; only the Activity log ex
 ### A5. API — filter by multiple entity types
 
 `GET /api/activity` (ADR-018) gains support for a **comma-separated** `entity_type` value so a
-single chip can cover multiple types (e.g. `entity_type=expense,tax_payment` for AP Lite;
+single chip can cover multiple types (e.g. `entity_type=expense,tax_payment` for Expenses;
 `entity_type=customer,address` for Customers). Single-value usage is unchanged and backward
 compatible. The `source` filter (`user|system|etsy_sync`) and existing params are unchanged.
 System chip additionally matches `action LIKE 'auth.%'`; this composite is resolved server-side

@@ -17,11 +17,14 @@ mitigation). The owner wants this to be sophisticated and aligned with Etsy best
 **target around 98%** (pass threshold remains 85 per ADR-068). The simpler ADR-068 score is not
 detailed enough for per-photo "is this artwork on point?" judgments.
 
-This ADR is the canonical **rubric**. Its specifications are grounded in documented Etsy guidance
-and listing best practices compiled in
-`documents/research/2026-06-21_etsy-listing-best-practices.md` (citations there). It supersedes
-ADR-068 as the authoritative quality definition; ADR-068's lightweight score may remain for fast
-list-column display.
+This ADR is the canonical **rubric** — and, per **ADR-085**, the app's **single** quality engine.
+Its specifications are grounded in documented Etsy guidance and listing best practices compiled in
+`documents/research/2026-06-21_etsy-listing-best-practices.md` (citations there). It **supersedes
+ADR-068** (`computeListingScore` is retired). To serve the fast surfaces ADR-068 used to feed, this
+rubric exposes a **deterministic fast path** (§10) — no AI, no cache required — used by the
+Inventory list quality column/sort, the Outstanding low-quality list, the dashboard low-quality
+widget (ADR-016 §7), and the inventory aging report. The full AI-vision path runs on Evaluate
+Listing Quality and is cached in `listing_quality_json`.
 
 Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **G/D**.
 
@@ -183,14 +186,18 @@ coverage but is not required.
 
 ### 10. Evaluator notes
 
-- **Deterministic checks** (lengths, counts, presence, taxonomy/attribute set) run server-side
-  with no AI cost.
-- **AI vision** is used for per-photo "on point + quality" judgments and optional title/description
-  polish suggestions; **all non-empty pictures are sent** (consistent with ADR-023). Each AI call
-  is logged via ADR-075.
+- **Deterministic fast path** (lengths, counts, presence, taxonomy/attribute set, price) runs
+  server-side with no AI cost and **no cache required**. This is the single scorer for the fast
+  surfaces (Inventory list quality column/sort, Outstanding low-quality, dashboard widget, aging
+  report) — there is no longer a separate ADR-068 score (ADR-085 §4). On these surfaces the AI
+  photo sub-score (§8b) uses the provisional fallback unless a cached full evaluation exists.
+- **Full path = deterministic + AI vision** (§8b per-photo "on point + quality"); **all non-empty
+  pictures are sent** (unchanged invariant). Runs on Evaluate Listing Quality, result cached in
+  `listing_quality_json`. Each AI call is logged via ADR-075.
 - Threshold is read from the single setting key `listing.min_quality_score` (default **85**;
   `listing.quality_threshold` is retired — WS-THRESH). The **target 98** is advisory (shown as a
-  goal), not a publish gate; the publish gate remains ADR-023/§5.
+  goal). The **publish gate** is `listing_phase = 'listing_ready'` (= rubric passed, no blocking
+  remediation) plus the Etsy field checks (ADR-085 §5 / ADR-081 §1); it is no longer ADR-023.
 
 ---
 
@@ -216,8 +223,8 @@ coverage but is not required.
   requires measurable flaw language; **Photos** resolution = **shortest side ≥2000px (3000 rec.)**,
   hero fills ~70–85% centered for auto-crop, white/neutral bg, maker's-mark photo required for
   marked items, back/underside coverage. The research doc is evidence; this ADR is the rule.
-- **Cross-references to update at implementation (.cursorrules §1b):** ADR-068 (superseded as the
-  authoritative quality definition; keep lightweight score for list column), ADR-081 (consumes
-  remediation + phase), ADR-083 (shot-list coverage), ADR-084 (measurement photo), ADR-023
-  (publish gate unchanged), ADR-072 (photo taxonomy + Coach), ADR-018 (endpoint), ADR-075 (AI
-  usage), `.cursorrules` (quality threshold + rubric reference).
+- **Cross-references (.cursorrules §1b):** ADR-085 (single quality engine; deterministic fast path
+  replaces the retired ADR-068 score), ADR-068 (superseded; `computeListingScore` retired),
+  ADR-081 (consumes remediation + phase; publish gate = `listing_ready`), ADR-083 (shot-list
+  coverage), ADR-084 (measurement photo), ADR-016 (dashboard widget reads this rubric), ADR-018
+  (endpoint), ADR-075 (AI usage), `.cursorrules` (quality threshold + rubric reference).

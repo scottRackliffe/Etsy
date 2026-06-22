@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -162,6 +162,42 @@ export function PictureGrid({
     },
     [inventoryId, onError, onItemUpdated]
   );
+
+  // ADR-033 / WS-L3: ⌘V clipboard paste → upload to first empty slot.
+  // Placed after uploadFile so it can be included in deps without the
+  // "used before declaration" error. Skip when a text input has focus.
+  useEffect(() => {
+    if (disabled || !inventoryId) return;
+    const handlePaste = (e: ClipboardEvent) => {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement
+      )
+        return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const ci of items) {
+        if (ci.type.startsWith("image/")) {
+          const f = ci.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length === 0) return;
+      e.preventDefault();
+      const emptySlots = slots.filter((s) => !s.path).map((s) => s.slot);
+      if (emptySlots.length === 0) {
+        onError("No empty slots", "All 20 picture slots are full.");
+        return;
+      }
+      files.slice(0, emptySlots.length).forEach((file, i) => {
+        void uploadFile(emptySlots[i], file);
+      });
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [disabled, inventoryId, slots, uploadFile, onError]);
 
   const openPicker = (slot: number) => {
     if (disabled || !inventoryId) return;

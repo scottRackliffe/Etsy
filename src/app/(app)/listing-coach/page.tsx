@@ -26,7 +26,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { VendorPicker } from "@/components/ui/VendorPicker";
 import { useToast } from "@/hooks/useToast";
 import { createUiError } from "@/lib/ui-error";
-import { computeListingScore, type ListingScoreResult } from "@/lib/listing-score";
+import { computeRubricFastScore, type InventoryRowLike } from "@/lib/listing-rubric";
 import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
 import TaxonomyAttributesPanel from "@/components/etsy/TaxonomyAttributesPanel";
 import type { AiConfig, ApiErrorShape, UiError } from "@/types";
@@ -247,7 +247,7 @@ export default function ListingCoachPage() {
   // Video
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoPath, setVideoPath] = useState<string | null>(null);
-  const [liveScore, setLiveScore] = useState<ListingScoreResult | null>(null);
+  const [liveScore, setLiveScore] = useState<{ score: number; tips: string[] } | null>(null);
 
   // UI state
   const [busy, setBusy] = useState(false);
@@ -760,7 +760,9 @@ export default function ListingCoachPage() {
   const recomputeScore = useCallback(() => {
     const picMap: Record<string, string | null> = {};
     itemPhotos.forEach((p, i) => { picMap[`picture_${i + 1}`] = p.previewUrl; });
-    const result = computeListingScore({
+    const synth: InventoryRowLike = {
+      id: 0,
+      listing_quality_json: null,
       listing_title: listingTitle,
       listing_description: listingDescription,
       listing_tags: listingTags,
@@ -773,8 +775,9 @@ export default function ListingCoachPage() {
       item_length: itemLength,
       materials: materialsText ? JSON.stringify(materialsText.split(",").map((s: string) => s.trim()).filter(Boolean)) : null,
       ...picMap,
-    });
-    setLiveScore(result);
+    };
+    const result = computeRubricFastScore(synth);
+    setLiveScore({ score: result.score, tips: [] });
     return result;
   }, [
     listingTitle, listingDescription, listingTags, categoryTags,
@@ -1579,7 +1582,7 @@ export default function ListingCoachPage() {
 
             {/* Quality score — live */}
             {(() => {
-              const qs = liveScore ?? { score: researchResult.quality_score.score, grade: researchResult.quality_score.score >= 80 ? "green" as const : researchResult.quality_score.score >= 60 ? "yellow" as const : "red" as const, tips: researchResult.quality_score.hints, breakdown: {} };
+              const qs = liveScore ?? { score: researchResult.quality_score.score, tips: researchResult.quality_score.hints };
               const color = qs.score >= 80 ? "var(--ui-green)" : qs.score >= 60 ? "var(--ui-yellow)" : "var(--ui-red)";
               return (
                 <div className="space-y-3">

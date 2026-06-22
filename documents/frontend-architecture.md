@@ -14,7 +14,7 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | `/dashboard`     | `src/app/(app)/dashboard/page.tsx`     | Dashboard   | KPI cards, recent orders, sync status                                                                                        |
 | `/sales`         | `src/app/(app)/orders/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
 | `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list, detail panel, pictures, listing workshop (ADR-030)                                                                |
-| `/listing-coach` | `src/app/(app)/listing-coach/page.tsx` | — (focus)   | Guided new listing wizard — paste photos, Google screenshot, AI compose (ADR-072). Tab bar hidden. Entry from Inventory CTA. |
+| ~~`/listing-coach`~~ | — | — | **REMOVED (ADR-085):** new items use the inline SEMS create on `/inventory`; the AI Generate step lives in the inventory detail editor. |
 | `/customers`     | `src/app/(app)/customers/page.tsx`     | Customers   | Customer list, detail panel, addresses, purchase history                                                                     |
 | `/reports`       | `src/app/(app)/reports/page.tsx`       | Reports     | Report chooser, options, viewer                                                                                              |
 | `/outstanding`   | `src/app/(app)/outstanding/page.tsx`   | Outstanding | Full-page outstanding list                                                                                                   |
@@ -202,7 +202,7 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
   - Manual mode: structured form with all listing sections (title strategy, product story, condition clarity, attributes, tags, pricing/shipping notes, quality checklist).
   - Generate mode: readiness check → "Generate" button → loading → review generated content → edit → approve.
   - Import mode: paste JSON or upload file → validate schema → review → approve.
-- `PublishPreview` shows exactly what will be sent to Etsy; "Publish to Etsy" button disabled unless `listing_draft_state = 'approved'`.
+- "Publish to Etsy" becomes available only when `listing_phase = 'listing_ready'` (ADR-085) plus the required Etsy fields are set. (The retired `listing_draft_state = 'approved'` gate no longer applies.)
 
 **Config tab:**
 

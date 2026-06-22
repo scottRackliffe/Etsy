@@ -177,6 +177,10 @@ All use `Button` component. Destructive actions require confirmation per ADR-032
 | Void label      | `<Button variant="ghost">Void label</Button>`          | ConfirmDialog → `POST /api/orders/[id]/shipping-refund`. Only when label exists and not shipped. |
 | Print label (EasyPost) | `<Button variant="secondary">Print Label</Button>` | Opens purchased label PDF for printing. Only when label exists.               |
 | Print address label | `<Button variant="ghost">Print address label</Button>` | Legacy HTML label (no postage). Always available.                            |
+| Send payment reminder | `<Button variant="secondary">Send payment reminder</Button>` | **ADR-078**: visible only for `source_channel='manual'` + unpaid orders. Opens `SendCommunicationModal` (type=payment_reminder). |
+| Send thank-you | `<Button variant="secondary">Send thank-you</Button>` | **ADR-078**: visible for all active non-void orders. Opens `SendCommunicationModal` (type=thank_you). |
+
+> **Update (2026-06-21, WS-C):** "Send payment reminder" and "Send thank-you" buttons added to the order-detail action bar (ADR-078). Payment reminder is restricted to manual-channel, unpaid orders (server-side compliance gate also enforced in `POST /api/communications/send`).
 
 ---
 

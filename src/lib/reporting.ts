@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/sqlite";
 import { getSetting } from "@/lib/settings-store";
-import { computeListingScore } from "@/lib/listing-score";
+import { computeRubricFastScore } from "@/lib/listing-rubric";
 import { logActivity } from "@/lib/activity-log";
 
 type ReportMetricValue = number | string;
@@ -393,7 +393,7 @@ function buildOutstandingItemsReport(): ReportResult {
 
   const now = Date.now();
   const rows = rawRows.map((r) => {
-    const scoreResult = computeListingScore(r as Parameters<typeof computeListingScore>[0]);
+    const scoreResult = computeRubricFastScore(r as { id: number; [key: string]: unknown });
     const dateListed = String(r.date_listed ?? "");
     let daysListed = 0;
     if (dateListed) {
@@ -413,7 +413,7 @@ function buildOutstandingItemsReport(): ReportResult {
       purchase_cost: Number(r.purchase_cost ?? 0),
       pictures: picCount,
       quality_score: scoreResult.score,
-      quality_grade: scoreResult.grade,
+      quality_grade: scoreResult.score >= 90 ? "green" : scoreResult.score >= 70 ? "yellow" : "red",
     };
   });
 
@@ -701,6 +701,36 @@ export function buildSingleOrderThankYou(orderId: number): ReportResult | null {
     summary: `Thank you for your order, ${customerName}!`,
     metrics,
     sections: [{ title: "Items in your order", rows: lineItems }],
+  };
+}
+
+export function buildSingleOrderPaymentReminder(orderId: number): ReportResult | null {
+  const order = loadActiveOrder(orderId);
+  if (!order) return null;
+
+  const businessName = getSetting("business_name")?.trim() || "Business";
+  const customerName =
+    [order.ship_to_first_name, order.ship_to_last_name].filter(Boolean).join(" ") || "Customer";
+  const orderNumber = String(order.order_number ?? orderId);
+
+  const metrics: Record<string, ReportMetricValue> = {
+    business_name: businessName,
+    customer_name: customerName,
+    order_number: orderNumber,
+    order_date: String(order.order_date ?? ""),
+    amount_due: asNumber(order.grand_total),
+    payment_status: "Unpaid",
+    letter_body:
+      getSetting("comm.template.payment_reminder.body") ||
+      `Dear ${customerName},\n\nThis is a friendly reminder that order #${orderNumber} placed on ${order.order_date ?? ""} has a balance of ${asNumber(order.grand_total)} that remains unpaid.\n\nPlease arrange payment at your earliest convenience.\n\nThank you,\n${businessName}`,
+  };
+
+  return {
+    report_name: `payment-reminder-${orderNumber}`,
+    generated_at: new Date().toISOString(),
+    summary: `Payment reminder for order #${orderNumber} — ${customerName}`,
+    metrics,
+    sections: [],
   };
 }
 

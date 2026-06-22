@@ -70,9 +70,9 @@ For retry loops (429 handling), each attempt is logged separately so the operato
 
 | Location | Endpoint logged |
 |----------|----------------|
-| `src/lib/listing-generator.ts` → `generateListingFromAi()` | `responses.create/generate-listing` |
-| `src/lib/listing-coach.ts` → `callAiJson()` | `responses.create/listing-coach` |
-| `src/app/api/inventory/[id]/improve-listing/route.ts` | `responses.create/improve-listing` |
+| `src/lib/listing-ai.ts` → Generate engine (research + price + fields, ADR-085) | `responses.create/generate-listing` |
+| `src/lib/listing-ai.ts` → `refineListing()` (per-field/global) | `responses.create/listing-refine` |
+| ~~`src/lib/listing-coach.ts`~~, ~~`improve-listing`~~ | **RETIRED (ADR-085):** folded into the Generate/refine engine above |
 | `src/lib/listing-photo-vision.ts` → `evaluatePhotoQuality()` | `responses.create/listing-photo-quality` |
 | `src/lib/ai-config.ts` → `testAiConnection()` | `responses.create/test-connection` |
 

@@ -80,6 +80,8 @@ export type InventoryItem = {
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
+  listing_quality_json: string | null;
+  listing_phase: string | null;
 };
 
 export type Receipt = {

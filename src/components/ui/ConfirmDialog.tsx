@@ -15,6 +15,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   confirmVariant = "danger",
   busy,
+  confirmDisabled,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,6 +27,8 @@ export function ConfirmDialog({
   cancelLabel?: string;
   confirmVariant?: "danger" | "accent";
   busy?: boolean;
+  /** When true the confirm button is disabled (e.g. a blocking pre-condition is not met). */
+  confirmDisabled?: boolean;
 }) {
   const descriptionId = useId();
   return (
@@ -49,7 +52,7 @@ export function ConfirmDialog({
         <Button variant="secondary" onClick={onClose} disabled={busy}>
           {cancelLabel}
         </Button>
-        <Button variant={confirmVariant} onClick={onConfirm} busy={busy}>
+        <Button variant={confirmVariant} onClick={onConfirm} busy={busy} disabled={confirmDisabled}>
           {confirmLabel}
         </Button>
       </div>

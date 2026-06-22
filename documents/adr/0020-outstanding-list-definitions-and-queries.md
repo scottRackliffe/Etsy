@@ -104,12 +104,15 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 **Severity:** Warning (advisory — not blocking until publish attempt).
 
-**Query rule:** From `inventory` where `listing_draft_state` IN ('generated', 'imported', 'approved') AND (`etsy_when_made` IS NULL OR `etsy_taxonomy_id` IS NULL).
+**Query rule (updated ADR-085):** From `inventory` where the item has a generated listing
+(`listing_phase` IN ('generated', 'needs_quality_remediation', 'listing_ready')) AND
+(`etsy_when_made` IS NULL OR `etsy_taxonomy_id` IS NULL). (The retired `listing_draft_state` column
+is no longer used.)
 
 ```sql
 SELECT id, item_number, description
 FROM inventory
-WHERE listing_draft_state IN ('generated','imported','approved')
+WHERE listing_phase IN ('generated','needs_quality_remediation','listing_ready')
   AND (etsy_when_made IS NULL OR etsy_taxonomy_id IS NULL)
 ```
 

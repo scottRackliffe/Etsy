@@ -169,17 +169,14 @@ the user can quickly find items needing work.
   Each row shows at minimum: item number, listing title (or description fallback), and the
   quality score; clicking a row deep-links to the inventory detail for that item
   (`/inventory?itemId=<id>`, ADR-035).
-- **Data source:** listing quality score per ADR-068 (`GET /api/inventory/[id]/listing-score`
-  and/or a list endpoint exposing the score; the exact list endpoint is specified in ADR-018
-  when WS-D is implemented). Empty state: a positive message (e.g. "All active items meet the
-  quality threshold.").
+- **Data source (ADR-085):** the **ADR-082 rubric deterministic fast path** (the single quality
+  engine; the ADR-068 score is retired). The dashboard list endpoint computes the deterministic
+  score on demand, using the cached `listing_quality_json` score when present. Empty state: a
+  positive message (e.g. "All active items meet the quality threshold.").
 
-**Implementation note (WS-D):** the widget reads the existing `listing.min_quality_score` setting
-(default 80) so it matches the Inventory list badge and Outstanding; the 85/`listing.quality_threshold`
-target will be unified under WS-G.
+**Implementation note (WS-D / WS-L4):** the widget reads the single `listing.min_quality_score`
+setting (default **85**) so it matches the Inventory list badge and Outstanding.
 
-**Cross-references checked (per .cursorrules §1b):** ADR-037 (activity data + taxonomy — WS-A
-will expand), ADR-035 (deep-link targets), ADR-064 (widget pattern), ADR-068 (quality score),
-ADR-018 (endpoints), ADR-028 (shared components). No contradictions introduced; ADR-037/018
-updates for the expanded activity taxonomy and the WS-D list endpoint are tracked in the program
-doc and will be made when those workstreams execute.
+**Cross-references checked (per .cursorrules §1b):** ADR-085 (single quality engine), ADR-082
+(rubric fast path), ADR-037 (activity data), ADR-035 (deep-link targets), ADR-064 (widget pattern),
+ADR-018 (endpoints), ADR-028 (shared components).

@@ -44,7 +44,7 @@ We use a standard format for all ADRs:
 | [ADR-020](0020-outstanding-list-definitions-and-queries.md)        | Outstanding list — definitions and query rules (no ambiguity)                           |
 | [ADR-021](0021-validation-and-business-rules.md)                   | Validation and business rules (no ambiguity)                                            |
 | [ADR-022](0022-referential-integrity-and-delete-behavior.md)       | Referential integrity and delete behavior (no ambiguity)                                |
-| [ADR-023](0023-listing-content-generation-modes.md)                | Listing content generation modes — manual, integrated AI, and portable AI handoff       |
+| [ADR-023](0023-listing-content-generation-modes.md)                | Listing content generation modes — manual, integrated AI, portable handoff *(SUPERSEDED by ADR-085)* |
 | [ADR-024](0024-frontend-component-architecture.md)                 | Frontend component architecture — routing, layout, and component structure              |
 | [ADR-025](0025-token-refresh-middleware.md)                        | Token refresh middleware — deterministic behavior (no ambiguity)                        |
 | [ADR-026](0026-picture-storage-and-thumbnails.md)                  | Picture storage layout and thumbnail specification (no ambiguity)                       |
@@ -89,11 +89,11 @@ We use a standard format for all ADRs:
 | [ADR-065](0065-customer-interaction-notes.md)                      | Customer interaction notes log                                                          |
 | [ADR-066](0066-repeat-customer-badge.md)                           | Repeat customer badge and highlight                                                     |
 | [ADR-067](0067-undo-redo.md)                                       | Undo/redo for last N operations                                                         |
-| [ADR-068](0068-listing-quality-score.md)                           | Listing quality score and SEO hints                                                     |
+| [ADR-068](0068-listing-quality-score.md)                           | Listing quality score and SEO hints *(SUPERSEDED by ADR-082/085)*                        |
 | [ADR-069](0069-sample-demo-data.md)                                | Sample/demo data for new users                                                          |
 | [ADR-070](0070-product-scope-and-non-goals.md)                     | Product scope matrix — v1 / post-v1 / Etsy-only / never (store owner capabilities)      |
 | [ADR-071](0071-visual-design-system-and-ui-consistency.md)         | Visual design system — colors, navigation, badges, transaction-complete feedback        |
-| [ADR-072](0072-listing-coach-guided-new-listing-flow.md)           | Listing Coach — guided new listing (Photos paste, Google Visual Search, AI compose)     |
+| [ADR-072](0072-listing-coach-guided-new-listing-flow.md)           | Listing Coach — guided new listing *(REMOVED, SUPERSEDED by ADR-085)*                    |
 | [ADR-073](0073-etsy-api-acceptance-and-usage-requirements.md)      | Etsy API acceptance and usage requirements — consolidated reference                     |
 | [ADR-074](0074-shipping-api-integration-easypost.md)               | Shipping API integration (EasyPost) — rate shopping, label purchase, tracking, address validation |
 | [ADR-075](0075-api-usage-tracking.md)                              | API usage tracking — per-service monthly call counts (Etsy, OpenAI)                     |
@@ -106,3 +106,4 @@ We use a standard format for all ADRs:
 | [ADR-082](0082-listing-quality-rubric.md)                          | Listing quality rubric — per-field and per-photo specifications                          |
 | [ADR-083](0083-ai-shot-list-generation.md)                         | AI shot-list generation from the primary photo                                           |
 | [ADR-084](0084-ai-dimension-annotation.md)                         | AI dimension annotation from a reference-ruler photo                                     |
+| [ADR-085](0085-unified-listing-lifecycle.md)                       | **Unified listing lifecycle — single processor (supersedes ADR-023/068/072)**           |

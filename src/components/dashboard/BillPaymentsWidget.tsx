@@ -97,7 +97,7 @@ export function BillPaymentsWidget({ embedded = false }: { embedded?: boolean })
             : `${summary?.bill_count ?? 0} bill${summary?.bill_count !== 1 ? "s" : ""} tracked (excl. tax)`
         }
         href="/expenses"
-        viewLabel="AP Lite"
+        viewLabel="Expenses"
       />
 
       {loading ? (
@@ -136,7 +136,7 @@ export function BillPaymentsWidget({ embedded = false }: { embedded?: boolean })
         </div>
       ) : (
         <p className="text-sm text-[var(--ui-muted)]">
-          No bills recorded yet. Add bills in AP Lite to track vendor invoices and payments.
+          No bills recorded yet. Add bills in Expenses to track vendor invoices and payments.
         </p>
       )}
     </>

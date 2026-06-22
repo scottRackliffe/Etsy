@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useApp } from "@/context/AppContext";
 import { formatCurrency } from "@/lib/format-currency";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Modal } from "@/components/ui/Modal";
 import { DraftRecoveryBanner } from "@/components/ui/DraftRecoveryBanner";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -20,6 +20,14 @@ import { OtherCostsManager } from "@/components/inventory/OtherCostsManager";
 import { VendorPicker } from "@/components/ui/VendorPicker";
 import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
 import type { ApiErrorShape, InventoryItem } from "@/types";
+// WS-L3: AI affordances — temporary imports from coach tree (relocated in L6)
+import {
+  createCoachPhoto,
+  revokeCoachPhotos,
+  type CoachPhoto,
+} from "@/components/listing-coach/types";
+import { GoogleResultsPasteZone } from "@/components/listing-coach/GoogleResultsPasteZone";
+import type { PriceSuggestion, Citation, ComplianceCheck, FieldEvidence } from "@/lib/listing-ai";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 const CONDITIONS = ["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"] as const;
@@ -196,6 +204,175 @@ const PHASE_DISPLAY: Record<string, PhaseInfo> = {
   listing_ready: { label: "Listing ready", className: "text-[var(--ui-green)]" },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-L3 types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Google paste state + generate context passed up to the parent's generate call */
+export type GenerateContext = {
+  googlePhotos?: File[];
+  googleText?: string;
+};
+
+/** Result surfaced from a generate call — price, citations, compliance */
+export type GenerateResult = {
+  price?: PriceSuggestion;
+  citations?: Citation[];
+  compliance_check?: ComplianceCheck;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-L3 sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Badge showing evidence source and confidence for an AI-generated field value */
+function EvidenceBadge({ evidence }: { evidence: FieldEvidence }) {
+  const colors: Record<string, string> = {
+    photo: "bg-[var(--ui-accent)]/20 text-[var(--ui-accent)]",
+    web_search: "bg-[var(--ui-green)]/20 text-[var(--ui-green)]",
+    operator_input: "bg-[var(--ui-body)]/20 text-[var(--ui-body)]",
+    unverified: "bg-[var(--ui-yellow)]/20 text-[var(--ui-yellow)]",
+  };
+  const labels: Record<string, string> = {
+    photo: "From photo",
+    web_search: "Web verified",
+    operator_input: "Your input",
+    unverified: "Needs verification",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+        colors[evidence.evidence] ?? colors.unverified
+      }`}
+    >
+      {labels[evidence.evidence] ?? "Unverified"}
+      {evidence.confidence === "low" ? " (low confidence)" : ""}
+    </span>
+  );
+}
+
+/** Per-field "Fix" button — calls the inventory listing-refine route */
+function FieldFixButton({
+  itemId,
+  fieldName,
+  currentValue,
+  draft,
+  onFixed,
+}: {
+  itemId: number;
+  fieldName: string;
+  currentValue: string;
+  draft: Record<string, unknown>;
+  onFixed: (newValue: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const buildContext = () => ({
+    listing_title: String(draft.listing_title ?? ""),
+    listing_description: String(draft.listing_description ?? ""),
+    listing_tags: String(draft.listing_tags ?? ""),
+    listing_category_path: String(draft.listing_category_path ?? "") || null,
+    listing_condition_clarity: String(draft.listing_condition_clarity ?? ""),
+    listing_product_story: String(draft.listing_product_story ?? ""),
+    listing_attributes: String(draft.listing_attributes ?? ""),
+    listing_pricing_shipping_notes: String(draft.listing_pricing_shipping_notes ?? ""),
+    listing_title_strategy: String(draft.listing_title_strategy ?? ""),
+    listing_quality_checklist: String(draft.listing_quality_checklist ?? ""),
+    condition_code: String(draft.condition_code ?? ""),
+    condition_notes: String(draft.condition_notes ?? ""),
+    materials: String(draft.materials ?? ""),
+    sale_price: draft.sale_revenue !== "" ? Number(draft.sale_revenue) || null : null,
+  });
+
+  const submit = async () => {
+    if (!instruction.trim()) return;
+    setBusy(true);
+    try {
+      const resp = await fetch(`/api/inventory/${itemId}/listing-refine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "field",
+          field_name: fieldName,
+          current_value: currentValue,
+          instruction: instruction.trim(),
+          context: buildContext(),
+        }),
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Record<string, string>;
+      };
+      if (data.ok && data.fields?.[fieldName]) {
+        onFixed(data.fields[fieldName]);
+        setOpen(false);
+        setInstruction("");
+      }
+    } catch {
+      /* silent — field stays unchanged */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--ui-accent)] hover:bg-[var(--ui-accent)]/10"
+        title="Ask AI to fix this field"
+      >
+        Fix
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex gap-1">
+      <input
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void submit();
+          }
+          if (e.key === "Escape") {
+            setOpen(false);
+            setInstruction("");
+          }
+        }}
+        className="flex-1 rounded border border-[var(--ui-accent)]/40 bg-[var(--ui-card-bg)] px-2 py-1 text-xs text-[var(--ui-body)] focus:outline-none"
+        placeholder="What should the AI change?"
+        autoFocus
+        spellCheck
+      />
+      <Button
+        variant="accent"
+        size="sm"
+        onClick={() => void submit()}
+        busy={busy}
+        disabled={!instruction.trim()}
+      >
+        Fix
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setOpen(false);
+          setInstruction("");
+        }}
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
 type RemediationItem = {
   field: string;
   label: string;
@@ -240,24 +417,31 @@ type QualityResult = {
 function ListingLifecycleControls({
   itemId,
   updatedAt,
+  etsyListingId,
   busy,
   onRegenerateAi,
   regenerateAiBusy,
   onReloadItem,
   onError,
+  onSuccess,
 }: {
   itemId: number;
   updatedAt: string | null;
+  etsyListingId: string | null;
   busy: boolean;
   onRegenerateAi?: () => void;
   regenerateAiBusy?: boolean;
   onReloadItem?: () => Promise<void>;
   onError: (title: string, message: string, err?: unknown) => void;
+  onSuccess: (title: string, message: string) => void;
 }) {
   const [readiness, setReadiness] = useState<ReadinessResponse | null>(null);
   const [showData, setShowData] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [quality, setQuality] = useState<QualityResult | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+  const [alreadyPublishedId, setAlreadyPublishedId] = useState<string | null>(null);
 
   const loadReadiness = useCallback(async () => {
     try {
@@ -302,6 +486,47 @@ function ListingLifecycleControls({
     }
   }, [itemId, onError, onReloadItem, loadReadiness]);
 
+  // Posts to the publish endpoint. `mode` is omitted on a first publish; the
+  // server returns 409 ALREADY_PUBLISHED if the item is unexpectedly already on
+  // Etsy (stale client), which re-opens the Update/Create dialog (ADR-085 §5).
+  const doPublish = useCallback(
+    async (mode?: "create" | "update") => {
+      setPublishing(true);
+      try {
+        const res = await fetch(`/api/inventory/${itemId}/publish-to-etsy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(mode ? { mode } : {}),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) {
+          if (data?.error?.code === "ALREADY_PUBLISHED") {
+            const existing = data?.error?.fields?.etsy_listing_id?.[0] ?? etsyListingId ?? "—";
+            setConfirmPublishOpen(false);
+            setAlreadyPublishedId(String(existing));
+            return;
+          }
+          onError(
+            "Publish to Etsy",
+            data?.error?.user_message ?? "We could not publish this listing to Etsy."
+          );
+          return;
+        }
+        setConfirmPublishOpen(false);
+        setAlreadyPublishedId(null);
+        const verb = data.publish_result?.mode === "update" ? "updated on" : "published to";
+        onSuccess("Etsy", `Listing ${verb} Etsy (#${data.publish_result?.listing_id ?? "—"}).`);
+        if (onReloadItem) await onReloadItem();
+        else await loadReadiness();
+      } catch (err) {
+        onError("Publish to Etsy", "We could not publish this listing to Etsy.", err);
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [itemId, etsyListingId, onError, onSuccess, onReloadItem, loadReadiness]
+  );
+
   if (!readiness) return null;
 
   const phase =
@@ -325,15 +550,34 @@ function ListingLifecycleControls({
           <span className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Listing phase</span>
           <span className={`text-sm font-semibold ${phase.className}`}>{phase.label}</span>
         </div>
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={onClick}
-          busy={buttonBusy}
-          disabled={busy || (action === "generate" && !onRegenerateAi)}
-        >
-          {readiness.button.label}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={readiness.listing_phase === "listing_ready" ? "secondary" : "accent"}
+            size="sm"
+            onClick={onClick}
+            busy={buttonBusy}
+            disabled={busy || (action === "generate" && !onRegenerateAi)}
+          >
+            {readiness.button.label}
+          </Button>
+          {readiness.listing_phase === "listing_ready" ? (
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={() => {
+                if (etsyListingId && etsyListingId.trim()) {
+                  setAlreadyPublishedId(etsyListingId.trim());
+                } else {
+                  setConfirmPublishOpen(true);
+                }
+              }}
+              busy={publishing}
+              disabled={busy}
+            >
+              {etsyListingId && etsyListingId.trim() ? "Re-publish to Etsy" : "Publish to Etsy"}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {action === "evaluate_data" && showData ? (
@@ -432,6 +676,48 @@ function ListingLifecycleControls({
           )}
         </div>
       ) : null}
+
+      {/* First publish (ADR-085 §5) */}
+      <ConfirmDialog
+        open={confirmPublishOpen}
+        onClose={() => setConfirmPublishOpen(false)}
+        onConfirm={() => void doPublish()}
+        title="Publish to Etsy?"
+        description="This creates a live Etsy listing from the current item data, photos, and attributes."
+        confirmLabel="Publish"
+        confirmVariant="accent"
+        busy={publishing}
+      />
+
+      {/* Re-publish guard: item already has an Etsy listing (ADR-085 §5) */}
+      <Modal
+        open={alreadyPublishedId != null}
+        onClose={() => (publishing ? undefined : setAlreadyPublishedId(null))}
+        title="Already on Etsy"
+        maxWidth="max-w-md"
+        role="alertdialog"
+      >
+        <p className="text-sm text-[var(--ui-body)]">
+          This item is already on Etsy as listing{" "}
+          <span className="font-medium text-[var(--ui-title)]">#{alreadyPublishedId}</span>. Update
+          that existing listing, or create a separate new listing?
+        </p>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => setAlreadyPublishedId(null)}
+            disabled={publishing}
+          >
+            Cancel
+          </Button>
+          <Button variant="accent" onClick={() => void doPublish("create")} disabled={publishing}>
+            Create new listing
+          </Button>
+          <Button variant="accent" onClick={() => void doPublish("update")} busy={publishing}>
+            Update existing
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -444,8 +730,16 @@ type InventoryDetailPanelProps = {
   onSuccess: (title: string, message: string) => void;
   onReloadItem?: () => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
-  onRegenerateAi?: () => void;
+  /** WS-L3: receives optional Google context (photos + text) from the panel. */
+  onRegenerateAi?: (ctx?: GenerateContext) => void;
   regenerateAiBusy?: boolean;
+  /** WS-L3: result of the last generate call (price suggestion, citations, compliance). */
+  lastGenerateResult?: GenerateResult | null;
+  /**
+   * If provided, the panel writes a stable save function into this ref on mount.
+   * The parent (InventoryEditorShell) calls it from the SemsEditor sticky bar.
+   */
+  saveRef?: MutableRefObject<(() => Promise<boolean>) | null>;
 };
 
 export function InventoryDetailPanel({
@@ -458,14 +752,38 @@ export function InventoryDetailPanel({
   onDirtyChange,
   onRegenerateAi,
   regenerateAiBusy,
+  lastGenerateResult,
+  saveRef,
 }: InventoryDetailPanelProps) {
   const { currencyCode } = useApp();
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const [draft, setDraft] = useState<DraftFields | null>(null);
+  // baselineRef: last-known server state as DraftFields — used for 3-way merge and isDirty.
+  // prevItemIdRef: tracks record switches so we can distinguish id-change (full reset) from
+  // same-record sub-action refresh (merge).
+  const baselineRef = useRef<DraftFields | null>(null);
+  const prevItemIdRef = useRef<number | null>(null);
+  // saveTargetRef always points to the current saveChanges closure so the parent's saveRef
+  // wrapper stays stable across re-renders.
+  const saveTargetRef = useRef<() => Promise<boolean>>(async () => false);
   const [saving, setSaving] = useState(false);
   const [storeCategoryList, setStoreCategoryList] = useState<string[]>([]);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+
+  // WS-L3: Google Visual Search paste zone
+  const [showGoogleZone, setShowGoogleZone] = useState(false);
+  const [googlePhotos, setGooglePhotos] = useState<CoachPhoto[]>([]);
+  const [googleText, setGoogleText] = useState("");
+  // WS-L3: global refine
+  const [globalFeedback, setGlobalFeedback] = useState("");
+  const [refining, setRefining] = useState(false);
+  // WS-L3: video generation
+  const [videoGenerating, setVideoGenerating] = useState(false);
+  // WS-L3: citations/compliance display
+  const [showEvidence, setShowEvidence] = useState(false);
+  // WS-L3: accepted price suggestion (once accepted, hide the suggestion)
+  const [priceSuggestionAccepted, setPriceSuggestionAccepted] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -526,15 +844,63 @@ export function InventoryDetailPanel({
   });
   const [recoveryApplied, setRecoveryApplied] = useState(false);
 
+  // WS-L3: reset Google paste + evidence state when item changes
   useEffect(() => {
-    setDraft(item ? itemToDraft(item) : null);
-    setRecoveryApplied(false);
+    setShowGoogleZone(false);
+    revokeCoachPhotos(googlePhotos);
+    setGooglePhotos([]);
+    setGoogleText("");
+    setShowEvidence(false);
+    setPriceSuggestionAccepted(false);
+    setGlobalFeedback("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id]);
+
+  useEffect(() => {
+    if (!item) {
+      setDraft(null);
+      baselineRef.current = null;
+      prevItemIdRef.current = null;
+      setRecoveryApplied(false);
+      return;
+    }
+    const isNewRecord = item.id !== prevItemIdRef.current;
+    prevItemIdRef.current = item.id;
+    const newBaseline = itemToDraft(item);
+
+    if (isNewRecord) {
+      // Record switch → full reset: both draft and baseline go to server state.
+      setDraft(newBaseline);
+      baselineRef.current = newBaseline;
+      setRecoveryApplied(false);
+    } else {
+      // Same record, sub-action refresh (picture upload, Generate, measure, etc.)
+      // → 3-way field merge: preserve user edits, adopt server changes to untouched fields.
+      setDraft((prev) => {
+        if (!prev || !baselineRef.current) return newBaseline;
+        const old = baselineRef.current;
+        const merged = { ...newBaseline };
+        for (const key of Object.keys(prev) as (keyof DraftFields)[]) {
+          // If user has changed this field, keep their edit; otherwise adopt server value.
+          if (String(prev[key]) !== String(old[key])) {
+            (merged as Record<string, unknown>)[key] = prev[key];
+          }
+        }
+        return merged;
+      });
+      // Always advance baseline so If-Match updated_at stays fresh after any sub-action.
+      baselineRef.current = newBaseline;
+    }
   }, [item]);
 
+  // Compare draft against baseline (not item prop) so sub-action refreshes that advance
+  // baseline don't create spurious dirty state, and user edits to untouched fields are preserved.
+  // baselineRef is a ref (not reactive), but every code path that changes it also calls setDraft,
+  // which re-triggers this memo — so [draft] as the dep list is correct.
   const isDirty = useMemo(() => {
-    if (!item || !draft) return false;
-    return !formStatesEqual(draft, itemToDraft(item));
-  }, [item, draft]);
+    if (!draft || !baselineRef.current) return false;
+    return !formStatesEqual(draft, baselineRef.current);
+  }, [draft]);
 
   const { registerOnDiscard } = useUnsavedChanges();
   const { patchWithUndo } = useUndoRedo();
@@ -550,7 +916,7 @@ export function InventoryDetailPanel({
   useEffect(() => {
     if (!item) return;
     return registerOnDiscard(() => {
-      setDraft(itemToDraft(item));
+      setDraft(baselineRef.current);
       setRecoveryApplied(false);
     });
   }, [item, registerOnDiscard]);
@@ -600,10 +966,115 @@ export function InventoryDetailPanel({
     );
   }, [vendorPurchases]);
 
+  // WS-L3: wrap onRegenerateAi so the panel bundles its Google context with the call
+  const handleGenerateWithContext = useCallback(() => {
+    onRegenerateAi?.({
+      googlePhotos: googlePhotos.map((p) => p.file),
+      googleText,
+    });
+  }, [onRegenerateAi, googlePhotos, googleText]);
+
+  // WS-L3: global AI refine — calls /api/inventory/[id]/listing-refine with mode:"global"
+  const runGlobalRefine = useCallback(async () => {
+    if (!item || !draft || !globalFeedback.trim()) return;
+    setRefining(true);
+    try {
+      const resp = await fetch(`/api/inventory/${item.id}/listing-refine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "global",
+          instruction: globalFeedback.trim(),
+          context: {
+            listing_title: draft.listing_title,
+            listing_description: draft.listing_description,
+            listing_tags: draft.listing_tags,
+            listing_category_path: draft.listing_category_path || null,
+            listing_condition_clarity: draft.listing_condition_clarity,
+            listing_product_story: draft.listing_product_story,
+            listing_attributes: draft.listing_attributes,
+            listing_pricing_shipping_notes: draft.listing_pricing_shipping_notes,
+            listing_title_strategy: draft.listing_title_strategy,
+            listing_quality_checklist: draft.listing_quality_checklist,
+            condition_code: draft.condition_code,
+            condition_notes: draft.condition_notes,
+            materials: draft.materials,
+            sale_price: draft.sale_revenue !== "" ? Number(draft.sale_revenue) || null : null,
+          },
+        }),
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Record<string, string>;
+      };
+      if (data.ok && data.fields) {
+        setDraft((prev) => {
+          if (!prev) return prev;
+          const next = { ...prev };
+          const fields = data.fields!;
+          const listingKeys = [
+            "listing_title",
+            "listing_description",
+            "listing_tags",
+            "listing_category_path",
+            "listing_title_strategy",
+            "listing_product_story",
+            "listing_condition_clarity",
+            "listing_attributes",
+            "listing_pricing_shipping_notes",
+            "listing_quality_checklist",
+          ] as const;
+          for (const key of listingKeys) {
+            if (fields[key] !== undefined) {
+              (next as Record<string, unknown>)[key] = fields[key];
+            }
+          }
+          return next;
+        });
+        setGlobalFeedback("");
+        onSuccess("AI refine", "Listing updated based on your feedback.");
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setRefining(false);
+    }
+  }, [item, draft, globalFeedback, onSuccess]);
+
+  // WS-L3: video generation
+  const runGenerateVideo = useCallback(async () => {
+    if (!item) return;
+    setVideoGenerating(true);
+    try {
+      const resp = await fetch(`/api/inventory/${item.id}/listing-video`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        video_path?: string;
+        error?: { user_message?: string };
+      };
+      if (!resp.ok || !data.ok) {
+        onError(
+          "Video generation failed",
+          data.error?.user_message ?? "We could not generate the listing video."
+        );
+        return;
+      }
+      onSuccess("Video generated", "Listing video has been created.");
+      if (onReloadItem) await onReloadItem();
+    } catch (err) {
+      onError("Video generation failed", "We could not generate the listing video.", err);
+    } finally {
+      setVideoGenerating(false);
+    }
+  }, [item, onError, onSuccess, onReloadItem]);
+
   const showProfitability = item && (item.status === "Sold" || Number(item.sale_revenue ?? 0) > 0);
 
-  const saveChanges = async () => {
-    if (!item || !draft) return;
+  const saveChanges = async (): Promise<boolean> => {
+    if (!item || !draft) return false;
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
@@ -658,7 +1129,9 @@ export function InventoryDetailPanel({
         pickRecord: (data) => (data.item as InventoryItemDetail | undefined) ?? null,
         onPatched: (record) => {
           onItemUpdated(record);
-          setDraft(itemToDraft(record));
+          const saved = itemToDraft(record);
+          setDraft(saved);
+          baselineRef.current = saved;
         },
       });
       if (result.status === "stale") {
@@ -667,23 +1140,37 @@ export function InventoryDetailPanel({
           "Record changed elsewhere",
           "This item was modified in another tab. We reloaded the latest version — re-apply your changes and save again."
         );
-        return;
+        return false;
       }
       if (result.status === "error") {
         throw new Error(result.message);
       }
       markDraftClean();
       onSuccess("Item updated", "Inventory details were saved.");
+      return true;
     } catch (err) {
       if (err instanceof MutationQueueFullError) {
         onError("Too many pending changes", err.message, err);
-        return;
+        return false;
       }
       onError("Could not save item", "We could not save inventory changes.", err);
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  // Keep saveTargetRef current so the parent's stable wrapper always calls the latest closure.
+  saveTargetRef.current = saveChanges;
+
+  // Populate saveRef on mount so InventoryEditorShell can call save from the sticky bar.
+  useEffect(() => {
+    if (!saveRef) return;
+    saveRef.current = () => saveTargetRef.current();
+    return () => {
+      if (saveRef) saveRef.current = null;
+    };
+  }, [saveRef]);
 
   const addVendorBuy = async () => {
     if (!item || (!buyForm.vendor_id && !buyForm.vendor_name.trim())) return;
@@ -790,21 +1277,13 @@ export function InventoryDetailPanel({
     }
   };
 
-  if (!item || !draft) {
-    return (
-      <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-        <p className="text-sm text-[var(--ui-muted)]">
-          Select an inventory item to view and edit details.
-        </p>
-      </div>
-    );
-  }
+  if (!item || !draft) return null;
 
   const inputClass = "w-full";
   const showRecovery = recovery && recoveryLabel && !recoveryApplied && !isDirty;
 
   return (
-    <div className="mb-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+    <>
       {showRecovery ? (
         <DraftRecoveryBanner
           savedAtLabel={recoveryLabel}
@@ -819,36 +1298,6 @@ export function InventoryDetailPanel({
           }}
         />
       ) : null}
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h4 className="text-sm font-semibold text-[var(--ui-title)]">
-            Item detail — {item.item_number ?? `#${item.id}`}
-          </h4>
-          <p className="text-xs text-[var(--ui-muted)]">
-            Item ID {item.id}
-            {item.etsy_listing_id ? (
-              <>
-                {" · Etsy listing "}
-                <a
-                  href={`https://www.etsy.com/listing/${item.etsy_listing_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--ui-accent)] hover:underline"
-                >
-                  {item.etsy_listing_id}
-                </a>
-              </>
-            ) : ""}
-            {item.created_at ? ` · Created ${new Date(item.created_at).toLocaleString()}` : ""}
-            {item.updated_at ? ` · Updated ${new Date(item.updated_at).toLocaleString()}` : ""}
-          </p>
-        </div>
-        <Badge
-          label={item.is_listed ? "Listed on Etsy" : "Not listed"}
-          variant={item.is_listed ? "success" : "neutral"}
-        />
-      </div>
-
       <p className="mb-2 text-xs text-[var(--ui-muted)]">
         <span className="text-[var(--ui-red)]">*</span> Required field
       </p>
@@ -933,10 +1382,65 @@ export function InventoryDetailPanel({
               <TextInput
                 type="number"
                 value={draft.sale_revenue}
-                onChange={(v) => setDraft((c) => ({ ...c!, sale_revenue: v }))}
+                onChange={(v) => {
+                  setDraft((c) => ({ ...c!, sale_revenue: v }));
+                  setPriceSuggestionAccepted(false);
+                }}
                 disabled={busy || saving}
                 className={inputClass}
               />
+              {/* WS-L3: AI price suggestion */}
+              {lastGenerateResult?.price &&
+                !priceSuggestionAccepted &&
+                lastGenerateResult.price.suggested_list_price != null ? (
+                <div className="mt-1.5 rounded-lg border border-[var(--ui-accent)]/30 bg-[var(--ui-card-bg)] p-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[var(--ui-body)]">
+                      AI suggests{" "}
+                      <span className="font-semibold text-[var(--ui-title)]">
+                        ${lastGenerateResult.price.suggested_list_price.toFixed(2)}
+                      </span>
+                      {lastGenerateResult.price.suggested_price_low != null &&
+                        lastGenerateResult.price.suggested_price_high != null ? (
+                        <span className="text-[var(--ui-muted)]">
+                          {" "}
+                          (range: ${lastGenerateResult.price.suggested_price_low}–$
+                          {lastGenerateResult.price.suggested_price_high})
+                        </span>
+                      ) : null}
+                      <span
+                        className={`ml-2 rounded-full px-1.5 py-0.5 font-medium ${
+                          lastGenerateResult.price.confidence === "high"
+                            ? "bg-[var(--ui-green)]/20 text-[var(--ui-green)]"
+                            : lastGenerateResult.price.confidence === "medium"
+                              ? "bg-[var(--ui-yellow)]/20 text-[var(--ui-yellow)]"
+                              : "bg-[var(--ui-muted)]/20 text-[var(--ui-muted)]"
+                        }`}
+                      >
+                        {lastGenerateResult.price.confidence} confidence
+                      </span>
+                    </span>
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      onClick={() => {
+                        const price = lastGenerateResult?.price?.suggested_list_price;
+                        if (price != null) {
+                          setDraft((c) => ({ ...c!, sale_revenue: String(price) }));
+                          setPriceSuggestionAccepted(true);
+                        }
+                      }}
+                    >
+                      Accept
+                    </Button>
+                  </div>
+                  {lastGenerateResult.price.rationale ? (
+                    <p className="mt-1 text-[var(--ui-muted)]">
+                      {lastGenerateResult.price.rationale}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </FormField>
             <FormField
               label="Category / tags"
@@ -1225,52 +1729,185 @@ export function InventoryDetailPanel({
       </div>
 
       <section className="mt-4 border-t border-[var(--ui-border)] pt-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
             Listing Content
           </p>
+          {/* WS-L3: Toggle Google Visual Search paste zone */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowGoogleZone((v) => !v)}
+          >
+            {showGoogleZone ? "Hide" : "Google research"}
+            {googlePhotos.length > 0 || googleText.trim()
+              ? ` (${googlePhotos.length} screenshot${googlePhotos.length !== 1 ? "s" : ""}${googleText.trim() ? " + text" : ""})`
+              : null}
+          </Button>
         </div>
+
+        {/* WS-L3: Google Visual Search paste zone */}
+        {showGoogleZone ? (
+          <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+            <p className="mb-2 text-xs font-semibold text-[var(--ui-title)]">
+              Google Visual Search — price comps for Generate
+            </p>
+            <GoogleResultsPasteZone
+              photos={googlePhotos}
+              onChange={setGooglePhotos}
+              text={googleText}
+              onTextChange={setGoogleText}
+            />
+          </div>
+        ) : null}
+
         {item ? (
           <ListingLifecycleControls
             itemId={item.id}
             updatedAt={(item as { updated_at?: string | null }).updated_at ?? null}
+            etsyListingId={(item as { etsy_listing_id?: string | null }).etsy_listing_id ?? null}
             busy={busy || saving}
-            onRegenerateAi={onRegenerateAi}
+            onRegenerateAi={handleGenerateWithContext}
             regenerateAiBusy={regenerateAiBusy}
             onReloadItem={onReloadItem}
             onError={onError}
+            onSuccess={onSuccess}
           />
         ) : null}
+
+        {/* WS-L3: Citations / compliance display (collapsible) */}
+        {lastGenerateResult && (lastGenerateResult.citations?.length || lastGenerateResult.compliance_check) ? (
+          <div className="mb-3">
+            <button
+              type="button"
+              onClick={() => setShowEvidence((v) => !v)}
+              className="text-xs text-[var(--ui-accent)] hover:underline"
+            >
+              {showEvidence ? "▲ Hide" : "▼ Show"} AI evidence &amp; compliance
+            </button>
+            {showEvidence ? (
+              <div className="mt-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3 space-y-3">
+                {lastGenerateResult.compliance_check ? (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-[var(--ui-title)]">
+                      Compliance self-check
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      {[
+                        ["Condition accurately disclosed", lastGenerateResult.compliance_check.condition_accurately_disclosed],
+                        ["No misleading claims", lastGenerateResult.compliance_check.no_misleading_claims],
+                        ["Vintage categorization correct", lastGenerateResult.compliance_check.vintage_categorization_correct],
+                        ["Keywords match item", lastGenerateResult.compliance_check.keywords_match_item],
+                      ].map(([label, ok]) => (
+                        <li key={String(label)} className="flex items-center gap-2">
+                          <span className={ok ? "text-[var(--ui-green)]" : "text-[var(--ui-red)]"}>
+                            {ok ? "✓" : "✗"}
+                          </span>
+                          <span className="text-[var(--ui-body)]">{String(label)}</span>
+                        </li>
+                      ))}
+                      {lastGenerateResult.compliance_check.issues.map((issue, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[var(--ui-yellow)]">
+                          <span>!</span>
+                          <span>{issue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {lastGenerateResult.citations && lastGenerateResult.citations.length > 0 ? (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-[var(--ui-title)]">
+                      Citations
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      {lastGenerateResult.citations.map((c, i) => (
+                        <li key={i} className="text-[var(--ui-body)]">
+                          <span className="font-medium">{c.claim}</span>
+                          <span className="text-[var(--ui-muted)]"> — {c.source}</span>
+                          {c.url ? (
+                            <a
+                              href={c.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1 text-[var(--ui-accent)] hover:underline"
+                            >
+                              [link]
+                            </a>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="space-y-3">
           <FormField label="Listing title" required>
-            <input
-              value={draft.listing_title}
-              onChange={(e) => setDraft((c) => ({ ...c!, listing_title: e.target.value }))}
-              placeholder="e.g. Vintage 1950s Pink Depression Glass..."
-              spellCheck
-              disabled={busy || saving}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-            />
+            <div className="flex items-start gap-1">
+              <input
+                value={draft.listing_title}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_title: e.target.value }))}
+                placeholder="e.g. Vintage 1950s Pink Depression Glass..."
+                spellCheck
+                disabled={busy || saving}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+              {item ? (
+                <FieldFixButton
+                  itemId={item.id}
+                  fieldName="listing_title"
+                  currentValue={draft.listing_title}
+                  draft={draft as unknown as Record<string, unknown>}
+                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_title: v }))}
+                />
+              ) : null}
+            </div>
           </FormField>
           <FormField label="Listing description" required>
-            <textarea
-              value={draft.listing_description}
-              onChange={(e) => setDraft((c) => ({ ...c!, listing_description: e.target.value }))}
-              placeholder="Full listing description for Etsy..."
-              spellCheck
-              disabled={busy || saving}
-              rows={4}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-            />
+            <div className="flex items-start gap-1">
+              <textarea
+                value={draft.listing_description}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_description: e.target.value }))}
+                placeholder="Full listing description for Etsy..."
+                spellCheck
+                disabled={busy || saving}
+                rows={4}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+              {item ? (
+                <FieldFixButton
+                  itemId={item.id}
+                  fieldName="listing_description"
+                  currentValue={draft.listing_description}
+                  draft={draft as unknown as Record<string, unknown>}
+                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_description: v }))}
+                />
+              ) : null}
+            </div>
           </FormField>
           <FormField label="Listing tags" required helpText="Comma-separated, up to 13 tags. Choose words buyers would search for.">
-            <input
-              value={draft.listing_tags}
-              onChange={(e) => setDraft((c) => ({ ...c!, listing_tags: e.target.value }))}
-              placeholder="Comma separated, up to 13"
-              disabled={busy || saving}
-              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-            />
+            <div className="flex items-start gap-1">
+              <input
+                value={draft.listing_tags}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_tags: e.target.value }))}
+                placeholder="Comma separated, up to 13"
+                disabled={busy || saving}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
+              {item ? (
+                <FieldFixButton
+                  itemId={item.id}
+                  fieldName="listing_tags"
+                  currentValue={draft.listing_tags}
+                  draft={draft as unknown as Record<string, unknown>}
+                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_tags: v }))}
+                />
+              ) : null}
+            </div>
             {draft.listing_tags.trim() && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {draft.listing_tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
@@ -1281,73 +1918,188 @@ export function InventoryDetailPanel({
           </FormField>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <FormField label="Title strategy">
-              <textarea
-                value={draft.listing_title_strategy}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_title_strategy: e.target.value }))}
-                placeholder="Naming approach and keyword strategy..."
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_title_strategy}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_title_strategy: e.target.value }))}
+                  placeholder="Naming approach and keyword strategy..."
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_title_strategy"
+                    currentValue={draft.listing_title_strategy}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_title_strategy: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
             <FormField label="Product story / details">
-              <textarea
-                value={draft.listing_product_story}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_product_story: e.target.value }))}
-                placeholder="History, origin, notable features..."
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_product_story}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_product_story: e.target.value }))}
+                  placeholder="History, origin, notable features..."
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_product_story"
+                    currentValue={draft.listing_product_story}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_product_story: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
             <FormField label="Condition clarity">
-              <textarea
-                value={draft.listing_condition_clarity}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_condition_clarity: e.target.value }))}
-                placeholder="Condition details and any defect disclosure"
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_condition_clarity}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_condition_clarity: e.target.value }))}
+                  placeholder="Condition details and any defect disclosure"
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_condition_clarity"
+                    currentValue={draft.listing_condition_clarity}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_condition_clarity: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
             <FormField label="Attributes and category fit">
-              <textarea
-                value={draft.listing_attributes}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_attributes: e.target.value }))}
-                placeholder="Material, era, dimensions, style..."
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_attributes}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_attributes: e.target.value }))}
+                  placeholder="Material, era, dimensions, style..."
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_attributes"
+                    currentValue={draft.listing_attributes}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_attributes: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
             <FormField label="Pricing and shipping notes">
-              <textarea
-                value={draft.listing_pricing_shipping_notes}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: e.target.value }))}
-                placeholder="Pricing rationale, shipping instructions..."
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_pricing_shipping_notes}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: e.target.value }))}
+                  placeholder="Pricing rationale, shipping instructions..."
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_pricing_shipping_notes"
+                    currentValue={draft.listing_pricing_shipping_notes}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
             <FormField label="Quality checklist">
-              <textarea
-                value={draft.listing_quality_checklist}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_quality_checklist: e.target.value }))}
-                placeholder="Pre-publish review notes..."
-                spellCheck
-                disabled={busy || saving}
-                rows={2}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={draft.listing_quality_checklist}
+                  onChange={(e) => setDraft((c) => ({ ...c!, listing_quality_checklist: e.target.value }))}
+                  placeholder="Pre-publish review notes..."
+                  spellCheck
+                  disabled={busy || saving}
+                  rows={2}
+                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+                />
+                {item ? (
+                  <FieldFixButton
+                    itemId={item.id}
+                    fieldName="listing_quality_checklist"
+                    currentValue={draft.listing_quality_checklist}
+                    draft={draft as unknown as Record<string, unknown>}
+                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_quality_checklist: v }))}
+                  />
+                ) : null}
+              </div>
             </FormField>
           </div>
         </div>
+
+        {/* WS-L3: Global AI refine */}
+        {item ? (
+          <div className="mt-4 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+            <p className="mb-2 text-xs font-semibold text-[var(--ui-title)]">
+              Global AI refine
+            </p>
+            <p className="mb-2 text-xs text-[var(--ui-muted)]">
+              Tell the AI what to improve across all listing fields at once.
+            </p>
+            <div className="flex gap-2">
+              <textarea
+                value={globalFeedback}
+                onChange={(e) => setGlobalFeedback(e.target.value)}
+                placeholder="e.g. Make the description more concise and add the color prominently to the title."
+                rows={2}
+                spellCheck
+                className="flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-xs text-[var(--ui-body)] placeholder:text-[var(--ui-muted)] focus:outline-none"
+              />
+              <Button
+                variant="accent"
+                size="sm"
+                onClick={() => void runGlobalRefine()}
+                busy={refining}
+                disabled={!globalFeedback.trim() || busy || saving}
+              >
+                Fix all
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* WS-L3: Generate listing video */}
+        {item ? (
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void runGenerateVideo()}
+              busy={videoGenerating}
+              disabled={busy || saving}
+            >
+              Generate video
+            </Button>
+            <span className="text-xs text-[var(--ui-muted)]">
+              Creates a slideshow MP4 from item photos.
+            </span>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-4 border-t border-[var(--ui-border)] pt-4">
@@ -1429,19 +2181,6 @@ export function InventoryDetailPanel({
           </div>
         )}
       </section>
-
-      <div className="mt-4 flex justify-end">
-        <Button
-          variant="accent"
-          onClick={() => void saveChanges()}
-          disabled={busy || !isDirty}
-          busy={saving}
-          title="Save (⌘S)"
-          data-save-button
-        >
-          Save changes
-        </Button>
-      </div>
 
       <div className="mt-4 border-t border-[var(--ui-border)] pt-4">
         <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)]">
@@ -1621,6 +2360,6 @@ export function InventoryDetailPanel({
         confirmVariant="danger"
         busy={buyBusy}
       />
-    </div>
+    </>
   );
 }

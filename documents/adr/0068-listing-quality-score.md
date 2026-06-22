@@ -2,18 +2,16 @@
 
 ## Status
 
-Accepted — **authoritative quality definition superseded by ADR-082 (2026-06-21).**
+**Superseded by ADR-082 + ADR-085 (2026-06-21).**
 
-> **Note (2026-06-21):** The rigorous, per-field and **per-photo** quality rubric is now defined in
-> **ADR-082** (Listing quality rubric), driven by the lifecycle in **ADR-081**. ADR-068's
-> lightweight score remains useful as a **fast list-column indicator** (e.g. the Inventory list
-> "quality" column and the dashboard low-quality widget, ADR-016 §7), but where ADR-068 and
-> ADR-082 differ, **ADR-082 governs** the Evaluate Listing Quality experience and the pass/target
-> thresholds (pass 85, target 98).
->
-> **Implementation note (WS-THRESH):** the configurable pass threshold is stored in the single
-> setting key `listing.min_quality_score` (default **85**). `listing.quality_threshold` is a
-> retired phantom — do not use it.
+> **Note (2026-06-21, ADR-085):** The lightweight `computeListingScore` defined here is **retired**.
+> The single quality engine for the entire app is the **ADR-082 rubric**, which provides a
+> **deterministic fast path** (no AI) for the fast surfaces this ADR used to feed — the Inventory
+> list "quality" column/sort, the Outstanding low-quality list, the dashboard low-quality widget
+> (ADR-016 §7), and the inventory aging report — plus a full AI-vision path for the lifecycle's
+> Evaluate Listing Quality step (cached in `listing_quality_json`). There is no longer a second
+> scorer. Pass threshold = single setting `listing.min_quality_score` (default **85**); advisory
+> target 98. This ADR is retained for historical context only.
 
 ## Date
 

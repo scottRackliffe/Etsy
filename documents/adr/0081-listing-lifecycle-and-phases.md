@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted — **made canonical by ADR-085 (2026-06-21):** this lifecycle is now the *single* listing
+system. Coexistence with the ADR-023 `listing_draft_state` machine is removed; the publish gate is
+`listing_phase = 'listing_ready'`; `sale_revenue` is no longer a generation prerequisite (it is an
+AI-recommended output). Edits below reflect this.
 
 ## Date
 
@@ -46,36 +49,39 @@ A stored, recomputed column (additive — does not alter `status`). Closed value
 | `ready_to_generate` | All required inputs present; no current generated listing, **or** item data has drifted since the last generation. |
 | `generated` | A listing was generated and is current (no drift); **not yet** quality-evaluated since this generation. |
 | `needs_quality_remediation` | Quality evaluated; rubric (ADR-082) found issues; remediation items outstanding. |
-| `listing_ready` | Quality re-evaluated with no outstanding issues and score ≥ pass threshold (default 85; target 98). Eligible to approve/publish per ADR-023/§5 rules. |
+| `listing_ready` | Quality re-evaluated with no outstanding issues and score ≥ pass threshold (default 85; target 98). **This is the publish gate** — the **Publish to Etsy** action becomes available (plus the Etsy field checks in `validatePublishReadiness`; ADR-085 §5). |
 
 `listing_phase` is recomputed whenever the item is saved, a picture changes, a listing is
-generated, or a quality evaluation completes. It is **independent** of `listing_draft_state`
-(ADR-023) and `status`; the three coexist. `listing_phase` is exposed as an **Inventory list
-filter** (ADR-029) so the owner can work items by phase.
+generated, or a quality evaluation completes. It is a separate dimension from `inventory.status`
+(Draft/In stock/Listed/Sold/Reserved/Retired, unchanged). The retired `listing_draft_state`
+machine (ADR-023, superseded by ADR-085) no longer participates. `listing_phase` is exposed as an
+**Inventory list filter** (ADR-029) so the owner can work items by phase.
 
 ### 2. Required-data set for generation (unified — new == existing)
 
-The single canonical required set (matches `.cursorrules` §5 / ADR-023 / ADR-068), applied
-**identically** to new and existing items (this eliminates the new-vs-existing inconsistency):
+The single canonical required set, applied **identically** to new and existing items (this
+eliminates the new-vs-existing inconsistency):
 
 - `item_number` (non-empty)
 - `description` (non-empty)
 - `condition_code` (set)
-- `sale_revenue` > 0  ← **required for all**, removing the "regenerate needs price but new
-  doesn't" discrepancy
-- **at least one picture** (`picture_1`)
+- **at least one picture** (the hero, `picture_1`)
 
 If any are missing → `listing_phase = needs_data`.
 
+> **Price is NOT required to generate (ADR-085 §2).** The previous `sale_revenue > 0` prerequisite
+> is removed: the AI **recommends** the price during Generate (web-search comps), and the owner
+> accepts/edits it. Price still feeds the ADR-082 *Pricing & shipping* category, so an unset/low
+> price lowers the quality score and emits a remediation item — it never blocks generation.
+
 ### 3. One context-aware button
 
-A single primary button on the inventory detail (and Listing Coach where applicable) whose label
-and action follow `listing_phase`:
+A single primary button on the inventory detail whose label and action follow `listing_phase`:
 
 | Phase | Button label | Action |
 | --- | --- | --- |
 | `needs_data` | **Evaluate Data** | Show the **data remediation list** (Section 4) — required items, missing ones highlighted, each with a resolution link. |
-| `ready_to_generate` | **Generate Listing** | Call AI with all item data **+ all non-empty pictures** (ADR-023 rule), save returned listing fields, set `listing_generated_at` + `listing_source_hash` (Section 5), move to `generated`. |
+| `ready_to_generate` | **Generate Listing** | Run the full AI Generate engine (ADR-085 §3) with all item data **+ all non-empty pictures**: web-search **price recommendation**, identification, and **all** listing fields. Save returned fields (incl. recommended `sale_revenue`, editable), set `listing_generated_at` + `listing_source_hash` (Section 5), move to `generated`. |
 | `generated` or `listing_ready` (no drift) | **Evaluate Listing Quality** | Run the ADR-082 rubric; produce the **quality remediation list**; set `needs_quality_remediation` or `listing_ready`. |
 | `needs_quality_remediation` | **Evaluate Listing Quality** | Re-run rubric after the user addresses items; clears resolved items. |
 
@@ -123,12 +129,16 @@ To know whether a generated listing still reflects the item:
   required: [{field, present}], data_remediation: [...] }` (existing endpoint, extended).
 - `POST /api/inventory/[id]/generate-listing-content` — generate; sets timestamp + hash; returns
   new phase (existing endpoint, behavior unified per Section 2).
-- `POST /api/inventory/[id]/listing-quality` — run the ADR-082 rubric; returns `{ score,
-  quality_remediation: [...], listing_phase }` (new; supersedes/wraps the simpler ADR-068
-  `listing-score`). The legacy `listing-score` may remain as a lightweight score for list columns.
+- `POST /api/inventory/[id]/listing-quality` — run the ADR-082 rubric (the **single** quality
+  engine; the legacy `listing-score` is retired per ADR-085 §4); returns `{ score,
+  quality_remediation: [...], listing_phase }` and caches the result in `listing_quality_json`.
+- `POST /api/inventory/[id]/publish-to-etsy` — available at `listing_ready`; gated on
+  `listing_phase = 'listing_ready'` + `validatePublishReadiness` Etsy field checks (ADR-085 §5).
+- `POST /api/inventory/[id]/listing-refine` and `/listing-video` — per-field/global AI refine and
+  listing-video generation, ported from the former Coach (ADR-085 §3).
 
-Activity (ADR-037): `listing.ai_generated` (exists), plus `listing.quality_evaluated`
-(`detail_json: { score, issue_count }`) — added to the Listing actions table.
+Activity (ADR-037): `listing.ai_generated` (exists), `listing.quality_evaluated`
+(`detail_json: { score, issue_count }`), and `listing.published`.
 
 ---
 
@@ -141,19 +151,19 @@ Activity (ADR-037): `listing.ai_generated` (exists), plus `listing.quality_evalu
   - `listing_phase` gives a powerful Inventory filter for working the listing pipeline.
 - **Negative**
   - Two additive columns (`listing_phase`, `listing_source_hash`) + recompute logic on mutations.
-  - Coexisting `status` / `listing_draft_state` / `listing_phase` must be clearly explained in UI.
+  - `status` and `listing_phase` are distinct dimensions and must be clearly explained in UI.
 
 ## Notes
 
 - `listing_phase` is **derived-but-stored** for filter performance; it must be recomputed on every
   relevant mutation (save, picture change, generate, quality eval) to avoid staleness.
-- Relationship to ADR-023 draft state: `generated`/`listing_ready` phases align with
-  `listing_draft_state` transitions; approval/publish gating remains per ADR-023 + `.cursorrules`
-  §5 (publish needs `approved` + Etsy fields).
-- **Cross-references to update at implementation (.cursorrules §1b):** ADR-017/002 (`listing_phase`,
-  `listing_source_hash` columns), ADR-023 (state machine alignment), ADR-068 (quality score →
-  rubric), ADR-072 (Listing Coach uses the same button/phase), ADR-018 (endpoints), ADR-037
-  (`listing.quality_evaluated`), ADR-030 (detail panel button), `.cursorrules` (enum + columns).
+- Publish gating (ADR-085 §5): publish is allowed only at `listing_phase = 'listing_ready'` plus
+  the Etsy field checks in `validatePublishReadiness`. The retired `listing_draft_state =
+  'approved'` gate no longer applies.
+- **Cross-references (.cursorrules §1b):** ADR-085 (authoritative single lifecycle), ADR-017/002
+  (`listing_phase`, `listing_source_hash` columns; deprecated draft-state columns), ADR-082 (single
+  quality engine), ADR-018 (endpoints), ADR-037 (`listing.quality_evaluated`), ADR-030 (detail
+  panel button), ADR-020 (Outstanding on `listing_phase`), `.cursorrules` (enum + columns).
 - The **rubric** that powers *Evaluate Listing Quality* (per-field and per-photo specifications,
   weights, 98% target) is **ADR-082**, populated from
   `documents/research/2026-06-21_etsy-listing-best-practices.md`.

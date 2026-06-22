@@ -90,7 +90,7 @@ the Recent Activity and Activity Log views.
 **Entities to cover (add/change; delete = logged but no link):** Sales/Orders, Customers,
 Receipts, Vendors, AP/Business Expenses, Shipping, Reports-run, System events, Config changes,
 Inventory (existing).
-**Filter chips to add:** Receipts, Sales, Vendors, AP Lite, Reports, Config, Shipping
+**Filter chips to add:** Receipts, Sales, Vendors, Expenses, Reports, Config, Shipping
 (in addition to existing All, Inventory, Orders, Customers, Sync, System, Backup).
 **Impacted ADRs:** ADR-037 (activity log), ADR-035 (deep links), ADR-016 (dashboard),
 ADR-018 (`/api/activity` filter params).
@@ -162,6 +162,16 @@ ADR-029 (search/filter/sort/pagination), ADR-032 (confirm dialogs), ADR-062 (inl
 update ADRs → roll out to all entities one at a time.
 **Open questions:** Soft-delete vs hard-delete per entity (likely per-entity table in ADR-079);
 keep "Add New as first row" vs a sticky toolbar button; mobile/responsive behavior (ADR-061).
+
+> **Follow-on: WS-L — Listing consolidation (ADR-085, 2026-06-21).** After WS-G/WS-H landed, the
+> owner directed collapsing to a **single** listing system. WS-L removes the Listing Coach, the
+> ADR-023 modes + `listing_draft_state` machine, portable export/import, approve/reject,
+> `improve-listing`, and `computeListingScore`; the lifecycle's **Generate** absorbs the Coach's
+> full AI brain (research, **price recommendation**, all fields, Google paste, clipboard paste,
+> video, refine); **`sale_revenue` is no longer a generation prerequisite**; publish gates on
+> `listing_phase = 'listing_ready'`; the ADR-082 rubric becomes the single quality engine. See
+> **ADR-085**. Steps: L1 Generate engine, L2 inline create, L3 port Coach UI, L4 quality unify,
+> L5 publish re-gate, L6 delete dead code.
 
 ### WS-G — Inventory AI listing lifecycle + quality engine (▪▪▪▪ very large) — `adr-ready`
 **Source:** 3 (+ flagship goal)

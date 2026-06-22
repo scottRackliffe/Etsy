@@ -95,10 +95,10 @@ One row per inventory item. Source: ADR-002.
 | listing_attributes             | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
 | listing_pricing_shipping_notes | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
 | listing_quality_checklist      | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_draft_state            | TEXT    | —                         | One of: draft, generated, imported, approved, published (ADR-023).                                              |
-| listing_draft_source           | TEXT    | —                         | One of: manual, integrated_ai, portable_import (ADR-023).                                                       |
-| listing_export_id              | TEXT    | —                         | Last portable export id (ADR-023).                                                                              |
-| listing_approved_at            | TEXT    | —                         | ISO 8601 timestamp when draft approved.                                                                         |
+| listing_draft_state            | TEXT    | —                         | **DEPRECATED (ADR-085, 2026-06-21):** the ADR-023 draft-state machine is retired; column left in table but no longer read/written. Lifecycle is `listing_phase` (ADR-081). |
+| listing_draft_source           | TEXT    | —                         | **DEPRECATED (ADR-085).** Modes retired; not read/written.                                                      |
+| listing_export_id              | TEXT    | —                         | **DEPRECATED (ADR-085).** Portable export/import retired; not read/written.                                     |
+| listing_approved_at            | TEXT    | —                         | **DEPRECATED (ADR-085).** Approve step retired; publish gate is `listing_phase = 'listing_ready'`.              |
 | listing_published_at           | TEXT    | —                         | ISO 8601 timestamp when published to Etsy.                                                                      |
 | is_listed                      | INTEGER | DEFAULT 0                 | Boolean flag (0/1). Set to 1 only after confirmed successful Etsy publish.                                      |
 | listing_phase                  | TEXT    | —                         | Listing lifecycle phase (ADR-081): needs_data, ready_to_generate, generated, needs_quality_remediation, listing_ready. Derived-but-stored; separate from `status`. |
@@ -117,7 +117,7 @@ The `etsy_when_made` column must contain one of these Etsy API enum values:
 
 `made_to_order`, `2020_2026`, `2010_2019`, `2004_2009`, `2000_2003`, `1990s`, `1980s`, `1970s`, `1960s`, `1950s`, `1940s`, `1930s`, `1920s`, `1910s`, `1900s`, `1800s`, `1700s`, `before_1700`
 
-For vintage items (20+ years old as of 2026), the value must be `2004_2009` or earlier. The Listing Coach (ADR-072) suggests this from AI photo analysis; the operator confirms or overrides.
+For vintage items (20+ years old as of 2026), the value must be `2004_2009` or earlier. AI Generate (ADR-085) suggests this from photo analysis/research; the operator confirms or overrides.
 
 #### 1b. Etsy `who_made` enum
 
@@ -356,9 +356,9 @@ Persistent audit trail. Source: ADR-037.
 | Table                      | Purpose                                                                            | Source     |
 | -------------------------- | ---------------------------------------------------------------------------------- | ---------- |
 | `etsy_receipts`            | Raw Etsy receipt JSON cache (`receipt_id`, `shop_id`, `receipt_json`, `synced_at`) | ADR-019    |
-| `listing_exports`          | Portable AI export audit (`export_id`, `inventory_id`, `payload_json`)             | ADR-023    |
-| `listing_imports`          | Portable AI import audit                                                           | ADR-023    |
-| `listing_publish_previews` | Pre-publish payload snapshots                                                      | ADR-023    |
+| `listing_exports`          | **RETIRED (ADR-085):** portable export/import removed; table no longer written.    | ADR-023    |
+| `listing_imports`          | **RETIRED (ADR-085):** portable export/import removed; table no longer written.    | ADR-023    |
+| `listing_publish_previews` | **RETIRED (ADR-085):** publish-preview hash gate removed; table no longer written. | ADR-023    |
 | `report_artifacts`         | Generated report metadata (`report_name`, `report_params_json`, paths)             | ADR-013    |
 | `etsy_taxonomy_nodes`      | Cached Etsy seller taxonomy (category tree)                                        | ADR-017    |
 | `etsy_taxonomy_properties` | Cached Etsy per-category attributes/properties                                     | ADR-017    |
@@ -684,6 +684,7 @@ CREATE TABLE inventory (
   listing_attributes TEXT,
   listing_pricing_shipping_notes TEXT,
   listing_quality_checklist TEXT,
+  -- DEPRECATED (ADR-085): draft-state machine retired; columns kept for back-compat, not used.
   listing_draft_state TEXT,
   listing_draft_source TEXT,
   listing_export_id TEXT,
@@ -875,7 +876,7 @@ CREATE TABLE etsy_receipts (
   synced_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5g. Listing workflow audit (ADR-023)
+-- 5g. Listing workflow audit (ADR-023) — RETIRED by ADR-085 (no longer written; kept for back-compat)
 CREATE TABLE listing_exports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   export_id TEXT UNIQUE NOT NULL,

@@ -32,7 +32,8 @@ export type ApiErrorCode =
   | "VIDEO_GENERATION_FAILED"
   | "TAXONOMY_SYNC_FAILED"
   | "TAXONOMY_PROPERTIES_FAILED"
-  | "DUPLICATE";
+  | "DUPLICATE"
+  | "ALREADY_PUBLISHED";
 
 export type ApiErrorPayload = {
   ok: false;

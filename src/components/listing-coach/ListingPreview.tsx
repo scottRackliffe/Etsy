@@ -1,6 +1,6 @@
 "use client";
 
-import { listingScoreGradeColor } from "@/lib/listing-score";
+import { rubricScoreColor } from "@/lib/listing-rubric";
 import type { ComposeResponse } from "@/components/listing-coach/types";
 
 type ListingPreviewProps = {
@@ -12,13 +12,7 @@ export function ListingPreview({ compose }: ListingPreviewProps) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
-  const grade =
-    compose.quality_score.score >= 80
-      ? "green"
-      : compose.quality_score.score >= 60
-        ? "yellow"
-        : "red";
-  const color = listingScoreGradeColor(grade);
+  const color = rubricScoreColor(compose.quality_score.score);
 
   return (
     <div className="space-y-4">

@@ -69,6 +69,7 @@ export type InventoryRecord = {
   listing_phase: string | null;
   listing_source_hash: string | null;
   listing_generated_at: string | null;
+  listing_quality_json: string | null;
   shot_list_json: string | null;
   dimension_annotation_json: string | null;
   is_listed: number | null;
@@ -110,6 +111,18 @@ export type ListingContentUpdate = {
   listing_category_path?: string | null;
   listing_draft_source?: "manual" | "integrated_ai" | "portable_import";
   listing_export_id?: string | null;
+  listing_title_strategy?: string | null;
+  listing_product_story?: string | null;
+  listing_condition_clarity?: string | null;
+  listing_attributes?: string | null;
+  listing_pricing_shipping_notes?: string | null;
+  listing_quality_checklist?: string | null;
+  etsy_when_made?: string | null;
+  etsy_taxonomy_id?: number | null;
+  materials?: string | null;
+  picture_classifications?: string | null;
+  /** Write this price only if the item's sale_revenue is currently unset/zero. */
+  sale_revenue_if_unset?: number | null;
 };
 
 export type ListingRequestValidation = {
@@ -155,16 +168,6 @@ export function validateItemForListingRequest(item: InventoryRecord): ListingReq
   if (!conditionCode) {
     add("condition_code", "Condition code is required before requesting listing generation.");
   }
-  if (
-    item.sale_revenue == null ||
-    Number.isNaN(Number(item.sale_revenue)) ||
-    Number(item.sale_revenue) <= 0
-  ) {
-    add(
-      "sale_revenue",
-      "Sale revenue (price) must be set to a value greater than 0 before requesting listing generation."
-    );
-  }
   if (pictures.length === 0) {
     add("pictures", "At least one item picture is required before requesting listing generation.");
   }
@@ -190,6 +193,22 @@ export function updateListingContent(
         listing_description = @listing_description,
         listing_tags = @listing_tags,
         listing_category_path = @listing_category_path,
+        listing_title_strategy = COALESCE(@listing_title_strategy, listing_title_strategy),
+        listing_product_story = COALESCE(@listing_product_story, listing_product_story),
+        listing_condition_clarity = COALESCE(@listing_condition_clarity, listing_condition_clarity),
+        listing_attributes = COALESCE(@listing_attributes, listing_attributes),
+        listing_pricing_shipping_notes = COALESCE(@listing_pricing_shipping_notes, listing_pricing_shipping_notes),
+        listing_quality_checklist = COALESCE(@listing_quality_checklist, listing_quality_checklist),
+        etsy_when_made = CASE WHEN @set_etsy_when_made = 1 THEN @etsy_when_made ELSE etsy_when_made END,
+        etsy_taxonomy_id = CASE WHEN @set_etsy_taxonomy_id = 1 THEN @etsy_taxonomy_id ELSE etsy_taxonomy_id END,
+        materials = CASE WHEN @set_materials = 1 THEN @materials ELSE materials END,
+        picture_classifications = CASE WHEN @set_pic_class = 1 THEN @picture_classifications ELSE picture_classifications END,
+        sale_revenue = CASE
+          WHEN @sale_revenue_if_unset IS NOT NULL
+           AND (sale_revenue IS NULL OR CAST(sale_revenue AS REAL) = 0)
+          THEN @sale_revenue_if_unset
+          ELSE sale_revenue
+        END,
         listing_draft_state = @listing_draft_state,
         listing_draft_source = @listing_draft_source,
         listing_export_id = @listing_export_id,
@@ -205,6 +224,21 @@ export function updateListingContent(
     listing_description: content.listing_description,
     listing_tags: content.listing_tags,
     listing_category_path: content.listing_category_path ?? null,
+    listing_title_strategy: content.listing_title_strategy ?? null,
+    listing_product_story: content.listing_product_story ?? null,
+    listing_condition_clarity: content.listing_condition_clarity ?? null,
+    listing_attributes: content.listing_attributes ?? null,
+    listing_pricing_shipping_notes: content.listing_pricing_shipping_notes ?? null,
+    listing_quality_checklist: content.listing_quality_checklist ?? null,
+    set_etsy_when_made: content.etsy_when_made !== undefined ? 1 : 0,
+    etsy_when_made: content.etsy_when_made ?? null,
+    set_etsy_taxonomy_id: content.etsy_taxonomy_id !== undefined ? 1 : 0,
+    etsy_taxonomy_id: content.etsy_taxonomy_id ?? null,
+    set_materials: content.materials !== undefined ? 1 : 0,
+    materials: content.materials ?? null,
+    set_pic_class: content.picture_classifications !== undefined ? 1 : 0,
+    picture_classifications: content.picture_classifications ?? null,
+    sale_revenue_if_unset: content.sale_revenue_if_unset ?? null,
     listing_draft_state: draftState,
     listing_draft_source: draftSource,
     listing_export_id: content.listing_export_id ?? null,

@@ -573,6 +573,26 @@ function ensureCoreTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS communication_log (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_type  TEXT NOT NULL,
+      channel       TEXT NOT NULL,
+      order_id      INTEGER,
+      customer_id   INTEGER,
+      recipient     TEXT,
+      subject       TEXT,
+      body_snapshot TEXT,
+      status        TEXT NOT NULL DEFAULT 'queued',
+      error         TEXT,
+      sent_at       TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS idx_comm_log_order   ON communication_log(order_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_comm_log_type    ON communication_log(message_type)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_comm_log_created ON communication_log(created_at)");
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -648,6 +668,16 @@ function ensureCoreTables(db: Database.Database): void {
   ensureTableColumns(db, "customers", CUSTOMERS_RECONCILIATION_COLUMNS);
   ensureTableColumns(db, "purchases", { receipt_image: "TEXT", vendor_id: "INTEGER REFERENCES vendors(id)" });
   ensureTableColumns(db, "receipts", { vendor_id: "INTEGER REFERENCES vendors(id)" });
+  // Extended vendor fields (ADR-076) — reconcile DBs whose vendors table predates them.
+  ensureTableColumns(db, "vendors", {
+    website: "TEXT",
+    account_number: "TEXT",
+    payment_terms: "TEXT",
+    tax_id: "TEXT",
+    is_preferred: "INTEGER NOT NULL DEFAULT 0",
+    vendor_category: "TEXT",
+    default_shipping_method: "TEXT",
+  });
   ensureTableColumns(db, "inventory", { etsy_attributes_json: "TEXT" });
   ensureTableColumns(db, "business_expenses", {
     payment_status: "TEXT NOT NULL DEFAULT 'unpaid'",

@@ -149,6 +149,7 @@ ADR-036 adds per-order invoice and thank-you note generation at dedicated endpoi
 
 - `GET /api/reports/invoice/[orderId]` — generates invoice PDF/CSV for a single order.
 - `GET /api/reports/thank-you-note/[orderId]` — generates thank-you note PDF/CSV for a single order.
+- `GET /api/reports/payment-reminder/[orderId]` — generates payment reminder letter PDF for a single order (ADR-078, WS-C, 2026-06-21). PDF only; CSV not supported. Uses business letterhead. Body rendered from `comm.template.payment_reminder.body` setting or built-in default.
 
 The existing aggregate endpoints (`/api/reports/invoice`, `/api/reports/thank-you-note`) in ADR-018 that accept `order_id` as a query parameter remain valid and are equivalent. ADR-036's path-based routes are a convenience alias. Both routes return the same content per this ADR's specification.
 

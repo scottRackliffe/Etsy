@@ -1,6 +1,11 @@
 # Listing Coach — Trudy's step-by-step guide
 
-Use **Listing Coach** when you add a **new item** and want the app to write the Etsy listing for you. You paste photos, enter basic purchase details, and the AI researches your item, writes the listing, and fills in all the fields. You review, adjust, and save.
+> **RETIRED (2026-06-21):** The separate Listing Coach screen is gone. The same help now applies
+> directly on the **Inventory** tab: add a new item (basics + the main photo), then press the
+> listing button to let the AI research, price, and write the listing. See the updated guide in the
+> Tutorial & tips tab. (Kept for reference only.)
+
+Use the **Inventory** tab when you add a **new item** and want the app to write the Etsy listing for you. You paste photos, enter basic purchase details, and the AI researches your item, writes the listing, and fills in all the fields. You review, adjust, and save.
 
 **You do not need to write marketing copy or do internet research.** The AI handles identification, pricing research, and listing composition.
 

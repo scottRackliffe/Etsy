@@ -40,7 +40,7 @@ All `item_number` values are prefixed with `SAMPLE-` (e.g., `SAMPLE-001`, `SAMPL
 | SAMPLE-009 | Milk Glass Hobnail Vase                 | Retired  | Fair/As-Is     | 5.00          | NULL         |
 | SAMPLE-010 | Cast Iron Doorstop, Flower Basket       | Draft    | Good           | 22.00         | 60.00        |
 
-Each item includes realistic `date_purchased`, `category_tags`, and `notes`. Items with status `Listed` have populated `listing_title`, `listing_description`, `listing_tags`, `listing_draft_state = 'approved'`, and `listing_draft_source = 'manual'`. The `Sold` item (SAMPLE-004) has `date_of_sale` and `shipping_date` set.
+Each item includes realistic `date_purchased`, `category_tags`, and `notes`. Items with status `Listed` have populated `listing_title`, `listing_description`, `listing_tags`, and `listing_phase = 'listing_ready'` (ADR-085; the deprecated `listing_draft_state`/`listing_draft_source` columns are no longer set). The `Sold` item (SAMPLE-004) has `date_of_sale` and `shipping_date` set.
 
 #### 5 customers
 

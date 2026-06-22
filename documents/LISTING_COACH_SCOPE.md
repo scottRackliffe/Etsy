@@ -1,8 +1,12 @@
 # Listing Coach — implementation scope (Etsy approval hold)
 
-**Status:** Scoped for build during Etsy OAuth hold  
-**Last updated:** 2026-05-24  
-**Canonical spec:** [ADR-072](adr/0072-listing-coach-guided-new-listing-flow.md)  
+> **RETIRED (2026-06-21, ADR-085):** The standalone Listing Coach is removed; its AI capabilities
+> are absorbed into the unified listing lifecycle's Generate step on the inventory detail editor.
+> This document is historical only. Canonical spec: [ADR-085](adr/0085-unified-listing-lifecycle.md).
+
+**Status:** RETIRED (historical) — superseded by ADR-085  
+**Last updated:** 2026-06-21  
+**Canonical spec:** [ADR-085](adr/0085-unified-listing-lifecycle.md) (was ADR-072)  
 **User guide:** [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md)
 
 ---

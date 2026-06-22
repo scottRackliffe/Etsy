@@ -537,7 +537,7 @@ Before using the app on your real shop with real listings:
 | 7 | No Etsy API responses are cached for reuse |
 | 8 | OAuth tokens are encrypted at rest (not stored in plaintext) |
 | 9 | No tokens, secrets, or credentials exposed to client-side JavaScript |
-| 10 | Listing publish is blocked unless `listing_draft_state = 'approved'` |
+| 10 | Listing publish is blocked unless `listing_phase = 'listing_ready'` (+ required Etsy fields) — ADR-085 |
 | 11 | All test listings have been deactivated or deleted |
 | 12 | Developer Mode can be disabled on your shop when ready for production |
 

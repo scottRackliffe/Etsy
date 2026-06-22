@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted — **scaffold built + Vendors pilot implemented (WS-E1, 2026-06-21).** Editor presentation
+locked (see §2/§Notes). Rollout to remaining entities (WS-E2..E6) pending.
 
 ## Date
 
@@ -49,10 +50,11 @@ ADR-024); the change is the *standardized scaffold*, not a return to routed deta
 
 ### 2. Region 2 — Editor (Add / Edit)
 
-- Opens **inline** as the next grouping (expand-in-place beneath the selected row, or a
-  full-width editor panel below the list — implementer picks one and uses it for **all** entities
-  for consistency; recommended: full-width editor panel below the list, list collapses to a
-  compact header while editing).
+- Opens **inline** as a **full-width editor panel that replaces the list**, with the list collapsing
+  to a **compact breadcrumb header** ("← All &lt;entities&gt; / &lt;record&gt;") while editing.
+  **(LOCKED 2026-06-21 in the WS-E1 Vendors pilot — used for all entities.)** Implemented by
+  `SemsScreen` (`src/components/sems/SemsScreen.tsx`); the editor body + sticky action bar by
+  `SemsEditor`.
 - **All fields** for the entity, laid out to **remove dead space** — a readable, efficient grid
   (e.g. responsive multi-column `FormField` groups, ADR-028). **All current validation,
   required-field, and dropdown behaviors are preserved** (ADR-021, entity ADRs).
@@ -157,9 +159,21 @@ changes.
 
 ## Notes
 
-- The exact editor presentation (expand-in-place vs full-width panel below) is decided during the
-  Vendors pilot and then **locked here** for all entities. Recommended default: full-width editor
-  panel below the list with the list collapsing to a compact header.
+- The exact editor presentation was decided during the Vendors pilot and is now **LOCKED**:
+  full-width editor panel that **replaces** the list, with the list collapsing to a compact
+  breadcrumb header while editing. All entities use this.
+- **Implementation (WS-E1, 2026-06-21):**
+  - Scaffold: `src/components/sems/SemsScreen.tsx` (Region 1 list + Add-New first affordance +
+    trailing Edit/Delete actions + double-click-to-edit + guarded mode switch), `SemsEditor.tsx`
+    (Region 2 body + Region 3 context slot + sticky Cancel/Save action bar), `useSemsEditorGuard.ts`
+    (wires `isDirty`/save/discard into the unsaved-changes guard).
+  - The 3-button dialog lives in `src/components/ui/UnsavedChangesDialog.tsx`; `UnsavedChangesContext`
+    gained `registerSaveHandler()` and renders its own `ToastContainer` (mirrors `UndoRedoProvider`).
+    When no save handler is registered the dialog falls back to its original 2-button form, so
+    non-SEMS dirty forms are unchanged.
+  - Pilot: Vendors screen refactored to the scaffold (Add-New first row, full-width editor, sticky
+    Save bar, `useDirtyTracking`), preserving all fields, name-required validation, ZIP lookup,
+    deactivate/reactivate, purchase history, and the `?vendorId=` deep link.
 - **Cross-references to annotate at implementation:** ADR-024, ADR-030, ADR-031, ADR-042 (done
   here), ADR-028/029/032/061/062, ui-design.md, `.cursorrules` (frontend pattern + "what's
   built").

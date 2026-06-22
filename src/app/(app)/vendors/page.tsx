@@ -4,14 +4,17 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
-import { DataTable, type SortState } from "@/components/ui/DataTable";
+import { type Column, type SortState } from "@/components/ui/DataTable";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChipRow } from "@/components/ui/FilterChipRow";
-import { PaginationBar } from "@/components/ui/PaginationBar";
 import { Badge } from "@/components/ui/Badge";
 import { DropdownWithAddNew } from "@/components/ui/DropdownWithAddNew";
+import { SemsScreen, type SemsScreenController } from "@/components/sems/SemsScreen";
+import { SemsEditor } from "@/components/sems/SemsEditor";
+import { useSemsEditorGuard } from "@/components/sems/useSemsEditorGuard";
 import { useApp } from "@/context/AppContext";
+import { useDirtyTracking } from "@/hooks/useDirtyTracking";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagination } from "@/hooks/usePagination";
 import { useZipLookup } from "@/hooks/useZipLookup";
@@ -29,6 +32,481 @@ type VendorPurchase = {
   item_description: string | null;
 };
 
+type VendorForm = {
+  name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address_1: string;
+  address_2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  website: string;
+  account_number: string;
+  payment_terms: string;
+  tax_id: string;
+  is_preferred: boolean;
+  vendor_category: string;
+  default_shipping_method: string;
+  notes: string;
+};
+
+const EMPTY_FORM: VendorForm = {
+  name: "",
+  contact_person: "",
+  email: "",
+  phone: "",
+  address_1: "",
+  address_2: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "US",
+  website: "",
+  account_number: "",
+  payment_terms: "",
+  tax_id: "",
+  is_preferred: false,
+  vendor_category: "",
+  default_shipping_method: "",
+  notes: "",
+};
+
+function vendorToForm(v: Vendor): VendorForm {
+  return {
+    name: v.name ?? "",
+    contact_person: v.contact_person ?? "",
+    email: v.email ?? "",
+    phone: v.phone ?? "",
+    address_1: v.address_1 ?? "",
+    address_2: v.address_2 ?? "",
+    city: v.city ?? "",
+    state: v.state ?? "",
+    postal_code: v.postal_code ?? "",
+    country: v.country ?? "US",
+    website: v.website ?? "",
+    account_number: v.account_number ?? "",
+    payment_terms: v.payment_terms ?? "",
+    tax_id: v.tax_id ?? "",
+    is_preferred: Boolean(v.is_preferred),
+    vendor_category: v.vendor_category ?? "",
+    default_shipping_method: v.default_shipping_method ?? "",
+    notes: v.notes ?? "",
+  };
+}
+
+function formToBody(form: VendorForm): Record<string, unknown> {
+  return {
+    name: form.name.trim(),
+    contact_person: form.contact_person.trim() || null,
+    email: form.email.trim() || null,
+    phone: form.phone.trim() || null,
+    address_1: form.address_1.trim() || null,
+    address_2: form.address_2.trim() || null,
+    city: form.city.trim() || null,
+    state: form.state.trim() || null,
+    postal_code: form.postal_code.trim() || null,
+    country: form.country.trim() || "US",
+    website: form.website.trim() || null,
+    account_number: form.account_number.trim() || null,
+    payment_terms: form.payment_terms.trim() || null,
+    tax_id: form.tax_id.trim() || null,
+    is_preferred: form.is_preferred ? 1 : 0,
+    vendor_category: form.vendor_category.trim() || null,
+    default_shipping_method: form.default_shipping_method.trim() || null,
+    notes: form.notes.trim() || null,
+  };
+}
+
+const inputCls =
+  "w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm";
+const fmtCurrency = (n: number | undefined | null) =>
+  (n ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+type DropdownOptions = {
+  categories: string[];
+  paymentTerms: string[];
+  shippingMethods: string[];
+};
+
+/* ─────────────────────────── Editor (Region 2 + Region 3) ─────────────────────────── */
+
+function VendorEditor({
+  record,
+  options,
+  onSaved,
+  onDeactivateRequest,
+  onReactivated,
+  requestClose,
+  done,
+  reloadDropdownOptions,
+}: {
+  record: Vendor | null;
+  options: DropdownOptions;
+  onSaved: (vendor: Vendor, isNew: boolean) => void;
+  onDeactivateRequest: (vendor: Vendor) => void;
+  onReactivated: (vendor: Vendor) => void;
+  requestClose: () => void;
+  done: () => void;
+  reloadDropdownOptions: () => void;
+}) {
+  const { setApiError, setError } = useApp();
+  const initial = useMemo(() => (record ? vendorToForm(record) : EMPTY_FORM), [record]);
+  const { current, setCurrent, savedState, isDirty, markClean } = useDirtyTracking<VendorForm>(initial);
+  const form = current ?? EMPTY_FORM;
+
+  const [busy, setBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [active, setActive] = useState(record ? Boolean(record.is_active) : true);
+
+  // ZIP lookup
+  const zipLookup = useZipLookup();
+  const prevZipRef = useRef(form.postal_code);
+  const [zipWarning, setZipWarning] = useState<string | null>(null);
+
+  // Purchase history
+  const [purchases, setPurchases] = useState<VendorPurchase[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!record) {
+      setPurchases([]);
+      return;
+    }
+    let cancelled = false;
+    setPurchasesLoading(true);
+    void (async () => {
+      try {
+        const response = await fetch(`/api/vendors/${record.id}/purchases?limit=50`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
+          items?: VendorPurchase[];
+        };
+        if (!cancelled) setPurchases(response.ok ? data.items ?? [] : []);
+      } catch {
+        if (!cancelled) setPurchases([]);
+      } finally {
+        if (!cancelled) setPurchasesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [record]);
+
+  const set = useCallback(
+    <K extends keyof VendorForm>(key: K, value: VendorForm[K]) => {
+      setCurrent((prev) => ({ ...(prev ?? EMPTY_FORM), [key]: value }));
+    },
+    [setCurrent]
+  );
+
+  const save = useCallback(async (): Promise<boolean> => {
+    const value = current ?? EMPTY_FORM;
+    if (!value.name.trim()) {
+      setNameError("Vendor name is required.");
+      return false;
+    }
+    setNameError(null);
+    setBusy(true);
+    try {
+      const isNew = record == null;
+      const response = await apiFetch(isNew ? "/api/vendors" : `/api/vendors/${record!.id}`, {
+        method: isNew ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(formToBody(value)),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { vendor?: Vendor };
+      if (!response.ok) throw data;
+      markClean(value);
+      reloadDropdownOptions();
+      if (data.vendor) onSaved(data.vendor, isNew);
+      setError(null);
+      return true;
+    } catch (err) {
+      setApiError("Could not save vendor", "We could not save the vendor.", err);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [current, record, markClean, onSaved, reloadDropdownOptions, setApiError, setError]);
+
+  const discard = useCallback(() => {
+    setCurrent(savedState);
+    setNameError(null);
+    setZipWarning(null);
+  }, [savedState, setCurrent]);
+
+  useSemsEditorGuard({ isDirty, onSave: save, onDiscard: discard });
+
+  const handleSaveClick = useCallback(() => {
+    void (async () => {
+      const ok = await save();
+      if (ok) done();
+    })();
+  }, [save, done]);
+
+  const reactivate = useCallback(async () => {
+    if (!record) return;
+    setBusy(true);
+    try {
+      const response = await apiFetch(`/api/vendors/${record.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ is_active: 1 }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { vendor?: Vendor };
+      if (!response.ok) throw data;
+      setActive(true);
+      if (data.vendor) onReactivated(data.vendor);
+      setError(null);
+    } catch (err) {
+      setApiError("Could not reactivate vendor", "We could not reactivate the vendor.", err);
+    } finally {
+      setBusy(false);
+    }
+  }, [record, onReactivated, setApiError, setError]);
+
+  const badges = (
+    <>
+      {form.is_preferred ? <Badge label="Preferred" variant="info" /> : null}
+      {record && !active ? <Badge label="Inactive" variant="neutral" /> : null}
+    </>
+  );
+
+  const summary = record ? (
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
+        Purchases: <strong className="text-[var(--ui-body)]">{record.purchase_count ?? 0}</strong>
+      </span>
+      <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
+        Total spend: <strong className="text-[var(--ui-body)]">{fmtCurrency(record.total_spend)}</strong>
+      </span>
+      {record.last_purchase_date ? (
+        <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
+          Last purchase: <strong className="text-[var(--ui-body)]">{record.last_purchase_date}</strong>
+        </span>
+      ) : null}
+      <div className="ml-auto">
+        {active ? (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => onDeactivateRequest(record)}
+            disabled={busy}
+          >
+            Deactivate
+          </Button>
+        ) : (
+          <Button variant="accent" size="sm" onClick={() => void reactivate()} busy={busy}>
+            Reactivate
+          </Button>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  const context =
+    record != null ? (
+      <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+        <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Purchase history</p>
+        {purchasesLoading ? (
+          <p className="text-xs text-[var(--ui-muted)]">Loading purchases...</p>
+        ) : purchases.length === 0 ? (
+          <p className="text-xs text-[var(--ui-muted)]">No purchases recorded for this vendor.</p>
+        ) : (
+          <div className="max-h-52 overflow-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--ui-border)] text-left text-[var(--ui-muted)]">
+                  <th className="pb-1 pr-2">Date</th>
+                  <th className="pb-1 pr-2">Item</th>
+                  <th className="pb-1 pr-2 text-right">Cost</th>
+                  <th className="pb-1 text-right">Shipping</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchases.map((p) => (
+                  <tr key={p.id} className="border-b border-[var(--ui-border)]/50">
+                    <td className="py-1 pr-2 text-[var(--ui-muted)]">{p.purchase_date ?? "-"}</td>
+                    <td className="py-1 pr-2">
+                      {p.item_number ?? p.item_description ?? `Inventory #${p.inventory_id}`}
+                    </td>
+                    <td className="py-1 pr-2 text-right">{fmtCurrency(p.purchase_price)}</td>
+                    <td className="py-1 text-right">{fmtCurrency(p.shipping_price)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    ) : null;
+
+  return (
+    <SemsEditor
+      title={record ? record.name : "New vendor"}
+      badges={badges}
+      summary={summary}
+      isDirty={isDirty}
+      busy={busy}
+      saveLabel={record ? "Save changes" : "Create vendor"}
+      saveDisabled={!form.name.trim()}
+      onSave={handleSaveClick}
+      onCancel={requestClose}
+      context={context}
+    >
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <FormField label="Vendor name" required error={nameError ?? undefined}>
+          <input
+            value={form.name}
+            onChange={(e) => {
+              set("name", e.target.value);
+              if (nameError) setNameError(null);
+            }}
+            className={inputCls}
+          />
+        </FormField>
+        <FormField label="Contact person">
+          <input value={form.contact_person} onChange={(e) => set("contact_person", e.target.value)} className={inputCls} />
+        </FormField>
+        <FormField label="Email">
+          <input value={form.email} onChange={(e) => set("email", e.target.value)} type="email" className={inputCls} />
+        </FormField>
+        <FormField label="Phone">
+          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+        </FormField>
+        <FormField label="Address line 1">
+          <input value={form.address_1} onChange={(e) => set("address_1", e.target.value)} placeholder="Street address" className={inputCls} />
+        </FormField>
+        <FormField label="Address line 2">
+          <input value={form.address_2} onChange={(e) => set("address_2", e.target.value)} placeholder="Apt, suite, unit, etc." className={inputCls} />
+        </FormField>
+        <FormField label="Country">
+          <input
+            value={form.country}
+            onChange={(e) => set("country", e.target.value.toUpperCase())}
+            placeholder="US"
+            maxLength={2}
+            className={inputCls}
+          />
+        </FormField>
+        <FormField label="Postal code" error={zipWarning ?? undefined}>
+          <input
+            value={form.postal_code}
+            onChange={(e) => {
+              set("postal_code", e.target.value);
+              if (zipWarning) setZipWarning(null);
+            }}
+            onBlur={async () => {
+              const zip = form.postal_code.trim();
+              if (zip.length < 3) {
+                setZipWarning(null);
+                return;
+              }
+              const zipChanged = zip !== prevZipRef.current.trim();
+              prevZipRef.current = zip;
+              if (!zipChanged && form.city && form.state) return;
+              const result = await zipLookup(zip, form.country || "US");
+              if (!result.valid) {
+                setZipWarning(`"${zip}" doesn't appear to be a valid postal code for ${form.country || "US"}.`);
+              } else {
+                setZipWarning(null);
+              }
+              if (result.city && (zipChanged || !form.city)) set("city", result.city);
+              if (result.state && (zipChanged || !form.state)) set("state", result.state);
+            }}
+            placeholder="Postal code"
+            className={inputCls}
+          />
+        </FormField>
+        <FormField label="City">
+          <input value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="City" className={inputCls} />
+        </FormField>
+        <FormField label="State">
+          <input
+            value={form.state}
+            onChange={(e) => set("state", e.target.value.toUpperCase().slice(0, 2))}
+            placeholder="ST"
+            maxLength={2}
+            className={inputCls}
+          />
+        </FormField>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+        <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Business details</p>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <FormField label="Website">
+            <input value={form.website} onChange={(e) => set("website", e.target.value)} placeholder="https://..." className={inputCls} />
+          </FormField>
+          <FormField label="Account number">
+            <input value={form.account_number} onChange={(e) => set("account_number", e.target.value)} placeholder="Your acct # with this vendor" className={inputCls} />
+          </FormField>
+          <FormField label="Category">
+            <DropdownWithAddNew
+              value={form.vendor_category}
+              onChange={(v) => set("vendor_category", v)}
+              options={options.categories}
+              placeholder="Select category..."
+              className={inputCls}
+            />
+          </FormField>
+          <FormField label="Payment terms">
+            <DropdownWithAddNew
+              value={form.payment_terms}
+              onChange={(v) => set("payment_terms", v)}
+              options={options.paymentTerms}
+              placeholder="Select terms..."
+              className={inputCls}
+            />
+          </FormField>
+          <FormField label="Default shipping method">
+            <DropdownWithAddNew
+              value={form.default_shipping_method}
+              onChange={(v) => set("default_shipping_method", v)}
+              options={options.shippingMethods}
+              placeholder="Select method..."
+              className={inputCls}
+            />
+          </FormField>
+          <FormField label="Tax ID / EIN">
+            <input value={form.tax_id} onChange={(e) => set("tax_id", e.target.value)} placeholder="For 1099 reporting" className={inputCls} />
+          </FormField>
+        </div>
+        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.is_preferred}
+            onChange={(e) => set("is_preferred", e.target.checked)}
+            className="accent-[var(--ui-accent)]"
+          />
+          Preferred vendor
+        </label>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
+        <FormField label="Notes">
+          <textarea
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="Notes about this vendor..."
+            rows={3}
+            maxLength={2000}
+            spellCheck
+            className={`${inputCls} w-full`}
+          />
+        </FormField>
+      </div>
+    </SemsEditor>
+  );
+}
+
+/* ─────────────────────────── Screen (Region 1) ─────────────────────────── */
+
 function VendorsPageInner() {
   const { setApiError, setError, pageSize: configPageSize } = useApp();
   const router = useRouter();
@@ -36,124 +514,47 @@ function VendorsPageInner() {
   const searchParams = useSearchParams();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
   const debouncedSearch = useDebouncedValue(vendorSearch, 300);
   const [activeFilter, setActiveFilter] = useState<string | null>("1");
   const [sort, setSort] = useState<SortState>({ key: "name", dir: "asc" });
   const { page, pageSize, offset, total: listTotal, setPage, setTotal } = usePagination(configPageSize);
 
-  // Create form state (minimal — just essentials)
-  const [newName, setNewName] = useState("");
-  const [newContactPerson, setNewContactPerson] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("");
+  const [options, setOptions] = useState<DropdownOptions>({
+    categories: [],
+    paymentTerms: [],
+    shippingMethods: [],
+  });
 
-  // Detail editing state
-  const [editName, setEditName] = useState("");
-  const [editContactPerson, setEditContactPerson] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editAddress1, setEditAddress1] = useState("");
-  const [editAddress2, setEditAddress2] = useState("");
-  const [editCity, setEditCity] = useState("");
-  const [editState, setEditState] = useState("");
-  const [editPostalCode, setEditPostalCode] = useState("");
-  const [editCountry, setEditCountry] = useState("US");
-  const [editWebsite, setEditWebsite] = useState("");
-  const [editAccountNumber, setEditAccountNumber] = useState("");
-  const [editPaymentTerms, setEditPaymentTerms] = useState("");
-  const [editTaxId, setEditTaxId] = useState("");
-  const [editIsPreferred, setEditIsPreferred] = useState(false);
-  const [editVendorCategory, setEditVendorCategory] = useState("");
-  const [editDefaultShipping, setEditDefaultShipping] = useState("");
-  const [editNotes, setEditNotes] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // ZIP lookup
-  const zipLookup = useZipLookup();
-  const prevEditZipRef = useRef("");
-  const [editZipWarning, setEditZipWarning] = useState<string | null>(null);
-
-  // Purchase history for selected vendor
-  const [purchases, setPurchases] = useState<VendorPurchase[]>([]);
-  const [purchasesLoading, setPurchasesLoading] = useState(false);
-
-  // Confirm dialog
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // Dropdown options (loaded from API)
-  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
-  const [paymentTermsOptions, setPaymentTermsOptions] = useState<string[]>([]);
-  const [shippingMethodOptions, setShippingMethodOptions] = useState<string[]>([]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const response = await fetch("/api/vendors/categories", {
-          headers: { Accept: "application/json" },
-        });
-        const data = (await response.json().catch(() => ({}))) as {
-          categories?: string[];
-          payment_terms?: string[];
-          shipping_methods?: string[];
-        };
-        if (data.categories) setCategoryOptions(data.categories);
-        if (data.payment_terms) setPaymentTermsOptions(data.payment_terms);
-        if (data.shipping_methods) setShippingMethodOptions(data.shipping_methods);
-      } catch { /* use empty defaults */ }
-    })();
-  }, []);
+  const controllerRef = useRef<SemsScreenController<Vendor> | null>(null);
 
   const reloadDropdownOptions = useCallback(async () => {
     try {
-      const response = await fetch("/api/vendors/categories", {
-        headers: { Accept: "application/json" },
-      });
+      const response = await fetch("/api/vendors/categories", { headers: { Accept: "application/json" } });
       const data = (await response.json().catch(() => ({}))) as {
         categories?: string[];
         payment_terms?: string[];
         shipping_methods?: string[];
       };
-      if (data.categories) setCategoryOptions(data.categories);
-      if (data.payment_terms) setPaymentTermsOptions(data.payment_terms);
-      if (data.shipping_methods) setShippingMethodOptions(data.shipping_methods);
-    } catch { /* ignore */ }
+      setOptions({
+        categories: data.categories ?? [],
+        paymentTerms: data.payment_terms ?? [],
+        shippingMethods: data.shipping_methods ?? [],
+      });
+    } catch {
+      /* keep current options */
+    }
   }, []);
 
-  const selectedVendor = vendors.find((v) => v.id === selectedVendorId) ?? null;
-
-  // Sync edit fields when selected vendor changes
   useEffect(() => {
-    if (selectedVendor) {
-      setEditName(selectedVendor.name ?? "");
-      setEditContactPerson(selectedVendor.contact_person ?? "");
-      setEditEmail(selectedVendor.email ?? "");
-      setEditPhone(selectedVendor.phone ?? "");
-      setEditAddress1(selectedVendor.address_1 ?? "");
-      setEditAddress2(selectedVendor.address_2 ?? "");
-      setEditCity(selectedVendor.city ?? "");
-      setEditState(selectedVendor.state ?? "");
-      setEditPostalCode(selectedVendor.postal_code ?? "");
-      setEditCountry(selectedVendor.country ?? "US");
-      setEditWebsite(selectedVendor.website ?? "");
-      setEditAccountNumber(selectedVendor.account_number ?? "");
-      setEditPaymentTerms(selectedVendor.payment_terms ?? "");
-      setEditTaxId(selectedVendor.tax_id ?? "");
-      setEditIsPreferred(Boolean(selectedVendor.is_preferred));
-      setEditVendorCategory(selectedVendor.vendor_category ?? "");
-      setEditDefaultShipping(selectedVendor.default_shipping_method ?? "");
-      setEditNotes(selectedVendor.notes ?? "");
-      setEditZipWarning(null);
-      prevEditZipRef.current = selectedVendor.postal_code ?? "";
-    }
-  }, [selectedVendor?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    void reloadDropdownOptions();
+  }, [reloadDropdownOptions]);
 
   const reloadVendors = useCallback(async () => {
-    const params = new URLSearchParams({
-      limit: String(pageSize),
-      offset: String(offset),
-    });
+    const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
     if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
     if (activeFilter === "1") params.set("is_active", "1");
     if (activeFilter === "0") params.set("is_active", "0");
@@ -161,22 +562,15 @@ function VendorsPageInner() {
       params.set("sort_by", sort.key);
       params.set("sort_dir", sort.dir);
     }
-    const response = await fetch(`/api/vendors?${params}`, {
-      headers: { Accept: "application/json" },
-    });
+    const response = await fetch(`/api/vendors?${params}`, { headers: { Accept: "application/json" } });
     const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
       items?: Vendor[];
       pagination?: PaginationInfo;
     };
     if (!response.ok) throw data;
-    if (data.items) {
-      setVendors(data.items);
-      if (selectedVendorId != null && !data.items.some((v) => v.id === selectedVendorId)) {
-        setSelectedVendorId(data.items[0]?.id ?? null);
-      }
-    }
+    if (data.items) setVendors(data.items);
     if (data.pagination) setTotal(data.pagination.total);
-  }, [debouncedSearch, pageSize, offset, activeFilter, sort, setTotal, selectedVendorId]);
+  }, [debouncedSearch, pageSize, offset, activeFilter, sort, setTotal]);
 
   useEffect(() => {
     void reloadVendors().catch((err) =>
@@ -184,215 +578,39 @@ function VendorsPageInner() {
     );
   }, [reloadVendors, setApiError]);
 
-  // Deep link: ?vendorId=<id>
+  // Deep link: ?vendorId=<id> → open in editor
   useEffect(() => {
     const raw = searchParams.get("vendorId");
     if (!raw) return;
     const id = Number(raw);
-    if (!Number.isFinite(id)) return;
-    if (vendors.some((v) => v.id === id)) {
-      setSelectedVendorId(id);
-    } else {
-      void (async () => {
-        try {
-          const response = await fetch(`/api/vendors/${id}`, {
-            headers: { Accept: "application/json" },
-          });
-          const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-            vendor?: Vendor;
-          };
-          if (!response.ok || !data.vendor) {
-            setError({
-              title: "Vendor not found",
-              message: "That vendor may have been deleted.",
-              actions: ["Choose another vendor from the list."],
-            });
-          } else {
-            setVendors((current) =>
-              current.some((v) => v.id === id) ? current : [data.vendor!, ...current]
-            );
-            setSelectedVendorId(id);
-          }
-        } catch (err) {
-          setApiError("Could not open vendor", "We could not load the linked vendor.", err);
-        }
-      })();
-    }
     router.replace(pathname);
+    if (!Number.isFinite(id)) return;
+    void (async () => {
+      const existing = vendors.find((v) => v.id === id);
+      if (existing) {
+        controllerRef.current?.openRecord(existing);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/vendors/${id}`, { headers: { Accept: "application/json" } });
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { vendor?: Vendor };
+        if (!response.ok || !data.vendor) {
+          setError({
+            title: "Vendor not found",
+            message: "That vendor may have been deleted.",
+            actions: ["Choose another vendor from the list."],
+          });
+          return;
+        }
+        setVendors((current) => (current.some((v) => v.id === id) ? current : [data.vendor!, ...current]));
+        controllerRef.current?.openRecord(data.vendor);
+      } catch (err) {
+        setApiError("Could not open vendor", "We could not load the linked vendor.", err);
+      }
+    })();
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load purchases for selected vendor
-  const loadPurchases = useCallback(async (vendorId: number) => {
-    setPurchasesLoading(true);
-    try {
-      const response = await fetch(`/api/vendors/${vendorId}/purchases?limit=50`, {
-        headers: { Accept: "application/json" },
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        items?: VendorPurchase[];
-      };
-      if (!response.ok) throw data;
-      setPurchases(data.items ?? []);
-    } catch {
-      setPurchases([]);
-    } finally {
-      setPurchasesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedVendorId) {
-      setPurchases([]);
-      return;
-    }
-    void loadPurchases(selectedVendorId);
-  }, [selectedVendorId, loadPurchases]);
-
-  const createVendorRecord = async () => {
-    if (!newName.trim()) {
-      setError({
-        title: "Vendor name required",
-        message: "Provide a name before creating a vendor.",
-        actions: ["Enter a name and try again."],
-      });
-      return;
-    }
-    setBusyAction("create-vendor");
-    try {
-      const response = await apiFetch("/api/vendors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          name: newName.trim(),
-          contact_person: newContactPerson.trim() || null,
-          email: newEmail.trim() || null,
-          phone: newPhone.trim() || null,
-        }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        vendor?: Vendor;
-      };
-      if (!response.ok) throw data;
-      if (data.vendor) {
-        setVendors((current) => [data.vendor!, ...current]);
-        setSelectedVendorId(data.vendor.id);
-      }
-      resetCreateForm();
-      setError(null);
-    } catch (err) {
-      setApiError("Could not create vendor", "We could not create the vendor.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const resetCreateForm = () => {
-    setNewName("");
-    setNewContactPerson("");
-    setNewEmail("");
-    setNewPhone("");
-  };
-
-  const updateVendor = async () => {
-    if (!selectedVendorId) return;
-    setBusyAction("update-vendor");
-    try {
-      const response = await apiFetch(`/api/vendors/${selectedVendorId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          name: editName.trim(),
-          contact_person: editContactPerson.trim() || null,
-          email: editEmail.trim() || null,
-          phone: editPhone.trim() || null,
-          address_1: editAddress1.trim() || null,
-          address_2: editAddress2.trim() || null,
-          city: editCity.trim() || null,
-          state: editState.trim() || null,
-          postal_code: editPostalCode.trim() || null,
-          country: editCountry.trim() || "US",
-          website: editWebsite.trim() || null,
-          account_number: editAccountNumber.trim() || null,
-          payment_terms: editPaymentTerms.trim() || null,
-          tax_id: editTaxId.trim() || null,
-          is_preferred: editIsPreferred ? 1 : 0,
-          vendor_category: editVendorCategory.trim() || null,
-          default_shipping_method: editDefaultShipping.trim() || null,
-          notes: editNotes.trim() || null,
-        }),
-      });
-      const data = (await response.json().catch(() => ({}))) as ApiErrorShape & {
-        vendor?: Vendor;
-      };
-      if (!response.ok) throw data;
-      if (data.vendor) {
-        setVendors((current) =>
-          current.map((v) => (v.id === selectedVendorId ? data.vendor! : v))
-        );
-      }
-      setError(null);
-      void reloadDropdownOptions();
-    } catch (err) {
-      setApiError("Could not update vendor", "We could not update the vendor.", err);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const deactivateVendor = async () => {
-    if (!selectedVendorId) return;
-    setBusyAction("delete-vendor");
-    try {
-      const response = await apiFetch(`/api/vendors/${selectedVendorId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        throw data;
-      }
-      setSelectedVendorId(null);
-      await reloadVendors();
-      setDeleteOpen(false);
-      setError(null);
-    } catch (err) {
-      setApiError(
-        "Could not deactivate vendor",
-        "We could not deactivate the vendor.",
-        err
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const reactivateVendor = async () => {
-    if (!selectedVendorId) return;
-    setBusyAction("reactivate-vendor");
-    try {
-      const response = await apiFetch(`/api/vendors/${selectedVendorId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ is_active: 1 }),
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
-        throw data;
-      }
-      await reloadVendors();
-      setError(null);
-    } catch (err) {
-      setApiError(
-        "Could not reactivate vendor",
-        "We could not reactivate the vendor.",
-        err
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const vendorColumns = useMemo(
+  const columns = useMemo<Column<Vendor>[]>(
     () => [
       {
         key: "name",
@@ -401,429 +619,153 @@ function VendorsPageInner() {
         render: (v: Vendor) => (
           <span className="inline-flex items-center gap-1.5">
             {v.name}
-            {v.is_preferred ? (
-              <Badge label="Preferred" variant="info" />
-            ) : null}
-            {!v.is_active ? (
-              <Badge label="Inactive" variant="neutral" />
-            ) : null}
+            {v.is_preferred ? <Badge label="Preferred" variant="info" /> : null}
+            {!v.is_active ? <Badge label="Inactive" variant="neutral" /> : null}
           </span>
         ),
       },
-      {
-        key: "vendor_category",
-        header: "Category",
-        render: (v: Vendor) => v.vendor_category ?? "-",
-      },
-      {
-        key: "contact_person",
-        header: "Contact",
-        sortable: true,
-        render: (v: Vendor) => v.contact_person ?? "-",
-      },
+      { key: "vendor_category", header: "Category", render: (v: Vendor) => v.vendor_category ?? "-" },
+      { key: "contact_person", header: "Contact", sortable: true, render: (v: Vendor) => v.contact_person ?? "-" },
       {
         key: "location",
         header: "Location",
         sortable: true,
         sortKey: "city",
-        render: (v: Vendor) =>
-          [v.city, v.state].filter(Boolean).join(", ") || "-",
+        render: (v: Vendor) => [v.city, v.state].filter(Boolean).join(", ") || "-",
       },
     ],
     []
   );
 
-  const editDirty =
-    selectedVendor != null &&
-    (editName !== (selectedVendor.name ?? "") ||
-      editContactPerson !== (selectedVendor.contact_person ?? "") ||
-      editEmail !== (selectedVendor.email ?? "") ||
-      editPhone !== (selectedVendor.phone ?? "") ||
-      editAddress1 !== (selectedVendor.address_1 ?? "") ||
-      editAddress2 !== (selectedVendor.address_2 ?? "") ||
-      editCity !== (selectedVendor.city ?? "") ||
-      editState !== (selectedVendor.state ?? "") ||
-      editPostalCode !== (selectedVendor.postal_code ?? "") ||
-      editCountry !== (selectedVendor.country ?? "US") ||
-      editWebsite !== (selectedVendor.website ?? "") ||
-      editAccountNumber !== (selectedVendor.account_number ?? "") ||
-      editPaymentTerms !== (selectedVendor.payment_terms ?? "") ||
-      editTaxId !== (selectedVendor.tax_id ?? "") ||
-      editIsPreferred !== Boolean(selectedVendor.is_preferred) ||
-      editVendorCategory !== (selectedVendor.vendor_category ?? "") ||
-      editDefaultShipping !== (selectedVendor.default_shipping_method ?? "") ||
-      editNotes !== (selectedVendor.notes ?? ""));
+  const upsertVendorInList = useCallback((vendor: Vendor) => {
+    setVendors((current) =>
+      current.some((v) => v.id === vendor.id) ? current.map((v) => (v.id === vendor.id ? vendor : v)) : [vendor, ...current]
+    );
+  }, []);
 
-  const fmt = (n: number | undefined | null) =>
-    (n ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const deactivate = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    try {
+      const response = await apiFetch(`/api/vendors/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as ApiErrorShape;
+        throw data;
+      }
+      setDeleteTarget(null);
+      controllerRef.current?.closeToList();
+      await reloadVendors();
+      setError(null);
+    } catch (err) {
+      setApiError("Could not deactivate vendor", "We could not deactivate the vendor.", err);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [deleteTarget, reloadVendors, setApiError, setError]);
 
-  const inputCls = "w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm";
-  const compactInputCls = "rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-2 text-sm";
+  const filters = (
+    <div className="space-y-2">
+      <input
+        value={vendorSearch}
+        onChange={(e) => {
+          setPage(0);
+          setVendorSearch(e.target.value);
+        }}
+        placeholder="Search name, contact, email, phone, city..."
+        className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+      />
+      <FilterChipRow
+        label="Status"
+        value={activeFilter}
+        onChange={(value) => {
+          setPage(0);
+          setActiveFilter(value);
+        }}
+        options={[
+          { value: "1", label: "Active only" },
+          { value: "0", label: "Inactive" },
+        ]}
+      />
+    </div>
+  );
+
+  const emptyState = (
+    <EmptyState
+      message={
+        vendorSearch.trim() || activeFilter !== "1"
+          ? "No vendors match your filters."
+          : "No vendors yet. Add your first vendor to track who you buy inventory from."
+      }
+      primaryAction={
+        vendorSearch.trim() || activeFilter !== "1"
+          ? {
+              label: "Clear filters",
+              onClick: () => {
+                setVendorSearch("");
+                setActiveFilter("1");
+                setPage(0);
+              },
+            }
+          : undefined
+      }
+    />
+  );
 
   return (
     <section className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-[var(--ui-title)]">Vendors</h3>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* ─── Left panel: list + detail ─── */}
-        <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3 lg:col-span-2">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <input
-              value={vendorSearch}
-              onChange={(e) => {
-                setPage(0);
-                setVendorSearch(e.target.value);
-              }}
-              placeholder="Search name, contact, email, phone, city..."
-              className="min-w-[10rem] flex-1 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
-            />
-          </div>
-          <FilterChipRow
-            label="Status"
-            value={activeFilter}
-            onChange={(value) => {
-              setPage(0);
-              setActiveFilter(value);
+      <SemsScreen<Vendor>
+        entityLabel="Vendor"
+        entityLabelPlural="Vendors"
+        columns={columns}
+        data={vendors}
+        getRowTitle={(v) => v.name}
+        sort={sort}
+        onSortChange={(next) => {
+          setPage(0);
+          setSort(next ?? { key: "name", dir: "asc" });
+        }}
+        filters={filters}
+        pagination={{ page, pageSize, total: listTotal, onPageChange: setPage }}
+        emptyState={emptyState}
+        onDeleteRow={(v) => setDeleteTarget(v)}
+        controllerRef={controllerRef}
+        addNewLabel="Add new vendor"
+        renderEditor={({ record, requestClose, done }) => (
+          <VendorEditor
+            key={record?.id ?? "new"}
+            record={record}
+            options={options}
+            requestClose={requestClose}
+            done={done}
+            reloadDropdownOptions={() => void reloadDropdownOptions()}
+            onSaved={(vendor) => {
+              upsertVendorInList(vendor);
+              void reloadVendors();
             }}
-            options={[
-              { value: "1", label: "Active only" },
-              { value: "0", label: "Inactive" },
-            ]}
-          />
-          <DataTable
-            columns={vendorColumns}
-            data={vendors}
-            selectedId={selectedVendorId}
-            onRowClick={(v) => setSelectedVendorId(v.id)}
-            sort={sort}
-            onSortChange={(next) => {
-              setPage(0);
-              setSort(next ?? { key: "name", dir: "asc" });
+            onReactivated={(vendor) => {
+              upsertVendorInList(vendor);
+              void reloadVendors();
             }}
-            emptyMessage="No vendors on this page."
-            keyboardNav
+            onDeactivateRequest={(vendor) => setDeleteTarget(vendor)}
           />
-          <PaginationBar page={page} pageSize={pageSize} total={listTotal} onPageChange={setPage} />
-
-          {/* ─── Detail panel (below list, like CustomerDetailEditor) ─── */}
-          {selectedVendor && (
-            <>
-              {/* Header row: name + actions */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-[var(--ui-title)]">
-                  {selectedVendor.name}
-                </p>
-                {selectedVendor.is_preferred ? <Badge label="Preferred" variant="info" /> : null}
-                {!selectedVendor.is_active ? <Badge label="Inactive" variant="neutral" /> : null}
-                <div className="ml-auto flex items-center gap-2">
-                  <Button
-                    variant="accent"
-                    size="sm"
-                    onClick={() => void updateVendor()}
-                    busy={busyAction === "update-vendor"}
-                    disabled={!editDirty || !editName.trim()}
-                    data-save-button
-                  >
-                    Save changes
-                  </Button>
-                  {selectedVendor.is_active ? (
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => setDeleteOpen(true)}
-                      disabled={busyAction != null}
-                    >
-                      Deactivate
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="accent"
-                      size="sm"
-                      onClick={() => void reactivateVendor()}
-                      busy={busyAction === "reactivate-vendor"}
-                      disabled={busyAction != null && busyAction !== "reactivate-vendor"}
-                    >
-                      Reactivate
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Summary badges */}
-              <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
-                  Purchases: <strong className="text-[var(--ui-body)]">{selectedVendor.purchase_count ?? 0}</strong>
-                </span>
-                <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
-                  Total spend: <strong className="text-[var(--ui-body)]">{fmt(selectedVendor.total_spend)}</strong>
-                </span>
-                {selectedVendor.last_purchase_date && (
-                  <span className="rounded-lg bg-[var(--ui-card-bg)] px-2 py-1 text-[var(--ui-muted)]">
-                    Last purchase: <strong className="text-[var(--ui-body)]">{selectedVendor.last_purchase_date}</strong>
-                  </span>
-                )}
-              </div>
-
-              {/* ─── Edit fields (2-col grid like CustomerDetailEditor) ─── */}
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                <FormField label="Vendor name" required>
-                  <input value={editName} onChange={(e) => setEditName(e.target.value)} className={inputCls} />
-                </FormField>
-                <FormField label="Contact person">
-                  <input value={editContactPerson} onChange={(e) => setEditContactPerson(e.target.value)} className={inputCls} />
-                </FormField>
-                <FormField label="Email">
-                  <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email" className={inputCls} />
-                </FormField>
-                <FormField label="Phone">
-                  <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className={inputCls} />
-                </FormField>
-                <FormField label="Address line 1">
-                  <input value={editAddress1} onChange={(e) => setEditAddress1(e.target.value)} placeholder="Street address" className={inputCls} />
-                </FormField>
-                <FormField label="Address line 2">
-                  <input value={editAddress2} onChange={(e) => setEditAddress2(e.target.value)} placeholder="Apt, suite, unit, etc." className={inputCls} />
-                </FormField>
-                <FormField label="Country">
-                  <input
-                    value={editCountry}
-                    onChange={(e) => setEditCountry(e.target.value.toUpperCase())}
-                    placeholder="US"
-                    maxLength={2}
-                    className={inputCls}
-                  />
-                </FormField>
-                <FormField label="Postal code" error={editZipWarning ?? undefined}>
-                  <input
-                    value={editPostalCode}
-                    onChange={(e) => { setEditPostalCode(e.target.value); if (editZipWarning) setEditZipWarning(null); }}
-                    onBlur={async () => {
-                      const zip = editPostalCode.trim();
-                      if (zip.length < 3) { setEditZipWarning(null); return; }
-                      const zipChanged = zip !== prevEditZipRef.current.trim();
-                      prevEditZipRef.current = zip;
-                      if (!zipChanged && editCity && editState) return;
-                      const result = await zipLookup(zip, editCountry || "US");
-                      if (!result.valid) {
-                        setEditZipWarning(`"${zip}" doesn't appear to be a valid postal code for ${editCountry || "US"}.`);
-                      } else {
-                        setEditZipWarning(null);
-                      }
-                      if (result.city && (zipChanged || !editCity)) setEditCity(result.city);
-                      if (result.state && (zipChanged || !editState)) setEditState(result.state);
-                    }}
-                    placeholder="Postal code"
-                    className={inputCls}
-                  />
-                </FormField>
-                <FormField label="City">
-                  <input value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" className={inputCls} />
-                </FormField>
-                <FormField label="State">
-                  <input
-                    value={editState}
-                    onChange={(e) => setEditState(e.target.value.toUpperCase().slice(0, 2))}
-                    placeholder="ST"
-                    maxLength={2}
-                    className={inputCls}
-                  />
-                </FormField>
-              </div>
-
-              {/* ─── Business details (separate card, like ship-to addresses) ─── */}
-              <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
-                <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Business details</p>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <FormField label="Website">
-                    <input value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)} placeholder="https://..." className={inputCls} />
-                  </FormField>
-                  <FormField label="Account number">
-                    <input value={editAccountNumber} onChange={(e) => setEditAccountNumber(e.target.value)} placeholder="Your acct # with this vendor" className={inputCls} />
-                  </FormField>
-                  <FormField label="Category">
-                    <DropdownWithAddNew
-                      value={editVendorCategory}
-                      onChange={setEditVendorCategory}
-                      options={categoryOptions}
-                      placeholder="Select category..."
-                      className={inputCls}
-                    />
-                  </FormField>
-                  <FormField label="Payment terms">
-                    <DropdownWithAddNew
-                      value={editPaymentTerms}
-                      onChange={setEditPaymentTerms}
-                      options={paymentTermsOptions}
-                      placeholder="Select terms..."
-                      className={inputCls}
-                    />
-                  </FormField>
-                  <FormField label="Default shipping method">
-                    <DropdownWithAddNew
-                      value={editDefaultShipping}
-                      onChange={setEditDefaultShipping}
-                      options={shippingMethodOptions}
-                      placeholder="Select method..."
-                      className={inputCls}
-                    />
-                  </FormField>
-                  <FormField label="Tax ID / EIN">
-                    <input value={editTaxId} onChange={(e) => setEditTaxId(e.target.value)} placeholder="For 1099 reporting" className={inputCls} />
-                  </FormField>
-                </div>
-                <label className="mt-2 flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editIsPreferred}
-                    onChange={(e) => setEditIsPreferred(e.target.checked)}
-                    className="accent-[var(--ui-accent)]"
-                  />
-                  Preferred vendor
-                </label>
-              </div>
-
-              {/* ─── Notes (separate card, like pinned note) ─── */}
-              <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
-                <FormField label="Notes">
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Notes about this vendor..."
-                    rows={3}
-                    maxLength={2000}
-                    spellCheck
-                    className={`${inputCls} w-full`}
-                  />
-                </FormField>
-              </div>
-
-              {/* ─── Purchase history (separate card, like order history) ─── */}
-              <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-3">
-                <p className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Purchase history</p>
-                {purchasesLoading ? (
-                  <p className="text-xs text-[var(--ui-muted)]">Loading purchases...</p>
-                ) : purchases.length === 0 ? (
-                  <p className="text-xs text-[var(--ui-muted)]">No purchases recorded for this vendor.</p>
-                ) : (
-                  <div className="max-h-52 overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-[var(--ui-border)] text-left text-[var(--ui-muted)]">
-                          <th className="pb-1 pr-2">Date</th>
-                          <th className="pb-1 pr-2">Item</th>
-                          <th className="pb-1 pr-2 text-right">Cost</th>
-                          <th className="pb-1 text-right">Shipping</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {purchases.map((p) => (
-                          <tr key={p.id} className="border-b border-[var(--ui-border)]/50">
-                            <td className="py-1 pr-2 text-[var(--ui-muted)]">
-                              {p.purchase_date ?? "-"}
-                            </td>
-                            <td className="py-1 pr-2">
-                              {p.item_number ?? p.item_description ?? `Inventory #${p.inventory_id}`}
-                            </td>
-                            <td className="py-1 pr-2 text-right">{fmt(p.purchase_price)}</td>
-                            <td className="py-1 text-right">{fmt(p.shipping_price)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ─── Right panel: add vendor (minimal, like Add customer) ─── */}
-        <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
-          <p className="text-sm font-semibold">Add vendor</p>
-          <FormField label="Vendor name" required>
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Business name"
-              className={inputCls}
-            />
-          </FormField>
-          <FormField label="Contact person">
-            <input
-              value={newContactPerson}
-              onChange={(e) => setNewContactPerson(e.target.value)}
-              placeholder="Contact name"
-              className={inputCls}
-            />
-          </FormField>
-          <FormField label="Email">
-            <input
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="Email"
-              type="email"
-              className={inputCls}
-            />
-          </FormField>
-          <FormField label="Phone">
-            <input
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-              placeholder="Phone"
-              className={inputCls}
-            />
-          </FormField>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="accent"
-              size="lg"
-              onClick={() => void createVendorRecord()}
-              busy={busyAction === "create-vendor"}
-              disabled={!newName.trim()}
-            >
-              Create vendor
-            </Button>
-            {(newName || newContactPerson || newEmail || newPhone) && (
-              <Button variant="secondary" onClick={resetCreateForm}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {listTotal === 0 && (
-        <EmptyState
-          message={
-            vendorSearch.trim() || activeFilter !== "1"
-              ? "No vendors match your filters."
-              : "No vendors yet. Add your first vendor to track who you buy inventory from."
-          }
-          primaryAction={
-            vendorSearch.trim() || activeFilter !== "1"
-              ? {
-                  label: "Clear filters",
-                  onClick: () => {
-                    setVendorSearch("");
-                    setActiveFilter("1");
-                    setPage(0);
-                  },
-                }
-              : undefined
-          }
-        />
-      )}
+        )}
+      />
 
       <ConfirmDialog
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={() => void deactivateVendor()}
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void deactivate()}
         title="Deactivate vendor?"
         description="This vendor will be marked inactive. They will still appear in historical purchase records and reports."
-        affectedLabel={selectedVendor?.name}
+        affectedLabel={deleteTarget?.name}
         confirmLabel="Deactivate"
         confirmVariant="danger"
-        busy={busyAction === "delete-vendor"}
+        busy={deleteBusy}
       />
     </section>
   );

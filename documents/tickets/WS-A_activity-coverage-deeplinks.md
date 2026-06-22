@@ -12,9 +12,9 @@
 
 ## Goal
 
-Make every mutating route for **receipts, expenses (AP Lite), tax payments, and reports** call
+Make every mutating route for **receipts, expenses, tax payments, and reports** call
 `logActivity()` with the **canonical** `entity_type`/`action` values. This fills the filter chips
-added earlier (Receipts, AP Lite, Reports, etc.) with real data and completes ADR-037 §A2.
+added earlier (Receipts, Expenses, Reports, etc.) with real data and completes ADR-037 §A2.
 
 > **Already done (do NOT redo):**
 > - A4 (filter chips) + A5 (comma-separated `entity_type` API filter).
@@ -44,7 +44,7 @@ added earlier (Receipts, AP Lite, Reports, etc.) with real data and completes AD
 - **Routes confirmed MISSING `logActivity`** (verified this session):
   - Receipts: `src/app/api/receipts/route.ts`, `receipts/[id]/route.ts`,
     `receipts/[id]/items/[itemId]/route.ts`, `receipts/ocr/route.ts`
-  - Expenses (AP Lite): `src/app/api/expenses/route.ts`, `expenses/[id]/route.ts`,
+  - Expenses: `src/app/api/expenses/route.ts`, `expenses/[id]/route.ts`,
     `expenses/[id]/payments/route.ts`, `expenses/scan/route.ts`, `expenses/bills/route.ts`
   - Tax payments: `src/app/api/tax-payments/route.ts`, `tax-payments/[id]/route.ts`
   - Reports: `src/app/api/reports/**/route.ts` (the ones that actually generate an artifact)
@@ -91,7 +91,7 @@ added earlier (Receipts, AP Lite, Reports, etc.) with real data and completes AD
 
 - [ ] Creating/updating/deleting a receipt, expense, tax payment, and generating a report each
       produce an Activity log row with the **canonical** `entity_type`/`action`.
-- [ ] The Activity log filter chips **Receipts**, **AP Lite**, and **Reports** now return matching
+- [ ] The Activity log filter chips **Receipts**, **Expenses**, and **Reports** now return matching
       rows after those actions occur.
 - [ ] Receipt/vendor/expense/tax_payment/shipping/address rows are **clickable** and deep-link to
       the correct tab + query param (per ADR-035).
@@ -118,7 +118,7 @@ added earlier (Receipts, AP Lite, Reports, etc.) with real data and completes AD
 ## How to verify (manual)
 
 1. `npm run build` then `npm run start`.
-2. Create then delete an expense; open the dashboard Activity log → filter **AP Lite** → see a
+2. Create then delete an expense; open the dashboard Activity log → filter **Expenses** → see a
    created row (linked) and a deleted row (no link).
 3. Create a receipt → filter **Receipts** → row links to `/receipts?receiptId=…`.
 4. Generate any report → filter **Reports** → see a `report.generated` row (no link).

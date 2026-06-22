@@ -1,10 +1,11 @@
 /**
  * Listing lifecycle & phases (ADR-081 / WS-G1).
  *
- * `listing_phase` is a derived-but-stored dimension, independent of
- * `inventory.status` and `listing_draft_state`. It drives one context-aware
- * action button and the data/quality remediation flow. It is recomputed on
- * every relevant mutation (save, picture change, generate, quality eval).
+ * `listing_phase` is a derived-but-stored dimension and the single listing
+ * dimension (ADR-085), separate from `inventory.status`. It drives one
+ * context-aware action button and the data/quality remediation flow. It is
+ * recomputed on every relevant mutation (save, picture change, generate,
+ * quality eval).
  */
 import { createHash } from "node:crypto";
 import { getDb } from "@/lib/sqlite";
@@ -34,7 +35,10 @@ export type ListingButtonAction = "evaluate_data" | "generate" | "evaluate_quali
 
 export type ListingButton = { label: string; action: ListingButtonAction };
 
-/** Fields whose change should invalidate a generated listing (ADR-081 §5). */
+/**
+ * Fields whose change should invalidate a generated listing (ADR-081 §5).
+ * `sale_revenue` is excluded: price is an AI output, not a generation input (ADR-085 §2).
+ */
 const HASH_FIELDS: ReadonlyArray<string> = [
   "description",
   "condition_code",
@@ -44,7 +48,6 @@ const HASH_FIELDS: ReadonlyArray<string> = [
   "item_width",
   "item_height",
   "item_dimensions_unit",
-  "sale_revenue",
   "category_tags",
   "store_category",
   "etsy_when_made",

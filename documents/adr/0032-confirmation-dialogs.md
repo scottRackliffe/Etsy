@@ -63,7 +63,8 @@ Every confirmation dialog uses the `Modal` component with these elements:
 
 | Action             | Page      | Title                  | Description                                                                                                   | Confirm label      |
 | ------------------ | --------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------ |
-| Publish to Etsy    | Inventory | "Publish to Etsy?"     | "This will create a live listing on Etsy for item {item_number}. Review the preview below before confirming." | "Publish"          |
+| Publish to Etsy    | Inventory | "Publish to Etsy?"     | "This will create a live listing on Etsy for item {item_number}."                                              | "Publish"          |
+| Re-publish to Etsy (already listed, ADR-085 §5) | Inventory | "Already on Etsy" | "Item {item_number} is already on Etsy as listing #{etsy_listing_id}. Update that listing, or create a separate new one?" | **two actions:** "Update existing" + "Create new" (variant="accent"; Cancel) |
 | Mark order shipped | Sales     | "Ship order?"          | (Handled by the mark-shipped modal in ADR-031 — the modal itself serves as confirmation.)                     | "Confirm shipment" |
 | Restore backup     | Config    | "Restore from backup?" | "This will replace all current data with the backup from {date}. A safety-net backup will be created first."  | "Restore"          |
 

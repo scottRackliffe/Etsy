@@ -754,3 +754,76 @@ export function evaluateListingQuality(
     evaluated_at: new Date().toISOString(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Fast-path entry point — single source of truth for all list/widget surfaces
+// (ADR-082, WS-L4).
+// ---------------------------------------------------------------------------
+
+export interface RubricFastScore {
+  /** Integer 0–100; always present (never null/NaN). */
+  score: number;
+  /** "cached_full" when listing_quality_json holds a valid rubric result; "fast_path" otherwise. */
+  source: "cached_full" | "fast_path";
+  /** "evaluated" when the cached result includes AI photo evaluation; "provisional" otherwise. */
+  photo_subscore: "evaluated" | "provisional";
+}
+
+/** Minimal shape required by computeRubricFastScore — any inventory row satisfies this. */
+export type InventoryRowLike = Pick<InventoryRecord, "id"> & {
+  listing_quality_json?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Single resolution rule for every fast surface (list column, sort, Outstanding,
+ * dashboard widget, aging report, threshold comparisons):
+ *  1. If item.listing_quality_json holds a cached full rubric result → use that score.
+ *  2. Otherwise → compute deterministic fast score (text/counts/presence/taxonomy/price +
+ *     §8b provisional photo sub-score) and return source:"fast_path".
+ *
+ * Total (never throws): items with missing/null inputs score those components as
+ * absent/lowest and still return a valid integer score.
+ */
+export function computeRubricFastScore(item: InventoryRowLike): RubricFastScore {
+  // 1 — cached full rubric result?
+  const qualJson = item.listing_quality_json;
+  if (qualJson && typeof qualJson === "string") {
+    try {
+      const cached = JSON.parse(qualJson) as Partial<ListingQualityResult>;
+      if (typeof cached.score === "number" && Number.isFinite(cached.score)) {
+        return {
+          score: Math.max(0, Math.min(100, Math.round(cached.score))),
+          source: "cached_full",
+          photo_subscore: cached.photo_ai_evaluated ? "evaluated" : "provisional",
+        };
+      }
+    } catch {
+      // fall through to fast path
+    }
+  }
+
+  // 2 — deterministic fast path (no AI; provisional photo sub-score)
+  try {
+    const result = evaluateListingQuality(item as unknown as InventoryRecord, {
+      minScore: 85,
+      itemId: item.id,
+    });
+    return {
+      score: Math.max(0, Math.min(100, Math.round(result.score))),
+      source: "fast_path",
+      photo_subscore: "provisional",
+    };
+  } catch {
+    return { score: 0, source: "fast_path", photo_subscore: "provisional" };
+  }
+}
+
+/**
+ * Score → CSS color token.  Replaces the retired listingScoreGradeColor.
+ */
+export function rubricScoreColor(score: number): string {
+  if (score >= 90) return "var(--ui-green)";
+  if (score >= 70) return "var(--ui-yellow)";
+  return "var(--ui-red)";
+}

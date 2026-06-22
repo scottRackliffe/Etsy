@@ -29,7 +29,7 @@ The Inventory page currently functions only as a "Listing authoring workshop." U
 ├─────────────────────────────────────────────────────────┤
 │ Item detail panel                                       │
 │ (Identity, Financials, Dates, Condition, Etsy Details,  │
-│  Listing Content [+ Regenerate with AI], Where I Bought │
+│  Listing Content [+ lifecycle button], Where I Bought   │
 │  This, Activity Timeline)                               │
 ├─────────────────────────────────────────────────────────┤
 │ Picture grids (item photos + condition photos)          │
@@ -105,7 +105,7 @@ Fields required by Etsy for publishing. Per-item values here override global def
 
 - Photo grid: 20 item photo slots (`picture_1..picture_20`) per ADR-033.
 - Each photo thumbnail shows its **shot type classification badge** (from `picture_classifications` JSON). Clicking the badge opens the classification dropdown: first option "OK" (keep current type), then the full shot type enum per ADR-072 §Photo classification.
-- Photos added outside the Listing Coach default to `extra` unless the operator assigns a type.
+- Photos default to `extra` unless the operator assigns a type (or AI classifies them during Generate).
 - **"Auto-sort by type"** button: reorders photos into canonical Photo Guide sequence (hero first, then angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). Confirmation prompt before reorder.
 - Condition photo grid: 5 slots (`condition_picture_1..condition_picture_5`). Not classified.
 - See ADR-033 for full grid UX specification.
@@ -195,10 +195,10 @@ Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 
 > **Note:** The original "Listing Workshop" panel (a separate collapsible section with manual/AI/portable import mode tabs) has been **removed**. Listing fields are now consolidated directly into the `InventoryDetailPanel` as a "Listing Content" section below the core inventory fields.
 
 - **Listing Content section** in the detail panel includes: listing title, listing description, listing tags, title strategy, product story, condition clarity, attributes, pricing/shipping notes, quality checklist.
-- **"Regenerate with AI" button** replaces the separate workshop modes. Clicking it re-runs the integrated AI content generator for the selected item.
+- **Context-aware lifecycle button** (ADR-081/085): Evaluate Data → Generate Listing → Evaluate Listing Quality → (at `listing_ready`) Publish to Etsy. The **Generate Listing** action runs the full AI engine (research + price recommendation + all fields, ADR-085 §3), absorbing what the former Listing Coach and "Regenerate with AI" did.
 - AI settings and Etsy publish defaults sections are in **Config only** (not duplicated on Inventory page).
 - The `openWorkshop=1` query parameter is no longer used.
-- Listing Coach (ADR-072) at `/listing-coach` remains the primary guided flow for new items. After completion, it redirects to `/inventory?itemId=<id>` where the user can review and edit all fields inline.
+- New items are created via the **inline SEMS create** on `/inventory` (ADR-079/085): basic data + hero photo, then the lifecycle button drives Generate → Quality → Publish. The standalone Listing Coach is removed (ADR-085 supersedes ADR-072).
 
 ## Consequences
 
