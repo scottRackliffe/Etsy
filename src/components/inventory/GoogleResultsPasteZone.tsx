@@ -1,7 +1,7 @@
 "use client";
 
-import { PhotoPasteZone } from "@/components/listing-coach/PhotoPasteZone";
-import type { CoachPhoto } from "@/components/listing-coach/types";
+import { PhotoPasteZone } from "@/components/inventory/PhotoPasteZone";
+import type { CoachPhoto } from "@/components/inventory/photo-paste-types";
 
 type GoogleResultsPasteZoneProps = {
   photos: CoachPhoto[];

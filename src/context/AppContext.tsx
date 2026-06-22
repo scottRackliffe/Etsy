@@ -13,7 +13,6 @@ import type {
   UiError,
   ApiErrorShape,
   AiConfig,
-  PublishPreview,
 } from "@/types";
 
 type PublishConfig = {
@@ -31,32 +30,6 @@ type PublishConfig = {
   imageUploadAttempts: string;
   developerMode: string;
   minQualityScore: string;
-};
-
-type PublishHistory = {
-  item?: {
-    id: number;
-    listing_draft_state: string | null;
-    listing_approved_at: string | null;
-    listing_published_at: string | null;
-    is_listed: number | null;
-    etsy_listing_id: string | null;
-  };
-  previews: Array<{
-    preview_hash: string;
-    created_at: string;
-    payload_preview: unknown;
-  }>;
-  imports: Array<{
-    id: number;
-    export_id: string | null;
-    source_label: string | null;
-    created_at: string;
-  }>;
-  exports: Array<{
-    export_id: string;
-    created_at: string;
-  }>;
 };
 
 type IconConfig = {
@@ -78,8 +51,6 @@ type AppState = {
   selectedOrderId: number | null;
   selectedCustomerId: number | null;
   customerAddresses: CustomerAddress[];
-  publishPreview: PublishPreview | null;
-  publishHistory: PublishHistory | null;
   aiConfig: AiConfig | null;
   publishConfig: PublishConfig;
   iconConfig: IconConfig;
@@ -105,8 +76,6 @@ type AppActions = {
   setSelectedOrderId: React.Dispatch<React.SetStateAction<number | null>>;
   setSelectedCustomerId: React.Dispatch<React.SetStateAction<number | null>>;
   setCustomerAddresses: React.Dispatch<React.SetStateAction<CustomerAddress[]>>;
-  setPublishPreview: React.Dispatch<React.SetStateAction<PublishPreview | null>>;
-  setPublishHistory: React.Dispatch<React.SetStateAction<PublishHistory | null>>;
   setAiConfig: React.Dispatch<React.SetStateAction<AiConfig | null>>;
   setPublishConfig: React.Dispatch<React.SetStateAction<PublishConfig>>;
   setIconConfig: React.Dispatch<React.SetStateAction<IconConfig>>;
@@ -180,8 +149,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [customerAddresses, setCustomerAddresses] = useState<CustomerAddress[]>([]);
-  const [publishPreview, setPublishPreview] = useState<PublishPreview | null>(null);
-  const [publishHistory, setPublishHistory] = useState<PublishHistory | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [publishConfig, setPublishConfig] = useState<PublishConfig>({
     taxonomyId: "",
@@ -270,7 +237,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedOrderId(null);
     setSelectedCustomerId(null);
     setSelectedItem(null);
-    setPublishHistory(null);
     setAiConfig(null);
     setCount(0);
     addNotificationEntry({ type: "info", message: "Disconnected from Etsy" });
@@ -415,14 +381,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
   }, [loading, setApiError]);
 
-  // Load selected item details
-  const [publishScopeId, setPublishScopeId] = useState<number | null>(selectedItemId);
-  if (selectedItemId !== publishScopeId) {
-    setPublishScopeId(selectedItemId);
-    setPublishPreview(null);
-    setPublishHistory(null);
-  }
-
   useEffect(() => {
     if (!selectedItemId) return;
     fetch(`/api/inventory/${selectedItemId}`, { headers: { Accept: "application/json" } })
@@ -566,8 +524,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     selectedOrderId,
     selectedCustomerId,
     customerAddresses,
-    publishPreview,
-    publishHistory,
     aiConfig,
     publishConfig,
     iconConfig,
@@ -590,8 +546,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedOrderId,
     setSelectedCustomerId,
     setCustomerAddresses,
-    setPublishPreview,
-    setPublishHistory,
     setAiConfig,
     setPublishConfig,
     setIconConfig,

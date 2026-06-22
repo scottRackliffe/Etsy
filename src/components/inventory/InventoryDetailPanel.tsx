@@ -20,14 +20,13 @@ import { OtherCostsManager } from "@/components/inventory/OtherCostsManager";
 import { VendorPicker } from "@/components/ui/VendorPicker";
 import TaxonomyCategoryPicker from "@/components/etsy/TaxonomyCategoryPicker";
 import type { ApiErrorShape, InventoryItem } from "@/types";
-// WS-L3: AI affordances — temporary imports from coach tree (relocated in L6)
 import {
   createCoachPhoto,
   revokeCoachPhotos,
   type CoachPhoto,
-} from "@/components/listing-coach/types";
-import { GoogleResultsPasteZone } from "@/components/listing-coach/GoogleResultsPasteZone";
-import type { PriceSuggestion, Citation, ComplianceCheck, FieldEvidence } from "@/lib/listing-ai";
+} from "@/components/inventory/photo-paste-types";
+import { GoogleResultsPasteZone } from "@/components/inventory/GoogleResultsPasteZone";
+import type { PriceSuggestion, Citation, ComplianceCheck } from "@/lib/listing-ai";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
 const CONDITIONS = ["Mint/Near Mint", "Excellent", "Very Good", "Good", "Fair/As-Is"] as const;
@@ -224,32 +223,6 @@ export type GenerateResult = {
 // ─────────────────────────────────────────────────────────────────────────────
 // WS-L3 sub-components
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Badge showing evidence source and confidence for an AI-generated field value */
-function EvidenceBadge({ evidence }: { evidence: FieldEvidence }) {
-  const colors: Record<string, string> = {
-    photo: "bg-[var(--ui-accent)]/20 text-[var(--ui-accent)]",
-    web_search: "bg-[var(--ui-green)]/20 text-[var(--ui-green)]",
-    operator_input: "bg-[var(--ui-body)]/20 text-[var(--ui-body)]",
-    unverified: "bg-[var(--ui-yellow)]/20 text-[var(--ui-yellow)]",
-  };
-  const labels: Record<string, string> = {
-    photo: "From photo",
-    web_search: "Web verified",
-    operator_input: "Your input",
-    unverified: "Needs verification",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-        colors[evidence.evidence] ?? colors.unverified
-      }`}
-    >
-      {labels[evidence.evidence] ?? "Unverified"}
-      {evidence.confidence === "low" ? " (low confidence)" : ""}
-    </span>
-  );
-}
 
 /** Per-field "Fix" button — calls the inventory listing-refine route */
 function FieldFixButton({

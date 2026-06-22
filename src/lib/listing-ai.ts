@@ -1,6 +1,6 @@
 /**
  * Neutral AI engine for listing research, authoring, and refinement.
- * (Extracted from listing-coach.ts — ADR-085, WS-L1)
+ * The single AI listing engine (ADR-085).
  *
  * Qualifier naming per ADR-075:
  *   generate path  → responses.create/generate-listing
@@ -19,7 +19,7 @@ import {
   normalizePhotoReview,
   normalizePrice,
   normalizeTags,
-} from "@/lib/listing-coach-normalize.mjs";
+} from "@/lib/listing-ai-normalize.mjs";
 
 export type CoachPhotoFile = {
   buffer: Buffer;

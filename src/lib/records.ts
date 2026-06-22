@@ -524,12 +524,6 @@ export function listInventory(options: InventoryListOptions) {
 export function createInventory(input: Record<string, unknown>) {
   const db = getDb();
   const payload = pickDefined(input);
-  if (!payload.listing_draft_state) {
-    payload.listing_draft_state = "draft";
-  }
-  if (!payload.listing_draft_source) {
-    payload.listing_draft_source = "manual";
-  }
   if (payload.is_listed == null) {
     payload.is_listed = 0;
   }
@@ -552,9 +546,9 @@ export function patchInventory(id: number, input: Record<string, unknown>) {
   const payload = pickDefined(input);
   const touchesListing = Object.keys(payload).some((key) => LISTING_MUTATION_FIELDS.has(key));
   if (touchesListing) {
-    // Any listing-content edits require explicit re-approval before publish.
-    payload.listing_draft_state = "draft";
-    payload.listing_approved_at = null;
+    // Listing-content edits unpublish the item; the listing must pass quality
+    // again before re-publish (ADR-085). Phase is recomputed below; drift detection
+    // (listing_source_hash) returns it to ready_to_generate.
     payload.is_listed = 0;
     payload.listing_published_at = null;
   }

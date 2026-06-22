@@ -146,7 +146,7 @@ export function queryOutstandingItems(): OutstandingItem[] {
     .prepare(
       `SELECT id, item_number, description
        FROM inventory
-       WHERE listing_draft_state IN ('generated','imported','approved')
+       WHERE listing_phase IN ('generated','needs_quality_remediation','listing_ready')
          AND (etsy_when_made IS NULL OR etsy_taxonomy_id IS NULL)`
     )
     .all() as Array<{
@@ -205,7 +205,7 @@ export function queryOutstandingItems(): OutstandingItem[] {
     .prepare(
       `SELECT *
        FROM inventory
-       WHERE listing_draft_state IN ('draft','generated','imported','approved','published')
+       WHERE listing_phase IN ('generated','needs_quality_remediation','listing_ready')
          AND listing_title IS NOT NULL AND listing_title <> ''`
     )
     .all() as Array<{ id: number; item_number: string | null; description: string | null; created_at: string | null; [key: string]: unknown }>;

@@ -61,10 +61,6 @@ export type InventoryRecord = {
   etsy_attributes_json: string | null;
   listing_pricing_shipping_notes: string | null;
   listing_quality_checklist: string | null;
-  listing_draft_state: string | null;
-  listing_draft_source: string | null;
-  listing_export_id: string | null;
-  listing_approved_at: string | null;
   listing_published_at: string | null;
   listing_phase: string | null;
   listing_source_hash: string | null;
@@ -109,8 +105,6 @@ export type ListingContentUpdate = {
   listing_description: string;
   listing_tags: string;
   listing_category_path?: string | null;
-  listing_draft_source?: "manual" | "integrated_ai" | "portable_import";
-  listing_export_id?: string | null;
   listing_title_strategy?: string | null;
   listing_product_story?: string | null;
   listing_condition_clarity?: string | null;
@@ -182,9 +176,6 @@ export function updateListingContent(
   const db = getDb();
   const now = new Date().toISOString();
 
-  const draftSource = content.listing_draft_source ?? "integrated_ai";
-  const draftState = draftSource === "portable_import" ? "imported" : "generated";
-
   db.prepare(
     `
       UPDATE inventory
@@ -209,10 +200,6 @@ export function updateListingContent(
           THEN @sale_revenue_if_unset
           ELSE sale_revenue
         END,
-        listing_draft_state = @listing_draft_state,
-        listing_draft_source = @listing_draft_source,
-        listing_export_id = @listing_export_id,
-        listing_approved_at = NULL,
         listing_published_at = NULL,
         is_listed = 0,
         updated_at = @updated_at
@@ -239,9 +226,6 @@ export function updateListingContent(
     set_pic_class: content.picture_classifications !== undefined ? 1 : 0,
     picture_classifications: content.picture_classifications ?? null,
     sale_revenue_if_unset: content.sale_revenue_if_unset ?? null,
-    listing_draft_state: draftState,
-    listing_draft_source: draftSource,
-    listing_export_id: content.listing_export_id ?? null,
     updated_at: now,
   });
 

@@ -430,13 +430,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const now = new Date().toISOString();
     const listingId = String(etsyListingId);
     const finalStatus = treatAsDraft ? "Draft" : "Listed";
-    const finalDraftState = treatAsDraft ? "approved" : "published";
     getDb()
       .prepare(
         `
       UPDATE inventory
-      SET listing_draft_state = @draft_state,
-          listing_published_at = @published_at,
+      SET listing_published_at = @published_at,
           status = @status,
           is_listed = @is_listed,
           date_listed = COALESCE(date_listed, @date_listed),
@@ -447,7 +445,6 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       )
       .run({
         id,
-        draft_state: finalDraftState,
         published_at: treatAsDraft ? null : now,
         status: finalStatus,
         is_listed: treatAsDraft ? 0 : 1,

@@ -6,7 +6,7 @@ import {
   createCoachPhoto,
   revokeCoachPhotos,
   type CoachPhoto,
-} from "@/components/listing-coach/types";
+} from "@/components/inventory/photo-paste-types";
 
 const FILE_PICKER_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/tiff,image/heic,image/heif";
 const MAX_BYTES = 15 * 1024 * 1024;

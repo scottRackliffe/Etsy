@@ -71,10 +71,6 @@ export type InventoryItem = {
   etsy_attributes_json: string | null;
   listing_pricing_shipping_notes: string | null;
   listing_quality_checklist: string | null;
-  listing_draft_state: string | null;
-  listing_draft_source: string | null;
-  listing_export_id: string | null;
-  listing_approved_at: string | null;
   listing_published_at: string | null;
   is_listed: number | null;
   notes: string | null;
@@ -248,15 +244,6 @@ export type AiConfig = {
   retryCount: number;
   tokenBudget: number;
   apiKeyConfigured: boolean;
-};
-
-export type PublishPreview = {
-  can_publish: boolean;
-  warnings: string[];
-  preview_hash: string;
-  preview_generated_at: string;
-  staged_flow: string[];
-  payload_preview: unknown;
 };
 
 export type AppTab =

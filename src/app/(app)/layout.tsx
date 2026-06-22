@@ -269,11 +269,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {!loading && (
           <>
             <TabBar />
-            {!pathname.startsWith("/listing-coach") ? (
-              <div className="flex justify-end">
-                <StaleDataBadge />
-              </div>
-            ) : null}
+            <div className="flex justify-end">
+              <StaleDataBadge />
+            </div>
             {children}
             {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
           </>

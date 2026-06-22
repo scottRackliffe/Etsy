@@ -25,8 +25,6 @@ const DEFAULT_TOKEN_BUDGET = 2000;
  */
 export type AiTask =
   | "generate-listing"
-  | "listing-coach"
-  | "improve-listing"
   | "photo-quality"
   | "shot-list"
   | "measure"

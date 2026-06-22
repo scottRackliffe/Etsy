@@ -119,7 +119,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       listing_attributes: generated.listing_attributes,
       listing_pricing_shipping_notes: generated.listing_pricing_shipping_notes,
       listing_quality_checklist: generated.listing_quality_checklist,
-      listing_draft_source: "integrated_ai",
       etsy_when_made: generated.suggested_etsy_when_made ?? undefined,
       etsy_taxonomy_id: generated.suggested_taxonomy_id ?? undefined,
       materials: generated.suggested_materials_json ?? undefined,
