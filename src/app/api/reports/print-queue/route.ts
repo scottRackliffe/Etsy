@@ -5,6 +5,7 @@ import {
   parsePrintQueueRequestItems,
   validatePrintQueueItems,
 } from "@/lib/print-queue-pdf";
+import { logActivity } from "@/lib/activity-log";
 
 export async function POST(request: Request) {
   try {
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     }
 
     const pdf = await buildPrintQueuePdf(items);
+    logActivity({ action: "report.generated", entityType: "report", entityLabel: "print-queue", detail: { report_name: "print-queue", format: "pdf" } });
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,
       headers: {

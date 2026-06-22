@@ -4,6 +4,7 @@ import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error"
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getDb } from "@/lib/sqlite";
+import { logActivity } from "@/lib/activity-log";
 
 async function getCustomerId(context: { params: Promise<{ id: string }> }): Promise<number> {
   const id = parsePositiveInt((await context.params).id);
@@ -96,7 +97,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       });
     const item = getDb()
       .prepare("SELECT * FROM addresses WHERE id = ?")
-      .get(result.lastInsertRowid);
+      .get(result.lastInsertRowid) as Record<string, unknown> | undefined;
+    // entityId = customer_id so activityEntityHref can deep-link to the customer (ADR-037 §A3).
+    logActivity({
+      action: "address.created",
+      entityType: "address",
+      entityId: customerId,
+      entityLabel: typeof item?.label === "string" ? item.label : undefined,
+      detail: { address_id: result.lastInsertRowid },
+    });
     return NextResponse.json({ ok: true, item }, { status: 201 });
   } catch (error) {
     return errorResponse(

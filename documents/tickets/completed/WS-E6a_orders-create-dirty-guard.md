@@ -1,5 +1,7 @@
 # Ticket WS-E6a — Orders create form: SEMS dirty guard
 
+> **Status: DONE — merged 2026-06-22.** Orders create form wired into the SEMS dirty guard.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#5** |

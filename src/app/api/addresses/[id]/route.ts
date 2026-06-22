@@ -86,11 +86,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         canRetry: false,
       });
     }
+    // entityId = customer_id so activityEntityHref can deep-link to the customer (ADR-037 §A3).
     logActivity({
       action: "address.updated",
       entityType: "address",
-      entityId: id,
+      entityId: item.customer_id as number,
       entityLabel: (item.label as string) ?? undefined,
+      detail: { address_id: id },
     });
     return NextResponse.json({ ok: true, item });
   } catch (error) {
@@ -109,7 +111,10 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   try {
     requireEtsyAccessToken(await cookies());
     const id = await getAddressId(context);
-    const result = getDb().prepare("DELETE FROM addresses WHERE id = ?").run(id);
+    const db = getDb();
+    // Capture customer_id before deletion so we can log it (REMOVAL_ACTIONS returns no link anyway).
+    const existing = db.prepare("SELECT customer_id FROM addresses WHERE id = ?").get(id) as { customer_id: number } | undefined;
+    const result = db.prepare("DELETE FROM addresses WHERE id = ?").run(id);
     if (result.changes === 0) {
       throw new ApiRouteError({
         status: 404,
@@ -120,10 +125,12 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
         canRetry: false,
       });
     }
+    // entityId = customer_id (consistent with PATCH); REMOVAL_ACTIONS blocks the link anyway.
     logActivity({
       action: "address.deleted",
       entityType: "address",
-      entityId: id,
+      entityId: existing?.customer_id ?? undefined,
+      detail: { address_id: id },
     });
     return new NextResponse(null, { status: 204 });
   } catch (error) {

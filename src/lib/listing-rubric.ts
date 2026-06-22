@@ -34,6 +34,13 @@ export type ListingQualityResult = {
   quality_remediation: QualityRemediationItem[];
   photo_ai_evaluated: boolean;
   evaluated_at: string;
+  /**
+   * Snapshot of the item's listing_source_hash at evaluation time (ADR-081).
+   * Stored so computeRubricFastScore can detect drift without re-running the
+   * server-side SHA-256 hash in the browser. Absent on older cached results
+   * (treated as non-drifted for backward compat).
+   */
+  listing_source_hash?: string | null;
 };
 
 const QUALITY_TARGET = 98;
@@ -772,15 +779,24 @@ export interface RubricFastScore {
 /** Minimal shape required by computeRubricFastScore — any inventory row satisfies this. */
 export type InventoryRowLike = Pick<InventoryRecord, "id"> & {
   listing_quality_json?: string | null;
+  /** Used for drift detection: if the item's current hash differs from the hash
+   *  stored in listing_quality_json, the cached score is stale and the fast path
+   *  is used instead. */
+  listing_source_hash?: string | null;
   [key: string]: unknown;
 };
 
 /**
  * Single resolution rule for every fast surface (list column, sort, Outstanding,
  * dashboard widget, aging report, threshold comparisons):
- *  1. If item.listing_quality_json holds a cached full rubric result → use that score.
- *  2. Otherwise → compute deterministic fast score (text/counts/presence/taxonomy/price +
- *     §8b provisional photo sub-score) and return source:"fast_path".
+ *  1. If item.listing_quality_json holds a cached full rubric result AND the item
+ *     has not drifted since evaluation → use that score (source:"cached_full").
+ *     Drift is detected by comparing item.listing_source_hash against the hash
+ *     snapshot stored in the cached JSON at evaluation time (ADR-081). Older
+ *     cached results that predate this field are treated as non-drifted.
+ *  2. Otherwise (no cache, parse error, or drift detected) → compute deterministic
+ *     fast score (text/counts/presence/taxonomy/price + §8b provisional photo
+ *     sub-score) and return source:"fast_path".
  *
  * Total (never throws): items with missing/null inputs score those components as
  * absent/lowest and still return a valid integer score.
@@ -792,11 +808,22 @@ export function computeRubricFastScore(item: InventoryRowLike): RubricFastScore 
     try {
       const cached = JSON.parse(qualJson) as Partial<ListingQualityResult>;
       if (typeof cached.score === "number" && Number.isFinite(cached.score)) {
-        return {
-          score: Math.max(0, Math.min(100, Math.round(cached.score))),
-          source: "cached_full",
-          photo_subscore: cached.photo_ai_evaluated ? "evaluated" : "provisional",
-        };
+        // Drift check: if the cache snapshot includes a source hash, compare it
+        // against the item's current hash. A mismatch means the listing inputs
+        // changed after evaluation — the cached score is stale, use fast path.
+        // Absence of listing_source_hash in the cache (older records) is treated
+        // as non-drifted for backward compatibility.
+        const cachedHash = cached.listing_source_hash;
+        const itemHash = item.listing_source_hash;
+        if (cachedHash != null && itemHash != null && cachedHash !== itemHash) {
+          // Drift detected → fall through to fast path
+        } else {
+          return {
+            score: Math.max(0, Math.min(100, Math.round(cached.score))),
+            source: "cached_full",
+            photo_subscore: cached.photo_ai_evaluated ? "evaluated" : "provisional",
+          };
+        }
       }
     } catch {
       // fall through to fast path

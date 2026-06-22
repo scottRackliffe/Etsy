@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format-currency";
 import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { InventoryValueWidget } from "@/components/dashboard/InventoryValueWidget";
+import { LowQualityInventoryWidget } from "@/components/dashboard/LowQualityInventoryWidget";
 import { TaxPaymentWidget } from "@/components/dashboard/TaxPaymentWidget";
 import { BillPaymentsWidget } from "@/components/dashboard/BillPaymentsWidget";
 import { KpiTile } from "@/components/dashboard/KpiTile";
@@ -32,6 +33,8 @@ export default function DashboardPage() {
     paid_orders: number;
     shipped_orders: number;
     unshipped_orders: number;
+    awaiting_shipment_paid: number;
+    awaiting_shipment_unpaid: number;
     unpaid_orders: number;
     unpaid_receivables: number;
     gross_revenue: number;
@@ -47,6 +50,7 @@ export default function DashboardPage() {
     avg_margin_this_month: number | null;
     avg_margin_this_month_count: number;
     last_etsy_sync_at: string | null;
+    payment_reminder_candidates: number;
   };
 
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
@@ -64,6 +68,8 @@ export default function DashboardPage() {
           paid_orders: data.paid_orders ?? 0,
           shipped_orders: data.shipped_orders ?? 0,
           unshipped_orders: data.unshipped_orders ?? 0,
+          awaiting_shipment_paid: data.awaiting_shipment_paid ?? 0,
+          awaiting_shipment_unpaid: data.awaiting_shipment_unpaid ?? 0,
           unpaid_orders: data.unpaid_orders ?? 0,
           unpaid_receivables: data.unpaid_receivables ?? 0,
           gross_revenue: data.gross_revenue ?? 0,
@@ -79,6 +85,7 @@ export default function DashboardPage() {
           avg_margin_this_month: data.avg_margin_this_month ?? null,
           avg_margin_this_month_count: data.avg_margin_this_month_count ?? 0,
           last_etsy_sync_at: data.last_etsy_sync_at ?? null,
+          payment_reminder_candidates: data.payment_reminder_candidates ?? 0,
         })
       )
       .catch(() => setKpis(null));
@@ -162,13 +169,20 @@ export default function DashboardPage() {
       </div>
 
       <SectionLabel className="mt-6">Needs attention</SectionLabel>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <KpiTile
-          label="Awaiting shipment"
-          value={kpis?.unshipped_orders ?? "—"}
-          tone={kpis && kpis.unshipped_orders > 0 ? "warn" : "default"}
-          sub={kpis ? `${kpis.shipped_orders} shipped` : undefined}
+          label="Ready to ship"
+          value={kpis?.awaiting_shipment_paid ?? "—"}
+          tone={kpis && kpis.awaiting_shipment_paid > 0 ? "warn" : "default"}
+          sub="paid · awaiting shipment"
           href="/shipping"
+        />
+        <KpiTile
+          label="Unpaid, not shipped"
+          value={kpis?.awaiting_shipment_unpaid ?? "—"}
+          tone={kpis && kpis.awaiting_shipment_unpaid > 0 ? "warn" : "default"}
+          sub="awaiting payment + shipment"
+          href="/orders"
         />
         <KpiTile
           label="Unpaid orders"
@@ -177,6 +191,14 @@ export default function DashboardPage() {
           sub={kpis ? `${formatCurrency(kpis.unpaid_receivables, currencyCode)} owed` : undefined}
           subTone={kpis && kpis.unpaid_receivables > 0 ? "warn" : "default"}
           href="/orders"
+          action={
+            kpis && kpis.payment_reminder_candidates > 0
+              ? {
+                  label: `Payment reminders (${kpis.payment_reminder_candidates}) →`,
+                  href: "/communications?type=payment_reminder",
+                }
+              : undefined
+          }
         />
         <KpiTile
           label="Not listed"
@@ -227,6 +249,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </article>
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-3">
+          <LowQualityInventoryWidget />
+        </div>
       </div>
 
       <SectionLabel className="mt-6">Finances</SectionLabel>

@@ -1,5 +1,7 @@
 # Ticket WS-RCPTIMG — Persist scanned receipt images
 
+> **Status: DONE — merged 2026-06-22.** Scanned receipt images are persisted.
+
 | Field | Value |
 |-------|-------|
 | Type | **Backlog / low priority** (quality-of-life; no regression today). |

@@ -28,6 +28,17 @@ re-run** unless fixing a regression.
 | WS-L6 | Listing | Remove dead code |
 | WS-LABEL | Cross-cutting | Orders / Settings terminology |
 | WS-THRESH | Cross-cutting | Threshold 85 unified |
+| WS-A | Dashboard | Activity coverage + deep-links (deleted=no-link) |
+| WS-A1 | Dashboard | Address activity rows deep-link to customer |
+| WS-D1 | Dashboard | Low-quality inventory widget (finished) |
+| WS-D2 | Dashboard | Unpaid orders → payment reminders |
+| WS-D3 | Dashboard | Split awaiting-shipment KPI (paid vs unpaid) |
+| WS-E6a | SEMS | Orders create form dirty guard |
+| WS-E6b | SEMS | Orders editor draft preserved on sub-actions |
+| WS-L4a | Listing | Memoized fast quality score (perf) |
+| WS-L4b | Listing | Drift-aware cached quality score |
+| WS-MIGRATE | Infra | Idempotent migration runner |
+| WS-RCPTIMG | Receipts | Persist scanned receipt images |
 
 When archiving a newly finished ticket: move the file here and add at the top:
 

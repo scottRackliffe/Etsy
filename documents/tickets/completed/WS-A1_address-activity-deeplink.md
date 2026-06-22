@@ -1,5 +1,7 @@
 # Ticket WS-A1 — Address activity rows deep-link to customer
 
+> **Status: DONE — merged 2026-06-22.** Address activity rows deep-link to the parent customer.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#7** |

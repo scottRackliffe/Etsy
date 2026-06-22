@@ -52,6 +52,9 @@ export function activityEntityHref(
       return `/inventory?itemId=${entityId}`;
     case "customer":
       return `/customers?customerId=${entityId}`;
+    case "address":
+      // entityId is the parent customer_id (logged that way so the href works).
+      return `/customers?customerId=${entityId}`;
     case "receipt":
       return `/receipts?receiptId=${entityId}`;
     case "vendor":

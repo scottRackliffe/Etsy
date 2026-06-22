@@ -18,6 +18,7 @@ import { SemsScreen, type SemsScreenController } from "@/components/sems/SemsScr
 import { SemsEditor } from "@/components/sems/SemsEditor";
 import { useSemsEditorGuard } from "@/components/sems/useSemsEditorGuard";
 import { OrderDetailPanel, type OrderDetailPanelHandle } from "@/components/sales/OrderDetailPanel";
+import { useDirtyTracking } from "@/hooks/useDirtyTracking";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
 import { useBatchSelection } from "@/hooks/useBatchSelection";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -40,33 +41,54 @@ const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;
 // ─────────────────────────────────────────────────────────────
 // OrderCreateForm — shown when the user clicks "+ Add new order"
 // ─────────────────────────────────────────────────────────────
+type OrderCreateFields = {
+  orderNumber: string;
+  customerId: number | null;
+  shipToId: string;
+  total: string;
+};
+
+const EMPTY_ORDER_CREATE: OrderCreateFields = {
+  orderNumber: "",
+  customerId: null,
+  shipToId: "billing",
+  total: "",
+};
+
 function OrderCreateForm({
   customers,
+  requestClose,
   done,
   onCreated,
   onError,
 }: {
   customers: Customer[];
+  requestClose: () => void;
   done: () => void;
   onCreated: (order: Order) => void;
   onError: (title: string, message: string, err?: unknown) => void;
 }) {
-  const [orderNumber, setOrderNumber] = useState("");
-  const [customerId, setCustomerId] = useState<number | null>(null);
+  const { current, setCurrent, savedState, isDirty, markClean } =
+    useDirtyTracking<OrderCreateFields>(EMPTY_ORDER_CREATE);
+  const form = current ?? EMPTY_ORDER_CREATE;
+
   const [addresses, setAddresses] = useState<Array<{ id: number; label: string; summary: string }>>([]);
-  const [shipToId, setShipToId] = useState("billing");
-  const [total, setTotal] = useState("");
   const [defaultTaxRate, setDefaultTaxRate] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Auto-fill order number + default tax rate on mount; advance baseline so auto-fill isn't dirty
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch("/api/orders/next-number", { headers: { Accept: "application/json" } });
         const data = (await res.json().catch(() => ({}))) as { next_number?: string };
-        if (!cancelled && res.ok && data.next_number) setOrderNumber(data.next_number);
-      } catch { /* ignore */ }
+        if (!cancelled && res.ok && data.next_number) {
+          setCurrent((prev) => ({ ...(prev ?? EMPTY_ORDER_CREATE), orderNumber: data.next_number! }));
+          // Advance baseline so auto-number alone doesn't trigger "dirty"
+          markClean({ ...(EMPTY_ORDER_CREATE), orderNumber: data.next_number! });
+        }
+      } catch { /* non-critical */ }
       try {
         const res = await fetch("/api/settings/tax.default_rate", { headers: { Accept: "application/json" } });
         const data = (await res.json().catch(() => ({}))) as { value?: string };
@@ -74,16 +96,17 @@ function OrderCreateForm({
           const rate = parseFloat(data.value);
           if (Number.isFinite(rate) && rate > 0) setDefaultTaxRate(rate);
         }
-      } catch { /* ignore */ }
+      } catch { /* non-critical */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load ship-to addresses when customer changes
   useEffect(() => {
-    if (!customerId) { setAddresses([]); setShipToId("billing"); return; }
-    (async () => {
+    if (!form.customerId) { setAddresses([]); setCurrent((prev) => ({ ...(prev ?? EMPTY_ORDER_CREATE), shipToId: "billing" })); return; }
+    void (async () => {
       try {
-        const res = await fetch(`/api/customers/${customerId}/addresses`, { headers: { Accept: "application/json" } });
+        const res = await fetch(`/api/customers/${form.customerId}/addresses`, { headers: { Accept: "application/json" } });
         const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: number; label?: string; first_line?: string; city?: string; state?: string; postal_code?: string }> };
         if (res.ok && data.items && data.items.length > 0) {
           setAddresses(data.items.map((a) => ({
@@ -94,27 +117,39 @@ function OrderCreateForm({
         } else {
           setAddresses([]);
         }
-        setShipToId("billing");
+        setCurrent((prev) => ({ ...(prev ?? EMPTY_ORDER_CREATE), shipToId: "billing" }));
       } catch { setAddresses([]); }
     })();
-  }, [customerId]);
+  }, [form.customerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCreate = async () => {
-    if (!orderNumber.trim()) {
+  const set = useCallback(
+    <K extends keyof OrderCreateFields>(key: K, value: OrderCreateFields[K]) =>
+      setCurrent((prev) => ({ ...(prev ?? EMPTY_ORDER_CREATE), [key]: value })),
+    [setCurrent]
+  );
+
+  const discard = useCallback(() => {
+    setCurrent(savedState);
+    setAddresses([]);
+  }, [savedState, setCurrent]);
+
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!form.orderNumber.trim()) {
       onError("Order number required", "Provide an order number before creating an order.");
-      return;
+      return false;
     }
     setBusy(true);
     try {
-      const subtotal = Number(total || "0");
-      const taxTotal = defaultTaxRate != null && subtotal > 0
-        ? Math.round(subtotal * defaultTaxRate) / 100
-        : 0;
+      const subtotal = Number(form.total || "0");
+      const taxTotal =
+        defaultTaxRate != null && subtotal > 0
+          ? Math.round(subtotal * defaultTaxRate) / 100
+          : 0;
       const response = await apiFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          order_number: orderNumber.trim(),
+          order_number: form.orderNumber.trim(),
           subtotal,
           tax_total: taxTotal,
           grand_total: subtotal + taxTotal,
@@ -122,40 +157,64 @@ function OrderCreateForm({
           order_status: "active",
           source_channel: "manual",
           order_date: new Date().toISOString().slice(0, 10),
-          ...(customerId ? { customer_id: customerId } : {}),
-          ...(customerId && shipToId !== "billing" ? { ship_to_address_id: parseInt(shipToId, 10) } : {}),
+          ...(form.customerId ? { customer_id: form.customerId } : {}),
+          ...(form.customerId && form.shipToId !== "billing"
+            ? { ship_to_address_id: parseInt(form.shipToId, 10) }
+            : {}),
         }),
       });
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
-        done(); // exit create mode — parent will call openRecord(newOrder)
+        markClean(form);
         onCreated(data.order);
+        return true;
       }
+      return false;
     } catch (err) {
       onError("Could not create order", "We could not create the order.", err);
+      return false;
     } finally {
       setBusy(false);
     }
-  };
+  }, [form, defaultTaxRate, markClean, onCreated, onError]);
+
+  useSemsEditorGuard({ isDirty, onSave: save, onDiscard: discard });
+
+  const handleSaveClick = useCallback(() => {
+    void (async () => {
+      const ok = await save();
+      if (ok) done();
+    })();
+  }, [save, done]);
+
+  const inputCls =
+    "w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm text-[var(--ui-body)]";
 
   return (
-    <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
-      <h3 className="mb-4 text-base font-semibold text-[var(--ui-title)]">New order</h3>
+    <SemsEditor
+      title="New order"
+      isDirty={isDirty}
+      busy={busy}
+      saveLabel="Create order"
+      saveDisabled={!form.orderNumber.trim()}
+      onSave={handleSaveClick}
+      onCancel={requestClose}
+    >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <FormField label="Order number" required>
           <input
-            value={orderNumber}
-            onChange={(e) => setOrderNumber(e.target.value)}
+            value={form.orderNumber}
+            onChange={(e) => set("orderNumber", e.target.value)}
             placeholder="e.g. ORD-0001"
-            className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
+            className={inputCls}
           />
         </FormField>
         <FormField label="Customer">
           <select
-            value={customerId ?? ""}
-            onChange={(e) => setCustomerId(e.target.value ? parseInt(e.target.value, 10) : null)}
-            className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
+            value={form.customerId ?? ""}
+            onChange={(e) => set("customerId", e.target.value ? parseInt(e.target.value, 10) : null)}
+            className={inputCls}
           >
             <option value="">No customer</option>
             {customers.map((c) => (
@@ -165,13 +224,13 @@ function OrderCreateForm({
             ))}
           </select>
         </FormField>
-        {customerId && addresses.length > 0 ? (
+        {form.customerId && addresses.length > 0 ? (
           <div className="md:col-span-2">
             <FormField label="Ship to">
               <select
-                value={shipToId}
-                onChange={(e) => setShipToId(e.target.value)}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
+                value={form.shipToId}
+                onChange={(e) => set("shipToId", e.target.value)}
+                className={inputCls}
               >
                 <option value="billing">Billing address (default)</option>
                 {addresses.map((a) => (
@@ -183,28 +242,23 @@ function OrderCreateForm({
         ) : null}
         <FormField label="Total (optional)" helpText="You can add line items after creation.">
           <input
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
+            value={form.total}
+            onChange={(e) => set("total", e.target.value)}
             placeholder="0.00"
             type="number"
             step="0.01"
             min="0"
-            className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-sm"
+            className={inputCls}
           />
         </FormField>
       </div>
-      {defaultTaxRate != null && Number(total) > 0 ? (
-        <p className="mt-1 text-xs text-[var(--ui-muted)]">
-          Tax ({defaultTaxRate}%) will be auto-calculated: {(Math.round(Number(total) * defaultTaxRate) / 100).toFixed(2)}
+      {defaultTaxRate != null && Number(form.total) > 0 ? (
+        <p className="mt-2 text-xs text-[var(--ui-muted)]">
+          Tax ({defaultTaxRate}%) will be auto-calculated:{" "}
+          {(Math.round(Number(form.total) * defaultTaxRate) / 100).toFixed(2)}
         </p>
       ) : null}
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" size="sm" onClick={done}>Cancel</Button>
-        <Button variant="accent" size="sm" onClick={() => void handleCreate()} busy={busy} disabled={!orderNumber.trim()}>
-          Create order
-        </Button>
-      </div>
-    </div>
+    </SemsEditor>
   );
 }
 
@@ -212,7 +266,7 @@ function OrderCreateForm({
 // OrderEditorShell — SEMS editor body for an existing order
 // ─────────────────────────────────────────────────────────────
 function OrderEditorShell({
-  record,
+  record: recordProp,
   requestClose,
   refreshTrigger,
   customers,
@@ -244,7 +298,18 @@ function OrderEditorShell({
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // When the parent bumps refreshTrigger (e.g. after mark-shipped), reload panel data.
+  // Local copy of record so badges (Paid/Void/source) update after mark-paid, void,
+  // or any sub-action that calls onOrderUpdated — without requiring a SemsScreen
+  // scaffold change (SemsScreen's `editing` prop only resets on openRecord).
+  const [record, setRecord] = useState(recordProp);
+  useEffect(() => {
+    // Full reset when a different order is opened.
+    setRecord(recordProp);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordProp.id]);
+
+  // When the parent bumps refreshTrigger (mark-paid, void, batch ops, sub-action
+  // onOrderUpdated), reload panel data in merge mode to preserve unsaved draft edits.
   const prevTriggerRef = useRef(refreshTrigger);
   useEffect(() => {
     if (refreshTrigger !== prevTriggerRef.current) {
@@ -262,6 +327,13 @@ function OrderEditorShell({
   const handleSave = useCallback(async () => {
     await panelRef.current?.save();
   }, []);
+
+  // Intercept onOrderUpdated so the local record (badges) stays fresh whenever
+  // the panel commits a sub-action (mark paid, add/remove line item, etc.).
+  const handleOrderUpdated = useCallback((order: Order) => {
+    setRecord(order);
+    onOrderUpdated(order);
+  }, [onOrderUpdated]);
 
   const isPaid = Number(record.was_paid) === 1;
   const isVoid = record.order_status === "void";
@@ -294,7 +366,7 @@ function OrderEditorShell({
         customers={customers}
         inventory={inventory}
         busy={busy}
-        onOrderUpdated={onOrderUpdated}
+        onOrderUpdated={handleOrderUpdated}
         onError={onError}
         onSuccess={onSuccess}
         onMarkPaid={onMarkPaid}
@@ -949,6 +1021,7 @@ function SalesPageInner() {
             return (
               <OrderCreateForm
                 customers={customers}
+                requestClose={requestClose}
                 done={done}
                 onCreated={(newOrder) => {
                   setOrders((current) => [newOrder, ...current.filter((r) => r.id !== newOrder.id)]);

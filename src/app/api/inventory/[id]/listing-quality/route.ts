@@ -74,9 +74,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const ready = result.passed && blocking.length === 0;
     const listingPhase = setQualityPhase(id, ready);
 
+    // Persist the quality result, including a listing_source_hash snapshot so that
+    // computeRubricFastScore can detect drift client-side without re-running the
+    // server-side SHA-256 (ADR-081). The field is nullable for older cached results.
     getDb()
       .prepare("UPDATE inventory SET listing_quality_json = ? WHERE id = ?")
-      .run(JSON.stringify(result), id);
+      .run(JSON.stringify({ ...result, listing_source_hash: item.listing_source_hash ?? null }), id);
 
     logActivity({
       action: "listing.quality_evaluated",

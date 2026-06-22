@@ -1,5 +1,7 @@
 # Ticket WS-D1 — Finish low-quality dashboard widget (placement + rubric)
 
+> **Status: DONE — merged 2026-06-22.** Low-quality inventory dashboard widget finished (placement + rubric scroll list).
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#1** (widget + API exist; dashboard placement + rubric repoint remain) |

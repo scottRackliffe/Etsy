@@ -1,5 +1,7 @@
 # Ticket WS-D2 — Dashboard unpaid orders → payment reminders
 
+> **Status: DONE — merged 2026-06-22.** Dashboard unpaid orders link to payment reminders.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#3** |

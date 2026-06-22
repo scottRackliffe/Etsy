@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { WidgetHeader } from "@/components/dashboard/WidgetHeader";
+import { rubricScoreColor } from "@/lib/listing-rubric";
 
 type LowQualityItem = {
   id: number;
@@ -10,33 +12,25 @@ type LowQualityItem = {
   score: number;
 };
 
-type ApiResponse = {
-  ok: boolean;
-  items: LowQualityItem[];
-  threshold: number;
-};
-
-export function LowQualityInventoryWidget({ embedded = false }: { embedded?: boolean }) {
-  const [items, setItems] = useState<LowQualityItem[]>([]);
-  const [threshold, setThreshold] = useState<number>(80);
+export function LowQualityInventoryWidget() {
+  const [items, setItems] = useState<LowQualityItem[] | null>(null);
+  const [threshold, setThreshold] = useState<number>(85);
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/dashboard/low-quality-inventory", {
         headers: { Accept: "application/json" },
       });
-      if (!res.ok) {
-        setFailed(true);
-        return;
-      }
-      const data = (await res.json()) as ApiResponse;
+      if (!res.ok) return;
+      const data = (await res.json().catch(() => ({}))) as {
+        items?: LowQualityItem[];
+        threshold?: number;
+      };
       setItems(data.items ?? []);
-      setThreshold(data.threshold ?? 80);
-      setFailed(false);
+      if (typeof data.threshold === "number") setThreshold(data.threshold);
     } catch {
-      setFailed(true);
+      /* silently degrade */
     } finally {
       setLoading(false);
     }
@@ -48,73 +42,46 @@ export function LowQualityInventoryWidget({ embedded = false }: { embedded?: boo
     return () => clearInterval(timer);
   }, [load]);
 
-  const wrapperClass = embedded
-    ? "h-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
-    : "rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-5 shadow-sm";
-
-  function scoreColor(score: number): string {
-    if (score >= 60) return "var(--ui-yellow)";
-    return "var(--ui-red)";
-  }
-
-  const inner = (
-    <>
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h3
-          className={
-            embedded
-              ? "text-xs uppercase tracking-wide text-[var(--ui-muted)]"
-              : "text-lg font-semibold text-[var(--ui-title)]"
-          }
-        >
-          Needs work
-        </h3>
-        {!loading && !failed && (
-          <p className="text-xs text-[var(--ui-muted)]">
-            {items.length === 0
-              ? `All active items meet quality ${threshold}`
-              : `${items.length} item${items.length !== 1 ? "s" : ""} below quality ${threshold}`}
-          </p>
-        )}
-      </div>
+  return (
+    <article className="h-full rounded-xl border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
+      <WidgetHeader
+        title="Low quality listings"
+        subtitle={`score < ${threshold} · excludes sold & retired`}
+        href="/inventory"
+        viewLabel="View inventory"
+      />
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-8 animate-pulse rounded bg-[var(--ui-border)]" />
+        <div className="space-y-1.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-5 animate-pulse rounded bg-[var(--ui-border)]" />
           ))}
         </div>
-      ) : failed ? (
-        <p className="text-sm text-[var(--ui-muted)]">Could not load inventory quality data.</p>
-      ) : items.length === 0 ? (
-        <p className="py-4 text-center text-sm text-[var(--ui-green)]">
-          All active items meet the quality threshold.
+      ) : !items || items.length === 0 ? (
+        <p className="py-4 text-center text-xs text-[var(--ui-muted)]">
+          All active listings are above the quality threshold.
         </p>
       ) : (
-        <ul className="max-h-64 overflow-y-auto divide-y divide-[var(--ui-border)]">
+        <ul className="max-h-56 overflow-y-auto space-y-0 divide-y divide-[var(--ui-border)]/40">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={`/inventory?itemId=${item.id}`}
-                className="flex items-center gap-3 px-1 py-2 text-sm hover:bg-[var(--ui-border)]/30 transition-colors"
+                className="flex items-center justify-between gap-2 py-1.5 text-xs text-[var(--ui-body)] hover:text-[var(--ui-accent)]"
               >
-                {item.item_number && (
-                  <span className="shrink-0 font-mono text-xs text-[var(--ui-muted)]">
-                    {item.item_number}
-                  </span>
-                )}
-                <span
-                  className="min-w-0 flex-1 truncate text-[var(--ui-body)]"
-                  title={item.title}
-                >
+                <span className="min-w-0 truncate">
+                  {item.item_number ? (
+                    <span className="mr-1.5 font-mono text-[var(--ui-muted)]">{item.item_number}</span>
+                  ) : null}
                   {item.title}
                 </span>
                 <span
-                  className="shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
                   style={{
-                    color: scoreColor(item.score),
-                    border: `1px solid ${scoreColor(item.score)}`,
+                    color: rubricScoreColor(item.score),
+                    backgroundColor: `${rubricScoreColor(item.score)}22`,
                   }}
+                  aria-label={`Quality score ${item.score}`}
                 >
                   {item.score}
                 </span>
@@ -123,11 +90,6 @@ export function LowQualityInventoryWidget({ embedded = false }: { embedded?: boo
           ))}
         </ul>
       )}
-    </>
+    </article>
   );
-
-  if (embedded) {
-    return <div className={wrapperClass}>{inner}</div>;
-  }
-  return <section className={wrapperClass}>{inner}</section>;
 }

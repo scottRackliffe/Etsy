@@ -1,5 +1,7 @@
 # Ticket WS-L4b — Drift-aware cached quality score
 
+> **Status: DONE — merged 2026-06-22.** Cached quality score is drift-aware; stale scores no longer shown after drift.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2, queue **#9** |

@@ -85,3 +85,26 @@ When implementing schema changes: add `migrations/00N_*.sql`, update `sqlite.ts`
 ---
 
 _Archived narrative: the table-by-table “missing ship_to” comparison from February 2026 is obsolete and was removed to avoid contradicting ADR-017._
+
+---
+
+## Migration runner idempotency (WS-MIGRATE, 2026-06-22)
+
+`scripts/migrate.mjs` is now **idempotent and self-healing** (ticket WS-MIGRATE):
+
+- **Statement-level tolerance:** each migration is split into individual statements on `;`
+  (single-line `--` comments are stripped first to avoid treating in-comment semicolons as
+  separators). Statements that fail with `duplicate column name`, `already exists`, or
+  `no such table` are treated as already-applied and skipped; any other error aborts the run
+  with a non-zero exit and rolls back the current migration's transaction.
+- **Back-fill for bootstrap-managed DBs:** running `npm run db:migrate` against a DB created
+  by `sqlite.ts` (which has an empty `schema_migrations`) now back-fills all migration rows
+  correctly — `reconciled (already present)` for purely skipped migrations, `applied` for
+  migrations that ran at least one new statement.
+- **`INSERT OR REPLACE`** is used for the runner's `schema_migrations` insert to handle
+  migrations that self-register via their own `INSERT OR IGNORE INTO schema_migrations`.
+- **Known gap:** the `receipts` table is absent from the migration trail (only in
+  `sqlite.ts` bootstrap). Migration 010 silently skips `receipts`-dependent statements on a
+  fresh `--reset` DB (tolerated via the `no such table` rule). The missing `vendor_id`
+  column is supplied by `sqlite.ts` bootstrap on first app start. Pre-existing; out of scope
+  for WS-MIGRATE.

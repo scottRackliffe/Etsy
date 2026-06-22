@@ -1,5 +1,7 @@
 # Ticket WS-D3 — Split "awaiting shipment" dashboard KPI (paid vs unpaid)
 
+> **Status: DONE — merged 2026-06-22.** Awaiting-shipment dashboard KPI split into paid vs unpaid.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#4** |

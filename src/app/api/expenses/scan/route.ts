@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getAiConfig } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
+import { logActivity } from "@/lib/activity-log";
 
 const SYSTEM_PROMPT = `You are an OCR assistant for business expense invoices and receipts. You will receive a photo of an invoice, bill, subscription confirmation, or expense receipt.
 
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
       );
     }
 
+    logActivity({ action: "expense.scanned", entityType: "expense" });
     return NextResponse.json({
       ok: true,
       ocr: {

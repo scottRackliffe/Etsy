@@ -1,5 +1,7 @@
 # Ticket WS-E6b — Orders editor: preserve draft on sub-action refresh
 
+> **Status: DONE — merged 2026-06-22.** Orders editor preserves the in-progress draft across sub-action refreshes.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#6** |

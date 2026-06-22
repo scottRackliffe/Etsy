@@ -1,5 +1,7 @@
 # Ticket WS-A — Activity coverage, deep-links, and deleted=no-link
 
+> **Status: DONE — merged 2026-06-22.** Activity coverage expanded across subsystems with deep-links; deleted entities render without links.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1, queue **#2** (partial: chips + deep links done; bulk report logging remains) |

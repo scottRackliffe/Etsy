@@ -27,10 +27,12 @@ import type { ApiErrorShape, Customer, InventoryItem, Order, OrderItem } from "@
 export type OrderDetailPanelHandle = {
   /** Persist the current draft. Returns true on success, false on error. */
   save: () => Promise<boolean>;
-  /** Discard draft changes, resetting to the last loaded order. */
+  /** Discard draft changes, resetting to the last saved baseline. */
   discard: () => void;
-  /** Force-reload the order from the server (e.g. after an external mutation). */
+  /** Merge-reload the order from the server; preserves unsaved draft edits. */
   reload: () => void;
+  /** Merge a server-supplied order into the live draft without a server round-trip. */
+  mergeOrder: (order: Order) => void;
 };
 
 type OrderDetailPanelProps = {
@@ -128,8 +130,17 @@ function OrderDetailPanel({
   const fmtMoney = (v: number | null | undefined) => formatMoney(v, currencyCode);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const onOrderUpdatedRef = useRef(onOrderUpdated);
+  onOrderUpdatedRef.current = onOrderUpdated;
+
   const [order, setOrder] = useState<Order | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
+  // baselineRef: last-known server snapshot as DraftFields — used for 3-way merge and isDirty.
+  // Updated on every save or sub-action refresh; cleared on orderId change.
+  const baselineRef = useRef<DraftFields | null>(null);
+  // Stable ref wrapping the merge logic so loadOrder / useImperativeHandle can call it
+  // without creating circular hook deps.
+  const mergeServerUpdateRef = useRef<(order: Order) => void>(() => {});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [linkCustomerId, setLinkCustomerId] = useState("");
@@ -148,10 +159,39 @@ function OrderDetailPanel({
   const [addingNewReason, setAddingNewReason] = useState(false);
   const [newReasonText, setNewReasonText] = useState("");
   const [commModal, setCommModal] = useState<{ type: "payment_reminder" | "thank_you"; channel: "email" | "print" } | null>(null);
+  // Compare draft against baseline (not the order prop) so sub-action refreshes that
+  // advance the baseline don't create spurious dirty state, and user edits to untouched
+  // fields are preserved. Every code path that changes baselineRef also calls setDraft,
+  // so [draft] is the correct dep list.
   const isDirty = useMemo(() => {
-    if (!order || !draft) return false;
-    return !formStatesEqual(draft, orderToDraft(order));
-  }, [order, draft]);
+    if (!draft || !baselineRef.current) return false;
+    return !formStatesEqual(draft, baselineRef.current);
+  }, [draft]);
+
+  // Update the merge fn every render so it always captures the latest state/refs.
+  // Called from sub-actions (addLineItem, removeLineItem, linkCustomer) where we already
+  // have the updated order from the mutation response — no extra server fetch needed.
+  // Calls onOrderUpdated to keep the list row fresh; the resulting editorRefreshTrigger
+  // fires reload() which runs in merge-only mode (no onOrderUpdated, no loop).
+  mergeServerUpdateRef.current = (newOrder: Order) => {
+    const newBaseline = orderToDraft(newOrder);
+    setOrder(newOrder);
+    onOrderUpdatedRef.current(newOrder); // update list row + fire refresh trigger
+    setDraft((prev) => {
+      if (!prev || !baselineRef.current) return newBaseline;
+      const old = baselineRef.current;
+      const merged = { ...newBaseline };
+      for (const key of Object.keys(prev) as (keyof DraftFields)[]) {
+        // Preserve fields the user has changed since last baseline; adopt server values otherwise.
+        if (String(prev[key]) !== String(old[key])) {
+          (merged as Record<string, unknown>)[key] = prev[key];
+        }
+      }
+      return merged;
+    });
+    // Advance baseline after setDraft (mirrors InventoryDetailPanel WS-E5 pattern).
+    baselineRef.current = newBaseline;
+  };
 
   const { patchWithUndo } = useUndoRedo();
   const { recovery, recoveryLabel, dismissRecovery, markDraftClean } = useEntityDraft({
@@ -212,7 +252,7 @@ function OrderDetailPanel({
   }, [order?.subtotal, order?.source_channel, defaultTaxRate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOrder = useCallback(
-    async (id: number) => {
+    async (id: number, mode: "full" | "merge" = "full") => {
       setLoading(true);
       try {
         const orderRes = await fetch(`/api/orders/${id}`, {
@@ -224,8 +264,30 @@ function OrderDetailPanel({
         if (!orderRes.ok) throw data;
 
         if (data.order) {
-          setOrder(data.order);
-          setDraft(orderToDraft(data.order));
+          if (mode === "merge") {
+            // Same-record reload (e.g. from editorRefreshTrigger): merge server state into
+            // the live draft; do NOT call onOrderUpdated here to avoid a reload loop.
+            const newBaseline = orderToDraft(data.order);
+            setOrder(data.order);
+            setDraft((prev) => {
+              if (!prev || !baselineRef.current) return newBaseline;
+              const old = baselineRef.current;
+              const merged = { ...newBaseline };
+              for (const key of Object.keys(prev) as (keyof DraftFields)[]) {
+                if (String(prev[key]) !== String(old[key])) {
+                  (merged as Record<string, unknown>)[key] = prev[key];
+                }
+              }
+              return merged;
+            });
+            baselineRef.current = newBaseline;
+          } else {
+            // Full reset: record switch or initial open.
+            const baseline = orderToDraft(data.order);
+            setOrder(data.order);
+            setDraft(baseline);
+            baselineRef.current = baseline;
+          }
           setLinkCustomerId(
             data.order.customer_id ? String(data.order.customer_id) : ""
           );
@@ -238,6 +300,7 @@ function OrderDetailPanel({
         );
         setOrder(null);
         setDraft(null);
+        baselineRef.current = null;
       } finally {
         setLoading(false);
       }
@@ -249,8 +312,10 @@ function OrderDetailPanel({
     if (!orderId) {
       setOrder(null);
       setDraft(null);
+      baselineRef.current = null;
       return;
     }
+    // Record switch → full reset (mode defaults to "full").
     void loadOrder(orderId);
   }, [orderId, loadOrder]);
 
@@ -291,9 +356,7 @@ function OrderDetailPanel({
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
-        setOrder(data.order);
-        setDraft(orderToDraft(data.order));
-        onOrderUpdated(data.order);
+        mergeServerUpdateRef.current(data.order);
       }
       setAddItemOpen(false);
       setSelectedInventoryId("");
@@ -316,9 +379,7 @@ function OrderDetailPanel({
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
-        setOrder(data.order);
-        setDraft(orderToDraft(data.order));
-        onOrderUpdated(data.order);
+        mergeServerUpdateRef.current(data.order);
       }
       setRemoveLineTarget(null);
     } catch (err) {
@@ -384,9 +445,11 @@ function OrderDetailPanel({
         newState,
         pickRecord: (data) => (data.order as Order | undefined) ?? null,
         onPatched: (updated) => {
+          const newBaseline = orderToDraft(updated);
           setOrder(updated);
-          setDraft(orderToDraft(updated));
-          onOrderUpdated(updated);
+          setDraft(newBaseline);
+          baselineRef.current = newBaseline;
+          onOrderUpdatedRef.current(updated);
         },
       });
       if (result.status === "stale") {
@@ -423,15 +486,17 @@ function OrderDetailPanel({
   saveChangesRef.current = saveChanges;
 
   const discardDraft = useCallback(() => {
-    if (!order) return;
-    setDraft(orderToDraft(order));
+    if (!baselineRef.current) return;
+    setDraft(baselineRef.current);
     setRecoveryApplied(false);
-  }, [order]);
+  }, []); // deps: none — reads stable ref
   const discardDraftRef = useRef(discardDraft);
   discardDraftRef.current = discardDraft;
 
+  // reload() is called by OrderEditorShell when editorRefreshTrigger fires (mark-paid,
+  // void, batch ops). Use merge mode so unsaved draft edits survive same-record refreshes.
   const reloadOrder = useCallback(() => {
-    if (orderId) void loadOrder(orderId);
+    if (orderId) void loadOrder(orderId, "merge");
   }, [orderId, loadOrder]);
   const reloadOrderRef = useRef(reloadOrder);
   reloadOrderRef.current = reloadOrder;
@@ -440,6 +505,7 @@ function OrderDetailPanel({
     save: () => saveChangesRef.current(),
     discard: () => discardDraftRef.current(),
     reload: () => reloadOrderRef.current(),
+    mergeOrder: (order: Order) => mergeServerUpdateRef.current(order),
   }));
 
   const linkCustomer = async () => {
@@ -454,9 +520,7 @@ function OrderDetailPanel({
       const data = (await response.json().catch(() => ({}))) as ApiErrorShape & { order?: Order };
       if (!response.ok) throw data;
       if (data.order) {
-        setOrder(data.order);
-        setDraft(orderToDraft(data.order));
-        onOrderUpdated(data.order);
+        mergeServerUpdateRef.current(data.order);
       }
     } catch (err) {
       onError("Could not link customer", "We could not link the customer to this order.", err);

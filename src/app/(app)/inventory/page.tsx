@@ -1026,11 +1026,20 @@ function InventoryPageInner() {
   };
 
   // Client-side Quality sort — preserves the listing_score column sort.
+  // Scores are pre-computed once per render into a Map (O(n)) so the sort comparator
+  // does only O(1) Map lookups rather than calling computeRubricFastScore O(n log n) times.
+  // The badge column uses the same computeRubricFastScore per item, so badge === sort key.
   const inventoryTableData = useMemo(() => {
     if (sort?.key !== "listing_score") return inventory;
+    const scoreMap = new Map<number, number>(
+      inventory.map((item) => [
+        item.id,
+        computeRubricFastScore(item as unknown as InventoryRowLike).score,
+      ])
+    );
     return [...inventory].sort((a, b) => {
-      const scoreA = computeRubricFastScore(a as unknown as InventoryRowLike).score;
-      const scoreB = computeRubricFastScore(b as unknown as InventoryRowLike).score;
+      const scoreA = scoreMap.get(a.id) ?? 0;
+      const scoreB = scoreMap.get(b.id) ?? 0;
       return sort.dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
     });
   }, [inventory, sort, publishConfig.minQualityScore]);

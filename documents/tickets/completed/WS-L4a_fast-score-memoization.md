@@ -1,5 +1,7 @@
 # Ticket WS-L4a — Memoize fast quality score (perf)
 
+> **Status: DONE — merged 2026-06-22.** Fast quality score memoized for inventory list quality-sort performance.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2, queue **#8** |

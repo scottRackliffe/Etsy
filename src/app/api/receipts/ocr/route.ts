@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
 import { getAiConfig } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
+import { logActivity } from "@/lib/activity-log";
 
 const SYSTEM_PROMPT = `You are an OCR assistant. You will receive a photo of a purchase receipt from a retail store, thrift shop, estate sale, or online order.
 
@@ -102,13 +103,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const ocrItems = Array.isArray(parsed.items) ? parsed.items : [];
+    logActivity({ action: "receipt.scanned", entityType: "receipt", detail: { item_count: ocrItems.length } });
     return NextResponse.json({
       ok: true,
       ocr: {
         vendor_name: parsed.vendor_name ?? "",
         purchase_date: parsed.purchase_date ?? null,
         reference_number: parsed.reference_number ?? null,
-        items: Array.isArray(parsed.items) ? parsed.items : [],
+        items: ocrItems,
         subtotal: parsed.subtotal ?? null,
         tax: parsed.tax ?? null,
         total: parsed.total ?? null,

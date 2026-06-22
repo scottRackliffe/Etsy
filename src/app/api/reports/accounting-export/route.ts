@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { buildAccountingExportCsv } from "@/lib/reporting";
 import { resolveReportParams } from "@/lib/report-http";
+import { logActivity } from "@/lib/activity-log";
 
 const REPORT_NAME = "accounting-export";
 
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
     }
     const params = resolveReportParams(request.url);
     const csv = buildAccountingExportCsv(params);
+    logActivity({ action: "report.generated", entityType: "report", entityLabel: REPORT_NAME, detail: { report_name: REPORT_NAME, format: "csv" } });
     const stamp = new Date().toISOString().slice(0, 10);
     return new NextResponse(csv, {
       status: 200,

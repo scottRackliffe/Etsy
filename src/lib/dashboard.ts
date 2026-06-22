@@ -101,6 +101,8 @@ export function getOrderKpis() {
         SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_orders,
         SUM(CASE WHEN shipping_date IS NOT NULL AND shipping_date != '' THEN 1 ELSE 0 END) AS shipped_orders,
         SUM(CASE WHEN payment_status = 'paid' AND (shipping_date IS NULL OR shipping_date = '') THEN 1 ELSE 0 END) AS unshipped_orders,
+        SUM(CASE WHEN payment_status = 'paid' AND (shipping_date IS NULL OR shipping_date = '') THEN 1 ELSE 0 END) AS awaiting_shipment_paid,
+        SUM(CASE WHEN payment_status != 'paid' AND (shipping_date IS NULL OR shipping_date = '') THEN 1 ELSE 0 END) AS awaiting_shipment_unpaid,
         COALESCE(SUM(grand_total), 0) AS gross_revenue,
         SUM(CASE WHEN payment_status != 'paid' THEN 1 ELSE 0 END) AS unpaid_orders,
         COALESCE(SUM(CASE WHEN payment_status != 'paid' THEN grand_total ELSE 0 END), 0) AS unpaid_receivables
@@ -112,6 +114,8 @@ export function getOrderKpis() {
     paid_orders: number;
     shipped_orders: number;
     unshipped_orders: number;
+    awaiting_shipment_paid: number;
+    awaiting_shipment_unpaid: number;
     gross_revenue: number;
     unpaid_orders: number;
     unpaid_receivables: number;
@@ -147,6 +151,8 @@ export function getOrderKpis() {
     paid_orders: row.paid_orders,
     shipped_orders: row.shipped_orders,
     unshipped_orders: row.unshipped_orders,
+    awaiting_shipment_paid: row.awaiting_shipment_paid ?? 0,
+    awaiting_shipment_unpaid: row.awaiting_shipment_unpaid ?? 0,
     unpaid_orders: row.unpaid_orders,
     unpaid_receivables: round2(row.unpaid_receivables),
     gross_revenue: round2(row.gross_revenue),
@@ -234,6 +240,24 @@ export function getLowQualityInventory(): {
   return { items, threshold: minScore };
 }
 
+/**
+ * Count active manual-channel unpaid orders eligible for payment-reminder
+ * outreach (mirrors the WHERE clause in getCandidates("payment_reminder")).
+ */
+export function getPaymentReminderCandidateCount(): number {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS c
+       FROM orders
+       WHERE order_status = 'active'
+         AND source_channel = 'manual'
+         AND payment_status = 'unpaid'`
+    )
+    .get() as { c: number };
+  return row.c ?? 0;
+}
+
 export function getDashboardSummary(options: {
   connected: boolean;
   shop?: { shop_id: string; shop_name: string | null };
@@ -248,6 +272,7 @@ export function getDashboardSummary(options: {
     last_etsy_sync_at: getSetting("last_etsy_sync_at"),
     receipts_preview: [] as unknown[],
     outstanding_count: getOutstandingCount(),
+    payment_reminder_candidates: getPaymentReminderCandidateCount(),
     ...profit,
     ...orderKpis,
     ...stats,

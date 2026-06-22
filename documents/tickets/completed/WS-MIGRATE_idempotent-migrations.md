@@ -1,5 +1,7 @@
 # Ticket WS-MIGRATE — Make the migration runner idempotent (bootstrap ↔ migrations reconciliation)
 
+> **Status: DONE — merged 2026-06-22.** Migration runner is idempotent (bootstrap ↔ migrations reconciled).
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 3 backlog |

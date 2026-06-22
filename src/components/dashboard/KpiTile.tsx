@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import React from "react";
 
 export type KpiTone = "default" | "good" | "warn" | "bad" | "accent";
 
@@ -32,6 +33,7 @@ export function KpiTile({
   tone = "default",
   subTone = "default",
   href,
+  action,
 }: {
   label: string;
   value: React.ReactNode;
@@ -39,12 +41,23 @@ export function KpiTile({
   tone?: KpiTone;
   subTone?: KpiTone;
   href?: string;
+  /** Optional secondary accent link rendered below the sub-line. */
+  action?: { label: string; href: string };
 }) {
   const inner = (
     <>
       <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">{label}</p>
       <p className={`mt-2 text-2xl font-semibold ${VALUE_COLOR[tone]}`}>{value}</p>
       {sub != null ? <p className={`mt-1 text-xs ${SUB_COLOR[subTone]}`}>{sub}</p> : null}
+      {action != null ? (
+        <Link
+          href={action.href}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-2 block text-xs font-medium text-[var(--ui-accent)] hover:underline"
+        >
+          {action.label}
+        </Link>
+      ) : null}
     </>
   );
 
