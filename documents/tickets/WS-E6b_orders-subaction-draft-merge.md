@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 1, queue **#6** |
 | Workstream | **E** — follow-on to WS-E6. |
 | Source ADR | **ADR-079**, **ADR-042**; ADR-031 (order detail). |
 | Pattern reference | Inventory E5 merge in `InventoryDetailPanel.tsx` + `mergeServerUpdate` / baseline

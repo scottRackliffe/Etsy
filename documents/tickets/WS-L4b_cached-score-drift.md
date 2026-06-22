@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 2, queue **#9** |
 | Workstream | **L** — follow-on to WS-L4. |
 | Source ADR | **ADR-082** (rubric), **ADR-081** (drift detection / `listing-phase.ts`), ADR-085 (§4), ADR-016 (low-quality widget). |
 | Recommended model | Mid model — small but needs a product decision applied carefully. |

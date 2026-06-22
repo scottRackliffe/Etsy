@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 2, queue **#8** |
 | Workstream | **L** — follow-on to WS-L4. |
 | Source ADR | **ADR-082** (rubric), ADR-085 (§4 single quality engine). |
 | Recommended model | Budget model — small, mechanical. |

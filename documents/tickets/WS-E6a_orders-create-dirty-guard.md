@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 1, queue **#5** |
 | Workstream | **E** — follow-on to WS-E6. |
 | Source ADR | **ADR-079** (SEMS), **ADR-042** (3-button unsaved dialog). |
 | Pattern reference | `InventoryCreateForm` in `src/app/(app)/inventory/page.tsx` (create path). |

@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 3 backlog |
 | Workstream | Infrastructure / hardening (backlog) |
 | Source | `.cursorrules` §2 (bootstrap vs migrations must converge), `documents/database/SCHEMA_RECONCILIATION.md`, ADR-058 (SQLite hardening) |
 | Recommended model | **T2 — Sonnet** (`claude-4.6-sonnet-medium-thinking`). Small, well-scoped, mechanical. |

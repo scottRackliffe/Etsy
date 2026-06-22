@@ -1,5 +1,9 @@
 # Ticket WS-D — Dashboard "Needs work" low-quality inventory widget
 
+> **Status: PARTIALLY DONE — superseded by open ticket [WS-D1](../WS-D1_low-quality-widget-finish.md).**
+> Backend (`getLowQualityInventory`, API route, widget component) was built; dashboard placement
+> and rubric repoint (`computeRubricFastScore`, threshold 85) remain. **Do not re-run WS-D; run WS-D1.**
+
 | Field | Value |
 |-------|-------|
 | Workstream | D (low-quality inventory widget) |

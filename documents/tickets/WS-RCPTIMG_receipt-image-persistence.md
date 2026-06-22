@@ -3,6 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Type | **Backlog / low priority** (quality-of-life; no regression today). |
+| Status | **OPEN** — Tier 3 backlog |
 | Origin | Deferred from **WS-E3** (SEMS Receipts). The SEMS migration intentionally did NOT add image persistence — out of scope for a screen refactor. |
 | Source ADR | ADR-018 §31 (receipts API), ADR-026 (picture storage + serving), ADR-077-adjacent (receipts subsystem). |
 | Recommended model | Sonnet-tier. |

@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| Status | **OPEN** — Tier 1, queue **#2** (partial: chips + deep links done; bulk report logging remains) |
 | Workstream | A (full activity coverage + deep-links) |
 | Source ADR(s) | **ADR-037 §A2/§A3** (authoritative). Context: ADR-035 (deep-link targets), ADR-018 (API), ADR-039/074/076/077 (action sources). |
 | Recommended model | **T2 — Sonnet (`claude-4.6-sonnet-medium-thinking`)**. Many small edits across routes; needs care to stay in the canonical enum. |
