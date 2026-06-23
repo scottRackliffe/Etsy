@@ -473,7 +473,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 }
 ```
 
-**13) Concurrent edit (409, ADR-046)**
+**12) Concurrent edit (409, ADR-046)**
 
 ```json
 {
@@ -488,7 +488,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 }
 ```
 
-**12) Report endpoint response behavior**
+**13) Report endpoint response behavior**
 
 - For `format=pdf`: return `200`, `Content-Type: application/pdf`, and binary PDF content.
 - For `format=csv`: return `200`, `Content-Type: text/csv`, and RFC4180 CSV content.
