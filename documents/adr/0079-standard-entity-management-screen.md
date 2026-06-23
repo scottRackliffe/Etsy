@@ -2,9 +2,11 @@
 
 ## Status
 
-Accepted — **implemented (WS-E1–E6, 2026-06-21):** scaffold built, piloted on Vendors, then rolled
-out to all entities (Customers, Receipts, Expenses, Inventory, Orders). Editor presentation locked
-(see §2/§Notes).
+Accepted
+
+_Implemented WS-E1–E6 (2026-06-21): scaffold built, piloted on Vendors, then rolled out to all
+entities (Customers, Receipts, Expenses, Inventory, Orders). Editor presentation locked (see
+§2/§Notes)._
 
 ## Date
 

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted — implemented (WS-H2, 2026-06-21)
+Accepted
+
+_Implemented: WS-H2, 2026-06-21._
 
 **Implementation note (WS-H2):** `src/lib/dimension-annotation.ts` — `estimateDimensions()` reads the
 ruler photo via the OpenAI Responses API on the WS-AICOST economy lane (`resolveModelForTask(…,

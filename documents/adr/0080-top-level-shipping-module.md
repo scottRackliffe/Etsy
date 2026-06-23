@@ -2,7 +2,9 @@
 
 ## Status
 
-Implemented (WS-F, 2026-06-21)
+Accepted
+
+_Implemented: WS-F, 2026-06-21._
 
 ## Date
 

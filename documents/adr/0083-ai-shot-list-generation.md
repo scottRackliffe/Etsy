@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted — implemented (WS-H1, 2026-06-21)
+Accepted
+
+_Implemented: WS-H1, 2026-06-21._
 
 **Implementation note (WS-H1):** `src/lib/shot-list.ts` generates the list from `picture_1` +
 item context via the OpenAI Responses API on the WS-AICOST economy lane (`resolveModelForTask(…,

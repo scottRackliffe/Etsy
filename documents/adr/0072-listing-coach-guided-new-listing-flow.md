@@ -41,6 +41,11 @@ Marketing quality must follow canonical guidance: [etsy-listing-template-and-req
 
 ## Decision
 
+> ⚠️ **Historical only — do not implement.** The standalone Listing Coach was removed by ADR-085;
+> its capabilities live in the inventory lifecycle (Generate → Evaluate Quality → Publish). The
+> content below is kept for context (and as the original source of the photo shot taxonomy, now
+> canonical in ADR-083 §6).
+
 ### Product placement
 
 **Listing Coach** is part of **this application**, launched when the operator **adds a new listing** — not a separate product.
@@ -452,7 +457,7 @@ Log on complete:
 
 ### Outstanding (ADR-020)
 
-No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved). Items saved without `etsy_when_made` or `etsy_taxonomy_id` will appear on outstanding as "Missing era/category for Etsy publish" (ADR-020 Type 9).
+No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved). Items saved without `etsy_when_made` or `etsy_taxonomy_id` will appear on outstanding as "Missing era/category for Etsy publish" (ADR-020 Type 8).
 
 ### Validation (ADR-021)
 

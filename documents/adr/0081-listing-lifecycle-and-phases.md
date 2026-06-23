@@ -2,10 +2,12 @@
 
 ## Status
 
-Accepted — **made canonical by ADR-085 (2026-06-21):** this lifecycle is now the *single* listing
-system. Coexistence with the ADR-023 `listing_draft_state` machine is removed; the publish gate is
+Accepted
+
+_Made canonical by ADR-085 (2026-06-21): this lifecycle is the **single** listing system.
+Coexistence with the ADR-023 `listing_draft_state` machine is removed; the publish gate is
 `listing_phase = 'listing_ready'`; `sale_revenue` is no longer a generation prerequisite (it is an
-AI-recommended output). Edits below reflect this.
+AI-recommended output). Edits below reflect this._
 
 ## Date
 

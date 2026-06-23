@@ -13,8 +13,6 @@
 > the draft-state machine are removed. See **ADR-085** for the authoritative decision. This ADR is
 > retained for historical context only.
 
-Accepted (historical)
-
 ## Date
 
 2026-02-16

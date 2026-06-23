@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (updated 2026-06-18)
+Accepted
+
+_Updated 2026-06-18._
 
 ## Date
 
