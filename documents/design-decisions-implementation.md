@@ -168,7 +168,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 21. Report layout (full spec)
 
-**Summary:** 12 pt Courier; title 14/16 pt; page number centered; header/footer every page; 1 in margins; grid; single spacing.
+**Summary:** Branded HTML/print layout — Crimson Text headings + Raleway body, brand banner image, cream alternating rows, 0.75 in margins. (See SSOT for the exact spec; do not duplicate it here.)
 
 **SSOT:** [ADR-013](adr/0013-report-output-pdf.md) ("Report layout (full spec)").
 

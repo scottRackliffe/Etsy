@@ -79,24 +79,18 @@ The following specifies the **exact content** that each report must include. Dat
 
 ---
 
-**Income — month to date**
+**Income — month to date / year to date — REMOVED (2026-06-17, ADR-036)**
 
-- **Required content:** (1) Title: “Income — Month to Date”. (2) Month and year (e.g. “February 2025”). (3) Total revenue: sum of non-null `inventory.sale_revenue` for items linked via `order_items` from active `orders` where `orders.order_date` is in the current month (NULL treated as 0). (4) Optional: count of orders.
-- **Data:** Per ADR-006; active orders only.
-
----
-
-**Income — year to date**
-
-- **Required content:** (1) Title: “Income — Year to Date”. (2) Year (e.g. “2025”). (3) Total revenue: same as MTD for the current calendar year. (4) Optional: count of orders.
-- **Data:** Same as MTD but for current year; active orders only.
+These standalone income reports were removed; income figures now appear on the **dashboard KPIs**
+(ADR-038). No `income-mtd` / `income-ytd` report routes exist.
 
 ---
 
-**Postal costs by vendor**
+**Postal costs by vendor — REMOVED (2026-06-17, ADR-036)**
 
-- **Required content:** (1) Title: “Postal Costs by Vendor”. (2) Date range if provided. (3) Table: Vendor (`orders.shipper`: USPS, UPS, FedEx, DHL, Other), Amount (sum of `orders.seller_shipping_cost` for that shipper). (4) Total across vendors. Include “Other” / “Unspecified” for null shipper (per ADR-005).
-- **Data:** `orders` table; per global filter. `GROUP BY shipper`; `SUM(seller_shipping_cost)`.
+Folded into the **Costs** report — postal/shipping spend grouped by `orders.shipper`,
+`SUM(orders.seller_shipping_cost)` (the old data model is unchanged; only the standalone report was
+removed). No `postal-by-vendor` report route exists.
 
 ---
 

@@ -87,7 +87,7 @@ A new report type added to the reports system.
 
 **Empty data:** "No orders found for the selected date range."
 
-**PDF format:** Follows ADR-013 rules — 12pt Courier body, 14pt title, 1in margins, light grid lines, page numbers centered.
+**PDF format:** Follows the ADR-013 report layout (brand layout: Crimson Text headings + Raleway body, brand banner, cream alternating rows).
 
 ### 4. SQL query pattern
 

@@ -72,7 +72,7 @@ Summary row at bottom: total item count, total purchase_cost invested, average d
 
 ### PDF/CSV output
 
-- PDF layout follows ADR-013 format: 12pt Courier body, 14/16pt title, 1in margins, light grid, page numbers centered
+- PDF layout follows the ADR-013 report layout (brand layout: Crimson Text + Raleway, brand banner)
 - CSV export uses the same columns as the table above
 - User actions after generation: Print | Export PDF | Export CSV | Cancel (per ADR-013)
 

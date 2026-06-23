@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+**Superseded (2026-06-17, ADR-036).** The standalone "Postal costs by vendor" report was removed —
+postal/shipping spend is now folded into the **Costs** report. Retained for historical context; the
+`orders.shipper` / `orders.seller_shipping_cost` data model described below remains valid and is used
+by the Costs report.
 
 ## Date
 
