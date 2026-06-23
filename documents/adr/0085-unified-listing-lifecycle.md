@@ -112,7 +112,7 @@ The ADR-082 rubric is the **only** quality scorer. `computeListingScore` (ADR-06
 - The **full path** (deterministic + AI per-photo vision, ADR-082 §8b) runs on **Evaluate Listing
   Quality** and is cached in `listing_quality_json`. Cached score is used for display when present;
   the deterministic fast path is used when no cache exists.
-- Pass threshold = single setting `listing.min_quality_score` (default **85**); advisory target 98.
+- Publish gate = single setting `listing.min_quality_score` (default **85**, a firm minimum); the AI drives the score **toward ~100** (aspiration). No separate 98 target.
 
 ### 5. Publish gate moves to `listing_ready`
 

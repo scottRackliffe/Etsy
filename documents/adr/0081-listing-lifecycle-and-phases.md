@@ -49,7 +49,7 @@ A stored, recomputed column (additive — does not alter `status`). Closed value
 | `ready_to_generate` | All required inputs present; no current generated listing, **or** item data has drifted since the last generation. |
 | `generated` | A listing was generated and is current (no drift); **not yet** quality-evaluated since this generation. |
 | `needs_quality_remediation` | Quality evaluated; rubric (ADR-082) found issues; remediation items outstanding. |
-| `listing_ready` | Quality re-evaluated with no outstanding issues and score ≥ pass threshold (default 85; target 98). **This is the publish gate** — the **Publish to Etsy** action becomes available (plus the Etsy field checks in `validatePublishReadiness`; ADR-085 §5). |
+| `listing_ready` | Quality re-evaluated with no outstanding issues and score ≥ the firm publish gate (`listing.min_quality_score`, default 85). **This is the publish gate** — the **Publish to Etsy** action becomes available (plus the Etsy field checks in `validatePublishReadiness`; ADR-085 §5). (The AI drives the score toward a ~100 aspiration; 85 is the firm minimum to publish.) |
 
 `listing_phase` is recomputed whenever the item is saved, a picture changes, a listing is
 generated, or a quality evaluation completes. It is a separate dimension from `inventory.status`
@@ -165,5 +165,5 @@ Activity (ADR-037): `listing.ai_generated` (exists), `listing.quality_evaluated`
   quality engine), ADR-018 (endpoints), ADR-037 (`listing.quality_evaluated`), ADR-030 (detail
   panel button), ADR-020 (Outstanding on `listing_phase`), `.cursorrules` (enum + columns).
 - The **rubric** that powers *Evaluate Listing Quality* (per-field and per-photo specifications,
-  weights, 98% target) is **ADR-082**, populated from
+  weights, firm 85 gate with a ~100 aspiration) is **ADR-082**, populated from
   `documents/research/2026-06-21_etsy-listing-best-practices.md`.

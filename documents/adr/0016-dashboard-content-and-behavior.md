@@ -159,10 +159,11 @@ The dashboard presents **two views of the same activity data** (`activity_log`, 
 A dashboard widget listing **current inventory items below the listing-quality threshold**, so
 the user can quickly find items needing work.
 
-- **Inclusion:** items whose listing quality score is **below the pass threshold**. Pass =
-  **score ≥ 85** (85 passes); therefore the widget lists items with **score < 85**. (The target
-  threshold will rise toward ≈98% when the WS-G quality rubric lands; the widget reads whatever
-  the current threshold is and does not hard-code 85 beyond this default.)
+- **Inclusion:** items whose listing quality score is **below the publish gate**. Pass =
+  **score ≥ 85** (85 passes); therefore the widget lists items with **score < 85**. 85 is the
+  **firm publish gate** (`listing.min_quality_score`, default 85 — configurable but **not**
+  auto-climbing); the AI helps push listings toward a ~100 aspiration. The widget reads whatever
+  the current `listing.min_quality_score` is.
 - **Exclusions:** items with status **Sold, Retired,** or **Inactive** are never shown (out of
   scope). Only active/listable items appear.
 - **Presentation:** a **scrollable**, single-spaced list, **sorted lowest score first**.

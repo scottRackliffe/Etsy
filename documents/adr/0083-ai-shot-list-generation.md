@@ -144,7 +144,7 @@ When the item benefits from motion, the shot list includes a **video** item with
 
 - **Positive**
   - Removes guesswork; gives the owner a concrete, item-specific photo plan **with explicit
-    pass specs and photography technique** that drives the 98%+ quality goal.
+    pass specs and photography technique** that drives the score toward the ~100 quality aspiration (above the firm 85 publish gate).
   - Reuses the ADR-072 taxonomy and existing OpenAI dependency; integrates with the rubric.
 - **Negative**
   - One additive column; one vision call per generation (cost/latency, logged via ADR-075).

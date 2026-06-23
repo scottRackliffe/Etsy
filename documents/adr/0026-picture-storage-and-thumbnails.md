@@ -90,8 +90,8 @@ When importing pictures for an item:
 
 | Property  | Value                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------ |
-| Size      | 200 × 200 px (default); user-configurable via `settings.thumbnail_size` (100–400 px range) |
-| Fit       | `cover` — crop to fill the square; center gravity                                          |
+| Size      | **Max dimension 200 px** (default), **aspect ratio preserved**; user-configurable via `settings.thumbnail_size` (100–400 px range) |
+| Fit       | `inside` — scale to fit within the max dimension, **aspect ratio preserved (no crop)**     |
 | Format    | JPEG                                                                                       |
 | Quality   | 80                                                                                         |
 | Storage   | `uploads/inventory/<item_id>/thumbnail.jpg`                                                |

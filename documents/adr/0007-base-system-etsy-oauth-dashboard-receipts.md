@@ -24,8 +24,8 @@ Build and ship a **base system** with the following:
   |---|---|
   | `transactions_r` | Read receipts / transactions (orders sync) |
   | `shops_r` | Read shop details (shop selector, dashboard) |
-  | `listings_w` | Write listings (publish to Etsy — ADR-023) |
-  | `listings_r` | Read listings (listing status checks — ADR-023) |
+  | `listings_w` | Write listings (publish to Etsy — ADR-085; scope catalog ADR-073) |
+  | `listings_r` | Read listings (listing status checks — ADR-085; scope catalog ADR-073) |
 
   Base scopes (`transactions_r`, `shops_r`) are requested at initial connect. Additional scopes (`listings_w`, `listings_r`) are requested when the user first attempts to publish a listing. See ADR-011 for compliance rules.
 

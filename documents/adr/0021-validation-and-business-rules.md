@@ -162,7 +162,9 @@ These rules apply when publishing a listing to Etsy. Publishing is gated on **`l
 | `materials` | Optional but recommended. If provided, each element must be a string ≤ 45 chars matching alphanumeric + whitespace only. Warning-level — not blocking. | "Each material must be 45 characters or less and contain only letters, numbers, and spaces." |
 | `item_weight` / `item_weight_unit` | Optional. If `item_weight` is provided, must be a positive number and `item_weight_unit` must also be set (one of: `oz`, `lb`, `g`, `kg`). Warning if missing for physical items. | "Weight unit is required when weight is provided." |
 | `item_length`, `item_width`, `item_height` / `item_dimensions_unit` | Optional. If any dimension is provided, all three should be provided along with `item_dimensions_unit` (one of: `in`, `ft`, `mm`, `cm`, `m`). | "All three dimensions and a unit are required when any dimension is provided." |
-| `etsy_return_policy_id` | Required before publish. Must resolve — either per-item value or global default (`etsy.publish.return_policy_id`). | "A return policy is required before publishing to Etsy. Set one on the item or in Config → Publish Defaults." |
+| `etsy_return_policy_id` | Required before publish. Must resolve — either per-item value or global default (`etsy.publish.return_policy_id`). | "A return policy is required before publishing to Etsy. Set one on the item or in Settings → Publish Defaults." |
+| `etsy_shipping_profile_id` | Recommended — **warning only, does not block** publish (per `validatePublishReadiness`). Should resolve via per-item value or global default (`etsy.publish.shipping_profile_id`). | "No shipping profile set. Set one on the item or in Settings → Publish Defaults." |
+| `etsy_who_made` | Etsy-required to create the listing, but supplied from the global default (`etsy.publish.default_who_made`); **not separately gated** at readiness. | — |
 
 ### Schema mapping (updated 2026-05-24)
 
