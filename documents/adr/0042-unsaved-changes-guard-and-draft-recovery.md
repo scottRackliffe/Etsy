@@ -22,7 +22,7 @@ Every form that edits a persisted record or creates a new one is protected:
 | -------------------------------------- | --------------------------------- | ------------------------- |
 | Sales — order detail (ADR-031)         | Order editing panel               | Guard + auto-save draft   |
 | Inventory — detail panel (ADR-030)     | Inventory editing panel           | Guard + auto-save draft   |
-| Inventory — listing workshop (ADR-030) | Listing content editing           | Guard + auto-save draft   |
+| Inventory — Listing Content section (ADR-030) | Listing content editing    | Guard + auto-save draft   |
 | Customers — detail editing             | Customer editing form             | Guard only (simpler form) |
 | Config — all sections (ADR-034)        | Each config section independently | Guard only                |
 
@@ -114,7 +114,7 @@ useEffect(() => {
 
 ### 4. Auto-save to localStorage (draft recovery)
 
-For long forms (inventory detail, listing workshop, order detail), the current form state is periodically saved to `localStorage` to protect against browser crashes, power loss, or accidental closure.
+For long forms (inventory detail, order detail, and other SEMS editors), the current form state is periodically saved to `localStorage` to protect against browser crashes, power loss, or accidental closure.
 
 **Draft key format:** `draft:<entity_type>:<entity_id>`
 

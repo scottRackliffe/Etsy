@@ -37,21 +37,17 @@ Per `documents/frontend-architecture.md`:
 - **Desktop:** Full app name text + Etsy connection badge + notification indicators
 - **Mobile:** Hide app name text; show app icon only (saves horizontal space). Keep connection status badge (compact dot) and print queue icon. Hamburger menu not needed — tabs handle navigation.
 
-#### Master-detail pages (Sales, Inventory)
+#### SEMS entity pages (Orders, Inventory, Customers, Vendors, Expenses, Receipts, …)
 
-- **Desktop:** Side-by-side list + detail panel (per ADR-030, ADR-031)
-- **Tablet:** Side-by-side with narrower list panel (40/60 split instead of 35/65)
-- **Mobile:** Show list OR detail, not both simultaneously:
-  - Default view: list (DataTable or card list)
-  - Selecting a record: transitions to full-screen detail view
-  - Back button (top-left, with ← arrow): returns to list view
-  - URL does not change (state managed via component state, consistent with "no detail sub-routes" per ADR-024)
+All entity screens use the SEMS scaffold (ADR-079): a full-width record list; selecting or adding a
+record opens an inline editor that **replaces** the list (no side-by-side master-detail panel).
 
-#### Two-panel pages (Inventory detail + Listing workshop)
-
-- **Desktop:** Side-by-side panels
-- **Tablet:** Stacked vertically — inventory detail on top, listing workshop below
-- **Mobile:** Single column, stacked vertically; each section collapsible with accordion headers
+- **Desktop / Tablet:** Full-width list; the inline editor replaces it, with the list collapsed to a
+  breadcrumb header and a sticky Cancel/Save bar.
+- **Mobile:** Single column. List first; opening a record shows the full-screen editor with a back
+  breadcrumb; the **sticky Save bar stays visible** (ADR-079 §Reconciliation). Long editors stack
+  vertically; sections may use accordion headers.
+- URL does not change for selection (state managed in-component, "no detail sub-routes" per ADR-024).
 
 #### DataTable
 

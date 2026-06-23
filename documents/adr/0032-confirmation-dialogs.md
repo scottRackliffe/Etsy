@@ -55,7 +55,6 @@ Every confirmation dialog uses the `Modal` component with these elements:
 | Delete customer address | Customers | "Delete address?"  | "This will remove the address at {first_line}, {city}."                                                                        | "Delete"           |
 | Delete customer         | Customers | "Delete customer?" | "This will permanently delete {first_name} {last_name} and all their addresses. Customers linked to orders cannot be deleted." | "Delete"           |
 | Void order              | Sales     | "Void order?"      | "This will void order {order_number}. Voided orders are excluded from active reports."                                         | "Void order"       |
-| Reject listing draft    | Inventory | "Reject draft?"    | "This will reset the listing draft for item {item_number} back to draft state."                                                | "Reject"           |
 | Disconnect Etsy         | Header    | "Disconnect Etsy?" | "This will clear your Etsy tokens. You will need to reconnect to sync orders or publish listings."                             | "Disconnect"       |
 | Clear all data (future) | Config    | "Erase all data?"  | "This will delete all inventory, orders, customers, and settings. This cannot be undone."                                      | "Erase everything" |
 
@@ -74,8 +73,7 @@ Every confirmation dialog uses the `Modal` component with these elements:
 - Save/update any field (normal data entry).
 - Create records (inventory, customer, order).
 - Sync Etsy receipts (non-destructive, additive).
-- Generate AI listing content (overwrites draft only, not published data).
-- Approve draft (positive action, no data loss).
+- Generate AI listing content (overwrites unpublished listing fields only, not published data).
 - Download/export (read-only).
 
 ---
@@ -118,14 +116,11 @@ Destructive buttons set `confirmAction` instead of executing directly. `ConfirmD
 
 ### Unsaved changes guard
 
-Per ADR-030, when a user has modified fields in the inventory detail panel and attempts to navigate away (select another item, switch tabs), display:
-
-- **Title:** "Unsaved changes"
-- **Description:** "You have unsaved changes to item {item_number}. Do you want to discard them?"
-- **Confirm label:** "Discard" (`variant="danger"`)
-- **Cancel label:** "Keep editing"
-
-This uses the same `ConfirmDialog` pattern.
+The unsaved-changes guard is the **three-button** dialog defined in **ADR-042 §3** (updated by
+ADR-079 / WS-E): **Save changes** (validate-and-save, primary) · **Discard changes** · **Keep
+editing**. It fires whenever a dirty SEMS editor (or any dirty form, ADR-079 §4) is left. This
+supersedes the earlier two-button (Discard / Keep editing) form. See ADR-042 for the full behavior
+(including the validation-failure path) and ADR-079 §4 for the app-wide guard.
 
 ## Consequences
 

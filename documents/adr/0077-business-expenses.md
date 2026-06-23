@@ -53,7 +53,8 @@ A `gl_transaction_rules` entry for `'Business Expense'` handles the double-entry
 
 **Route:** `src/app/(app)/expenses/page.tsx`
 
-**Layout:** Master-detail with summary cards at top.
+**Layout:** SEMS (ADR-079) — full-width record list with summary cards at top; the inline editor
+replaces the list (Expenses was rolled onto the SEMS scaffold in WS-E4).
 
 - **Summary cards:** Total expenses, tax-deductible total, top category, recurring count
 - **List panel:** Filterable/sortable/paginated table with inline category and amount display

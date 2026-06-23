@@ -28,7 +28,7 @@ src/app/
     dashboard/
       page.tsx                  # Dashboard tab content
     orders/
-      page.tsx                  # Sales/Orders tab — master-detail layout (ADR-031)
+      page.tsx                  # Orders tab — SEMS scaffold (ADR-031/079)
     shipping/
       page.tsx                  # Shipping tab — list + ShippingPanel (ADR-080)
     inventory/
@@ -38,7 +38,7 @@ src/app/
     customers/
       page.tsx                  # Customers tab content
     vendors/
-      page.tsx                  # Vendors tab — master-detail vendor list (ADR-076)
+      page.tsx                  # Vendors tab — SEMS scaffold (ADR-076/079)
     expenses/
       page.tsx                  # Expenses tab — business overhead tracking (ADR-077)
     reports/
@@ -122,7 +122,7 @@ Each tab page is a server component that may contain client components for inter
 
 **Sales** (`src/app/(app)/orders/page.tsx`)
 
-- Master-detail layout (ADR-031): order list on left, detail panel on right
+- SEMS scaffold (ADR-031/079): full-width order list + inline editor that replaces it
 - `OrdersTable` — Filterable order list with search, sort, pagination (ADR-029)
 - `OrderDetailPanel` — Full detail view: header, line items, ship-to, financials, shipping, notes, action buttons
 - `NewOrderForm` — Manual order entry with `PickList` for item selection
@@ -130,13 +130,11 @@ Each tab page is a server component that may contain client components for inter
 
 **Inventory** (`src/app/(app)/inventory/page.tsx`)
 
-- Two-panel layout (ADR-030): "Inventory detail" panel + "Listing workshop" panel
+- SEMS scaffold (ADR-079): full-width list + inline detail editor (no separate "Listing Workshop" panel)
 - `InventoryTable` — Item list with thumbnail, status, search, sort, pagination (ADR-029)
-- `InventoryDetailPanel` — Core field editing: costs, status, dates, condition, notes (ADR-030)
-- `PictureGrid` — Visual 10-slot upload grid with drag-and-drop (ADR-033)
+- `InventoryDetailPanel` — Core field editing + Listing Content section + context-aware lifecycle button (Evaluate Data → Generate → Evaluate Quality → Publish), ADR-030/085
+- `PictureGrid` — Visual 20-slot upload grid with drag-and-drop + clipboard paste (ADR-033)
 - `ConditionSection` — Condition code dropdown, has-issue toggle, notes, condition pictures
-- `ListingAuthoringPanel` — Mode toggle (Manual / Generate / Import), form sections, approve/reject
-- `PublishPreview` — Preview Etsy listing before publish; approve gate
 
 **Customers** (`src/app/(app)/customers/page.tsx`)
 
@@ -268,8 +266,6 @@ src/
       InventoryDetailPanel.tsx
       PictureImportFlow.tsx
       ConditionSection.tsx
-      ListingAuthoringPanel.tsx
-      PublishPreview.tsx
     customers/
       CustomersTable.tsx
       CustomerDetailForm.tsx

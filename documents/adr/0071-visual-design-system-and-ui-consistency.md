@@ -121,14 +121,18 @@ All status display uses shared `Badge` (ADR-028). **Label** is user-facing Engli
 | Reserved       | Reserved    | `warning` |
 | Retired        | Retired     | `neutral` |
 
-#### 4.3 Listing `listing_draft_state`
+#### 4.3 Listing `listing_phase` (ADR-081/085)
 
-| State               | Badge label  | Variant   |
-| ------------------- | ------------ | --------- |
-| draft               | Draft        | `neutral` |
-| generated, imported | Needs review | `warning` |
-| approved            | Approved     | `success` |
-| published           | Published    | `info`    |
+| State                       | Badge label       | Variant   |
+| --------------------------- | ----------------- | --------- |
+| needs_data                  | Needs data        | `neutral` |
+| ready_to_generate           | Ready to generate | `info`    |
+| generated                   | Generated         | `warning` |
+| needs_quality_remediation   | Needs work        | `warning` |
+| listing_ready               | Ready to publish  | `success` |
+
+(The retired `listing_draft_state` machine — draft/generated/imported/approved/published — was
+removed by ADR-085; listing status is now the `listing_phase` dimension above.)
 
 #### 4.4 Etsy connection
 
