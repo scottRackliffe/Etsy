@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The application makes outbound API calls to two external services — Etsy (OAuth, shop data, receipt sync, listing publish) and OpenAI (listing generation, listing coach, listing improvement, connection testing). Both services have usage-based billing or quota implications:
+The application makes outbound API calls to two external services — Etsy (OAuth, shop data, receipt sync, listing publish) and OpenAI (listing generate/refine, per-photo quality, shot list, dimension measurement, connection testing). Both services have usage-based billing or quota implications:
 
 - **Etsy** bundles API access and shipping labels into the monthly subscription, but has daily/per-second rate limits that the app must respect. Visibility into call volume helps diagnose rate-limit issues and plan sync frequency.
 - **OpenAI** charges per API call based on token usage. Without visibility into call counts, the operator has no way to correlate OpenAI billing with app activity.
@@ -32,7 +32,7 @@ A new lightweight table stores one row per outbound API call:
 CREATE TABLE IF NOT EXISTS api_call_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   service TEXT NOT NULL,        -- 'etsy' | 'openai' (future: 'easypost')
-  endpoint TEXT NOT NULL,       -- e.g. '/shops/{id}/receipts', 'responses.create/listing-coach'
+  endpoint TEXT NOT NULL,       -- e.g. '/shops/{id}/receipts', 'responses.create/listing-generate'
   status_code INTEGER,          -- HTTP status code (200, 429, 500, etc.)
   created_at TEXT NOT NULL      -- ISO 8601 UTC
 );
@@ -44,7 +44,7 @@ Design choices:
 
 - **No request/response payloads** — this is a counter, not a debug log. Keeps the table small.
 - **`status_code` is nullable** — some SDK calls may not surface a status code cleanly.
-- **`endpoint` includes a qualifier** — e.g. `responses.create/listing-coach` vs `responses.create/improve-listing` to distinguish OpenAI call sites.
+- **`endpoint` includes a qualifier** — e.g. `responses.create/listing-generate` vs `responses.create/listing-refine` to distinguish OpenAI call sites.
 - **Model lane (WS-AICOST):** the economy-eligible tasks (`responses.create/listing-photo-quality`, `.../shot-list`, `.../measure`) honor the optional `ai.economy_model` setting via `resolveModelForTask()`; the endpoint label is unchanged regardless of which model lane runs, so per-call-site attribution is preserved.
 - **Fire-and-forget** — the `logApiCall()` helper never throws; failures are logged to the structured logger and silently ignored.
 
@@ -147,7 +147,7 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 | `src/lib/api-usage.ts` | New module — `logApiCall()` and `getMonthlyUsage()` |
 | `src/lib/etsy.ts` | Added `logApiCall('etsy', ...)` at 7 fetch points |
 | `src/lib/listing-generator.ts` | Added `logApiCall('openai', ...)` |
-| `src/lib/listing-coach.ts` | Added `logApiCall('openai', ...)` |
+| `src/lib/listing-photo-vision.ts`, `shot-list.ts`, `dimension-annotation.ts` | Added `logApiCall('openai', ...)` at each OpenAI call site (WS-AICOST economy lane) |
 | `src/lib/ai-config.ts` | Added `logApiCall('openai', ...)` |
 | `src/app/api/inventory/[id]/improve-listing/route.ts` | Added `logApiCall('openai', ...)` |
 | `src/app/api/usage/route.ts` | New endpoint — `GET /api/usage` |

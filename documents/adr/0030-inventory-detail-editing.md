@@ -113,7 +113,7 @@ Fields required by Etsy for publishing. Per-item values here override global def
 **Pictures section (20 slots):**
 
 - Photo grid: 20 item photo slots (`picture_1..picture_20`) per ADR-033.
-- Each photo thumbnail shows its **shot type classification badge** (from `picture_classifications` JSON). Clicking the badge opens the classification dropdown: first option "OK" (keep current type), then the full shot type enum per ADR-072 §Photo classification.
+- Each photo thumbnail shows its **shot type classification badge** (from `picture_classifications` JSON). Clicking the badge opens the classification dropdown: first option "OK" (keep current type), then the full shot type enum per ADR-083 §6 (canonical shot-type taxonomy).
 - Photos default to `extra` unless the operator assigns a type (or AI classifies them during Generate).
 - **"Auto-sort by type"** button: reorders photos into canonical Photo Guide sequence (hero first, then angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). Confirmation prompt before reorder.
 - Condition photo grid: 5 slots (`condition_picture_1..condition_picture_5`). Not classified.

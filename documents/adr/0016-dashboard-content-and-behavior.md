@@ -118,7 +118,7 @@ When the tabbed layout (ADR-009) exists:
 ### Extensions (updated 2026-05-24)
 
 - **KPI widgets (ADR-024, ADR-038, ADR-064, ADR-066):** In addition to Etsy receipts preview, the dashboard shows local-order KPIs via `GET /api/dashboard`, `GET /api/dashboard/inventory-value`, and `GET /api/dashboard/stats` (ADR-018 §10). Persisted `orders` are authoritative for revenue metrics; receipts are not the long-term data store (ADR-019).
-- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries (e.g. last 20). The widget uses the `GET /api/activity?limit=20` endpoint. Each entry shows timestamp, action description, and an optional link to the related entity. This supplements the summary cards mentioned in section 5 above. **(Superseded by the 2026-06-21 Activity views block below for the exact row count, layout, and width.)**
+- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries via `GET /api/activity`. Each entry shows timestamp, action description, and an optional link to the related entity. **(Superseded by the 2026-06-21 Activity views block below — see §6 for the canonical row count (25), layout, and width.)**
 - **Shared components (ADR-028):** All dashboard UI elements (buttons, loading states, error states, empty states, badges) use the shared component library (`Button`, `LoadingSpinner`, `EmptyState`, `ErrorPanel`, `Badge`). The receipts table uses the `DataTable` component.
 - **Setup wizard (ADR-044):** First-run wizard overlays the dashboard when `setup.completed` is not `"true"`.
 

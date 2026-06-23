@@ -96,9 +96,19 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 ---
 
+### 7. Records with validation or context-check issues (in scope)
+
+**Definition:** Records that failed validation or context checks at save time and were not auto-corrected. Each such record appears as an outstanding to-do so the user can fix it (e.g. "Order #123 — select a customer," "Item X — listing description required before List on Etsy").
+
+**Query rule:** When the Outstanding list is built, the app runs validation and context checks (ADR-021) for the relevant records; records (or orders) with unresolved validation/context-check failures appear as outstanding items. One outstanding item per record or per order that has unresolved issues. No separate stored "flag" is required; the app evaluates validation state to build the list.
+
+**Target on click:** Navigate to the tab and record that needs attention (e.g. Sales → order; Inventory → item).
+
+---
+
 ### 8. Items missing Etsy publish fields (era/category)
 
-**Definition:** Inventory items with a listing draft in progress (`generated`, `imported`, or `approved`) that are missing required Etsy publish fields (`etsy_when_made` or `etsy_taxonomy_id`).
+**Definition:** Inventory items with a **generated listing** (`listing_phase` IN `generated`, `needs_quality_remediation`, `listing_ready`) that are missing required Etsy publish fields (`etsy_when_made` or `etsy_taxonomy_id`).
 
 **Label:** "Missing era or category for Etsy"
 
@@ -119,16 +129,6 @@ WHERE listing_phase IN ('generated','needs_quality_remediation','listing_ready')
 One outstanding item per inventory row. Display: e.g. "Item &lt;item_number&gt; – missing era or category for Etsy".
 
 **Target on click:** Inventory tab; open/select that inventory item. Deep link: `/inventory?itemId=<id>`.
-
----
-
-### 7. Records with validation or context-check issues (in scope)
-
-**Definition:** Records that failed validation or context checks at save time and were not auto-corrected. Each such record appears as an outstanding to-do so the user can fix it (e.g. "Order #123 — select a customer," "Item X — listing description required before List on Etsy").
-
-**Query rule:** When the Outstanding list is built, the app runs validation and context checks (ADR-021) for the relevant records; records (or orders) with unresolved validation/context-check failures appear as outstanding items. One outstanding item per record or per order that has unresolved issues. No separate stored "flag" is required; the app evaluates validation state to build the list.
-
-**Target on click:** Navigate to the tab and record that needs attention (e.g. Sales → order; Inventory → item).
 
 ---
 

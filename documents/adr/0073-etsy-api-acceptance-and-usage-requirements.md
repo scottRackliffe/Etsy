@@ -589,7 +589,7 @@ Only needed if the app will serve sellers other than yourself (multi-seller/SaaS
 - ADR-007: OAuth flow and token refresh
 - ADR-011: Compliance with Etsy rules (decision record)
 - ADR-019: Etsy order sync
-- ADR-023: Listing content generation modes
+- ADR-023: Listing content generation modes *(superseded by ADR-085)*
 - ADR-025: Token refresh middleware and encryption
 - ADR-057: Scheduled auto-sync
 - `documents/etsy-compliance.md`: Detailed compliance mapping

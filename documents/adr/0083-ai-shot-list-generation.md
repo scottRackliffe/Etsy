@@ -25,7 +25,7 @@ shot list** — every photo/video needed for the highest rating — each item wi
 **purpose/description** of what it must show.
 
 This feeds the photo portion of the quality rubric (ADR-082) and reuses the photo **shot-type
-taxonomy** already defined in ADR-072 (`hero, angle, detail, backstamp, scale, imperfection,
+taxonomy** already defined in §6 (this ADR) (`hero, angle, detail, backstamp, scale, imperfection,
 underside, grouping, lifestyle, measurement, extra`).
 
 Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.a)**.
@@ -34,7 +34,7 @@ Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstre
 
 Add an **AI shot-list generator**: given the primary photo plus item context, produce a
 **persisted, checklist-style shot list** tailored to the item, using the OpenAI vision model
-(existing `openai` dependency) and the ADR-072 shot-type taxonomy.
+(existing `openai` dependency) and the shot-type taxonomy in §6.
 
 ---
 
@@ -53,7 +53,7 @@ An ordered array; each item:
 
 ```json
 {
-  "shot_type": "backstamp",          // one of the ADR-072 taxonomy values
+  "shot_type": "backstamp",          // one of the §6 taxonomy values
   "name": "Maker's mark / backstamp",
   "purpose": "Sharp close-up of the underside stamp to prove maker and authenticity.",
   "pass_spec": "Fill the frame with the mark; tack-sharp; even light; no glare.",
@@ -69,7 +69,7 @@ remediation when a shot is missing or off-spec.
 - Always includes the **hero** (already satisfied by `picture_1`) and the high-value shots for the
   item type; marks each `required` or recommended.
 - `captured` is derived by matching against existing pictures and their
-  `picture_classifications` (ADR-072) so the list doubles as a **progress checklist**.
+  `picture_classifications` (§6) so the list doubles as a **progress checklist**.
 
 ### 3. Storage
 
@@ -90,7 +90,7 @@ Logs activity (ADR-037): `listing.shot_list_generated`
 
 ### 5. UI
 
-- On the inventory detail picture area (ADR-033) and in Listing Coach (ADR-072): a **"Generate
+- On the inventory detail picture area (ADR-033): a **"Generate
   shot list"** action (enabled once a hero exists). Renders the list as a checklist; each item
   shows name + purpose and whether it's captured. Tapping an uncaptured item highlights the
   matching empty picture slot.
@@ -104,6 +104,27 @@ Logs activity (ADR-037): `listing.shot_list_generated`
 The generator must emit, for each shot, a **purpose** and an explicit **pass spec** so the photo
 can later be judged by the ADR-082 rubric. These are the canonical default specs (item-type
 context may add/remove shots, e.g. no `backstamp` for an unmarked item):
+
+#### Canonical shot-type taxonomy (enum)
+
+This is the **canonical shot-type taxonomy** for the whole app (relocated here from the retired
+ADR-072 §Photo classification). It is the closed value set stored in
+`inventory.picture_classifications` and referenced by the rubric (ADR-082 §8a), the picture UI
+(ADR-030/033), and dimension annotation (ADR-084).
+
+| `shot_type` | UI label | Photo Guide slot | Purpose |
+| --- | --- | --- | --- |
+| `hero` | Hero | 1 | Full item, straight on, clean and bright |
+| `angle` | Angle | 2 | 45° view showing depth |
+| `detail` | Detail | 3 | Close-up of pattern, texture, edges |
+| `backstamp` | Backstamp/Marking | 4 | Maker's mark, label, stamp (vintage essential) |
+| `scale` | Scale | 5 | Item with ruler, hand, or familiar object |
+| `imperfection` | Imperfection | 6 | Crazing, chips, scratches, wear |
+| `underside` | Underside | 7 | Bottom view, structure, authenticity |
+| `grouping` | Grouping | 8 | All pieces in a set arranged together |
+| `lifestyle` | Lifestyle | 9 | In-context staging (table, shelf, etc.) |
+| `measurement` | Measurement | 10 | Ruler/overlay against the item (ADR-084) |
+| `extra` | Extra | 11+ | Additional views not fitting the above |
 
 | Shot (`shot_type`) | Purpose | Pass spec |
 | --- | --- | --- |
@@ -145,19 +166,19 @@ When the item benefits from motion, the shot list includes a **video** item with
 - **Positive**
   - Removes guesswork; gives the owner a concrete, item-specific photo plan **with explicit
     pass specs and photography technique** that drives the score toward the ~100 quality aspiration (above the firm 85 publish gate).
-  - Reuses the ADR-072 taxonomy and existing OpenAI dependency; integrates with the rubric.
+  - Reuses the §6 shot-type taxonomy and existing OpenAI dependency; integrates with the rubric.
 - **Negative**
   - One additive column; one vision call per generation (cost/latency, logged via ADR-075).
   - Quality of suggestions depends on the vision model and provided context.
 
 ## Notes
 
-- Video: the list may include a short video item (`shot_type: extra`/lifestyle) per ADR-072/H and
+- Video: the list may include a short video item (`shot_type: extra`/lifestyle) per §7 and
   §7 above.
 - Evidence base: `documents/research/2026-06-21_etsy-listing-best-practices.md` §10–§11
   (Etsy photo ideas, furniture/antique studio technique, eBay/Chairish/1stDibs shot sets, Etsy
   video rules).
 - **Cross-references to update at implementation (.cursorrules §1b):** ADR-017/002
-  (`shot_list_json`), ADR-018 (endpoints), ADR-033 (picture UI), ADR-072 (taxonomy + Coach),
+  (`shot_list_json`), ADR-018 (endpoints), ADR-033 (picture UI),
   ADR-082 (required-shot → remediation), ADR-075 (API usage logging), ADR-037 (activity action),
   `.cursorrules` (column + action).

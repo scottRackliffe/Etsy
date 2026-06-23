@@ -24,7 +24,6 @@ The Outstanding page navigates to target pages using URL query params (`?orderId
 | ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Sales (`/sales`)         | `orderId={id}`    | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
 | Inventory (`/inventory`) | `itemId={id}`     | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior.                                               |
-| Inventory (`/inventory`) | `openWorkshop=1`  | After selecting the item (requires `itemId`), automatically open the listing workshop panel (ADR-030, ADR-072).             |
 | Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses.                                                           |
 | Receipts (`/receipts`)   | `receiptId={id}`  | Select/expand the vendor receipt with `id = receiptId`. Fetch-if-missing behavior.                                          |
 | Vendors (`/vendors`)     | `vendorId={id}`   | Select the vendor with `id = vendorId` (ADR-076). Fetch-if-missing behavior.                                               |

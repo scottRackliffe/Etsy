@@ -73,7 +73,7 @@ The backend fully supports image upload, processing, storage, and thumbnail gene
   - `✕` (top-right corner): delete this picture (confirmation per ADR-032: "Remove picture from slot {n}?").
   - `👁` or expand icon (center): open full-size preview in a `Modal`.
 - Slot 1 indicator: a small `★` badge in the bottom-left corner ("Primary image").
-- **Shot type badge:** If `picture_classifications` contains an entry for this slot, display a small label badge in the top-left corner with the shot type (e.g. "Hero", "Detail", "Backstamp"). Badge color: `var(--ui-accent)` background with white text. In edit mode (inventory detail), the badge is a compact dropdown: first option "OK" (accept current), followed by the full shot type enum (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). See ADR-072 §Photo classification.
+- **Shot type badge:** If `picture_classifications` contains an entry for this slot, display a small label badge in the top-left corner with the shot type (e.g. "Hero", "Detail", "Backstamp"). Badge color: `var(--ui-accent)` background with white text. In edit mode (inventory detail), the badge is a compact dropdown: first option "OK" (accept current), followed by the full shot type enum (hero, angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). See ADR-083 §6 (canonical shot-type taxonomy).
 - Draggable: the card can be dragged to another slot position to reorder. When reordering, classifications move with their photos (the classification is bound to the image, not the slot number).
 
 **Empty slot:**
