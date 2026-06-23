@@ -97,7 +97,7 @@ When the user **is** authenticated with Etsy (valid token, "connected"):
 
 When the tabbed layout (ADR-009) exists:
 
-- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The "Connect Etsy" / "Disconnect" actions may live in the shared header or in the Config tab; the dashboard tab still shows the same "not connected" vs "connected" content in its main area.
+- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The "Connect Etsy" / "Disconnect" actions may live in the shared header or in the Settings tab; the dashboard tab still shows the same "not connected" vs "connected" content in its main area.
 - The dashboard tab may **additionally** show: summary cards (e.g. orders this week, revenue MTD) and links into the outstanding list, as described in ui-design.md §2. Those additions do not change the core behavior above; they extend it.
 
 ## Consequences

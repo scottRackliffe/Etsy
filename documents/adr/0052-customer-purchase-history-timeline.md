@@ -106,12 +106,12 @@ Vertical list of order cards, each showing:
 
 Each order card shows the following fields at a glance:
 
-1. **order_number** — clickable link that navigates to Sales tab with deep-link param (`/orders?orderId=<id>`)
+1. **order_number** — clickable link that navigates to Orders tab with deep-link param (`/orders?orderId=<id>`)
 2. **order_date** — formatted per app's `ui.date_format` setting
 3. **grand_total** — formatted per currency setting (`ui.currency_code`)
 4. **payment_status badge** — green "Paid", yellow "Unpaid", or grey "Refunded"
 5. **Item count** — total number of line items in the order (e.g., "3 items")
-6. **"View order" link** — navigates to Sales tab with deep-link param (same as order_number click)
+6. **"View order" link** — navigates to Orders tab with deep-link param (same as order_number click)
 
 ### Visual treatment for void/cancelled orders
 
@@ -122,7 +122,7 @@ Each order card shows the following fields at a glance:
 ### Click behavior
 
 - Clicking an order number or the order card navigates to `/orders?orderId=<id>` (ADR-035 deep link).
-- The Sales page reads the `orderId` param, selects the order, and opens the detail panel.
+- The Orders page reads the `orderId` param, selects the order, and opens the detail panel.
 
 ### Empty state
 
@@ -156,4 +156,4 @@ When the customer has no orders:
 
 ### Reconciliation note (updated 2026-06-09)
 
-Updated 2026-06-09: Changed default page size from 25 to 10 orders for initial load (and subsequent "Load more" batches). Added explicit order card field specification listing all six visible fields per card. Added "View order" deep-link navigation to Sales tab.
+Updated 2026-06-09: Changed default page size from 25 to 10 orders for initial load (and subsequent "Load more" batches). Added explicit order card field specification listing all six visible fields per card. Added "View order" deep-link navigation to Orders tab.

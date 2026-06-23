@@ -443,7 +443,7 @@ This section maps each requirement to our implementation. See also `documents/et
 | Token encryption | AES-256-GCM at rest in SQLite `settings` table (ADR-025) |
 | Rate limit handling | HTTP 429 + `Retry-After` header respected; configurable limits (ADR-011) |
 | No caching of API responses | `etsy_receipts` stores synced operational data, not cached responses (ADR-011, etsy-compliance.md) |
-| Trademark disclaimer | Displayed in app footer and Config page (ADR-011) |
+| Trademark disclaimer | Displayed in app footer and Settings page (ADR-011) |
 | No "Etsy" in app name | The app's name is **AiCE** — contains no "Etsy" |
 | No screen-scraping | API-only data access (ADR-011) |
 | Testing policy | Draft listings used during development; Developer Mode guidance in documentation |

@@ -18,7 +18,7 @@ The application makes outbound API calls to two external services — Etsy (OAut
 
 No existing mechanism tracks external API call counts. The `activity_log` table records business-level events (order created, listing approved) but not individual API requests. The structured logger writes to the console but does not persist counts to the database.
 
-The operator asked for monthly call counts per service, displayed in the Config page.
+The operator asked for monthly call counts per service, displayed in the Settings page.
 
 ---
 
@@ -100,7 +100,7 @@ Returns monthly aggregates:
 
 ### 4. Config UI
 
-A new "API Usage" section in the Config page (between Sample Data and Backup & Restore) displays:
+A new "API Usage" section in the Settings page (between Sample Data and Backup & Restore) displays:
 
 - A table with one row per month, one column per service, plus a row total
 - Current month highlighted with a green "current" badge
@@ -157,6 +157,6 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 
 - ADR-017: Database schema — `api_call_log` table addition
 - ADR-018: API surface — `GET /api/usage` endpoint addition
-- ADR-034: Config completion — new API Usage section
+- ADR-034: Settings completion — new API Usage section
 - ADR-037: Activity log — similar retention pattern (not yet applied to `api_call_log`)
 - ADR-074: EasyPost integration — future `logApiCall("easypost", ...)` instrumentation

@@ -556,7 +556,7 @@ Two calls — **analyze** (vision + guidance) and **compose** (vision + guidance
 | 5 Confirms     | Quick checks                     | One card at a time or stacked; **Yes, use this** · **Edit**                                                                                      |
 | 6 Preview      | Your listing                     | Read-only title, description, tags, quality score. **Save to inventory** · **Back** · **Start over**                                             |
 | 7 Save         | Item number                      | Enter your item number (e.g. TCT-2026-042). Optional short description. **Save**                                                                 |
-| Error AI       | AI not set up                    | Go to Config → AI settings, add your key, and test connection.                                                                                   |
+| Error AI       | AI not set up                    | Go to Settings → AI settings, add your key, and test connection.                                                                                   |
 | Success        | Saved                            | Opening your new item in Inventory. Review and approve when ready.                                                                               |
 
 Button variants: primary = accent; secondary = neutral; destructive = Start over only (ConfirmDialog ADR-032).

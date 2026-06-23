@@ -138,7 +138,7 @@ thank-you communication exists for the order.
 - Send failures are caught and recorded as `communication_log.status = 'failed'` with the error;
   they never throw to the caller (consistent with non-blocking logging).
 - If `email.enabled` is false or no SMTP configured, email sends are blocked with a clear
-  user_message directing to Config → Email; print remains available.
+  user_message directing to Settings → Email; print remains available.
 
 **5b. Printable PDF letter (reuse).**
 

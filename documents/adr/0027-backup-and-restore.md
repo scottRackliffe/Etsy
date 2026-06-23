@@ -38,7 +38,7 @@ The timestamp is UTC.
 | ---------------- | --------------------------- | -------------------------------------- |
 | Backup directory | `settings.backup_directory` | `./backups` (relative to project root) |
 
-The directory is created if it does not exist. The path is configurable in Config → Backup section.
+The directory is created if it does not exist. The path is configurable in Settings → Backup section.
 
 ### 4. Backup schedule
 
@@ -77,7 +77,7 @@ Only files matching the backup naming pattern (`backup_*.sqlite` or `backup_*.ta
 
 Restore is a **manual, deliberate** operation with confirmation:
 
-1. User navigates to Config → Backup.
+1. User navigates to Settings → Backup.
 2. User sees list of available backups (from `GET /api/backup`).
 3. User selects a backup and clicks "Restore."
 4. App shows a confirmation dialog: "Restoring will replace all current data with the backup from [date]. This cannot be undone. Continue?"
@@ -107,7 +107,7 @@ Restore is a **manual, deliberate** operation with confirmation:
 
 ### 9. Config UI
 
-The Config → Backup section shows:
+The Settings → Backup section shows:
 
 - **Backup directory** — Text input; current path shown; "Browse" button (optional).
 - **Schedule** — Dropdown: Manual / Daily / Weekly. If Daily or Weekly, show time picker and (for weekly) day picker.
@@ -130,4 +130,4 @@ The Config → Backup section shows:
 
 ### Frontend UI (updated 2026-05-24)
 
-ADR-034 places the backup/restore UI in the Config page as one of 8 logical sections. The Config page's `BackupSection` component implements the "Backup & Restore" card described in this ADR's "UI / Config" section above (backup directory, schedule, backup now, recent backups table with restore/delete, last backup timestamp). Confirmation dialogs for restore and delete use the `ConfirmDialog` component (ADR-032).
+ADR-034 places the backup/restore UI in the Settings page as one of its sections. The Settings page's `BackupSection` component implements the "Backup & Restore" card described in this ADR's "UI / Config" section above (backup directory, schedule, backup now, recent backups table with restore/delete, last backup timestamp). Confirmation dialogs for restore and delete use the `ConfirmDialog` component (ADR-032).

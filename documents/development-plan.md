@@ -31,7 +31,7 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 - **Dependencies first:** Database and auth before tabs; sync and orders before outstanding list; data model before reports.
 - **Risk early:** OAuth, token storage, and Etsy connectivity in Phase 1 so integration issues surface soon.
-- **Value order:** Dashboard + connect → Sales tab + sync + mark paid/shipped → outstanding list and context-in-place → inventory/customers → reports → config and polish.
+- **Value order:** Dashboard + connect → Orders tab + sync + mark paid/shipped → outstanding list and context-in-place → inventory/customers → reports → config and polish.
 
 ---
 
@@ -51,16 +51,16 @@ This plan sequences implementation in dependency order, reduces risk early, and 
 
 ## Phase 2: Tabbed UI and Sales
 
-**Goal:** Full layout with tabs; Sales tab with order list and core commands; Etsy sync and mark paid/shipped.
+**Goal:** Full layout with tabs; Orders tab with order list and core commands; Etsy sync and mark paid/shipped.
 
 | Order | Deliverable                                                                                                                                                                                                        | References                                    |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | 2.1   | Layout: tabs (top), full-width main content per **ADR-009** / **ADR-024** v1 (side commands/outstanding panels deferred). Outstanding as full tab. Tab set and commands per **ui-design.md** §2 and §3.            | ADR-009, ADR-024, ui-design §2–3              |
-| 2.2   | Sales tab: order list (from DB and/or Etsy), commands per ui-design — New order, Sync from Etsy, Mark as paid, Mark as shipped. New order and “add sale” use item pick list per **ADR-015**.                       | ADR-015, ADR-018 (Sales/orders), ui-design §3 |
+| 2.2   | Orders tab: order list (from DB and/or Etsy), commands per ui-design — New order, Sync from Etsy, Mark as paid, Mark as shipped. New order and “add sale” use item pick list per **ADR-015**.                       | ADR-015, ADR-018 (Sales/orders), ui-design §3 |
 | 2.3   | Etsy sync: implement **ADR-019** (sync into `customers`, `addresses`, `orders`, `order_items`).                                                                                                                    | ADR-019, ADR-018                              |
 | 2.4   | Mark paid: set `orders.was_paid = 1`. Mark shipped: update `orders` (shipping_date, shipper, tracking_number, etc.); enforce ship-until-paid or override per **ADR-021** (`orders.shipped_without_paid_override`). | ADR-017, ADR-018, ADR-021                     |
 
-**Exit criterion:** User can switch tabs, use Sales tab to sync Etsy orders, create new orders (with item pick list), mark orders paid and shipped (with override when not paid). Outstanding panel may be placeholder.
+**Exit criterion:** User can switch tabs, use Orders tab to sync Etsy orders, create new orders (with item pick list), mark orders paid and shipped (with override when not paid). Outstanding panel may be placeholder.
 
 **Prioritization (ui-design §7):** Sales + “mark shipped” + unshipped orders in outstanding is the first slice; build that before expanding other commands or outstanding types.
 

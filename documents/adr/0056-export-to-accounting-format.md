@@ -210,7 +210,7 @@ DELETE /api/gl-transaction-rules/:id     → soft-delete (set is_active = 0)
 
 ### 7. Config UI
 
-The Config page includes a **Chart of Accounts** section (under a new "Accounting" group) that displays:
+The Settings page includes a **Chart of Accounts** section (under a new "Accounting" group) that displays:
 
 1. **Chart of Accounts table** — read-only list of all accounts with acct #, name, type, normal balance, and active status. Add/edit/deactivate capability.
 2. **GL Transaction Rules table** — read-only list of all transaction rules showing transaction type, debit account, credit account, and description. Add/edit/deactivate capability.

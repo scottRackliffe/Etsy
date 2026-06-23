@@ -1,4 +1,4 @@
-# ADR-034: Config completion — all application settings on one page
+# ADR-034: Settings completion — all application settings on one page
 
 ## Status
 
@@ -10,15 +10,15 @@ Accepted (updated 2026-06-18)
 
 ## Context
 
-The Config page needs to surface every application setting the user may need to adjust, organized into logical sections. Early versions only had AI settings, Etsy publish defaults, and icon paths. This has been expanded to include all settings documented across ADRs, business profile, shipping, tax, display preferences, backup/restore, and more.
+The Settings page needs to surface every application setting the user may need to adjust, organized into logical sections. Early versions only had AI settings, Etsy publish defaults, and icon paths. This has been expanded to include all settings documented across ADRs, business profile, shipping, tax, display preferences, backup/restore, and more.
 
 ## Decision
 
-**The Config page is a single scrollable page with card sections in a responsive grid (`lg:grid-cols-2` and `lg:grid-cols-3`).** No internal tabs. Each section has a heading, form fields, and a dedicated Save button.
+**The Settings page is a single scrollable page with card sections in a responsive grid (`lg:grid-cols-2` and `lg:grid-cols-3`).** No internal tabs. Each section has a heading, form fields, and a dedicated Save button.
 
 ---
 
-### Complete section inventory (22 sections)
+### Complete section inventory (20 sections)
 
 | # | Section | Setting keys | Notes |
 |---|---------|-------------|-------|
@@ -112,5 +112,5 @@ All settings use the `settings` key/value table and `/api/settings/[key]` endpoi
   - Database integrity section shows check history, not just the action button.
   - Publish defaults expose all advanced image settings previously only saved but not editable.
 - **Negative**
-  - Config page is the largest page — card layout keeps it scannable.
+  - Settings page is the largest page — card layout keeps it scannable.
   - Business logo upload requires the image serving infrastructure from ADR-033.

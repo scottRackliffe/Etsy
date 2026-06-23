@@ -262,7 +262,7 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 14. ~~**Order detail view**~~ ✅ Complete.
 15. ~~**Confirmation dialogs**~~ ✅ Complete (all destructive actions).
 16. ~~**Image upload and thumbnail preview**~~ ✅ Complete (10 main + 5 condition slots).
-17. ~~**Config completion**~~ ✅ Complete.
+17. ~~**Settings completion**~~ ✅ Complete.
 18. ~~**Deep-link navigation**~~ ✅ Complete.
 19. ~~**Reports date picker and per-order docs**~~ ✅ Complete (date range, presets, per-order invoice/thank-you, four-action post-generation).
 20. ~~**Activity log**~~ ✅ Complete (logActivity wired into all CRUD mutations, dashboard feed, entity timeline per ADR-037).

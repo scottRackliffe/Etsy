@@ -87,7 +87,7 @@ first?); click target (inventory detail deep-link).
 **Source:** 1.c, 1.d, 1.e
 **Goal:** Log **all** meaningful events and make them filterable + deep-linkable in **both**
 the Recent Activity and Activity Log views.
-**Entities to cover (add/change; delete = logged but no link):** Sales/Orders, Customers,
+**Entities to cover (add/change; delete = logged but no link):** Orders, Customers,
 Receipts, Vendors, AP/Business Expenses, Shipping, Reports-run, System events, Config changes,
 Inventory (existing).
 **Filter chips to add:** Receipts, Sales, Vendors, Expenses, Reports, Config, Shipping

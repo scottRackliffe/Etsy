@@ -34,7 +34,7 @@ The outstanding list is the **union** of the following item types. Each type has
 
 **Grouping:** One outstanding item per `orders.id`. Display: e.g. “Order #&lt;order_number&gt; – &lt;ship_to_first_name&gt; &lt;ship_to_last_name&gt; – not shipped”.
 
-**Target on click:** Sales tab; `record = orders.id` (deep-link `orderId`).
+**Target on click:** Orders tab; `record = orders.id` (deep-link `orderId`).
 
 ---
 
@@ -44,7 +44,7 @@ The outstanding list is the **union** of the following item types. Each type has
 
 **Query rule:** From `orders` where `order_status = 'active'` AND (`was_paid = 0` OR `was_paid` IS NULL). “Mark as paid” sets `orders.was_paid = 1` (ADR-018).
 
-**Target on click:** Sales tab; `record = orders.id`.
+**Target on click:** Orders tab; `record = orders.id`.
 
 ---
 
@@ -56,7 +56,7 @@ The outstanding list is the **union** of the following item types. Each type has
 
 **Rate-limit and failure behavior:** Cache the fetched Etsy receipt-id set for 5 minutes to reduce repeated API calls from panel/tab refreshes. If Etsy returns HTTP 429, keep showing cached results and surface “Etsy sync status may be delayed.” If Etsy is unavailable, omit this type from the list for that refresh and show “Etsy sync status unavailable.”
 
-**Target on click:** Sales tab; navigate to Sales and highlight or focus the “Sync from Etsy” command. The app shows a clear indication that syncing will import this order (e.g. detail text: “Sync to import this order”). User may then run Sync from Etsy.
+**Target on click:** Orders tab; navigate to Sales and highlight or focus the “Sync from Etsy” command. The app shows a clear indication that syncing will import this order (e.g. detail text: “Sync to import this order”). User may then run Sync from Etsy.
 
 ---
 
@@ -92,7 +92,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 **Query rule:** From `orders` where `order_status = 'active'` AND `shipper` IS NOT NULL AND `shipping_date` IS NOT NULL AND (`seller_shipping_cost` IS NULL OR `seller_shipping_cost = 0`).
 
-**Target on click:** Sales tab; `record = orders.id`.
+**Target on click:** Orders tab; `record = orders.id`.
 
 ---
 

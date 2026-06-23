@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The application needs a clear, world-class UI that supports Dashboard, Sales, Inventory, Customers, Reports, and Config without feeling crowded or confusing. Users should see what needs attention (outstanding items) and act on it quickly. The experience must feel intuitive—no manual required to understand where to go or what to do.
+The application needs a clear, world-class UI that supports Dashboard, Orders, Inventory, Customers, Reports, and Settings (among other tabs) without feeling crowded or confusing. Users should see what needs attention (outstanding items) and act on it quickly. The experience must feel intuitive—no manual required to understand where to go or what to do.
 
 ## Decision
 
@@ -18,7 +18,7 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 
 **Layout**
 
-- **Tabs (top):** Primary navigation. Full tab set: **Dashboard**, **Sales**, **Inventory**, **Receipts**, **Customers**, **Reports**, **Tutorial and tips**, **Outstanding**, **Config** (see [ui-design.md](../ui-design.md) §2 for purpose and content of each). One tab active at a time; main content area shows that section’s list/form/report.
+- **Tabs (top):** Primary navigation. Canonical tab set (13, per `src/components/shell/TabBar.tsx`): **Dashboard**, **Orders**, **Shipping**, **Inventory**, **Receipts**, **Customers**, **Communications**, **Vendors**, **Expenses**, **Reports**, **Outstanding**, **Tutorial and tips**, **Settings** (see [ui-design.md](../ui-design.md) §2 for purpose and content of each). One tab active at a time; main content area shows that section’s list/form/report.
 - **Commands (left) / Outstanding (right) or the reverse:** ⚠️ **Deferred to post-v1.** Which side is which is configurable (Config). An **icon in the UI flips** the layout: **left** = commands, **right** = outstanding (to-do's), or the reverse. **Commands (one side):** A **panel** on the left or right (same side app-wide). Context-sensitive: only commands that apply to the current tab (and selection) are shown. One action per command; labels use verbs (e.g. “Add item”, “Mark shipped”). Global actions (e.g. Connect Etsy, Refresh) available where appropriate.
 - **Outstanding side panel (opposite side):** ⚠️ **Deferred to post-v1.** We support **both** (1) a **panel** on the other side from commands, visible on every tab, and (2) a dedicated **Outstanding tab** (full-page) showing the same list. Same data-driven items only (no user-added manual tasks). **What counts as outstanding** is defined in [ui-design.md](../ui-design.md) §4 (e.g. orders paid but not shipped, orders not yet marked paid, new Etsy orders not synced, inventory In stock but not Listed, customers with no or incomplete address). Implement the list from those definitions so the panel and tab stay in sync.
 - **Context in place on click:** Clicking an item in the Outstanding panel (or in the full-page Outstanding tab) **puts context in place**: the app navigates to the correct tab and opens/selects the correct record so the user can act immediately (e.g. Mark shipped, View order). We do not use a separate detail card overlay for this; the main content area shows the right tab and record.
@@ -30,7 +30,7 @@ The application needs a clear, world-class UI that supports Dashboard, Sales, In
 - Outstanding panel is clearly labeled; one row = one item; click = go to correct tab and record, ready for action.
 - Config controls which side is commands vs outstanding; an icon in the UI flips the layout (left = commands, right = outstanding to-do's, or the reverse).
 - Lists and forms use plain-language labels; primary action is easy to spot; errors and success messages are short and actionable.
-- Processes match how users think (e.g. “I have an order” → Sales tab).
+- Processes match how users think (e.g. “I have an order” → Orders tab).
 - Consistency: same pattern everywhere (select in center → act via commands or outstanding click → context in place); same style of buttons, cards, and feedback across tabs. When in doubt: fewer steps, clearer labels, predictable behavior.
 
 ## Consequences

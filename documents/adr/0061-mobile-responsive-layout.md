@@ -78,7 +78,7 @@ record opens an inline editor that **replaces** the list (no side-by-side master
 - **Desktop/Tablet:** Centered overlay with backdrop, max-width 600px
 - **Mobile:** Full-screen modal (no backdrop margin); close button in top-right corner; content scrollable
 
-#### Config page
+#### Settings page
 
 - **Desktop:** Card grid layout (2 columns)
 - **Tablet:** 2-column grid maintained

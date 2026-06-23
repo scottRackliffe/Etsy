@@ -223,7 +223,7 @@ When the mutation queue replays after reconnection and encounters a 409 (stale r
 
 ## Notes
 
-- Cross-references: ADR-030 (inventory detail — primary consumer of this guard + draft recovery), ADR-031 (order detail — consumer of guard + draft recovery), ADR-032 (ConfirmDialog — used for the in-app navigation guard dialog), ADR-034 (Config sections — consumer of guard only, no auto-save needed)
+- Cross-references: ADR-030 (inventory detail — primary consumer of this guard + draft recovery), ADR-031 (order detail — consumer of guard + draft recovery), ADR-032 (ConfirmDialog — used for the in-app navigation guard dialog), ADR-034 (Settings sections — consumer of guard only, no auto-save needed)
 - The `beforeunload` event is the only way to intercept browser close/refresh; it shows a browser-native dialog that cannot be styled or have custom text in modern browsers
 - For "new record" forms (creating a new item/order), use the key `draft:<entity_type>:new`; if the user starts creating two new items, the second overwrites the first draft (acceptable trade-off for simplicity)
 - This ADR supersedes the brief mention of dirty tracking in ADR-030 §4 and provides the full specification

@@ -17,7 +17,7 @@ Accepted
 
 ## Context
 
-The Sales page displays orders in a table but provides no way to view order details. Clicking an order only highlights the row and shows a one-line summary. There is no view for line items, shipping address, tracking number, customer association, shipping costs, discounts, notes, or order status changes. Users cannot edit order fields, add tracking numbers, or link orders to customers. The backend API (`GET /api/orders/[id]`, `PATCH /api/orders/[id]`) already supports full CRUD, but the frontend does not expose it.
+The Orders page displays orders in a table but provides no way to view order details. Clicking an order only highlights the row and shows a one-line summary. There is no view for line items, shipping address, tracking number, customer association, shipping costs, discounts, notes, or order status changes. Users cannot edit order fields, add tracking numbers, or link orders to customers. The backend API (`GET /api/orders/[id]`, `PATCH /api/orders/[id]`) already supports full CRUD, but the frontend does not expose it.
 
 ## Decision
 
@@ -273,6 +273,6 @@ ALTER TABLE orders ADD COLUMN package_height_in REAL;
   - Tracking numbers auto-populate on orders and carry through to thank-you notes and invoices (ADR-013).
 - **Negative**
   - Requires database migration for `tracking_number` and EasyPost columns.
-  - Master-detail layout adds complexity to the Sales page.
+  - Master-detail layout adds complexity to the Orders page.
   - Mark-shipped modal is a change from the current single-click pattern.
   - Rate shopping modal adds a multi-step flow for label purchase.

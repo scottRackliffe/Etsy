@@ -1267,7 +1267,7 @@ Request:
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation is governed by the single lifecycle in **ADR-085** (supersedes ADR-023/072): inline create → Generate (research + price + all fields) → Evaluate Quality → Publish at `listing_ready`. Listing endpoints are in section 4.
 - **Full extension index:** §12–§32 (ADR-027–074 plus vendor receipts). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
-- **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
+- **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Settings → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
 
 ### Extensions (updated 2026-05-24)
 

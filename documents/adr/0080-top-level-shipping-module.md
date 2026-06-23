@@ -84,10 +84,10 @@ ADR-079; until that lands, uses current shared components):
 
 ### 4. Routing and navigation
 
-- **New route/tab:** `/shipping`. Tab bar order becomes:
-  **Dashboard · Sales · Shipping · Inventory · Receipts · Customers · Vendors · Reports ·
-  Tutorial & Tips · Outstanding · Config** (Shipping placed immediately after Sales). Update
-  ui-design.md §1/§2 and ADR-024 nav accordingly.
+- **New route/tab:** `/shipping`. Canonical tab bar order (13, per `TabBar.tsx`):
+  **Dashboard · Orders · Shipping · Inventory · Receipts · Customers · Communications · Vendors ·
+  Expenses · Reports · Outstanding · Tutorial & tips · Settings** (Shipping placed immediately
+  after Orders). ui-design.md §1/§2 and ADR-024 reflect this list.
 - **Deep link:** `/shipping?orderId={id}` selects that order's shipping panel (ADR-035 — already
   added). Shipping-related activity rows (ADR-037 `shipping` entity_type) link here once this
   module ships; before that they link to `/orders?orderId=`.

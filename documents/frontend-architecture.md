@@ -191,7 +191,7 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 - `EtsySyncStatus` — Last sync date, sync button, connection health
 - `ActivityFeed` — Recent activity log entries widget (ADR-037)
 
-**Sales tab:**
+**Orders tab:**
 
 - `NewOrderForm` uses `PickList` for item selection; creates order via `POST /api/orders` then `POST` order items.
 - `MarkShippedForm` shows shipper dropdown (USPS/UPS/FedEx/DHL/Other), date picker, shipping cost input; warns if not paid (ADR-021 §11, ship-without-paid override).
@@ -204,7 +204,7 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
   - Import mode: paste JSON or upload file → validate schema → review → approve.
 - "Publish to Etsy" becomes available only when `listing_phase = 'listing_ready'` (ADR-085) plus the required Etsy fields are set. (The retired `listing_draft_state = 'approved'` gate no longer applies.)
 
-**Config tab:**
+**Settings tab:**
 
 - `AiSettingsForm` fields: provider dropdown, model text input, API key (password field, masked in display), base URL (optional), timeout, retry count, token budget. "Test Connection" button calls `POST /api/settings/ai/test-connection`.
 - `BackupSection` per ADR-027.
@@ -284,12 +284,12 @@ export type ApiError = {
 | 4    | Shared UI: `DataTable`, `FormField`, `Modal`, `Toast`, `Badge`, `EmptyState`, `LoadingSpinner`     | —                                                  | Components render in isolation                                    |
 | 5    | Hooks: `useApi`, `useSettings`, `usePagination`, `useToast`                                        | Step 4                                             | Hooks work with existing API routes                               |
 | 6    | Dashboard tab: extract from page.tsx                                                               | Steps 3–5                                          | Dashboard shows KPI cards, recent orders, sync status             |
-| 7    | Sales tab: extract orders list, detail, new order, mark paid/shipped                               | Steps 4–5 + `PickList`                             | Sales tab fully functional                                        |
+| 7    | Orders tab: extract orders list, detail, new order, mark paid/shipped                               | Steps 4–5 + `PickList`                             | Orders tab fully functional                                        |
 | 8    | Inventory tab: extract item list, detail, pictures, listing, condition                             | Steps 4–5 + `PictureGrid`, `ListingAuthoringPanel` | Inventory CRUD + listing workflow works                           |
 | 9    | Customers tab: extract customer list, detail, addresses                                            | Steps 4–5                                          | Customer CRUD works                                               |
 | 10   | Outstanding panel + full-page tab                                                                  | Step 5 + `useOutstanding`                          | Outstanding items display; click navigates correctly              |
 | 11   | Reports tab                                                                                        | Steps 4–5 + `PdfPreview`                           | All core reports + ADR-038/039/054/056 types generate and display |
-| 12   | Config tab                                                                                         | Steps 4–5                                          | All settings editable; Etsy connect/disconnect works              |
+| 12   | Settings tab                                                                                         | Steps 4–5                                          | All settings editable; Etsy connect/disconnect works              |
 | 13   | Tutorial tab                                                                                       | `SearchInput`, `TutorialIndex`                     | Search and index work; tips folder links open files               |
 | 14   | Commands panel _(deferred to post-v1)_                                                             | Steps 6–13                                         | Context-sensitive commands work for all tabs                      |
 | 15   | Delete monolithic page.tsx                                                                         | All above                                          | Old file removed; all tests pass                                  |

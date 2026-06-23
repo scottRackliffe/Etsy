@@ -56,7 +56,7 @@ Colors live in [System_Colors.md](../System_Colors.md); components in ADR-028 an
 
 #### 3.1 Tab bar (primary navigation)
 
-- **Order (fixed):** Dashboard → Sales → Inventory → Customers → Reports → Tutorial & Tips → Outstanding → Config.
+- **Order (fixed):** Dashboard → Sales → Inventory → Customers → Reports → Tutorial & Tips → Outstanding → Settings.
 - **Component:** `TabBar` — `Link` per tab, active = bottom border `2px solid var(--ui-accent)` + `--ui-title` text.
 - **Outstanding tab:** Badge with count from `GET /api/outstanding` (ADR-020).
 - **Mobile (ADR-061):** Horizontal scroll tab bar; same order.

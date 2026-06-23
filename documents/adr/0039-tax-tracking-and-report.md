@@ -47,7 +47,7 @@ A new setting key is added to the `settings` table:
 
 **Config UI (ADR-034):**
 
-- Add a "Tax Settings" field in the Config page under a "Tax" subsection (or within the existing "Business" section)
+- Add a "Tax Settings" field in the Settings page under a "Tax" subsection (or within the existing "Business" section)
 - Input: percentage field with label "Default Sales Tax Rate" — user enters `8.25` for 8.25%, stored as `8.25` (percentage number)
 - Input step: `0.01`
 - Helper text: "Enter as percentage, e.g. 8.25 for 8.25%. Applied automatically to new manual orders. Etsy orders use the tax amount from Etsy."

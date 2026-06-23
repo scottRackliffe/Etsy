@@ -8,7 +8,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 1. Print shipping label
 
-**Summary:** No automated connection to any shipping service. App generates and prints the label using order ship-to + stored Shipping Info. If Shipping Info is missing when needed, app tells user and how to navigate to it (Config → Shipping Info). Automated connections to shippers (e.g. carrier APIs) are a future consideration; not in current scope.
+**Summary:** No automated connection to any shipping service. App generates and prints the label using order ship-to + stored Shipping Info. If Shipping Info is missing when needed, app tells user and how to navigate to it (Settings → Shipping Info). Automated connections to shippers (e.g. carrier APIs) are a future consideration; not in current scope.
 
 **SSOT:** [shipping-label-carrier-templates.md](shipping-label-carrier-templates.md) (no carrier connection; Shipping Info; behavior); [ui-design.md](ui-design.md) (Sales commands, Config); [ADR-018](adr/0018-api-surface-endpoints.md) (Notes). Storage: [ADR-017](adr/0017-database-schema.md).
 
@@ -58,7 +58,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 **Summary:** Automated backup on schedule; backup directory configurable; full DB (optionally pictures); rolling 25 FIFO; v1 may be DB only—document in Config/help. Settings: backup_directory, backup_schedule.
 
-**SSOT:** [ADR-027](adr/0027-backup-and-restore.md) (format, schedule, rolling FIFO retention, API endpoints, restore flow with safety net, error handling, Config UI). Settings keys: [ADR-017](adr/0017-database-schema.md). Frontend UI: ADR-034 (Config page backup/restore section).
+**SSOT:** [ADR-027](adr/0027-backup-and-restore.md) (format, schedule, rolling FIFO retention, API endpoints, restore flow with safety net, error handling, Config UI). Settings keys: [ADR-017](adr/0017-database-schema.md). Frontend UI: ADR-034 (Settings page backup/restore section).
 
 ---
 

@@ -148,7 +148,7 @@ Both validate that the order exists and has `order_status = 'active'`. Return 40
 
 ---
 
-### Integration with Sales page (ADR-031)
+### Integration with Orders page (ADR-031)
 
 The order detail panel in Sales includes "Print invoice" and "Thank-you note" buttons. These link to:
 
