@@ -130,15 +130,15 @@ Search aliases:
 - D18 Handling incomplete inventory records
 - D19 Linking inventory to orders
 - D20 Placeholder inventory records from sync
-- **D21 Listing Coach — paste photos from Mac Photos (⌘V)** → [Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md)
-- **D22 Listing Coach — Google Visual Search screenshot step**
-- **D23 Listing Coach — confirm suggested answers (no blank writing)**
-- **D24 Listing Coach — suggested price and when to override**
-- **D25 Listing Coach — review preview and save to inventory**
+- **D21 Listing lifecycle — start small (basics + hero photo), then work it to world-class**
+- **D22 Generate Listing — AI researches comparables, suggests a price, and writes title/description/tags**
+- **D23 Evaluate Listing Quality — read the score and remediation list; fix the highest-impact items first**
+- **D24 Shot list — which photos a world-class listing needs; paste photos from Mac Photos (⌘V)**
+- **D25 Publish to Etsy — unlocks at quality score ≥ 85; re-publish updates the existing listing**
 
 Search aliases:
 
-- inventory, listing, generate listing, readiness, tags, title, description, category, listing coach, paste photos, google search
+- inventory, listing, generate listing, lifecycle, quality score, readiness, tags, title, description, category, shot list, paste photos, publish
 
 ## E. Pictures and media workflows
 

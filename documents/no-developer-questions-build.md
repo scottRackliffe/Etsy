@@ -337,4 +337,4 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 **Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — Phase 1b complete (ADR-070/071, ui-design §1b–1d); signed off 2026-05-24.
 
-**Etsy OAuth hold (2026-05-24):** Compliance remediation waves **36+** paused until MyEMS API key is approved. **Listing Coach (priority 53, ADR-072)** is the active build track — see [LISTING_COACH_SCOPE.md](LISTING_COACH_SCOPE.md). Waves **1–35** remain complete on `feature/final-system-completion`.
+**Etsy OAuth hold (2026-05-24, historical):** Compliance remediation waves **36+** were paused until the Etsy API key was approved. The Listing Coach (then priority 53) was **later removed and absorbed into the unified listing lifecycle (ADR-085, 2026-06-21)** — its scope doc is archived at [archive/LISTING_COACH_SCOPE.md](archive/LISTING_COACH_SCOPE.md). Waves **1–35** remain complete on `feature/final-system-completion`.

@@ -13,7 +13,7 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | `/`              | `src/app/page.tsx`                     | —           | Redirects to `/dashboard`                                                                                                    |
 | `/dashboard`     | `src/app/(app)/dashboard/page.tsx`     | Dashboard   | KPI cards, recent orders, sync status                                                                                        |
 | `/sales`         | `src/app/(app)/orders/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
-| `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list, detail panel, pictures, listing workshop (ADR-030)                                                                |
+| `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list + inline SEMS detail editor: core fields, pictures, Listing Content section, lifecycle button (ADR-030/079/085)     |
 | ~~`/listing-coach`~~ | — | — | **REMOVED (ADR-085):** new items use the inline SEMS create on `/inventory`; the AI Generate step lives in the inventory detail editor. |
 | `/customers`     | `src/app/(app)/customers/page.tsx`     | Customers   | Customer list, detail panel, addresses, purchase history                                                                     |
 | `/reports`       | `src/app/(app)/reports/page.tsx`       | Reports     | Report chooser, options, viewer                                                                                              |
@@ -320,7 +320,7 @@ Each step is independently deployable. The monolithic page.tsx can coexist durin
 | `CustomerNotesSection`           | 065 | Customer detail                   |
 | `CustomerMergeModal`             | 053 | Customers tab                     |
 | `ProfitabilityRow`               | 038 | Inventory detail                  |
-| `ListingScoreWidget`             | 068 | Inventory listing workshop        |
+| `ListingQualityBadge`            | 082 | Inventory detail + list (single quality engine; ADR-068 retired) |
 | `InventoryValueCard`             | 064 | Dashboard                         |
 | `OfflineBanner` / retry queue UI | 050 | App shell                         |
 

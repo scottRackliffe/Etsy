@@ -109,23 +109,32 @@ Before requesting listing generation:
 - If AI request fails:
   - retry once,
   - verify image paths and AI configuration,
-  - use **Listing Coach** (ADR-072) or fallback manual listing entry if needed.
+  - retry **Generate Listing**, or fall back to manual listing entry if needed.
 
 ---
 
-## 7. Listing Coach (ADR-072)
+## 7. Listing lifecycle (ADR-085)
 
-For **new listings**, the preferred path is **Listing Coach** — a guided flow where the operator:
+For **every** item the listing flow is the single lifecycle on the inventory detail (the standalone
+"Listing Coach" and "Listing Workshop" were removed by ADR-085). The seller **starts small** and
+works the listing up to **world-class** quality so it earns the search traffic to sell quickly and
+at the right price:
 
-1. Pastes item photos from macOS Photos (⌘C/⌘V) and optional **Google Visual Search** screenshots.
-2. Receives AI photo review against Photo Guide and marketing docs.
-3. Confirms AI-suggested answers to short questions (not blank writing tasks).
-4. Reviews suggested **street value / list price** with override or skip.
-5. Saves a composed listing (title, description, tags, hidden template fields) to a new inventory row.
+1. **Add the item** with the inline editor (ADR-079) — basics + a **hero photo**.
+2. **Generate Listing** — AI does the research-and-compose work: comparable-sales **price
+   recommendation**, identification, and **all** listing fields (title, description, tags, category,
+   strategy fields), plus suggested era/taxonomy/materials/dimensions. All non-empty photos are
+   sent. (Photo paste ⌘V and optional Google Visual Search screenshots feed this step.)
+3. **Evaluate Listing Quality** — the ADR-082 rubric scores the listing and returns a remediation
+   list; fix the highest-impact items and re-evaluate, driving the score toward ~100.
+4. **Publish to Etsy** — unlocks once the listing passes (score ≥ 85) and the Etsy field checks are
+   satisfied.
 
-**Does not replace** §3 picture requirements: all pasted item and condition photos are sent to AI on analyze and compose calls. **Does not require** Etsy OAuth. **Requires** integrated AI configuration.
+**Does not replace** §3 picture requirements: all item and condition photos are sent to the AI on
+Generate and Evaluate. **Does not require** Etsy OAuth for Generate/Evaluate. **Requires** integrated
+AI configuration.
 
-Full spec: **ADR-072**. User guide: [system/tips/Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md).
+Full spec: **ADR-085** (lifecycle), **ADR-081** (phases), **ADR-082** (quality rubric).
 
 ---
 
