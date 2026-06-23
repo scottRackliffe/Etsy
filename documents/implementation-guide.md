@@ -2,6 +2,13 @@
 
 This document gives a **high-level** implementation order. All detailed behavior, schema, APIs, validation, and UI are in the **ADRs** and **ui-design.md**; this guide only lists phases and which ADRs apply. Do not rely on this document for specification detail; use the ADRs.
 
+> **Scope note:** Phases 1–7 below are the original baseline build order. Later workstreams — Vendors
+> (ADR-076), Expenses (ADR-077), the top-level Shipping / EasyPost module (ADR-074/080), the Standard
+> Entity Management Screen (ADR-079), Communications (ADR-078), and the unified listing
+> lifecycle + quality rubric (ADR-081–085) — are tracked in
+> `PROGRAM_2026-06-21_major-enhancements.md` and the completed `tickets/` workstreams, not
+> re-sequenced here.
+
 ---
 
 ## Current baseline implemented
@@ -45,14 +52,18 @@ This document gives a **high-level** implementation order. All detailed behavior
 ## Phase 4: Inventory and customers
 
 - Inventory: CRUD, pictures, thumbnail, other costs per **ADR-002**, **ADR-010**, **ADR-017**, **ADR-018** (inventory endpoints). Validation per **ADR-021**. Delete behavior per **ADR-022**.
-- Listing authoring modes per **ADR-023**:
-  - manual winning-listing guided form,
-  - integrated AI generation path,
-  - hybrid export/import AI handoff path,
-  - approval gate before publish-to-Etsy.
-- Integrated AI connection settings and validation (provider/model/auth + connection test + retry/timeout/token-budget controls) in settings/config.
+- Listing lifecycle per **ADR-085** (the single listing system; supersedes ADR-023/068/072): the
+  context-aware button on the inventory detail drives **Evaluate Data → Generate Listing → Evaluate
+  Listing Quality → Publish to Etsy**, gated on `listing_phase = 'listing_ready'`. Phase model
+  (`listing_phase`) per **ADR-081**; quality rubric per **ADR-082**. New items use the inline SEMS
+  create (**ADR-079**) — basic data + hero photo — then the lifecycle button takes over. There is
+  **no** Listing Coach, Listing Workshop, mode toggle, portable export/import, or approval gate
+  (all removed by ADR-085).
+- Generate runs the full AI engine (research + AI-recommended price + all listing fields). AI
+  connection settings/validation (provider/model/auth + test + retry/timeout/token-budget) live in
+  Config (**ADR-034**).
 - Customers and addresses: CRUD per **ADR-003**, **ADR-017**, **ADR-018**. Validation per **ADR-021**. Delete per **ADR-022**.
-- **References:** ADR-002, ADR-003, ADR-010, ADR-017, ADR-018, ADR-021, ADR-022, ADR-023, ui-design §3 (Inventory, Customers).
+- **References:** ADR-002, ADR-003, ADR-010, ADR-017, ADR-018, ADR-021, ADR-022, ADR-079, ADR-081, ADR-082, ADR-085, ui-design §3 (Inventory, Customers).
 
 ---
 
@@ -97,4 +108,4 @@ This document gives a **high-level** implementation order. All detailed behavior
 | Pictures, thumbnail                                                         | ADR-010, ADR-015                                    |
 | Etsy compliance                                                             | ADR-011, etsy-compliance.md                         |
 | Etsy listing content, List on Etsy, AI generation (all item pictures to AI) | documents/etsy-listing-template-and-requirements.md |
-| Listing mode strategy (manual/integrated/hybrid)                            | ADR-023                                             |
+| Listing lifecycle (generate → quality → publish; single system)             | ADR-085, ADR-081, ADR-082                           |

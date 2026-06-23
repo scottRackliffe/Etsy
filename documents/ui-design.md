@@ -348,7 +348,7 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 | Control              | Behavior                                                                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| App name             | `settings.business_name` or “Trudy’s Etsy Sales Manager”; links to Dashboard                                                                 |
+| App name             | `settings.business_name` or “Trudy’s AiCE”; links to Dashboard                                                                 |
 | Etsy status          | Badge: Connected (`success`) / Not connected (`warning`)                                                                                     |
 | Shop selector        | Dropdown when connected; drives sync and receipts scope                                                                                      |
 | Recent (🕐)          | ADR-063 — dropdown of last viewed orders/items/customers                                                                                     |

@@ -26,7 +26,7 @@
 
 **Documented identity:** Single-user **local** app for **Trudy’s Classic Treasures** — vintage/antique Etsy shop. Official Etsy API only; no carrier APIs; no scraping ([ADR-011](adr/0011-compliance-with-etsy-rules.md), [etsy-compliance.md](etsy-compliance.md)).
 
-**Well-covered operational domains (69 ADRs + ui-design):**
+**Well-covered operational domains (85 ADRs + ui-design):**
 
 ```mermaid
 flowchart TB

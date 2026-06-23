@@ -23,7 +23,7 @@ The **dashboard** is the application's home view. Its content, structure, and be
 ### 1. Layout (single full page)
 
 - **Header (top, full width)**
-  - **Left:** Application title (e.g. "Trudy's Etsy Sales").
+  - **Left:** Application title (e.g. "AiCE").
   - **Right:** One of:
     - **"Connect Etsy"** button (when not connected) — primary action; navigates to `/api/auth/etsy`.
     - **"Disconnect"** button (when connected) — calls logout (POST `/api/auth/logout` or equivalent); clears session and returns the view to "not connected" state.

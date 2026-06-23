@@ -3,7 +3,7 @@
 **Last updated:** 2026-06-22  
 **Branch:** `feature/final-system-completion`
 
-This folder holds **implementation tickets** for Etsy Sales Manager. Only **open** tickets live
+This folder holds **implementation tickets** for AiCE. Only **open** tickets live
 in the folder root. **Completed** tickets are in [`completed/`](completed/) for reference.
 
 ---

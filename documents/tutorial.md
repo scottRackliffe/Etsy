@@ -1,6 +1,6 @@
 # Tutorial: How Etsy works, how this app helps, and tips to improve sales
 
-This tutorial explains **how Etsy works**, **how the Etsy Sales Manager application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the tips folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
+This tutorial explains **how Etsy works**, **how the AiCE application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the tips folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
 
 ---
 

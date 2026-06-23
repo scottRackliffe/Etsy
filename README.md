@@ -1,4 +1,4 @@
-# Etsy Sales Manager
+# AiCE
 
 A simple app to view and manage Etsy shop orders (receipts) for **Trudy's Classic Treasures**. Connect your Etsy account with OAuth and see recent sales, shipping status, and totals.
 

@@ -53,7 +53,7 @@ File: `src/app/(app)/layout.tsx`
 - **Client component:** Yes
 - **Props:** None (reads context)
 - **Behavior:**
-  - Displays app name ("Trudy's Etsy Sales Manager" or from `settings.business_name`)
+  - Displays app name ("Trudy's AiCE" or from `settings.business_name`)
   - Shows Etsy connection badge: green "Connected" / red "Not Connected"
   - When connected: shop selector dropdown (if multiple shops)
   - Last sync timestamp from `settings.last_etsy_sync_at`

@@ -50,7 +50,7 @@ The wizard is a full-screen modal with 4 sequential steps, displayed as a center
 
 **Content:**
 
-- Heading: "Welcome to Etsy Sales Manager"
+- Heading: "Welcome to AiCE"
 - Subheading: "Your personal tool for managing inventory, orders, customers, and Etsy listings for your vintage and antique business."
 - Body text: "Let's get you set up in just a few steps. This will take about 2 minutes."
 - Decorative element: App logo or a simple illustration (optional, accent-colored icon of a shop)

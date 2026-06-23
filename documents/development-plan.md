@@ -1,4 +1,4 @@
-# Development plan — Etsy Sales Manager
+# Development plan — AiCE
 
 This plan sequences implementation in dependency order, reduces risk early, and delivers value incrementally. All behavior, schema, APIs, and UI details are in the **ADRs** and **ui-design.md**; this document only orders and scopes work. For specification detail, use the ADRs and the [implementation-guide.md](implementation-guide.md) reference table.
 

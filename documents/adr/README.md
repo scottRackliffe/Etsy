@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADRs)
 
-This folder contains Architecture Decision Records for the Etsy Sales Manager application. Each ADR documents a significant design or scope decision in a consistent format.
+This folder contains Architecture Decision Records for the AiCE application. Each ADR documents a significant design or scope decision in a consistent format.
 
 **Internal only — not exposed to users.** ADRs are internal design and architecture documents. They must **not** be exposed to end users: no ADR content, links, or references in the application UI, user help, or user-facing documentation. User-facing content and behavior are defined in [tutorial.md](../tutorial.md), [knowledge-base-design.md](../knowledge-base-design.md), [ui-design.md](../ui-design.md), [pictures-and-sales.md](../pictures-and-sales.md), system/tips, and similar documents only. Implementers use ADRs to build the system; users never see them.
 
