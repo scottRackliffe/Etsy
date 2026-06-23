@@ -164,7 +164,7 @@ These rules apply when publishing a listing to Etsy. Publishing is gated on **`l
 | `item_length`, `item_width`, `item_height` / `item_dimensions_unit` | Optional. If any dimension is provided, all three should be provided along with `item_dimensions_unit` (one of: `in`, `ft`, `mm`, `cm`, `m`). | "All three dimensions and a unit are required when any dimension is provided." |
 | `etsy_return_policy_id` | Required before publish. Must resolve — either per-item value or global default (`etsy.publish.return_policy_id`). | "A return policy is required before publishing to Etsy. Set one on the item or in Settings → Publish Defaults." |
 | `etsy_shipping_profile_id` | Recommended — **warning only, does not block** publish (per `validatePublishReadiness`). Should resolve via per-item value or global default (`etsy.publish.shipping_profile_id`). | "No shipping profile set. Set one on the item or in Settings → Publish Defaults." |
-| `etsy_who_made` | Etsy-required to create the listing, but supplied from the global default (`etsy.publish.default_who_made`); **not separately gated** at readiness. | — |
+| `etsy_who_made` | Required before publish. Must resolve — per-item value or global default (`etsy.publish.default_who_made`) — and be a valid `who_made` enum (`i_did`, `someone_else`, `collective`). | "Who made it is required before publishing to Etsy." |
 
 ### Schema mapping (updated 2026-05-24)
 

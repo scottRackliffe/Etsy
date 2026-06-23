@@ -131,7 +131,7 @@ At publish time, per-item values take precedence over global settings defaults:
 
 | Field | Per-item column | Global setting fallback | Required for publish |
 | --- | --- | --- | --- |
-| `who_made` | `inventory.etsy_who_made` | `etsy.publish.default_who_made` | Etsy-required; supplied from the global default — **not separately gated** at readiness (`validatePublishReadiness`) |
+| `who_made` | `inventory.etsy_who_made` | `etsy.publish.default_who_made` | **Yes** (blocks publish; per-item value or global default must resolve and be a valid enum — `validatePublishReadiness`) |
 | `when_made` | `inventory.etsy_when_made` | `etsy.publish.default_when_made` | **Yes** (blocks publish) |
 | `taxonomy_id` | `inventory.etsy_taxonomy_id` | `etsy.publish.default_taxonomy_id` | **Yes** (blocks publish) |
 | `shipping_profile_id` | `inventory.etsy_shipping_profile_id` | `etsy.publish.shipping_profile_id` | Recommended — **warning only, does not block** (per `validatePublishReadiness`) |
