@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (design). Implementation pending (audit D1 / WP5).
+Accepted. **Implemented 2026-06-24 (WP5)** — endpoint + UI + `ai.premium_model` setting built and
+type-checked; live behaviour (real AI passes) pending an `npm run dev` smoke-test.
 
 ## Date
 
@@ -62,9 +63,44 @@ score higher (ADR-085 publish gate; ADR-086 §1a for tier intent).
   automated mode will need an explicit pass cap + stall definition (configurable), informed by the
   evidence gathered here.
 
+## Implementation
+
+**Endpoint:** `POST /api/inventory/[id]/listing-remediation-cycle` — runs exactly **one** pass.
+Body: `{ tier?: "standard" | "premium" }` (default `standard`). Gated to a current, generated
+listing (same readiness check as `listing-quality`: blocked when phase is `needs_data` /
+`ready_to_generate`).
+
+**One pass:**
+1. Score the item with the deterministic ADR-082 rubric (no photo-AI call — free; a text refine does
+   not change the photo sub-score). Record `previous_score`.
+2. Partition the remediation list by `ref`:
+   - **AI-fixable** = `{ listing_title, listing_description, listing_tags, sale_revenue }` — the
+     listing text/price the AI can rewrite.
+   - **User-action** = everything else (`pictures`, `picture_1`, `condition_pictures`, `dimensions`,
+     `materials`, `etsy_taxonomy_id`, `etsy_when_made`, `etsy_who_made`, `condition_code`,
+     `condition_notes`, `shipping`) — surfaced to the user, never auto-fixed.
+   - If no AI-fixable items remain → return `no_ai_action: true` and hand back the user-action list.
+3. Resolve the model (ADR-086 §1a): `standard` → `ai.model`; `premium` → **`ai.premium_model`** when
+   configured (else falls back to `ai.model`, reported via `premium_configured`).
+4. One **global `refineListing`** call at the resolved model, instructed with the scoring engine's own
+   `shortcoming` + `mitigation` text for the AI-fixable items (not ad-hoc).
+5. **Apply only listing OUTPUT fields (+ price)** — whitelist: the `listing_*` fields and
+   `sale_price → sale_revenue`. **No ADR-081 `HASH_FIELDS` are ever written** (e.g. `condition_notes`,
+   `materials`, dimensions are excluded), so a cycle improves the listing **in place without causing
+   drift**.
+6. Re-score, persist `listing_quality_json` + recompute the phase (mirrors `listing-quality`), log
+   `listing.remediation_cycle`.
+
+**Response:** `{ previous_score, new_score, delta, improved, passed, model_used, premium_configured,
+remediation, user_action_items, applied_fields }` — everything the UI needs for the score-delta
+display and the **Stop / Cycle again (tier=standard) / Advance AI (tier=premium)** controls.
+
+**New setting:** `ai.premium_model` (ADR-034 / ADR-086) — the more-capable tier for "Advance AI";
+blank = no premium configured (Advance AI runs at standard until set).
+
 ## Notes
 
 - Cross-refs: ADR-081/085 (lifecycle & phases), ADR-082 (quality rubric + remediation list),
-  ADR-083 (photo shot-list), ADR-086 (model tiers & cost strategy).
-- Prepared but **set aside** until build: a `model?` override hook on `callAiJson` /
-  `RefineListingInput` (held in git stash, labelled WP5) to let a cycle run at an escalated tier.
+  ADR-083 (photo shot-list), ADR-086 (model tiers & cost strategy), ADR-034 (`ai.premium_model`).
+- The `model?` override on `callAiJson` / `RefineListingInput` (the escalation hook) is part of this
+  build.

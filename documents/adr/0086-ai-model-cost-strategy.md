@@ -75,9 +75,10 @@ good enough?" a **measurable** question, not a guess.
    Cheapest tier does the groundwork; premium is spent only on evidence. **The listing flow and the
    user-observed remediation cycle that surfaces this evidence (the Stop / Cycle again / Advance AI
    controls) are specified in [ADR-089](0089-listing-remediation-cycle.md)** — kept there to keep this
-   ADR about *tiers and cost*, not flow. **To build (audit D1/WP5):** generation is currently pinned
-   to the single `ai.model`; the standard/premium split + the cycle's escalation hook are not yet
-   built.
+   ADR about *tiers and cost*, not flow. **Status (2026-06-24, WP5): built.** The remediation cycle
+   uses `ai.model` (standard) and escalates to `ai.premium_model` (premium) via "Advance AI"; one-shot
+   `generate-listing-content` still uses `ai.model`. Auto-cycle (stall→escalate without a human) is the
+   remaining future step, to be tuned from the evidence the user-observed cycle gathers.
 
 2. **Adequacy is measured, not assumed.** "Inadequate" must be grounded in an objective signal —
    for listing generation, failing the ADR-082 quality bar (score < `listing.min_quality_score`,
