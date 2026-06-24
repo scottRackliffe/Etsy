@@ -38,6 +38,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | **WS-CR10** | [WS-CR10_surface-real-ai-errors.md](WS-CR10_surface-real-ai-errors.md) | Surface the real error in AI dialogs (stop masking causes; don't discard billed AI on save-fail) — live-test finding | **Tier 1** (diagnosability) |
 | **WS-CR11** | [WS-CR11_error-dialog-details-button.md](WS-CR11_error-dialog-details-button.md) | Error dialogs: add a "Details" button revealing code/message/timestamp (+ Copy) — owner request | Tier 2 |
 | **WS-CR12** | [WS-CR12_generate-timeout-many-images.md](WS-CR12_generate-timeout-many-images.md) | Generate times out (~30s) with many images; server saves but UI false-fails — live-test finding | **Tier 1** |
+| **WS-CR13** | [WS-CR13_photo-shotlist-pdf.md](WS-CR13_photo-shotlist-pdf.md) | Printable photo shot-list PDF (what to shoot + what each photo must show) — owner request | Tier 2 |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
 
 ### Ops / verification (not tickets — operator steps)
