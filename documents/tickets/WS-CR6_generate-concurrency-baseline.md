@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **OPEN — NEEDS REPRO** (Tier 1 if confirmed) |
+| Status | **OPEN — CONFIRMED Tier 1.** Dev-server log shows repeated `PATCH /api/inventory/1 409` (concurrency conflicts on save, firing after generates) independent of any assistant API calls. |
 | Workstream | **Conformance Remediation** — live smoke-test finding 2026-06-24. |
 | Source ADR | **ADR-046** (concurrent-edit detection), ADR-079 (SEMS guard). |
 | Recommended model | Strong model — concurrency/optimistic-lock logic. |

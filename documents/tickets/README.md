@@ -31,12 +31,13 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | **WS-CR3** | [WS-CR3_remediation-autocycle.md](WS-CR3_remediation-autocycle.md) | Remediation auto-cycle (stall→escalate) — evidence-gated (D1) | Tier 3 / backlog |
 | **WS-CR4** | [WS-CR4_user-docs-remediation-cycle.md](WS-CR4_user-docs-remediation-cycle.md) | User-facing help for the remediation cycle | Tier 3 / optional |
 | **WS-CR5** | [WS-CR5_photo-add-drift-ux.md](WS-CR5_photo-add-drift-ux.md) | Photo-add → drift → regenerate UX (confusing reset) — live-test finding | Tier 2 (UX) |
-| **WS-CR6** | [WS-CR6_generate-concurrency-baseline.md](WS-CR6_generate-concurrency-baseline.md) | "Record modified" on Generate — concurrency baseline (needs repro) — live-test finding | **Tier 1 if confirmed** |
+| **WS-CR6** | [WS-CR6_generate-concurrency-baseline.md](WS-CR6_generate-concurrency-baseline.md) | "Record modified" / `PATCH 409` concurrency on save — **CONFIRMED** (live log) | **Tier 1** |
 | **WS-CR7** | [WS-CR7_reasoning-model-tier-support.md](WS-CR7_reasoning-model-tier-support.md) | Reasoning-class model tier support (drop temperature + reasoning-effort dial) — live-test finding | **Tier 1** (premium tier broken) |
 | **WS-CR8** | [WS-CR8_settings-chart-of-accounts-layout.md](WS-CR8_settings-chart-of-accounts-layout.md) | Settings: Chart of Accounts **+ GL Transaction Rules** under Item/Order Numbering, full-width, compact, no h-scroll | Tier 3 (UI) |
 | **WS-CR9** | [WS-CR9_lowercase-model-names.md](WS-CR9_lowercase-model-names.md) | Normalize OpenAI model names to lowercase + trim on save (casing trap) — live-test finding | Tier 2 |
 | **WS-CR10** | [WS-CR10_surface-real-ai-errors.md](WS-CR10_surface-real-ai-errors.md) | Surface the real error in AI dialogs (stop masking causes; don't discard billed AI on save-fail) — live-test finding | **Tier 1** (diagnosability) |
 | **WS-CR11** | [WS-CR11_error-dialog-details-button.md](WS-CR11_error-dialog-details-button.md) | Error dialogs: add a "Details" button revealing code/message/timestamp (+ Copy) — owner request | Tier 2 |
+| **WS-CR12** | [WS-CR12_generate-timeout-many-images.md](WS-CR12_generate-timeout-many-images.md) | Generate times out (~30s) with many images; server saves but UI false-fails — live-test finding | **Tier 1** |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
 
 ### Ops / verification (not tickets — operator steps)
