@@ -219,31 +219,55 @@ export async function generateShotList(item: InventoryRecord): Promise<ShotListI
     { type: "input_image" as const, image_url: imageUrl, detail: "auto" as const },
   ];
 
+  const maxTokens = Math.max(config.tokenBudget, 4000);
+
+  function isTemperatureUnsupportedError(err: unknown): boolean {
+    if (!(err instanceof OpenAI.APIError) || err.status !== 400) return false;
+    const msg = (typeof err.message === "string" ? err.message : "").toLowerCase();
+    return msg.includes("temperature") && msg.includes("unsupported");
+  }
+
+  const openai = new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl ?? undefined,
+    timeout: config.timeoutMs,
+    maxRetries: config.retryCount,
+  });
+  const model = resolveModelForTask(config, "shot-list");
+  const inputMessages = [
+    {
+      role: "system" as const,
+      content: [
+        {
+          type: "input_text" as const,
+          text: "You are a meticulous product-photography planner. Output strict JSON only.",
+        },
+      ],
+    },
+    { role: "user" as const, content: userContent },
+  ];
+
+  const makeRequest = async (withTemperature: boolean) =>
+    openai.responses.create({
+      model,
+      max_output_tokens: maxTokens,
+      ...(withTemperature ? { temperature: 0.3 } : {}),
+      input: inputMessages,
+    });
+
   let outputText: string | undefined;
   try {
-    const openai = new OpenAI({
-      apiKey: config.apiKey,
-      baseURL: config.baseUrl ?? undefined,
-      timeout: config.timeoutMs,
-      maxRetries: config.retryCount,
-    });
-    const response = await openai.responses.create({
-      model: resolveModelForTask(config, "shot-list"),
-      max_output_tokens: config.tokenBudget,
-      temperature: 0.3,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: "You are a meticulous product-photography planner. Output strict JSON only.",
-            },
-          ],
-        },
-        { role: "user", content: userContent },
-      ],
-    });
+    let response;
+    try {
+      response = await makeRequest(true);
+    } catch (firstError) {
+      if (isTemperatureUnsupportedError(firstError)) {
+        logApiCall("openai", "responses.create/shot-list", 400);
+        response = await makeRequest(false);
+      } else {
+        throw firstError;
+      }
+    }
     logApiCall("openai", "responses.create/shot-list", 200);
     outputText = response.output_text?.trim();
   } catch (err) {
@@ -253,7 +277,10 @@ export async function generateShotList(item: InventoryRecord): Promise<ShotListI
   }
 
   if (!outputText) {
-    throw new ShotListError("GENERATION_FAILED", "The AI returned an empty shot list.");
+    throw new ShotListError(
+      "GENERATION_FAILED",
+      "The AI returned empty output for the shot list (token budget exhausted or model issue)."
+    );
   }
 
   let list: ShotListItem[];

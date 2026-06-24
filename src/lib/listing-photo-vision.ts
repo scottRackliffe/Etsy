@@ -168,31 +168,55 @@ export async function evaluatePhotoQuality(
     })),
   ];
 
+  const maxTokens = Math.max(config.tokenBudget, 4000);
+
+  function isTemperatureUnsupportedError(err: unknown): boolean {
+    if (!(err instanceof OpenAI.APIError) || err.status !== 400) return false;
+    const msg = (typeof err.message === "string" ? err.message : "").toLowerCase();
+    return msg.includes("temperature") && msg.includes("unsupported");
+  }
+
+  const openai = new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl ?? undefined,
+    timeout: config.timeoutMs,
+    maxRetries: config.retryCount,
+  });
+  const model = resolveModelForTask(config, "photo-quality");
+  const inputMessages = [
+    {
+      role: "system" as const,
+      content: [
+        {
+          type: "input_text" as const,
+          text: "You are a meticulous product-photography reviewer. Score objectively and concisely.",
+        },
+      ],
+    },
+    { role: "user" as const, content },
+  ];
+
+  const makeRequest = async (withTemperature: boolean) =>
+    openai.responses.create({
+      model,
+      max_output_tokens: maxTokens,
+      ...(withTemperature ? { temperature: 0.1 } : {}),
+      input: inputMessages,
+    });
+
   let outputText: string | undefined;
   try {
-    const openai = new OpenAI({
-      apiKey: config.apiKey,
-      baseURL: config.baseUrl ?? undefined,
-      timeout: config.timeoutMs,
-      maxRetries: config.retryCount,
-    });
-    const response = await openai.responses.create({
-      model: resolveModelForTask(config, "photo-quality"),
-      max_output_tokens: config.tokenBudget,
-      temperature: 0.1,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: "You are a meticulous product-photography reviewer. Score objectively and concisely.",
-            },
-          ],
-        },
-        { role: "user", content },
-      ],
-    });
+    let response;
+    try {
+      response = await makeRequest(true);
+    } catch (firstError) {
+      if (isTemperatureUnsupportedError(firstError)) {
+        logApiCall("openai", "responses.create/listing-photo-quality", 400);
+        response = await makeRequest(false);
+      } else {
+        throw firstError;
+      }
+    }
     logApiCall("openai", "responses.create/listing-photo-quality", 200);
     outputText = response.output_text?.trim();
   } catch (err) {
@@ -201,7 +225,15 @@ export async function evaluatePhotoQuality(
     return null;
   }
 
-  if (!outputText) return null;
+  // Empty output after a 200: likely token budget exhausted or reasoning overhead.
+  // Log for diagnostics (WS-CR14) and degrade gracefully per this function's contract.
+  if (!outputText) {
+    logApiCall("openai", "responses.create/listing-photo-quality", 200);
+    console.warn(
+      "[listing-photo-vision] AI returned empty output (token budget exhausted or model issue) — falling back to provisional sub-score"
+    );
+    return null;
+  }
 
   let judgments: PhotoJudgment[];
   try {
