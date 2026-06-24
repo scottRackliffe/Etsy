@@ -1265,6 +1265,7 @@ export default function ConfigPage() {
           provider: "openai",
           model: aiConfig?.model ?? "gpt-4.1-mini",
           economy_model: aiConfig?.economyModel ?? "",
+          premium_model: aiConfig?.premiumModel ?? "",
           api_key: aiApiKeyDraft || undefined,
           base_url: aiConfig?.baseUrl ?? "",
           timeout_ms: aiConfig?.timeoutMs ?? 30000,
@@ -2362,6 +2363,7 @@ export default function ConfigPage() {
                     provider: current?.provider ?? "openai",
                     model: e.target.value,
                     economyModel: current?.economyModel ?? "",
+                    premiumModel: current?.premiumModel ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2384,6 +2386,7 @@ export default function ConfigPage() {
                     provider: current?.provider ?? "openai",
                     model: current?.model ?? "",
                     economyModel: e.target.value,
+                    premiumModel: current?.premiumModel ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2392,6 +2395,29 @@ export default function ConfigPage() {
                   }));
                 }}
                 placeholder="e.g. gpt-4.1-nano (blank = use primary model)"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="Premium model (optional)"
+              helpText="Optional — more capable model engaged by 'Advance AI' in the remediation cycle; blank = use the primary model."
+            >
+              <input
+                value={aiConfig?.premiumModel ?? ""}
+                onChange={(e) => {
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: current?.model ?? "",
+                    economyModel: current?.economyModel ?? "",
+                    premiumModel: e.target.value,
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                placeholder="e.g. gpt-4.1 (blank = use primary model)"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
             </FormField>

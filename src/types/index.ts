@@ -239,6 +239,7 @@ export type AiConfig = {
   provider: string;
   model: string;
   economyModel?: string;
+  premiumModel?: string;
   baseUrl?: string | null;
   timeoutMs: number;
   retryCount: number;

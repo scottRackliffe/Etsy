@@ -106,8 +106,10 @@ export function getAiConfig(): AiConfig | null {
 export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
   apiKeyConfigured: boolean;
   economyModel: string;
+  premiumModel: string;
 } {
   const economyModel = (getSetting("ai.economy_model") ?? "").trim();
+  const premiumModel = (getSetting("ai.premium_model") ?? "").trim();
   const config = getAiConfig();
   if (!config) {
     return {
@@ -119,6 +121,7 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
       tokenBudget: parseIntSetting(getSetting("ai.token_budget"), DEFAULT_TOKEN_BUDGET),
       apiKeyConfigured: false,
       economyModel,
+      premiumModel,
     };
   }
   return {
@@ -130,6 +133,7 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
     tokenBudget: config.tokenBudget,
     apiKeyConfigured: true,
     economyModel,
+    premiumModel,
   };
 }
 
@@ -137,6 +141,7 @@ export function saveAiConfig(input: {
   provider?: string;
   model?: string;
   economyModel?: string;
+  premiumModel?: string;
   apiKey?: string;
   baseUrl?: string | null;
   timeoutMs?: number;
@@ -153,6 +158,10 @@ export function saveAiConfig(input: {
   if (input.economyModel !== undefined) {
     // Blank = use the primary model for economy-eligible tasks.
     setSetting("ai.economy_model", input.economyModel.trim());
+  }
+  if (input.premiumModel !== undefined) {
+    // Blank = no premium configured; Advance AI falls back to the primary model.
+    setSetting("ai.premium_model", input.premiumModel.trim());
   }
   if (input.apiKey !== undefined) {
     const trimmedKey = input.apiKey.trim();

@@ -26,6 +26,7 @@ import {
   type CoachPhoto,
 } from "@/components/inventory/photo-paste-types";
 import { GoogleResultsPasteZone } from "@/components/inventory/GoogleResultsPasteZone";
+import { RemediationCyclePanel } from "@/components/inventory/RemediationCyclePanel";
 import type { PriceSuggestion, Citation, ComplianceCheck } from "@/lib/listing-ai";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -1745,6 +1746,17 @@ export function InventoryDetailPanel({
             onReloadItem={onReloadItem}
             onError={onError}
             onSuccess={onSuccess}
+          />
+        ) : null}
+
+        {item &&
+        (item.listing_phase === "generated" ||
+          item.listing_phase === "needs_quality_remediation" ||
+          item.listing_phase === "listing_ready") ? (
+          <RemediationCyclePanel
+            itemId={item.id}
+            onApplied={onReloadItem}
+            onError={onError}
           />
         ) : null}
 

@@ -27,6 +27,7 @@ export async function PUT(request: Request) {
       provider?: unknown;
       model?: unknown;
       economy_model?: unknown;
+      premium_model?: unknown;
       api_key?: unknown;
       base_url?: unknown;
       timeout_ms?: unknown;
@@ -37,6 +38,7 @@ export async function PUT(request: Request) {
       provider: typeof body.provider === "string" ? body.provider : undefined,
       model: typeof body.model === "string" ? body.model : undefined,
       economyModel: typeof body.economy_model === "string" ? body.economy_model : undefined,
+      premiumModel: typeof body.premium_model === "string" ? body.premium_model : undefined,
       apiKey: typeof body.api_key === "string" ? body.api_key : undefined,
       baseUrl: typeof body.base_url === "string" ? body.base_url : undefined,
       timeoutMs: body.timeout_ms === undefined ? undefined : Number(body.timeout_ms),

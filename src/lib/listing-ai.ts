@@ -127,6 +127,8 @@ export type RefineListingInput = {
   fieldName?: string;
   currentValue?: string;
   instruction: string;
+  /** Optional model override (escalated tier for the "Advance AI" remediation cycle). */
+  model?: string;
   context: {
     identification: string;
     listing_title: string;
@@ -241,6 +243,8 @@ export async function callAiJson(params: {
   tokenBudget?: number;
   timeoutMs?: number;
   qualifier: string;
+  /** Override the model (e.g. an escalated/premium tier for "Advance AI"). Defaults to config.model. */
+  model?: string;
 }): Promise<unknown> {
   const config = requireAiConfigOrThrow();
   const openai = getOpenAiClient(params.timeoutMs);
@@ -261,7 +265,7 @@ export async function callAiJson(params: {
   const makeRequest = async (useTools: boolean) => {
     const requestTools = useTools ? tools : [];
     return openai.responses.create({
-      model: config.model,
+      model: params.model ?? config.model,
       max_output_tokens: maxTokens,
       temperature: 0.2,
       ...(requestTools.length > 0 ? { tools: requestTools } : {}),
@@ -767,6 +771,7 @@ export async function refineListing(input: RefineListingInput): Promise<RefineLi
     tokenBudget: 4000,
     timeoutMs: 60_000,
     qualifier: "responses.create/listing-refine",
+    model: input.model,
   })) as Record<string, unknown>;
 
   const fields: Record<string, string> = {};
