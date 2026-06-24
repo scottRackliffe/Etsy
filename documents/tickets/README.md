@@ -43,11 +43,15 @@ already (WP1–WP7); these tickets are the **remaining builds**.
   summary returns the new payload (WP4). Via Chrome (extension connected): dashboard + Settings render
   with **no console errors**; nav shows the canonical tabs (Orders/Settings — WP7 renames intact);
   **the new "Premium model" AI-settings field renders** (WP5); Publish-defaults shows all image
-  settings + min-quality 85 (confirms the G4 withdrawal). **Still PENDING (env-gated, not code):** the
-  live "cycle visibly lifts the score" run + the Stop/Cycle/Advance buttons + the RemediationCyclePanel
-  rendering — all need an **AI key** set in Settings and a **generated listing** (this dev DB has
-  neither; 1 item in `ready_to_generate`). To finish: set the AI key (+ `ai.premium_model`), generate
-  a listing, then drive the cycle.
+  settings + min-quality 85 (confirms the G4 withdrawal).
+- **WP5 END-TO-END VERIFIED WITH REAL AI 2026-06-24.** Operator loaded 3 OpenAI tiers (standard =
+  `gpt-5.4-mini`) + key (stored **encrypted** -> WP1 confirmed live). On item 1: Generate succeeded
+  (web research + compose, 15s, phase -> `generated`); Evaluate Quality -> **score 52**; one standard
+  remediation cycle -> **score 56 (delta +4, improved:true)**, applied_fields =
+  [listing_title, listing_tags, listing_description], premium_configured:true, **11 user-action items
+  handed back** (photos/category/shipping). Confirms the design exactly: the AI fixes the text, the
+  user adds the photos. _Optional remaining: drive the UI buttons (Stop/Cycle/Advance) in-browser and
+  an "Advance AI" premium-tier pass._
 
 ---
 
