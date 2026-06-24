@@ -72,6 +72,13 @@ good enough?" a **measurable** question, not a guess.
      push the score beyond 85. The crossover is **configurable, not hardcoded** — *where* premium is
      actually needed is an open empirical question (2026-06-23).
 
+   **Reasoning-class premium models add a second cost dial (2026-06-24).** If the premium tier is a
+   reasoning model (e.g. `gpt-5.5`), it does **not** take `temperature` — it takes a **reasoning
+   effort** (none / low / medium / high / xhigh), where higher effort = better output at higher cost.
+   So the cost/quality lever for a reasoning premium tier is *model + effort*, both configurable.
+   Implementation (drop `temperature`, send `reasoning.effort`, expose an effort setting) is tracked
+   in **WS-CR7** — without it, `temperature` is sent unconditionally and a reasoning premium model 400s.
+
    Cheapest tier does the groundwork; premium is spent only on evidence. **The listing flow and the
    user-observed remediation cycle that surfaces this evidence (the Stop / Cycle again / Advance AI
    controls) are specified in [ADR-089](0089-listing-remediation-cycle.md)** — kept there to keep this
