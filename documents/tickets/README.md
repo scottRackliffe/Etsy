@@ -33,6 +33,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | **WS-CR5** | [WS-CR5_photo-add-drift-ux.md](WS-CR5_photo-add-drift-ux.md) | Photo-add → drift → regenerate UX (confusing reset) — live-test finding | Tier 2 (UX) |
 | **WS-CR6** | [WS-CR6_generate-concurrency-baseline.md](WS-CR6_generate-concurrency-baseline.md) | "Record modified" on Generate — concurrency baseline (needs repro) — live-test finding | **Tier 1 if confirmed** |
 | **WS-CR7** | [WS-CR7_reasoning-model-tier-support.md](WS-CR7_reasoning-model-tier-support.md) | Reasoning-class model tier support (drop temperature + reasoning-effort dial) — live-test finding | **Tier 1** (premium tier broken) |
+| **WS-CR8** | [WS-CR8_settings-chart-of-accounts-layout.md](WS-CR8_settings-chart-of-accounts-layout.md) | Settings: move Chart of Accounts under Item/Order Numbering, full-width, compact rows, no h-scroll | Tier 3 (UI) |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
 
 ### Ops / verification (not tickets — operator steps)
