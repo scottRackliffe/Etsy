@@ -36,15 +36,18 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 
 - **`npm run db:migrate`** on the live dev DB — applies migrations 018/019 (drops dead schema;
   tested on a copy only). _Not yet run on the live DB._
-- **`npm run dev` smoke-test — BACKEND VERIFIED 2026-06-24.** On a clean restart (the long-running
-  dev server had wedged after the rename/delete churn): app boots + `/api/health` 200 (WP3 DB init
-  OK); the cycle endpoint `POST /api/inventory/[id]/listing-remediation-cycle` runs end-to-end and
-  returns the correct `409` phase-gate (WP5 module graph compiles + logic executes); tax-compliance
-  summary returns the new payload (WP4). **Live AI + UI click-through still PENDING** — this dev DB
-  has **no AI key** configured and **no generated listing** (1 item, `ready_to_generate`), and the
-  **Claude-for-Chrome extension isn't connecting**, so the "cycle visibly lifts the score" path and
-  the Stop/Cycle/Advance buttons couldn't be exercised. To finish: set the AI key + `ai.premium_model`
-  in Settings, generate a listing, connect the extension, then drive the cycle.
+- **`npm run dev` smoke-test — BACKEND + UI RENDER VERIFIED LIVE 2026-06-24** (clean restart; the
+  long-running dev server had wedged after the rename/delete churn). Via API: app boots, `/api/health`
+  200 (WP3 DB init OK); cycle endpoint `POST /api/inventory/[id]/listing-remediation-cycle` runs
+  end-to-end → correct `409` phase-gate (WP5 module graph compiles + logic executes); tax-compliance
+  summary returns the new payload (WP4). Via Chrome (extension connected): dashboard + Settings render
+  with **no console errors**; nav shows the canonical tabs (Orders/Settings — WP7 renames intact);
+  **the new "Premium model" AI-settings field renders** (WP5); Publish-defaults shows all image
+  settings + min-quality 85 (confirms the G4 withdrawal). **Still PENDING (env-gated, not code):** the
+  live "cycle visibly lifts the score" run + the Stop/Cycle/Advance buttons + the RemediationCyclePanel
+  rendering — all need an **AI key** set in Settings and a **generated listing** (this dev DB has
+  neither; 1 item in `ready_to_generate`). To finish: set the AI key (+ `ai.premium_model`), generate
+  a listing, then drive the cycle.
 
 ---
 
