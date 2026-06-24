@@ -35,6 +35,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | **WS-CR7** | [WS-CR7_reasoning-model-tier-support.md](WS-CR7_reasoning-model-tier-support.md) | Reasoning-class model tier support (drop temperature + reasoning-effort dial) — live-test finding | **Tier 1** (premium tier broken) |
 | **WS-CR8** | [WS-CR8_settings-chart-of-accounts-layout.md](WS-CR8_settings-chart-of-accounts-layout.md) | Settings: Chart of Accounts **+ GL Transaction Rules** under Item/Order Numbering, full-width, compact, no h-scroll | Tier 3 (UI) |
 | **WS-CR9** | [WS-CR9_lowercase-model-names.md](WS-CR9_lowercase-model-names.md) | Normalize OpenAI model names to lowercase + trim on save (casing trap) — live-test finding | Tier 2 |
+| **WS-CR10** | [WS-CR10_surface-real-ai-errors.md](WS-CR10_surface-real-ai-errors.md) | Surface the real error in AI dialogs (stop masking causes; don't discard billed AI on save-fail) — live-test finding | **Tier 1** (diagnosability) |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
 
 ### Ops / verification (not tickets — operator steps)
