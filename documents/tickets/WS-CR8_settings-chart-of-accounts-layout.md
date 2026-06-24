@@ -13,17 +13,17 @@
 
 ## Problem
 
-On the **Settings** page, the **Chart of Accounts** (Accounting) section is poorly placed and too
-wide/loose — its table horizontally scrolls.
+On the **Settings** page, the **Chart of Accounts** and **GL Transaction Rules** (Accounting)
+tables are poorly placed and too wide/loose — they horizontally scroll.
 
 ## Goal (owner request)
 
 1. **Reposition** the Chart of Accounts / Accounting section to sit **directly under Item Numbering
    and Order Numbering** in the Settings layout.
-2. Make the Chart of Accounts **full width** (span the whole settings column / grid, not a narrow
-   card).
-3. **Compress the rows** as tightly as practical (denser vertical padding).
-4. **Decrease the font size** of the table so it **fits with no horizontal scrolling** at normal
+2. Make **both the Chart of Accounts and the GL Transaction Rules** tables **full width** (span the
+   whole settings column / grid, not a narrow card).
+3. **Compress the rows** as tightly as practical (denser vertical padding) — both tables.
+4. **Decrease the font size** of both tables so they **fit with no horizontal scrolling** at normal
    desktop width.
 5. General tightening to that effect ("etc.").
 
@@ -40,14 +40,15 @@ wide/loose — its table horizontally scrolls.
 
 ## Acceptance criteria
 
-- [ ] Chart of Accounts appears immediately below Item Numbering + Order Numbering.
-- [ ] It renders full-width; the table has **no horizontal scroll** at standard desktop width.
+- [ ] Chart of Accounts (+ GL Transaction Rules) appears immediately below Item + Order Numbering.
+- [ ] **Both** the Chart of Accounts and GL Transaction Rules tables render full-width with **no
+      horizontal scroll** at standard desktop width.
 - [ ] Rows are visibly more compact; font reduced; still legible.
 - [ ] `npm run type-check` + `npm run build` pass; no other Settings section disturbed.
 
 ## Kickoff prompt
 
 > Implement `documents/tickets/WS-CR8_settings-chart-of-accounts-layout.md`. In the Settings page,
-> move the Chart of Accounts / Accounting section to just under Item Numbering and Order Numbering,
-> make it full width, compress rows + shrink the table font so there is no horizontal scroll. Layout
-> only — no data/logic changes.
+> move the Chart of Accounts / Accounting section (Chart of Accounts **and** GL Transaction Rules) to
+> just under Item Numbering and Order Numbering; make both tables full width, compress rows + shrink
+> the font so there is no horizontal scroll. Layout only — no data/logic changes.
