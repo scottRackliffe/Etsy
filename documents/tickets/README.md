@@ -35,9 +35,16 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 ### Ops / verification (not tickets — operator steps)
 
 - **`npm run db:migrate`** on the live dev DB — applies migrations 018/019 (drops dead schema;
-  tested on a copy only).
-- **`npm run dev` smoke-test** — confirm live behaviour the headless build couldn't: the remediation
-  cycle actually lifts scores (WP5), AI-key encryption (WP1), and DB init (WP3).
+  tested on a copy only). _Not yet run on the live DB._
+- **`npm run dev` smoke-test — BACKEND VERIFIED 2026-06-24.** On a clean restart (the long-running
+  dev server had wedged after the rename/delete churn): app boots + `/api/health` 200 (WP3 DB init
+  OK); the cycle endpoint `POST /api/inventory/[id]/listing-remediation-cycle` runs end-to-end and
+  returns the correct `409` phase-gate (WP5 module graph compiles + logic executes); tax-compliance
+  summary returns the new payload (WP4). **Live AI + UI click-through still PENDING** — this dev DB
+  has **no AI key** configured and **no generated listing** (1 item, `ready_to_generate`), and the
+  **Claude-for-Chrome extension isn't connecting**, so the "cycle visibly lifts the score" path and
+  the Stop/Cycle/Advance buttons couldn't be exercised. To finish: set the AI key + `ai.premium_model`
+  in Settings, generate a listing, connect the extension, then drive the cycle.
 
 ---
 
