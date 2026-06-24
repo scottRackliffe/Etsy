@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
-import { RateShoppingModal } from "@/components/sales/RateShoppingModal";
+import { RateShoppingModal } from "@/components/orders/RateShoppingModal";
 import type { ApiErrorShape, Order } from "@/types";
 
 const SHIPPERS = ["USPS", "UPS", "FedEx", "DHL", "Other"] as const;

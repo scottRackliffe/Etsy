@@ -2,6 +2,7 @@ import { getDb } from "@/lib/sqlite";
 import { getSetting, getMinQualityScore } from "@/lib/settings-store";
 import { getOutstandingCount } from "@/lib/outstanding";
 import { computeRubricFastScore } from "@/lib/listing-rubric";
+import { getTaxComplianceStatus } from "@/lib/tax-payments";
 
 const UNSOLD_STATUSES = ["Draft", "In stock", "Listed", "Reserved"];
 
@@ -199,7 +200,16 @@ export function getDashboardStats() {
       .get(threshold) as { c: number }
   ).c;
 
-  return { repeat_customers_this_month: repeat };
+  // Tax filing compliance focus (ADR-039 / audit C22) — surfaced so on-time filing stays visible.
+  const tax = getTaxComplianceStatus();
+  const tax_compliance = {
+    balance_due: tax.balance_due,
+    next_filing_due_date: tax.next_filing_due_date,
+    days_until_due: tax.days_until_due,
+    filing_status: tax.filing_status,
+  };
+
+  return { repeat_customers_this_month: repeat, tax_compliance };
 }
 
 export type LowQualityInventoryItem = {

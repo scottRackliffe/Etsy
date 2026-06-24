@@ -83,7 +83,6 @@ const INVENTORY_COLUMNS: Record<string, string> = {
   listing_attributes: "TEXT",
   listing_pricing_shipping_notes: "TEXT",
   listing_quality_checklist: "TEXT",
-  listing_draft_state: "TEXT",
   listing_draft_source: "TEXT",
   listing_export_id: "TEXT",
   listing_approved_at: "TEXT",
@@ -359,39 +358,27 @@ function ensureCoreTables(db: Database.Database): void {
     );
   `);
 
+  // tax_payments — recording of remitted taxes. Conceptually an expense (the seed of the
+  // Expenses/AP-Lite function, ADR-077) but kept as its own table for CT sales-tax compliance
+  // tracking (ADR-039 / audit C22). Previously created only by migration 008; added here so the
+  // runtime bootstrap is complete and a bootstrap-built DB cannot crash on tax features (audit C13).
   db.exec(`
-    CREATE TABLE IF NOT EXISTS listing_exports (
+    CREATE TABLE IF NOT EXISTS tax_payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      export_id TEXT UNIQUE NOT NULL,
-      inventory_id INTEGER NOT NULL,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE CASCADE
+      payment_date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      payee TEXT,
+      reason TEXT,
+      period_from TEXT,
+      period_to TEXT,
+      reference_number TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
     );
   `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS listing_imports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      inventory_id INTEGER NOT NULL,
-      export_id TEXT,
-      payload_json TEXT NOT NULL,
-      source_label TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE CASCADE
-    );
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS listing_publish_previews (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      inventory_id INTEGER NOT NULL,
-      preview_hash TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY(inventory_id) REFERENCES inventory(id) ON DELETE CASCADE
-    );
-  `);
+  // NOTE (ADR-087): the retired Coach/Workshop tables (listing_exports, listing_imports,
+  // listing_publish_previews) were removed here and are dropped from existing DBs by
+  // migration 019 (audit C12).
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS activity_log (
@@ -711,15 +698,6 @@ function ensureCoreTables(db: Database.Database): void {
   db.exec("CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_order_items_inventory_id ON order_items(inventory_id);");
   db.exec("CREATE INDEX IF NOT EXISTS idx_etsy_receipts_shop_id ON etsy_receipts(shop_id);");
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS idx_listing_exports_inventory_id ON listing_exports(inventory_id);"
-  );
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS idx_listing_imports_inventory_id ON listing_imports(inventory_id);"
-  );
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS idx_listing_publish_previews_inventory_id ON listing_publish_previews(inventory_id);"
-  );
   db.exec("CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at);");
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);"

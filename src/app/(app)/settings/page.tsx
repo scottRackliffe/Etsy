@@ -16,8 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
 import { ProgressModal } from "@/components/ui/ProgressModal";
-import { ChartOfAccountsSection } from "@/components/config/ChartOfAccountsSection";
-import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
+import { ChartOfAccountsSection } from "@/components/settings/ChartOfAccountsSection";
+import { ShippingInfoSection } from "@/components/settings/ShippingInfoSection";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape, AiConfig } from "@/types";
 

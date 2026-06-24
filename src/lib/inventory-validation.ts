@@ -99,15 +99,20 @@ export function validatePublishReadiness(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!item.etsy_when_made) {
+  // Per-item value OR global publish default (ADR-017 §1c / ADR-021 §8). The publish route resolves
+  // these same fields from settings, so the gate must honor the same fallbacks or items relying on a
+  // configured default would be wrongly rejected (audit C7).
+  const whenMade = item.etsy_when_made ?? (settings["etsy.publish.default_when_made"] || null);
+  if (!whenMade) {
     errors.push("Era (when made) is required before publishing to Etsy.");
-  } else if (!VALID_WHEN_MADE.has(item.etsy_when_made)) {
-    errors.push(`"${item.etsy_when_made}" is not a valid era value.`);
+  } else if (!VALID_WHEN_MADE.has(whenMade)) {
+    errors.push(`"${whenMade}" is not a valid era value.`);
   }
 
-  if (item.etsy_taxonomy_id == null) {
+  const taxonomyId = item.etsy_taxonomy_id ?? (Number(settings["etsy.publish.default_taxonomy_id"]) || null);
+  if (taxonomyId == null) {
     errors.push("Category ID (taxonomy) is required before publishing to Etsy.");
-  } else if (!Number.isInteger(item.etsy_taxonomy_id) || item.etsy_taxonomy_id <= 0) {
+  } else if (!Number.isInteger(taxonomyId) || taxonomyId <= 0) {
     errors.push("Category ID must be a positive integer.");
   }
 

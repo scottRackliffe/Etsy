@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/sqlite";
+import { getSetting } from "@/lib/settings-store";
 
 export type TaxPaymentRecord = {
   id: string;
@@ -129,5 +130,64 @@ export function getTaxPaymentSummary() {
     last_payment_date: lastPaymentDate,
     current_year_paid: currentYearPaid,
     payments_count: payments.length,
+  };
+}
+
+/**
+ * Tax filing compliance status (ADR-039 / audit C22) — the "is it filed on time?" focus.
+ *
+ * The outstanding liability is already a fact (`balance_due` = collected − remitted). What this adds
+ * is filing-timeliness against the OWNER-CONFIGURED schedule — we do NOT hardcode any jurisdiction's
+ * filing calendar (CT or otherwise); the due date and cadence are facts the operator supplies via
+ * settings:
+ *   • tax.next_filing_due_date  — ISO date (YYYY-MM-DD) of the next filing deadline
+ *   • tax.filing_frequency      — "monthly" | "quarterly" | "annual" (informational label)
+ *   • tax.filing_reminder_days  — lead-time window for the "due soon" warning (default 14)
+ *
+ * filing_status:
+ *   "current"      — nothing owed (balance_due ≤ 0)
+ *   "no_schedule"  — money owed but no due date configured (operator must set one)
+ *   "overdue"      — money owed and the due date has passed
+ *   "due_soon"     — money owed and due within the reminder window
+ *   "ok"           — money owed, due date set, beyond the reminder window
+ */
+export type TaxFilingStatus = "current" | "no_schedule" | "overdue" | "due_soon" | "ok";
+
+export function getTaxComplianceStatus() {
+  const summary = getTaxPaymentSummary();
+  const nextDue = (getSetting("tax.next_filing_due_date") ?? "").trim() || null;
+  const frequency = (getSetting("tax.filing_frequency") ?? "").trim() || null;
+  const reminderRaw = parseInt(getSetting("tax.filing_reminder_days") ?? "", 10);
+  const reminderDays = Number.isFinite(reminderRaw) && reminderRaw > 0 ? reminderRaw : 14;
+
+  let daysUntilDue: number | null = null;
+  if (nextDue) {
+    const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
+    const due = new Date(nextDue + "T00:00:00Z").getTime();
+    if (Number.isFinite(due)) {
+      daysUntilDue = Math.round((due - today) / 86_400_000);
+    }
+  }
+
+  let filing_status: TaxFilingStatus;
+  if (summary.balance_due <= 0) {
+    filing_status = "current";
+  } else if (!nextDue || daysUntilDue === null) {
+    filing_status = "no_schedule";
+  } else if (daysUntilDue < 0) {
+    filing_status = "overdue";
+  } else if (daysUntilDue <= reminderDays) {
+    filing_status = "due_soon";
+  } else {
+    filing_status = "ok";
+  }
+
+  return {
+    ...summary,
+    filing_frequency: frequency,
+    next_filing_due_date: nextDue,
+    reminder_days: reminderDays,
+    days_until_due: daysUntilDue,
+    filing_status,
   };
 }
