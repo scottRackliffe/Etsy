@@ -1,5 +1,7 @@
 # Ticket WS-CR6 — "Record was modified since you loaded it" on Generate (concurrency baseline)
 
+> **Status: DONE (code) 2026-06-24** — fix committed + type-check clean; pending live re-test (restart dev server). See commit e840a58.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN — CONFIRMED Tier 1.** Dev-server log shows repeated `PATCH /api/inventory/1 409` (concurrency conflicts on save, firing after generates) independent of any assistant API calls. |

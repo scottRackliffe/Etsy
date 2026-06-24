@@ -1,5 +1,7 @@
 # Ticket WS-CR12 — Generate times out (~30s) with many images; server succeeds but UI false-fails
 
+> **Status: DONE (code) 2026-06-24** — fix committed + type-check clean; pending live re-test (restart dev server). See commit e840a58.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1 |
