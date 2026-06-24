@@ -1,7 +1,8 @@
 # Tickets — remaining work backlog
 
-**Last updated:** 2026-06-22  
-**Branch:** `feature/final-system-completion`
+**Last updated:** 2026-06-24  
+**Branch:** `docs/adr-audit-remediation` (conformance-remediation follow-ups; was
+`feature/final-system-completion`)
 
 This folder holds **implementation tickets** for AiCE. Only **open** tickets live
 in the folder root. **Completed** tickets are in [`completed/`](completed/) for reference.
@@ -19,13 +20,24 @@ in the folder root. **Completed** tickets are in [`completed/`](completed/) for 
 
 ## Open tickets
 
-Only one ticket remains open. Everything else is archived in [`completed/`](completed/).
+The **WS-CR** workstream holds the follow-ups from the 2026-06-23/24 code↔docs conformance audit
+(`documents/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md`). The audit's findings were mostly executed
+already (WP1–WP7); these tickets are the **remaining builds**.
 
 | Ticket | File | Topic | Tier |
 |--------|------|-------|------|
+| **WS-CR1** | [WS-CR1_tax-compliance-ui.md](WS-CR1_tax-compliance-ui.md) | Tax compliance UI — dashboard badge + Settings inputs (C22) | **Tier 1 (penalty risk)** |
+| **WS-CR2** | [WS-CR2_bootstrap-retirement.md](WS-CR2_bootstrap-retirement.md) | Retire runtime bootstrap; migrations as sole schema source (ADR-087) | Tier 2 |
+| **WS-CR3** | [WS-CR3_remediation-autocycle.md](WS-CR3_remediation-autocycle.md) | Remediation auto-cycle (stall→escalate) — evidence-gated (D1) | Tier 3 / backlog |
+| **WS-CR4** | [WS-CR4_user-docs-remediation-cycle.md](WS-CR4_user-docs-remediation-cycle.md) | User-facing help for the remediation cycle | Tier 3 / optional |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | Backlog (later sprint) |
 
-**Tier 1 (original request) and Tier 2 (polish) are fully closed** as of 2026-06-22 — see archive below.
+### Ops / verification (not tickets — operator steps)
+
+- **`npm run db:migrate`** on the live dev DB — applies migrations 018/019 (drops dead schema;
+  tested on a copy only).
+- **`npm run dev` smoke-test** — confirm live behaviour the headless build couldn't: the remediation
+  cycle actually lifts scores (WP5), AI-key encryption (WP1), and DB init (WP3).
 
 ---
 
