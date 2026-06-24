@@ -1,5 +1,7 @@
 # Ticket WS-CR14 — Economy-lane AI calls fail on gpt-5.x (token budget + temperature, not covered by CR7)
 
+> **Status: DONE + LIVE-VERIFIED 2026-06-24** — shot-list now returns 12 shots with descriptions on gpt-5.4; commit 15d1b18.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1 |
