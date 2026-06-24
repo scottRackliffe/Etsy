@@ -66,14 +66,17 @@ Every outbound `fetch()` or SDK call to an external service logs a row immediate
 
 For retry loops (429 handling), each attempt is logged separately so the operator can see rate-limit pressure.
 
-#### OpenAI (4 call sites)
+#### OpenAI (7 call sites)
 
 | Location | Endpoint logged |
 |----------|----------------|
 | `src/lib/listing-ai.ts` → Generate engine (research + price + fields, ADR-085) | `responses.create/generate-listing` |
 | `src/lib/listing-ai.ts` → `refineListing()` (per-field/global) | `responses.create/listing-refine` |
-| ~~`src/lib/listing-coach.ts`~~, ~~`improve-listing`~~ | **RETIRED (ADR-085):** folded into the Generate/refine engine above |
 | `src/lib/listing-photo-vision.ts` → `evaluatePhotoQuality()` | `responses.create/listing-photo-quality` |
+| `src/lib/shot-list.ts` → AI shot-list generation (ADR-083, economy lane) | `responses.create/shot-list` |
+| `src/lib/dimension-annotation.ts` → AI dimension measurement (ADR-084, economy lane) | `responses.create/measure` |
+| `src/app/api/expenses/scan/route.ts` → AI invoice/receipt scan (expense OCR) | `responses.create/expense-scan` |
+| `src/app/api/receipts/ocr/route.ts` → AI receipt OCR (vendor purchase receipts) | `responses.create/receipt-ocr` |
 | `src/lib/ai-config.ts` → `testAiConnection()` | `responses.create/test-connection` |
 
 ### 3. Query API
@@ -146,10 +149,11 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 | `src/lib/sqlite.ts` | Added `api_call_log` table DDL and index |
 | `src/lib/api-usage.ts` | New module — `logApiCall()` and `getMonthlyUsage()` |
 | `src/lib/etsy.ts` | Added `logApiCall('etsy', ...)` at 7 fetch points |
-| `src/lib/listing-generator.ts` | Added `logApiCall('openai', ...)` |
+| `src/lib/listing-ai.ts` | Added `logApiCall('openai', ...)` (generate + refine; replaces removed `listing-generator.ts`) |
 | `src/lib/listing-photo-vision.ts`, `shot-list.ts`, `dimension-annotation.ts` | Added `logApiCall('openai', ...)` at each OpenAI call site (WS-AICOST economy lane) |
 | `src/lib/ai-config.ts` | Added `logApiCall('openai', ...)` |
-| `src/app/api/inventory/[id]/improve-listing/route.ts` | Added `logApiCall('openai', ...)` |
+| `src/app/api/expenses/scan/route.ts` | Added `logApiCall('openai', ...)` (expense receipt scan) |
+| `src/app/api/receipts/ocr/route.ts` | Added `logApiCall('openai', ...)` (vendor receipt OCR) |
 | `src/app/api/usage/route.ts` | New endpoint — `GET /api/usage` |
 | `src/app/(app)/settings/page.tsx` | New "API Usage" section in Config UI |
 

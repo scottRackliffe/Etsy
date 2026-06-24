@@ -113,7 +113,7 @@ Operations that may exceed ~3s (Etsy sync, large batch, backup, CSV import, comb
 { "ok": true, "job_id": "job_<opaque>", "status": "running" }
 ```
 
-Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (SSE). Cancel: `DELETE /api/jobs/[job_id]`. Completed jobs include `result` JSON; failed jobs include error envelope in `result` or `error`.
+Poll `GET /api/jobs/[job_id]` for progress. (An SSE `/stream` variant was specified but is **not implemented** — descoped 2026-06-23, audit C18.) Cancel: `DELETE /api/jobs/[job_id]`. Completed jobs include `result` JSON; failed jobs include error envelope in `result` or `error`.
 
 ---
 
@@ -689,7 +689,7 @@ Valid actions: orders — `mark_paid`, `mark_shipped`, `void`; inventory — `ch
 }
 ```
 
-Completed: `status: "completed"`, `result` object (action-specific, e.g. sync `{ synced, created_orders, skipped?, errors? }`). Failed: `status: "failed"`, `error` envelope. Cancelled: `status: "cancelled"`. `DELETE /api/jobs/[job_id]` → **200** or **204**. SSE `GET /api/jobs/[job_id]/stream`: events `progress`, `completed`, `failed` with same JSON payloads.
+Completed: `status: "completed"`, `result` object (action-specific, e.g. sync `{ synced, created_orders, skipped?, errors? }`). Failed: `status: "failed"`, `error` envelope. Cancelled: `status: "cancelled"`. `DELETE /api/jobs/[job_id]` → **200** or **204**. (A planned SSE `GET /api/jobs/[job_id]/stream` with `progress`/`completed`/`failed` events is **not implemented** — descoped 2026-06-23, audit C18; poll instead.)
 
 **B12) `GET /api/health` (§23, ADR-050)**
 
@@ -1255,6 +1255,129 @@ Request:
 
 ---
 
+**§40. Miscellaneous endpoints not previously indexed (C17 back-fill)**
+
+The following live endpoints existed in code but were omitted from the sections above. They are recorded here to complete the catalog.
+
+**Addresses — global list**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/addresses` | App | List all addresses across all customers. Query: `customer_id?`, `limit?`, `offset?`. 200: `{ items: Address[], pagination }`. |
+
+**Auth — Etsy session info**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/auth/etsy/info` | None | Return current Etsy connection state: `{ connected, shop_id?, shop_name?, connected_at?, token_expires_at?, last_etsy_sync_at? }`. Used by UI to determine whether OAuth is active without a full API call. |
+
+**Backup — scheduled trigger**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/backup/scheduled` | App | Trigger a scheduled automatic backup (called by the app's internal scheduler). 200: `{ ok, ran, … }`. No-ops if not due yet. |
+
+**Dashboard — low-quality inventory**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/dashboard/low-quality-inventory` | App | Return inventory items with low listing-quality scores for the dashboard widget. 200: `{ ok, items: [] }`. |
+
+**Expenses — bill payments sub-resource**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/expenses/[id]/payments` | App | List payments recorded against a bill/expense. 200: `{ ok, items: BillPayment[] }`. |
+| POST | `/api/expenses/[id]/payments` | App | Record a payment against a bill/expense. Body: `{ payment_date, amount, payment_method?, reference_number?, notes? }`. 201: `{ ok, item: BillPayment, expense }`. |
+| DELETE | `/api/expenses/[id]/payments` | App | Delete a payment (query param `paymentId` required). 200: `{ ok, expense }`. |
+
+**Expenses — bills view**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/expenses/bills` | App | List non-tax bill-type expenses. 200: `{ ok, items }`. |
+| GET | `/api/expenses/bills/summary` | App | Aggregated bill payment summary (total billed, total paid, outstanding). 200: `{ ok, … }`. |
+
+**Inventory — regenerate thumbnails**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/inventory/regenerate-thumbnails` | App | Regenerate all inventory thumbnails (ADR-026 §5). Used when the `thumbnail_size` setting changes. 200: `{ ok, … }`. |
+
+**Order items — direct access**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| PATCH | `/api/order-items/[id]` | App | Update a single order line item (quantity, unit price, etc.). 200: `{ ok, order }`. |
+| DELETE | `/api/order-items/[id]` | App | Remove a line item from an order. 200: `{ ok, order }`. |
+
+**Orders — line item sub-resource**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/orders/[id]/items` | App | Add a line item to an existing order. Body: `{ inventory_id, quantity?, unit_price? }`. 201: `{ ok, order }`. |
+| PATCH | `/api/orders/[id]/items/[itemId]` | App | Update a specific line item on an order. 200: `{ ok, order }`. |
+| DELETE | `/api/orders/[id]/items/[itemId]` | App | Remove a specific line item from an order. 200: `{ ok, order }`. |
+
+**Orders — discount reasons**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/orders/discount-reasons` | App | Return a distinct list of previously used discount reason strings. 200: `{ reasons: string[] }`. Used for auto-complete in the UI. |
+
+**Reports — vendor profitability**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET or POST | `/api/reports/vendor-profitability` | App | Vendor profitability report: revenue, cost, margin grouped by vendor. Query/body: `from_date?`, `to_date?`, `format?` (pdf/csv). 200: PDF or CSV per ADR-013. |
+
+**Settings — database integrity check**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/integrity-check` | App | Run `PRAGMA integrity_check` on the SQLite database. Stores result in settings and logs activity. 200: `{ ok, result }`. |
+
+**Settings — business logo**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/logo` | App | Upload business logo image (multipart; max 5 MB). Stores to `uploads/branding/logo.png`; sets `business_logo_path` setting. 200: `{ ok, path }`. |
+| DELETE | `/api/settings/logo` | App | Remove the business logo. Clears file and `business_logo_path` setting. 204. |
+
+**Settings — report header image**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/report-header` | App | Upload report header image (multipart; max 5 MB). Stores to `uploads/branding/report-header.png`; sets `report_header_logo_path` setting. 200: `{ ok, path }`. |
+| DELETE | `/api/settings/report-header` | App | Remove the report header image. Clears file and `report_header_logo_path` setting. 204. |
+
+**Shipping — EasyPost connection test**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/shipping/test-connection` | App | Test whether the configured EasyPost API key is valid. 200: `{ ok, configured, … }`. 400 `SHIPPING_NOT_CONFIGURED` if no key set. |
+
+**Tutorial — file listing and content**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/tutorial/files` | App | List available tutorial files (`.md`/`.txt`). 200: `{ ok, files: string[] }`. |
+| GET | `/api/tutorial/files/[name]` | App | Return the content of a named tutorial file. Path param `name` must end in `.md` or `.txt`; directory traversal rejected. 200: `{ ok, name, content }`. 404 if not found. |
+
+**API usage — connection session tracking**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/usage/session` | App | Record or update a connection session event (`start`, `end`, `heartbeat`) for external services. Body: `{ service, action, session_id? }`. 200: `{ ok, session_id? }`. |
+
+**Vendors — category list**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/vendors/categories` | App | Return a merged list of vendor category strings (DB values + default suggestions), deduplicated and sorted. 200: `{ ok, categories: string[] }`. |
+
+---
+
 ## Consequences
 
 - **Positive:** Single place for all endpoints; no ambiguity for implementers.
@@ -1354,7 +1477,7 @@ Optional v1 extension: `{ action, filter }` without `ids` for “select all matc
 | Method | Path                      | Auth | Purpose                         |
 | ------ | ------------------------- | ---- | ------------------------------- |
 | GET    | /api/jobs/[job_id]        | App  | Poll job status/progress/result |
-| GET    | /api/jobs/[job_id]/stream | App  | SSE progress stream             |
+| ~~GET~~ | ~~/api/jobs/[job_id]/stream~~ | —  | **NOT IMPLEMENTED (descoped 2026-06-23, audit C18):** no SSE route exists in code; poll `GET /api/jobs/[job_id]` instead. |
 | DELETE | /api/jobs/[job_id]        | App  | Cancel running job              |
 
 **§23. Health (ADR-050)**

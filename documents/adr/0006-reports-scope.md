@@ -1,4 +1,4 @@
-# ADR-006: Reports — thank you note, invoice, sales, costs, income, postal by vendor
+# ADR-006: Reports — thank you note, invoice, sales, costs, and financial reporting suite
 
 ## Status
 
@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The application must support several reports for daily operations and financial visibility: customer-facing documents (thank you note, invoice), operational views (sales, costs), and financial summaries (income month-to-date, year-to-date, postal costs by vendor). All data must come from the database.
+The application must support several reports for daily operations and financial visibility: customer-facing documents (thank you note, invoice), operational views (sales, costs), and financial summaries. All data must come from the database. Note: the standalone "Income — month-to-date," "Income — year-to-date," and "Postal costs by vendor" reports were originally in scope but were removed (2026-06-17, ADR-036); they are not supported and are described here only as historical context.
 
 ## Decision
 
@@ -48,10 +48,11 @@ Output format: **PDF or CSV** per user choice (see [ADR-013](0013-report-output-
 
 ## Notes
 
-- For report period filters, use the order date as the canonical sale date for sales, income MTD, and income YTD.
-- **Income MTD/YTD:** Sum **inventory.sale_revenue** for all items linked from orders in the selected period (filtered by order date). Sale revenue is stored on inventory (ADR-002); the order_items record links to the item. Do not store a duplicate "amount" on the order record for revenue; use the linked inventory's `sale_revenue`.
-- Thank you note and invoice are document-style reports (per order); sales, costs, income MTD/YTD, and postal by vendor are summary/list reports.
-- **Reporting currency:** Income MTD/YTD and other monetary reports use the app default currency (`ui.currency_code` setting; see ADR-034). Per-currency or multi-currency report aggregation is out of scope unless added in a future ADR.
+- For report period filters, use the order date as the canonical sale date for sales and profit reports.
+- ~~**Income MTD/YTD** and **Postal costs by vendor**~~ — **REMOVED (2026-06-17, ADR-036).** Income figures now appear on the dashboard KPIs (ADR-038); postal/shipping spend is folded into the Costs report. The implementation guidance below for these removed reports is retained for historical reference only and must not be treated as current scope.
+  - ~~Sum **inventory.sale_revenue** for all items linked from orders in the selected period (filtered by order date). Sale revenue is stored on inventory (ADR-002); the order_items record links to the item. Do not store a duplicate "amount" on the order record for revenue; use the linked inventory's `sale_revenue`.~~
+- Thank you note and invoice are document-style reports (per order); sales, costs, and the financial reporting suite are summary/list reports.
+- **Reporting currency:** Monetary reports use the app default currency (`ui.currency_code` setting; see ADR-034). Per-currency or multi-currency report aggregation is out of scope unless added in a future ADR.
 
 > **Note (2026-06-09):** The canonical currency setting is `ui.currency_code` (see ADR-034). The legacy `settings.currency_code` key is retained for backwards compatibility but `ui.currency_code` is authoritative.
 - **Per-order documents (ADR-036):** Invoice and thank-you note can be generated for a single order via path-based endpoints: `/api/reports/invoice/[orderId]` and `/api/reports/thank-you-note/[orderId]`.

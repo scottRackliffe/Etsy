@@ -136,6 +136,36 @@ grand_total = subtotal + shipping_total + tax_total - discount_total
 
 This recalculation happens in the API `PATCH /api/orders/[id]` handler whenever any of the four component fields change.
 
+### 7. On-time filing compliance focus (added 2026-06-23, audit C22)
+
+CT sales-tax remittance is compliance-critical — there are penalties for **late filing**, so the
+system must keep the operator focused on filing **on time**, not merely record payments after the
+fact.
+
+**Outstanding liability** is already a fact derived from data: `balance_due = tax_collected −
+total_remitted` (tax collected = `SUM(orders.tax_total)` for active orders; remitted = `SUM` of tax
+payments incl. the Expenses/AP-lite "Tax Remittance" category). This is computed by
+`getTaxPaymentSummary()` and surfaced in the Sales Tax Summary report (`current_liability`).
+
+**Filing timeliness** is computed by `getTaxComplianceStatus()` (`src/lib/tax-payments.ts`) against
+an **operator-configured** schedule — the system does **not** hardcode any jurisdiction's filing
+calendar. New `settings` keys:
+
+| Key | Example | Notes |
+| --- | --- | --- |
+| `tax.next_filing_due_date` | `2026-07-31` | ISO date of the next filing deadline (operator-supplied fact) |
+| `tax.filing_frequency` | `quarterly` | `monthly` \| `quarterly` \| `annual` (informational label) |
+| `tax.filing_reminder_days` | `14` | Lead-time window for the "due soon" warning (default 14) |
+
+`filing_status` ∈ `current` (nothing owed) · `no_schedule` (owed, no due date set) · `overdue`
+(owed, past due) · `due_soon` (owed, within the reminder window) · `ok` (owed, beyond the window),
+with `days_until_due`.
+
+**Surfacing:** `getTaxComplianceStatus()` is returned by `GET /api/tax-payments/summary` and included
+in `getDashboardStats()` (`tax_compliance`) so the status is available to the dashboard "Needs
+attention" surface and the Tax Payments screen. (The dashboard/Tax-screen visual badge + the
+Settings form inputs for the three keys are the UI finish; the data/logic layer is in place.)
+
 ## Consequences
 
 - **Positive:** Sellers have a ready-made tax report for compliance filing; auto-population of tax on manual orders reduces data entry errors; no schema migration required (uses existing `tax_total` column and `settings` table).

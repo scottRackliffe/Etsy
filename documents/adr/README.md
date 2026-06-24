@@ -107,3 +107,7 @@ We use a standard format for all ADRs:
 | [ADR-083](0083-ai-shot-list-generation.md)                         | AI shot-list generation from the primary photo                                           |
 | [ADR-084](0084-ai-dimension-annotation.md)                         | AI dimension annotation from a reference-ruler photo                                     |
 | [ADR-085](0085-unified-listing-lifecycle.md)                       | **Unified listing lifecycle — single processor (supersedes ADR-023/068/072)**           |
+| [ADR-086](0086-ai-model-cost-strategy.md)                          | AI model selection & cost strategy — cheapest-first, escalate on proven inadequacy       |
+| [ADR-087](0087-database-schema-management-and-health.md)           | Database schema management & health — migrations as the single source of truth           |
+| [ADR-088](0088-financial-reporting-suite.md)                       | Financial reporting suite — GL balance sheet, income statement, A/R aging, vendor profit  |
+| [ADR-089](0089-listing-remediation-cycle.md)                       | Listing remediation cycle — user-observed scoring↔AI-mitigation loop (Stop/Cycle/Advance) |

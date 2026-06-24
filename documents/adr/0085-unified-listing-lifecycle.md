@@ -77,6 +77,15 @@ Generate (a recommendation the owner accepts/edits), not an input. Price still c
 ADR-082 **Pricing & shipping** rubric category, so an unset/implausible price simply lowers the
 quality score and produces a remediation item — it never blocks generation.
 
+**Recommended initial inputs (the bare minimum the AI cannot determine).** Beyond the four *required*
+gate fields above, the user should provide — to seed research and the first-pass determination of the
+remaining fields — a **preliminary item name** (the AI then analyzes and refines it), **where it was
+purchased**, a **rough description** of what it is, the **amount spent**, the **condition**, the
+**purchase date**, and a **single seed photo**. These are *recommended* (they improve the first
+generation and feed cost tracking), not blocking — only the four fields above gate generation. The
+first quality evaluation then returns the shortcomings list plus the per-item photo shot-list
+(ADR-083), which drive the remediation cycle ([ADR-089](0089-listing-remediation-cycle.md)).
+
 ### 3. Generate absorbs the Listing Coach's full AI brain
 
 The lifecycle **Generate Listing** step performs the research-and-compose work formerly unique to
@@ -120,6 +129,12 @@ Publish-to-Etsy is gated on **`listing_phase = 'listing_ready'`** (rubric passed
 remediation) **plus** the existing Etsy field checks (`validatePublishReadiness`: `etsy_when_made`,
 `etsy_taxonomy_id`, return policy + shipping profile per-item-or-global, materials/dimensions
 validity). The **Publish to Etsy** action surfaces in the lifecycle controls once `listing_ready`.
+
+**At ≥ 85, the user chooses:** finish any remaining user-only remediation and **publish**, *or*
+**keep cycling** to push the score higher toward the ~100 aspiration — the latter continues the
+remediation cycle ([ADR-089](0089-listing-remediation-cycle.md)), the point where a more capable
+model may be engaged (ADR-086 §1a). Publishing is allowed at exactly 85; raising it further is
+optional.
 
 Retired from the publish path: `listing_draft_state = 'approved'`, `listing_approved_at`, the
 approve/reject step, and the publish-preview **hash** gate. Publishing remains **official Etsy API
