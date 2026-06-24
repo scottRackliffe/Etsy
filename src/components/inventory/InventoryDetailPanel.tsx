@@ -740,6 +740,9 @@ export function InventoryDetailPanel({
   // saveTargetRef always points to the current saveChanges closure so the parent's saveRef
   // wrapper stays stable across re-renders.
   const saveTargetRef = useRef<() => Promise<boolean>>(async () => false);
+  // WS-CR6: track previous regenerateAiBusy so we can detect the true→false transition
+  // and proactively reload the item to capture the server's post-generate updated_at.
+  const prevRegenerateAiBusyRef = useRef<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [storeCategoryList, setStoreCategoryList] = useState<string[]>([]);
   const [addingCategory, setAddingCategory] = useState(false);
@@ -866,6 +869,22 @@ export function InventoryDetailPanel({
       baselineRef.current = newBaseline;
     }
   }, [item]);
+
+  // WS-CR6: After Generate (or any AI sub-action routed through regenerateAiBusy) completes,
+  // proactively reload the item so the panel's concurrency baseline (item.updated_at used by
+  // saveChanges → patchWithUndo → If-Match) reflects the server's post-generate updated_at.
+  // Without this, a save immediately after Generate sends the pre-generate updated_at and
+  // triggers a false 409 ("record was modified since you loaded it").
+  useEffect(() => {
+    const wasBusy = prevRegenerateAiBusyRef.current;
+    prevRegenerateAiBusyRef.current = Boolean(regenerateAiBusy);
+    if (wasBusy && !regenerateAiBusy && onReloadItem && item) {
+      void onReloadItem();
+    }
+  // onReloadItem and item are intentionally included to avoid stale closures; item is checked
+  // to skip the reload if no item is selected.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regenerateAiBusy]);
 
   // Compare draft against baseline (not item prop) so sub-action refreshes that advance
   // baseline don't create spurious dirty state, and user edits to untouched fields are preserved.

@@ -7,12 +7,14 @@
  *   refine path    → responses.create/listing-refine
  */
 import OpenAI from "openai";
+import type { ReasoningEffort } from "openai/resources/shared";
+import sharp from "sharp";
 import { ApiRouteError } from "@/lib/api-error";
 import { getAiConfig } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
 import { loadListingGuidance, type ListingGuidance } from "@/lib/listing-guidance";
 import { computeRubricFastScore, type InventoryRowLike } from "@/lib/listing-rubric";
-import { getMinQualityScore } from "@/lib/settings-store";
+import { getMinQualityScore, getSetting } from "@/lib/settings-store";
 import {
   cleanJsonResponse,
   normalizeConditionCode,
@@ -245,6 +247,12 @@ export async function callAiJson(params: {
   qualifier: string;
   /** Override the model (e.g. an escalated/premium tier for "Advance AI"). Defaults to config.model. */
   model?: string;
+  /**
+   * Reasoning effort for reasoning-class models (WS-CR7).
+   * When set, passed as `reasoning: { effort }` and `temperature` is omitted.
+   * SDK type: ReasoningEffort — 'none'|'minimal'|'low'|'medium'|'high'|'xhigh'
+   */
+  reasoningEffort?: ReasoningEffort;
 }): Promise<unknown> {
   const config = requireAiConfigOrThrow();
   const openai = getOpenAiClient(params.timeoutMs);
@@ -261,13 +269,20 @@ export async function callAiJson(params: {
 
   const maxTokens = Math.max(params.tokenBudget ?? config.tokenBudget, 4000);
   const qualifier = params.qualifier;
+  const reasoningEffort: ReasoningEffort = params.reasoningEffort ?? null;
 
-  const makeRequest = async (useTools: boolean) => {
+  /**
+   * Build the request body. When `withTemperature` is false, omit `temperature`
+   * entirely (required for reasoning-class models that reject the parameter).
+   * When a reasoning effort is specified, include it as `reasoning: { effort }`.
+   */
+  const makeRequest = async (useTools: boolean, withTemperature: boolean) => {
     const requestTools = useTools ? tools : [];
     return openai.responses.create({
       model: params.model ?? config.model,
       max_output_tokens: maxTokens,
-      temperature: 0.2,
+      ...(withTemperature ? { temperature: 0.2 } : {}),
+      ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
       ...(requestTools.length > 0 ? { tools: requestTools } : {}),
       input: [
         {
@@ -282,18 +297,51 @@ export async function callAiJson(params: {
     });
   };
 
+  /**
+   * Returns true when the error is the specific "temperature not supported"
+   * 400 that reasoning models return (WS-CR7).
+   */
+  function isTemperatureUnsupportedError(err: unknown): boolean {
+    if (!(err instanceof OpenAI.APIError) || err.status !== 400) return false;
+    const msg = (typeof err.message === "string" ? err.message : "").toLowerCase();
+    return msg.includes("temperature") && msg.includes("unsupported");
+  }
+
   try {
     let response;
+    // Start with temperature unless caller explicitly passes a reasoning effort
+    // (in which case we already know to omit it).
+    let useTemperature = !reasoningEffort;
     try {
-      response = await makeRequest(tools.length > 0);
+      response = await makeRequest(tools.length > 0, useTemperature);
     } catch (firstError) {
-      if (
+      if (isTemperatureUnsupportedError(firstError)) {
+        // Reasoning model rejected temperature — retry without it.
+        logApiCall("openai", qualifier, 400);
+        useTemperature = false;
+        try {
+          response = await makeRequest(tools.length > 0, useTemperature);
+        } catch (secondError) {
+          // Tools may also be unsupported on this model — try without both.
+          if (
+            tools.length > 0 &&
+            secondError instanceof OpenAI.APIError &&
+            (secondError.status === 400 || secondError.status === 422)
+          ) {
+            logApiCall("openai", qualifier, secondError.status);
+            response = await makeRequest(false, useTemperature);
+          } else {
+            throw secondError;
+          }
+        }
+      } else if (
         tools.length > 0 &&
         firstError instanceof OpenAI.APIError &&
         (firstError.status === 400 || firstError.status === 422)
       ) {
+        // Pre-existing: tools not supported — retry without tools.
         logApiCall("openai", qualifier, firstError.status);
-        response = await makeRequest(false);
+        response = await makeRequest(false, useTemperature);
       } else {
         throw firstError;
       }
@@ -544,27 +592,84 @@ function buildResearchUserText(
 // researchAndCompose — core Generate engine (ADR-085 §3)
 // ---------------------------------------------------------------------------
 
+/**
+ * Maximum number of item photos sent to the AI for generate.
+ * Keeps the payload bounded so the call stays fast + cheap (WS-CR12).
+ * The most diagnostically valuable shots are the first N in the ordered set.
+ */
+const GENERATE_MAX_ITEM_PHOTOS = 6;
+
+/**
+ * Target long-edge in pixels when downscaling item photos before sending to AI.
+ * The AI doesn't need full-res; 1024px is more than enough for vision tasks.
+ */
+const GENERATE_AI_MAX_DIMENSION = 1024;
+
+/**
+ * Downscale a photo buffer to at most GENERATE_AI_MAX_DIMENSION on its long edge,
+ * returning the resized JPEG buffer. Falls back to the original if resize fails.
+ */
+async function downscaleForAi(photo: CoachPhotoFile): Promise<CoachPhotoFile> {
+  try {
+    const resized = await sharp(photo.buffer)
+      .rotate()
+      .resize({
+        width: GENERATE_AI_MAX_DIMENSION,
+        height: GENERATE_AI_MAX_DIMENSION,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return { buffer: resized, filename: photo.filename };
+  } catch {
+    return photo;
+  }
+}
+
 export async function researchAndCompose(
   params: ResearchAndComposeInput
 ): Promise<ResearchAndComposeResult> {
   const guidance = await loadListingGuidance();
+
+  // Cap item photos and downscale before sending to AI (WS-CR12).
+  const cappedItemPhotos = params.itemPhotos.slice(0, GENERATE_MAX_ITEM_PHOTOS);
+  const [scaledItemPhotos, scaledConditionPhotos, scaledGooglePhotos] = await Promise.all([
+    Promise.all(cappedItemPhotos.map(downscaleForAi)),
+    Promise.all(params.conditionPhotos.map(downscaleForAi)),
+    Promise.all(params.googlePhotos.map(downscaleForAi)),
+  ]);
+
   const allImages = [
-    ...params.itemPhotos,
-    ...params.conditionPhotos,
-    ...params.googlePhotos,
+    ...scaledItemPhotos,
+    ...scaledConditionPhotos,
+    ...scaledGooglePhotos,
   ];
 
-  const userText = buildResearchUserText(params, guidance);
+  const userText = buildResearchUserText(
+    { ...params, itemPhotos: cappedItemPhotos },
+    guidance
+  );
+
+  // Use premium reasoning effort when configured (WS-CR7).
+  const rawEffort = (getSetting("ai.premium_reasoning_effort") ?? "").trim();
+  const VALID_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"] as const;
+  type ValidEffort = (typeof VALID_EFFORTS)[number];
+  const reasoningEffort: ReasoningEffort | undefined =
+    rawEffort && (VALID_EFFORTS as readonly string[]).includes(rawEffort)
+      ? (rawEffort as ValidEffort)
+      : undefined;
 
   const parsed = (await callAiJson({
     system: RESEARCH_SYSTEM_PROMPT,
     userText,
     images: allImages,
     webSearch: true,
-    highRes: true,
+    highRes: false,
     tokenBudget: 8000,
     timeoutMs: 180_000,
     qualifier: "responses.create/generate-listing",
+    reasoningEffort,
   })) as Record<string, unknown>;
 
   const photoReview: PhotoReview = normalizePhotoReview(parsed.photo_review);

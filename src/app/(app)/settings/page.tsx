@@ -1266,6 +1266,7 @@ export default function ConfigPage() {
           model: aiConfig?.model ?? "gpt-4.1-mini",
           economy_model: aiConfig?.economyModel ?? "",
           premium_model: aiConfig?.premiumModel ?? "",
+          premium_reasoning_effort: aiConfig?.premiumReasoningEffort ?? "",
           api_key: aiApiKeyDraft || undefined,
           base_url: aiConfig?.baseUrl ?? "",
           timeout_ms: aiConfig?.timeoutMs ?? 30000,
@@ -2364,6 +2365,7 @@ export default function ConfigPage() {
                     model: e.target.value,
                     economyModel: current?.economyModel ?? "",
                     premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2387,6 +2389,7 @@ export default function ConfigPage() {
                     model: current?.model ?? "",
                     economyModel: e.target.value,
                     premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2410,6 +2413,7 @@ export default function ConfigPage() {
                     model: current?.model ?? "",
                     economyModel: current?.economyModel ?? "",
                     premiumModel: e.target.value,
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2420,6 +2424,35 @@ export default function ConfigPage() {
                 placeholder="e.g. gpt-4.1 (blank = use primary model)"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
+            </FormField>
+            <FormField
+              label="Reasoning effort (optional)"
+              helpText="For reasoning-class premium models (e.g. gpt-5.5). Sets the effort level sent as reasoning: { effort }. Leave blank for standard (non-reasoning) models."
+            >
+              <select
+                value={aiConfig?.premiumReasoningEffort ?? ""}
+                onChange={(e) => {
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: current?.model ?? "",
+                    economyModel: current?.economyModel ?? "",
+                    premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: e.target.value,
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="">— none (standard model) —</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="xhigh">xhigh</option>
+              </select>
             </FormField>
             <FormField label="API key" helpText="Your OpenAI API key (stored encrypted)" required error={aiFieldErrors.apiKey}>
               <input

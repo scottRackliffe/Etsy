@@ -107,9 +107,11 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
   apiKeyConfigured: boolean;
   economyModel: string;
   premiumModel: string;
+  premiumReasoningEffort: string;
 } {
   const economyModel = (getSetting("ai.economy_model") ?? "").trim();
   const premiumModel = (getSetting("ai.premium_model") ?? "").trim();
+  const premiumReasoningEffort = (getSetting("ai.premium_reasoning_effort") ?? "").trim();
   const config = getAiConfig();
   if (!config) {
     return {
@@ -122,6 +124,7 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
       apiKeyConfigured: false,
       economyModel,
       premiumModel,
+      premiumReasoningEffort,
     };
   }
   return {
@@ -134,6 +137,7 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
     apiKeyConfigured: true,
     economyModel,
     premiumModel,
+    premiumReasoningEffort,
   };
 }
 
@@ -142,6 +146,7 @@ export function saveAiConfig(input: {
   model?: string;
   economyModel?: string;
   premiumModel?: string;
+  premiumReasoningEffort?: string;
   apiKey?: string;
   baseUrl?: string | null;
   timeoutMs?: number;
@@ -162,6 +167,10 @@ export function saveAiConfig(input: {
   if (input.premiumModel !== undefined) {
     // Blank = no premium configured; Advance AI falls back to the primary model.
     setSetting("ai.premium_model", input.premiumModel.trim());
+  }
+  if (input.premiumReasoningEffort !== undefined) {
+    // Blank = no reasoning effort override; reasoning models use their default.
+    setSetting("ai.premium_reasoning_effort", input.premiumReasoningEffort.trim());
   }
   if (input.apiKey !== undefined) {
     const trimmedKey = input.apiKey.trim();
