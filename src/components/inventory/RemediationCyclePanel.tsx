@@ -57,13 +57,13 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
           body: JSON.stringify({ tier }),
         });
         const data = (await res.json().catch(() => ({}))) as CycleResult & {
-          error?: { user_message?: string };
+          error?: { code?: string; message?: string; user_message?: string };
         };
         if (!res.ok || !data.ok) {
           onError(
             "Remediation cycle",
-            (data as { error?: { user_message?: string } }).error?.user_message ??
-              "We could not run the remediation cycle."
+            data.error?.user_message ?? "We could not run the remediation cycle.",
+            data
           );
           return;
         }

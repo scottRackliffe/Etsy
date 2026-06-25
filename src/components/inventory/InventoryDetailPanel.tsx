@@ -446,7 +446,8 @@ function ListingLifecycleControls({
       if (!res.ok || !data?.ok) {
         onError(
           "Quality evaluation",
-          data?.error?.user_message ?? "We could not evaluate listing quality."
+          data?.error?.user_message ?? "We could not evaluate listing quality.",
+          data
         );
       } else {
         setQuality(data as QualityResult);
@@ -482,7 +483,8 @@ function ListingLifecycleControls({
           }
           onError(
             "Publish to Etsy",
-            data?.error?.user_message ?? "We could not publish this listing to Etsy."
+            data?.error?.user_message ?? "We could not publish this listing to Etsy.",
+            data
           );
           return;
         }
@@ -1051,7 +1053,8 @@ export function InventoryDetailPanel({
       if (!resp.ok || !data.ok) {
         onError(
           "Video generation failed",
-          data.error?.user_message ?? "We could not generate the listing video."
+          data.error?.user_message ?? "We could not generate the listing video.",
+          data
         );
         return;
       }

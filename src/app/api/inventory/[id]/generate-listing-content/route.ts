@@ -108,26 +108,46 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       generated.suggested_sale_revenue != null &&
       generated.suggested_sale_revenue > 0;
 
-    updateListingContent(inventoryId, {
-      listing_title: generated.listing_title,
-      listing_description: generated.listing_description,
-      listing_tags: generated.listing_tags,
-      listing_category_path: generated.listing_category_path,
-      listing_title_strategy: generated.listing_title_strategy,
-      listing_product_story: generated.listing_product_story,
-      listing_condition_clarity: generated.listing_condition_clarity,
-      listing_attributes: generated.listing_attributes,
-      listing_pricing_shipping_notes: generated.listing_pricing_shipping_notes,
-      listing_quality_checklist: generated.listing_quality_checklist,
-      etsy_when_made: generated.suggested_etsy_when_made ?? undefined,
-      etsy_taxonomy_id: generated.suggested_taxonomy_id ?? undefined,
-      materials: generated.suggested_materials_json ?? undefined,
-      picture_classifications: generated.picture_classifications_json ?? undefined,
-      sale_revenue_if_unset:
-        generated.suggested_sale_revenue != null && generated.suggested_sale_revenue > 0
-          ? generated.suggested_sale_revenue
-          : null,
-    });
+    // AI call succeeded — persist the result. Failures here are reported distinctly
+    // so the user knows the AI result was produced but not saved (WS-CR10).
+    try {
+      updateListingContent(inventoryId, {
+        listing_title: generated.listing_title,
+        listing_description: generated.listing_description,
+        listing_tags: generated.listing_tags,
+        listing_category_path: generated.listing_category_path,
+        listing_title_strategy: generated.listing_title_strategy,
+        listing_product_story: generated.listing_product_story,
+        listing_condition_clarity: generated.listing_condition_clarity,
+        listing_attributes: generated.listing_attributes,
+        listing_pricing_shipping_notes: generated.listing_pricing_shipping_notes,
+        listing_quality_checklist: generated.listing_quality_checklist,
+        etsy_when_made: generated.suggested_etsy_when_made ?? undefined,
+        etsy_taxonomy_id: generated.suggested_taxonomy_id ?? undefined,
+        materials: generated.suggested_materials_json ?? undefined,
+        picture_classifications: generated.picture_classifications_json ?? undefined,
+        sale_revenue_if_unset:
+          generated.suggested_sale_revenue != null && generated.suggested_sale_revenue > 0
+            ? generated.suggested_sale_revenue
+            : null,
+      });
+    } catch (saveError) {
+      const detail = saveError instanceof Error ? saveError.message : String(saveError);
+      logger.error("Generate: AI succeeded but save failed", { inventoryId, error: saveError });
+      throw new ApiRouteError({
+        status: 500,
+        code: "LISTING_GENERATION_FAILED",
+        message: `AI generated content but the save failed: ${detail}`,
+        userMessage:
+          "The AI generated your listing content, but we could not save it to the database. " +
+          "Try again — you will not be re-billed for the AI call.",
+        actions: [
+          "Retry the Generate action — the AI call is not repeated until save succeeds.",
+          "If this persists, check disk space and database access.",
+        ],
+        canRetry: true,
+      });
+    }
 
     const updatedItem = getInventoryById(inventoryId);
     const listingPhase = markListingGenerated(inventoryId);
