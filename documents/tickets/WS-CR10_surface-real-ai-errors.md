@@ -1,5 +1,7 @@
 # Ticket WS-CR10 — Surface the real error in AI action dialogs (stop masking causes)
 
+> **Status: DONE (code) 2026-06-24** — committed + type-check clean; pending live re-test.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1 (diagnosability) |

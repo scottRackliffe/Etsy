@@ -1,5 +1,7 @@
 # Ticket WS-CR11 — Error dialogs: add a "Details" button revealing what actually happened
 
+> **Status: DONE (code) 2026-06-24** — committed + type-check clean; pending live re-test.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 |
