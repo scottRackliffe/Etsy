@@ -1,5 +1,7 @@
 # Ticket WS-CR16 — Quality rubric must honor publish defaults (who_made / when_made)
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit dc80e5c. Rubric resolves who_made/when_made from publish defaults in both quality + cycle routes; type-check + build clean. Pending live re-eval.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 |

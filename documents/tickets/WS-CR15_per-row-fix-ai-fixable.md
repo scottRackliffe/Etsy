@@ -1,5 +1,7 @@
 # Ticket WS-CR15 — Per-row "Fix" button on AI-fixable remediation items
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit dc80e5c. RowFixButton reuses listing-refine; type-check + build clean. Pending live click-through.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 (UX) |

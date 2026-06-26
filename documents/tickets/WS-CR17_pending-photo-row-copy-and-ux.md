@@ -1,5 +1,7 @@
 # Ticket WS-CR17 — "Per-photo AI review pending" row: stale copy + misleading Fix link
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit dc80e5c. Stale "WS-G3" copy replaced; PHOTO_AI_PENDING row filtered from the user-action list. type-check + build clean. Pending live re-eval.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 (UX/copy) |
