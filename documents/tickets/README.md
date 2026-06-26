@@ -46,6 +46,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | ~~WS-CR19~~ | [WS-CR19_remove-per-field-fix-buttons.md](WS-CR19_remove-per-field-fix-buttons.md) | Remove redundant per-field "Fix" buttons (keep cycle + per-row + global refine) — owner request | ✅ DONE (code) 06-26 |
 | ~~WS-CR14~~ | [WS-CR14_economy-lane-reasoning-token-budget.md](WS-CR14_economy-lane-reasoning-token-budget.md) | Economy-lane AI (shot-list/photo-vision/measure) fails on gpt-5.x — token budget + temperature (CR7 gap) — live-test finding | ✅ DONE (verified) |
 | **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
+| **WS-CR20** | [WS-CR20_ai-generated-scale-and-lifestyle-photos.md](WS-CR20_ai-generated-scale-and-lifestyle-photos.md) | AI-generated in-hand scale + styled lifestyle photos — design ADR + build | **ON HOLD — future / tech-gated (fidelity + Etsy authenticity)** |
 
 ### Ops / verification (not tickets — operator steps)
 
