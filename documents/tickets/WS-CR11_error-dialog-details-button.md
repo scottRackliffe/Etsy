@@ -1,6 +1,6 @@
 # Ticket WS-CR11 — Error dialogs: add a "Details" button revealing what actually happened
 
-> **Status: DONE (code) 2026-06-24** — committed + type-check clean; pending live re-test.
+> **Status: DONE + LIVE-VERIFIED (visual) 2026-06-26** — drove the app in a managed browser; forced a bad-model error → the shared dialog showed the friendly line + a **▶ Details** disclosure that expands to **Code / Message / Time** (`INTERNAL_ERROR` · `400 …model 'gpt-bogus…' does not exist.` · timestamp) plus a **Copy details** button. No secret shown. Acceptance met.
 
 | Field | Value |
 |-------|-------|
