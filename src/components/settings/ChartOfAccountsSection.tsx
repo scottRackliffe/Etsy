@@ -37,8 +37,8 @@ type EditingAccount = {
 
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Revenue", "Contra-Revenue", "COGS", "Expense"];
 
-const cellClass = "px-3 py-2 text-sm text-[var(--ui-body)]";
-const headerClass = "px-3 py-2 text-left text-xs font-semibold text-[var(--ui-muted)]";
+const cellClass = "px-2 py-1 text-xs text-[var(--ui-body)]";
+const headerClass = "px-2 py-1 text-left text-xs font-semibold text-[var(--ui-muted)]";
 
 export function ChartOfAccountsSection() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -203,14 +203,23 @@ export function ChartOfAccountsSection() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div>
+          <table className="w-full table-fixed text-xs">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[20%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[34%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--ui-border)]">
                 <th className={headerClass}>Acct #</th>
                 <th className={headerClass}>Account Name</th>
                 <th className={headerClass}>Type</th>
-                <th className={headerClass}>Normal Balance</th>
+                <th className={headerClass}>Normal Bal</th>
                 <th className={headerClass}>Description</th>
                 <th className={headerClass}>Status</th>
                 <th className={headerClass}>Actions</th>
@@ -219,21 +228,21 @@ export function ChartOfAccountsSection() {
             <tbody>
               {accounts.map((a) => (
                 <tr key={a.id} className={`border-b border-[var(--ui-border)] ${!a.is_active ? "opacity-50" : ""}`}>
-                  <td className={cellClass}>{a.acct_number}</td>
-                  <td className={cellClass}>{a.account_name}</td>
-                  <td className={cellClass}>{a.account_type}</td>
-                  <td className={cellClass}>{a.normal_balance}</td>
-                  <td className={`${cellClass} text-[var(--ui-muted)]`}>{a.description || "—"}</td>
+                  <td className={`${cellClass} truncate`}>{a.acct_number}</td>
+                  <td className={`${cellClass} truncate`}>{a.account_name}</td>
+                  <td className={`${cellClass} truncate`}>{a.account_type}</td>
+                  <td className={`${cellClass} truncate`}>{a.normal_balance}</td>
+                  <td className={`${cellClass} text-[var(--ui-muted)] truncate`}>{a.description || "—"}</td>
                   <td className={cellClass}>
-                    <span className={`text-xs font-medium ${a.is_active ? "text-[var(--ui-green)]" : "text-[var(--ui-muted)]"}`}>
+                    <span className={`font-medium ${a.is_active ? "text-[var(--ui-green)]" : "text-[var(--ui-muted)]"}`}>
                       {a.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
                   <td className={cellClass}>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <Button variant="ghost" size="sm" onClick={() => startEdit(a)}>Edit</Button>
                       <Button variant="ghost" size="sm" onClick={() => void toggleActive(a)}>
-                        {a.is_active ? "Deactivate" : "Activate"}
+                        {a.is_active ? "Deact." : "Activate"}
                       </Button>
                     </div>
                   </td>
@@ -252,8 +261,15 @@ export function ChartOfAccountsSection() {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div>
+          <table className="w-full table-fixed text-xs">
+            <colgroup>
+              <col className="w-[22%]" />
+              <col className="w-[22%]" />
+              <col className="w-[22%]" />
+              <col className="w-[22%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--ui-border)]">
                 <th className={headerClass}>Transaction Type</th>
@@ -266,17 +282,17 @@ export function ChartOfAccountsSection() {
             <tbody>
               {rules.filter((r) => r.is_active).map((r) => (
                 <tr key={r.id} className="border-b border-[var(--ui-border)]">
-                  <td className={`${cellClass} font-medium`}>{r.transaction_type}</td>
-                  <td className={cellClass}>
+                  <td className={`${cellClass} font-medium truncate`}>{r.transaction_type}</td>
+                  <td className={`${cellClass} truncate`}>
                     <span className="text-[var(--ui-muted)]">{r.debit_acct}</span>{" "}
                     {r.debit_account_name || ""}
                   </td>
-                  <td className={cellClass}>
+                  <td className={`${cellClass} truncate`}>
                     <span className="text-[var(--ui-muted)]">{r.credit_acct}</span>{" "}
                     {r.credit_account_name || ""}
                   </td>
-                  <td className={`${cellClass} text-[var(--ui-muted)]`}>{r.description || "—"}</td>
-                  <td className={`${cellClass} text-[var(--ui-muted)]`}>
+                  <td className={`${cellClass} text-[var(--ui-muted)] truncate`}>{r.description || "—"}</td>
+                  <td className={`${cellClass} text-[var(--ui-muted)] truncate`}>
                     {r.source_table ? `${r.source_table}.${r.source_column}` : "—"}
                   </td>
                 </tr>

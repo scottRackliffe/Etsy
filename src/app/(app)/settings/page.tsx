@@ -2006,8 +2006,6 @@ export default function ConfigPage() {
             </Button>
           </div>
 
-          <ChartOfAccountsSection />
-
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Item numbering</h4>
             <p className="mb-3 text-xs text-[var(--ui-muted)]">
@@ -2115,6 +2113,9 @@ export default function ConfigPage() {
             >
               Save order numbering
             </Button>
+          </div>
+          <div className="lg:col-span-3">
+            <ChartOfAccountsSection />
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Store categories</h4>
