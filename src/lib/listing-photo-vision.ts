@@ -6,6 +6,11 @@
  * per-photo remediation. Degrades gracefully: returns `null` on any failure
  * (missing config, unreadable image, AI/parse error) so the deterministic
  * rubric falls back to its provisional sub-score.
+ *
+ * WS-CR18: app-level retry on unusable-200 paths (empty output / parse error /
+ * zero judgments). The OpenAI client retries transport errors; it does NOT retry
+ * a 200 whose body is empty/malformed. We retry once here before giving up.
+ * On final fallback, `lastPhotoVisionFailureReason` records the specific cause.
  */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -15,6 +20,14 @@ import type { InventoryRecord } from "@/lib/inventory";
 import { getAiConfig, resolveModelForTask } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
 import type { PhotoQualitySubresult, QualityRemediationItem } from "@/lib/listing-rubric";
+
+/**
+ * Side-channel for the most recent failure reason (WS-CR18 / WS-CR10).
+ * Set whenever `evaluatePhotoQuality` returns null (except no-config / no-photos
+ * early exits, which are intentional non-failures). Reset to null on each call.
+ * Does not affect the return type; callers can read this for diagnostics.
+ */
+export let lastPhotoVisionFailureReason: string | null = null;
 
 const PHOTO_SUBSCORE_MAX = 24;
 const MAX_PHOTOS = 10;
@@ -204,51 +217,91 @@ export async function evaluatePhotoQuality(
       input: inputMessages,
     });
 
-  let outputText: string | undefined;
-  try {
-    let response;
+  // WS-CR18: attempt the OpenAI call + parse + validate up to MAX_ATTEMPTS times.
+  // The client already retries transport errors; here we retry unusable-200 responses
+  // (empty output, malformed JSON, zero judgments) which the client never sees as errors.
+  const MAX_ATTEMPTS = 2;
+
+  type AttemptOk = { ok: true; judgments: PhotoJudgment[] };
+  type AttemptFail = { ok: false; reason: string };
+  type AttemptResult = AttemptOk | AttemptFail;
+
+  const tryOnce = async (): Promise<AttemptResult> => {
+    let outputText: string | undefined;
     try {
-      response = await makeRequest(true);
-    } catch (firstError) {
-      if (isTemperatureUnsupportedError(firstError)) {
-        logApiCall("openai", "responses.create/listing-photo-quality", 400);
-        response = await makeRequest(false);
-      } else {
-        throw firstError;
+      let response;
+      try {
+        response = await makeRequest(true);
+      } catch (firstError) {
+        if (isTemperatureUnsupportedError(firstError)) {
+          logApiCall("openai", "responses.create/listing-photo-quality", 400);
+          response = await makeRequest(false);
+        } else {
+          throw firstError;
+        }
       }
+      logApiCall("openai", "responses.create/listing-photo-quality", 200);
+      outputText = response.output_text?.trim();
+    } catch (err) {
+      const status = err instanceof OpenAI.APIError ? (err.status ?? 500) : 500;
+      logApiCall("openai", "responses.create/listing-photo-quality", status);
+      return { ok: false, reason: `api_error_${status}` };
     }
-    logApiCall("openai", "responses.create/listing-photo-quality", 200);
-    outputText = response.output_text?.trim();
-  } catch (err) {
-    const status = err instanceof OpenAI.APIError ? (err.status ?? 500) : 500;
-    logApiCall("openai", "responses.create/listing-photo-quality", status);
-    return null;
+
+    if (!outputText) {
+      return { ok: false, reason: "empty_output" };
+    }
+
+    let judgments: PhotoJudgment[];
+    try {
+      judgments = parseJudgments(outputText);
+    } catch {
+      return { ok: false, reason: "parse_error" };
+    }
+
+    if (judgments.length === 0) {
+      return { ok: false, reason: "zero_judgments" };
+    }
+
+    return { ok: true, judgments };
+  };
+
+  let lastReason = "unknown";
+  let judgments: PhotoJudgment[] | null = null;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const result = await tryOnce();
+    if (result.ok) {
+      judgments = result.judgments;
+      break;
+    }
+    lastReason = result.reason;
+    // Only retry the unusable-200 paths; genuine transport errors already had the
+    // client's own retries — a second app-level attempt is unlikely to help.
+    const isRetryable = result.reason === "empty_output" || result.reason === "parse_error" || result.reason === "zero_judgments";
+    if (!isRetryable || attempt + 1 >= MAX_ATTEMPTS) break;
+    console.warn(
+      `[listing-photo-vision] attempt ${attempt + 1} unusable (${result.reason}); retrying once`
+    );
   }
 
-  // Empty output after a 200: likely token budget exhausted or reasoning overhead.
-  // Log for diagnostics (WS-CR14) and degrade gracefully per this function's contract.
-  if (!outputText) {
-    logApiCall("openai", "responses.create/listing-photo-quality", 200);
+  if (!judgments) {
+    lastPhotoVisionFailureReason = lastReason;
     console.warn(
-      "[listing-photo-vision] AI returned empty output (token budget exhausted or model issue) — falling back to provisional sub-score"
+      `[listing-photo-vision] all attempts failed (${lastReason}) — falling back to provisional sub-score`
     );
     return null;
   }
 
-  let judgments: PhotoJudgment[];
-  try {
-    judgments = parseJudgments(outputText);
-  } catch {
-    return null;
-  }
-  if (judgments.length === 0) return null;
+  // Narrow to non-null for use in closures below.
+  const resolvedJudgments: PhotoJudgment[] = judgments;
 
   const remediation: QualityRemediationItem[] = [];
   let fractionSum = 0;
   let counted = 0;
 
   images.forEach((img, idx) => {
-    const j = judgments.find((x) => x.photo_index === idx) ?? judgments[idx];
+    const j = resolvedJudgments.find((x) => x.photo_index === idx) ?? resolvedJudgments[idx];
     if (!j) return;
     let fraction = judgmentFraction(j);
 
