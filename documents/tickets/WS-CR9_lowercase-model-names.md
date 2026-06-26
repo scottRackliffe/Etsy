@@ -1,5 +1,7 @@
 # Ticket WS-CR9 — Normalize OpenAI model names to lowercase (+ trim) on save
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit fc97c2a. lowercase+trim model names on saveAiConfig; type-check + build pass.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 |

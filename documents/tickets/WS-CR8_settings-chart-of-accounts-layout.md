@@ -1,5 +1,7 @@
 # Ticket WS-CR8 — Settings: reposition + tighten the Chart of Accounts section
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit 61f9262. COA/GL moved under Item+Order Numbering, full-width (lg:col-span-3), table-fixed text-xs + truncate (no h-scroll); type-check + build pass.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 3 (UI polish) |

@@ -1,5 +1,7 @@
 # Ticket WS-CR13 — Printable photo shot-list PDF (what to shoot + what each photo must show)
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit 95f9a46. GET shot-list-pdf route (pdfkit) + Download PDF button; type-check + build pass.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 |
