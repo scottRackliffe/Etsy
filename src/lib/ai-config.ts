@@ -158,15 +158,15 @@ export function saveAiConfig(input: {
     throw new Error("Unsupported AI provider. Supported providers: openai");
   }
   if (input.model !== undefined) {
-    setSetting("ai.model", input.model.trim() || DEFAULT_MODEL);
+    setSetting("ai.model", input.model.trim().toLowerCase() || DEFAULT_MODEL);
   }
   if (input.economyModel !== undefined) {
     // Blank = use the primary model for economy-eligible tasks.
-    setSetting("ai.economy_model", input.economyModel.trim());
+    setSetting("ai.economy_model", input.economyModel.trim().toLowerCase());
   }
   if (input.premiumModel !== undefined) {
     // Blank = no premium configured; Advance AI falls back to the primary model.
-    setSetting("ai.premium_model", input.premiumModel.trim());
+    setSetting("ai.premium_model", input.premiumModel.trim().toLowerCase());
   }
   if (input.premiumReasoningEffort !== undefined) {
     // Blank = no reasoning effort override; reasoning models use their default.
