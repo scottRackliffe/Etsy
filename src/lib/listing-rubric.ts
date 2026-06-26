@@ -405,7 +405,11 @@ function evalTags(row: Record<string, unknown>, itemId: number): CategoryEval {
   return { earned, possible: 10, remediation: rem };
 }
 
-function evalCategoryAttributes(row: Record<string, unknown>, itemId: number): CategoryEval {
+function evalCategoryAttributes(
+  row: Record<string, unknown>,
+  itemId: number,
+  publishDefaults?: { defaultWhoMade?: string | null; defaultWhenMade?: string | null }
+): CategoryEval {
   const rem: QualityRemediationItem[] = [];
   const link = makeLink(itemId, "field-category");
   let earned = 0;
@@ -423,7 +427,9 @@ function evalCategoryAttributes(row: Record<string, unknown>, itemId: number): C
     });
 
   // Vintage attributes (3): when_made (2) + who_made (1)
-  if (str(row.etsy_when_made)) earned += 2;
+  // Credit when the value is present on the item OR as a publish default (mirrors inventory-validation.ts:105,119).
+  const whenMade = str(row.etsy_when_made) || publishDefaults?.defaultWhenMade || "";
+  if (whenMade) earned += 2;
   else
     rem.push({
       category: "category",
@@ -433,7 +439,8 @@ function evalCategoryAttributes(row: Record<string, unknown>, itemId: number): C
       weight: 2,
       resolution_link: makeLink(itemId, "field-etsy_when_made"),
     });
-  if (str(row.etsy_who_made)) earned += 1;
+  const whoMade = str(row.etsy_who_made) || publishDefaults?.defaultWhoMade || "";
+  if (whoMade) earned += 1;
   else
     rem.push({
       category: "category",
@@ -700,7 +707,7 @@ function provisionalPhotoQuality(row: Record<string, unknown>, itemId: number): 
         category: "photos",
         ref: PHOTO_AI_PENDING_REF,
         shortcoming: "Per-photo AI quality review pending.",
-        mitigation: "Per-photo AI evaluation (focus, lighting, background, framing) lands in WS-G3.",
+        mitigation: "The per-photo AI review (focus, lighting, background, framing) could not be computed this run — a provisional score is shown. Re-evaluate to retry.",
         weight: 0,
         resolution_link: makeLink(itemId, "pictures"),
       },
@@ -710,7 +717,13 @@ function provisionalPhotoQuality(row: Record<string, unknown>, itemId: number): 
 
 export function evaluateListingQuality(
   item: InventoryRecord,
-  opts: { minScore: number; itemId: number; photoQuality?: PhotoQualitySubresult }
+  opts: {
+    minScore: number;
+    itemId: number;
+    photoQuality?: PhotoQualitySubresult;
+    defaultWhoMade?: string | null;
+    defaultWhenMade?: string | null;
+  }
 ): ListingQualityResult {
   const row = item as unknown as Record<string, unknown>;
   const { minScore, itemId } = opts;
@@ -718,7 +731,10 @@ export function evaluateListingQuality(
   const title = evalTitle(row, itemId);
   const description = evalDescription(row, itemId);
   const tags = evalTags(row, itemId);
-  const categoryAttrs = evalCategoryAttributes(row, itemId);
+  const categoryAttrs = evalCategoryAttributes(row, itemId, {
+    defaultWhoMade: opts.defaultWhoMade,
+    defaultWhenMade: opts.defaultWhenMade,
+  });
   const condition = evalCondition(row, itemId);
   const pricing = evalPricingShipping(row, itemId);
   const coverage = evalPhotoCoverage(row, itemId);

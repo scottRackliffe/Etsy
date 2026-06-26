@@ -102,9 +102,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
 
     const minScore = getMinQualityScore();
+    const defaultWhoMade = getSetting("etsy.publish.default_who_made");
+    const defaultWhenMade = getSetting("etsy.publish.default_when_made");
 
     // 1) Score BEFORE (deterministic — free; photo AI sub-score is unaffected by text refine).
-    const before = evaluateListingQuality(item, { minScore, itemId: id });
+    const before = evaluateListingQuality(item, {
+      minScore,
+      itemId: id,
+      defaultWhoMade,
+      defaultWhenMade,
+    });
     const beforeScore = before.score;
 
     // 2) Partition the remediation list.
@@ -204,7 +211,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     // 7) Re-read + score AFTER; persist quality + phase (mirrors /listing-quality).
     const updated = getInventoryById(id) ?? item;
-    const after = evaluateListingQuality(updated, { minScore, itemId: id });
+    const after = evaluateListingQuality(updated, {
+      minScore,
+      itemId: id,
+      defaultWhoMade,
+      defaultWhenMade,
+    });
     const blocking = after.quality_remediation.filter((r) => r.ref !== PHOTO_AI_PENDING_REF);
     const ready = after.passed && blocking.length === 0;
     const listingPhase = setQualityPhase(id, ready);

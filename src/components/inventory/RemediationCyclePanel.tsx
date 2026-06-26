@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
+import { PHOTO_AI_PENDING_REF } from "@/lib/listing-rubric";
 
 type RemediationItem = {
   category?: string;
@@ -35,6 +36,119 @@ type Props = {
   onApplied?: () => Promise<void> | void;
   onError: (title: string, message: string, err?: unknown) => void;
 };
+
+/**
+ * Map from rubric ref → listing-refine field name.
+ * sale_revenue has no refine field — omit its button (ticket WS-CR15).
+ */
+const REF_TO_FIELD: Record<string, string> = {
+  listing_title: "listing_title",
+  listing_description: "listing_description",
+  listing_tags: "listing_tags",
+};
+
+/**
+ * Inline per-row Fix button for AI-fixable remediation items (WS-CR15).
+ * Mirrors the FieldFixButton pattern in InventoryDetailPanel.tsx.
+ */
+function RowFixButton({
+  itemId,
+  fieldName,
+  onFixed,
+}: {
+  itemId: number;
+  fieldName: string;
+  onFixed: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!instruction.trim()) return;
+    setBusy(true);
+    try {
+      const resp = await fetch(`/api/inventory/${itemId}/listing-refine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "field",
+          field_name: fieldName,
+          instruction: instruction.trim(),
+        }),
+      });
+      const data = (await resp.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Record<string, string>;
+      };
+      if (data.ok && data.fields?.[fieldName]) {
+        onFixed();
+        setOpen(false);
+        setInstruction("");
+      }
+    } catch {
+      /* silent — field stays unchanged */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="shrink-0 text-xs font-medium text-[var(--ui-accent)] hover:underline"
+        title="Ask AI to fix this field"
+      >
+        Fix
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex gap-1">
+      <input
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void submit();
+          }
+          if (e.key === "Escape") {
+            setOpen(false);
+            setInstruction("");
+          }
+        }}
+        className="flex-1 rounded border border-[var(--ui-accent)]/40 bg-[var(--ui-card-bg)] px-2 py-1 text-xs text-[var(--ui-body)] focus:outline-none"
+        placeholder="What should the AI change?"
+        autoFocus
+        spellCheck
+      />
+      <Button
+        variant="accent"
+        size="sm"
+        onClick={() => void submit()}
+        busy={busy}
+        disabled={!instruction.trim()}
+      >
+        Go
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setOpen(false);
+          setInstruction("");
+        }}
+        disabled={busy}
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+}
 
 /**
  * Remediation cycle panel (ADR-089): one-pass AI listing improvement loop.
@@ -117,7 +231,8 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
   const aiFixable = result.remediation.filter(
     (r) => !result.user_action_items.some((u) => u.ref === r.ref && u.shortcoming === r.shortcoming)
   );
-  const userItems = result.user_action_items;
+  // WS-CR17: exclude the PHOTO_AI_PENDING_REF row from user-action (it's a system state, not user-fixable).
+  const userItems = result.user_action_items.filter((r) => r.ref !== PHOTO_AI_PENDING_REF);
 
   return (
     <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
@@ -218,14 +333,30 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
             Remaining AI-fixable ({aiFixable.length})
           </p>
           <ul className="space-y-1.5">
-            {aiFixable.map((item, idx) => (
-              <li key={`ai-${item.ref ?? "item"}-${idx}`} className="text-sm text-[var(--ui-body)]">
-                <span className="font-medium text-[var(--ui-title)]">{item.shortcoming}</span>
-                {item.mitigation ? (
-                  <span className="block text-xs text-[var(--ui-muted)]">{item.mitigation}</span>
-                ) : null}
-              </li>
-            ))}
+            {aiFixable.map((item, idx) => {
+              const fieldName = item.ref ? REF_TO_FIELD[item.ref] : undefined;
+              return (
+                <li
+                  key={`ai-${item.ref ?? "item"}-${idx}`}
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium text-[var(--ui-title)]">{item.shortcoming}</span>
+                    {item.mitigation ? (
+                      <span className="block text-xs text-[var(--ui-muted)]">{item.mitigation}</span>
+                    ) : null}
+                    {/* WS-CR15: per-row Fix button for fields that have a refine mapping */}
+                    {fieldName ? (
+                      <RowFixButton
+                        itemId={itemId}
+                        fieldName={fieldName}
+                        onFixed={() => void onApplied?.()}
+                      />
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}

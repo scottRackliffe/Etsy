@@ -11,7 +11,7 @@ import { cookies } from "next/headers";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { parsePositiveInt } from "@/lib/api-utils";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
-import { getMinQualityScore } from "@/lib/settings-store";
+import { getMinQualityScore, getSetting } from "@/lib/settings-store";
 import { getDb } from "@/lib/sqlite";
 import { getInventoryById } from "@/lib/inventory";
 import { computeListingPhase, setQualityPhase } from "@/lib/listing-phase";
@@ -65,9 +65,17 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
 
     const minScore = getMinQualityScore();
+    const defaultWhoMade = getSetting("etsy.publish.default_who_made");
+    const defaultWhenMade = getSetting("etsy.publish.default_when_made");
     // AI per-photo vision (ADR-082 §8b); null on any failure → provisional sub-score.
     const photoQuality = (await evaluatePhotoQuality(item, id)) ?? undefined;
-    const result = evaluateListingQuality(item, { minScore, itemId: id, photoQuality });
+    const result = evaluateListingQuality(item, {
+      minScore,
+      itemId: id,
+      photoQuality,
+      defaultWhoMade,
+      defaultWhenMade,
+    });
 
     // The AI-pending placeholder is informational and must not block readiness.
     const blocking = result.quality_remediation.filter((r) => r.ref !== PHOTO_AI_PENDING_REF);
