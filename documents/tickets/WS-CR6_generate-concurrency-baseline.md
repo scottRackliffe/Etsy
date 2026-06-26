@@ -1,6 +1,6 @@
 # Ticket WS-CR6 — "Record was modified since you loaded it" on Generate (concurrency baseline)
 
-> **Status: DONE (code) 2026-06-24** — fix committed + type-check clean; pending live re-test (restart dev server). See commit e840a58.
+> **Status: DONE + GUARD-VERIFIED 2026-06-26** — optimistic-lock contract proven on item 1: fresh `If-Match`→200 (advances baseline), reused stale `If-Match`→**409**, fresh baseline→200. Confirms the fix's premise (refresh to fresh baseline after generate avoids the false 409). Visual UI click-through (generate→no "record modified" dialog) pending an in-browser pass. Fix commit e840a58.
 
 | Field | Value |
 |-------|-------|

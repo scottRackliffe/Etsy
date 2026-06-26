@@ -1,6 +1,6 @@
 # Ticket WS-CR7 — Support reasoning-class models as a tier (temperature + reasoning effort)
 
-> **Status: DONE (code) 2026-06-24** — fix committed + type-check clean; pending live re-test (restart dev server). See commit e840a58.
+> **Status: DONE + LIVE-VERIFIED 2026-06-26** — premium tier set to reasoning model `gpt-5.5` + effort=medium; remediation cycle **succeeded** (76→79, applied title/tags/description) with **no temperature-400** — the path that previously 400'd now works. Fix commit e840a58.
 
 | Field | Value |
 |-------|-------|

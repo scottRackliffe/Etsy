@@ -1,6 +1,6 @@
 # Ticket WS-CR10 — Surface the real error in AI action dialogs (stop masking causes)
 
-> **Status: DONE (code) 2026-06-24** — committed + type-check clean; pending live re-test.
+> **Status: DONE + SERVER-VERIFIED 2026-06-26** — forced a bad model id; cycle response carried the **real cause** ("400 The requested model 'gpt-bogus…' does not exist."), generic line kept as fallback, **no secret leaked**. Visual Details-button display pending an in-browser click-through (pairs with CR11).
 
 | Field | Value |
 |-------|-------|

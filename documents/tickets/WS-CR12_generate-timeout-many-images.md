@@ -1,6 +1,6 @@
 # Ticket WS-CR12 — Generate times out (~30s) with many images; server succeeds but UI false-fails
 
-> **Status: DONE (code) 2026-06-24** — fix committed + type-check clean; pending live re-test (restart dev server). See commit e840a58.
+> **Status: DONE + LIVE-VERIFIED 2026-06-26** — generate on item 1 (all 11 photos) returned HTTP 200 in **17.8s** (was ~30s+ false-fail); image cap(6)+downscale holds. Fix commit e840a58. _Note: optional async/poll "still working" UX (goal #3) intentionally not built — perf fix made it moot._
 
 | Field | Value |
 |-------|-------|
