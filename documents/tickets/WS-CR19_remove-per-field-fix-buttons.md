@@ -1,5 +1,7 @@
 # Ticket WS-CR19 — Remove the per-field "Fix" buttons on listing fields (redundant)
 
+> **Status: DONE (code) 2026-06-26** — Sonnet; commit 7d9d2e6. All 9 FieldFixButton usages + component removed; Global AI refine + RemediationCyclePanel untouched; type-check + build clean. Pending live look.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 (UX cleanup) |
