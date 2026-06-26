@@ -1,9 +1,10 @@
 # Ticket WS-CR18 — Per-photo AI vision returns empty → score stuck provisional
 
-> **Status: DIAGNOSED 2026-06-26 (owner-led)** — reasoning-budget hypothesis **disproven**
+> **Status: DIAGNOSED + DONE (code) 2026-06-26** — reasoning-budget hypothesis **disproven**
 > (16/16 evals succeeded; reasoning_tokens=0; output ~700 of 4000). Real issue = a low-rate,
-> **non-retried, silent** unusable-200 path (empty/malformed JSON). Implementation (app-level
-> retry + reason-surfacing) is now scoped and **ready for Sonnet**. See Diagnosis below.
+> **non-retried, silent** unusable-200 path. Fix (Sonnet, commit 13cffab): app-level retry on
+> empty_output/parse_error/zero_judgments + `lastPhotoVisionFailureReason` side-channel;
+> type-check + build pass. See Diagnosis below.
 
 | Field | Value |
 |-------|-------|
