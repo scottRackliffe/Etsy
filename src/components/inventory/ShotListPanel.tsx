@@ -107,13 +107,24 @@ export function ShotListPanel({ inventoryId, itemVersion, disabled, onError }: P
               : "Generate a tailored checklist of photos this item needs."}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => void generate()}
-          disabled={disabled || generating || loading}
-        >
-          {generating ? "Generating…" : total > 0 ? "Regenerate" : "Generate shot list"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {total > 0 && inventoryId ? (
+            <a
+              href={`/api/inventory/${inventoryId}/shot-list-pdf`}
+              download
+              className="inline-flex items-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-1.5 text-sm font-medium text-[var(--ui-body)] hover:bg-[var(--ui-neutral)] focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)]"
+            >
+              Download PDF
+            </a>
+          ) : null}
+          <Button
+            variant="secondary"
+            onClick={() => void generate()}
+            disabled={disabled || generating || loading}
+          >
+            {generating ? "Generating…" : total > 0 ? "Regenerate" : "Generate shot list"}
+          </Button>
+        </div>
       </div>
 
       {total > 0 ? (
