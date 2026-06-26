@@ -27,11 +27,46 @@ bootstrap so both paths produce the identical clean schema. But the **parallel b
   `INVENTORY_COLUMNS` map (no second schema definition).
 - Keep `getSqliteDatabasePath`, pragmas, `resetSqliteConnection`.
 
-## Approach (doc-first)
+## ⚠️ Scope finding — 2026-06-26 (owner-led investigation)
 
-1. Read ADR-087. Confirm migrations-only schema == golden (already verified in the audit).
-2. Add the runtime migration applier; switch `getDb()` to use it; remove the bootstrap.
-3. **Boot smoke-test** (`npm run dev`) on a fresh DB path AND the existing dev DB.
+ADR-087 verified **schema** parity (migrations-only == golden), but the bootstrap also
+**seeds default data** that migrations do **not** fully reproduce. Deleting the bootstrap
+blind would drop seed rows on a fresh install:
+
+- **Chart of accounts:** bootstrap (`ensureCoreTables`, sqlite.ts ~L591) seeds **13**
+  accounts; `migrations/009_chart_of_accounts.sql` seeds **11**. Missing from migrations:
+  **`3000` (Owner's Capital/Equity)** and **`3200` (Retained Earnings)** — equity accounts
+  present only in the bootstrap.
+- **GL transaction rules:** seeded in both the bootstrap (sqlite.ts ~L611 and the
+  conditional rule ~L645) and migrations 009/011 — needs the same row-level delta check;
+  any bootstrap-only rule must be captured too.
+- Seed surface is bounded to **chart_of_accounts + gl_transaction_rules** (the only
+  `count==0 → seed` blocks in the bootstrap).
+
+**Therefore the bootstrap can only be retired *after* a forward-only reconciliation
+migration** (e.g. `020_seed_reconciliation.sql`, `INSERT OR IGNORE`) back-fills the
+bootstrap-only seeds, so a migrations-only fresh DB matches the live DB on **data**, not
+just schema. Existing DBs already have the rows (bootstrap seeded them) → `INSERT OR IGNORE`
+is a clean no-op there.
+
+## Approach (revised, doc-first)
+
+1. Read ADR-087 (done). Schema parity confirmed; **seed parity is NOT yet there** (above).
+2. **Author `020_seed_reconciliation.sql`** — `INSERT OR IGNORE` for the bootstrap-only COA
+   accounts (3000, 3200) + any bootstrap-only GL rules. Verify a fresh migrations-only DB
+   then equals the live DB on COA + GL rule rows.
+3. Add the runtime migration applier (port the idempotent core of `scripts/migrate.mjs` to a
+   shared TS module); switch `getDb()` to apply migrations; remove the bootstrap schema +
+   seed.
+4. **Boot smoke-test** on (a) a fresh temp DB path and (b) a **copy** of the live dev DB —
+   not the live DB itself — before pointing the running app at it.
+
+## ⛔ Checkpoint before execution
+
+Switching `getDb()` to the applier means the **next app boot migrates the live dev DB**
+(applies 018/019 + 020, drops dead schema). That is intended per ADR-087 but is a
+**hard-to-reverse** mutation of live data — confirm with the owner and back up the DB before
+the live cutover.
 
 ## Out of scope
 
