@@ -1,5 +1,7 @@
 # Ticket WS-CR4 — User-facing help for the remediation cycle
 
+> **Status: DONE 2026-06-26** — Sonnet; commit 57735b6. Tutorial article "Improving a listing with the remediation cycle" added to BUILTIN_ARTICLES (the rendered source) + tutorial.md; stale tab names fixed; no ADR/tier leakage.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 3 / optional |

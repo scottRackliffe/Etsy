@@ -29,7 +29,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
 | ~~WS-CR1~~ | [WS-CR1_tax-compliance-ui.md](WS-CR1_tax-compliance-ui.md) | Tax compliance UI — dashboard badge + Settings inputs (C22) | ✅ DONE + VERIFIED 06-26 |
 | ~~WS-CR2~~ | [WS-CR2_bootstrap-retirement.md](WS-CR2_bootstrap-retirement.md) | Retire runtime bootstrap; migrations as sole schema source (ADR-087) | ✅ DONE + VERIFIED 06-26 |
 | **WS-CR3** | [WS-CR3_remediation-autocycle.md](WS-CR3_remediation-autocycle.md) | Remediation auto-cycle (stall→escalate) — evidence-gated (D1) | Tier 3 / backlog |
-| **WS-CR4** | [WS-CR4_user-docs-remediation-cycle.md](WS-CR4_user-docs-remediation-cycle.md) | User-facing help for the remediation cycle | Tier 3 / optional |
+| ~~WS-CR4~~ | [WS-CR4_user-docs-remediation-cycle.md](WS-CR4_user-docs-remediation-cycle.md) | User-facing help for the remediation cycle | ✅ DONE 06-26 |
 | **WS-CR5** | [WS-CR5_photo-add-drift-ux.md](WS-CR5_photo-add-drift-ux.md) | Photo-add → drift → regenerate UX (confusing reset) — live-test finding | Tier 2 (UX) |
 | ~~WS-CR6~~ | [WS-CR6_generate-concurrency-baseline.md](WS-CR6_generate-concurrency-baseline.md) | "Record modified" / `PATCH 409` concurrency on save — **CONFIRMED** (live log) | ✅ DONE — guard-verified 06-26 |
 | ~~WS-CR7~~ | [WS-CR7_reasoning-model-tier-support.md](WS-CR7_reasoning-model-tier-support.md) | Reasoning-class model tier support (drop temperature + reasoning-effort dial) — live-test finding | ✅ DONE — live-verified 06-26 |
