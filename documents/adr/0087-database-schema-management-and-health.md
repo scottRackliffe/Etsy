@@ -19,12 +19,15 @@ schema-review + migration-consolidation + health-procedures work is a scoped eng
 - ✅ **Runtime bootstrap corrected to match** (`src/lib/sqlite.ts`): `tax_payments` added (fixes the
   C13 crash on a bootstrap-built DB); dead schema removed so the bootstrap can't re-create what
   migration 019 drops. Bootstrap and migrations now produce the identical clean schema.
-- ⏳ **Deferred (gated on an app-boot smoke test): full bootstrap retirement.** The end state —
-  `getDb()` *applies pending migrations* and the hand-maintained `ensureCoreTables`/
-  `ensureInventorySchema` bootstrap is deleted entirely (true single runtime source) — is the next
-  increment. It was not done blind in the same session because it changes app DB initialization and
-  needs a `npm run dev` boot verification. The migrate path is already proven, so this is low-risk
-  once boot-tested.
+- ✅ **DONE 2026-06-26 (WS-CR2): full bootstrap retirement.** The end state is reached —
+  `getDb()` now *applies pending migrations* via `src/lib/db-migrate.ts` (the idempotent runner,
+  ported from `scripts/migrate.mjs`), and the hand-maintained `ensureCoreTables`/
+  `ensureInventorySchema` bootstrap is **deleted** (`sqlite.ts` 765→~70 lines). There is one
+  runtime schema source. Verified empirically: a fresh DB built by the runtime applier equals the
+  migrations-only reference (19 migrations, 27 tables, COA 13, integrity ok); the live dev DB
+  migrated in place with data preserved and dead schema dropped. **Seed parity confirmed too** —
+  migrations 009 + 011 already seed the full COA (incl. equity 3000/3200) + GL rules byte-for-byte,
+  so no reconciliation migration was needed.
 - Possible follow-up found during the work: `inventory.listing_draft_source`, `listing_export_id`,
   `listing_approved_at` look like further Coach/Workshop draft-flow vestiges (present in both
   bootstrap and migrations); left in scope for the periodic schema-health review (not in the audit's

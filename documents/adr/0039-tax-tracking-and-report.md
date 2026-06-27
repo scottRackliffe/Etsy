@@ -157,14 +157,18 @@ calendar. New `settings` keys:
 | `tax.filing_frequency` | `quarterly` | `monthly` \| `quarterly` \| `annual` (informational label) |
 | `tax.filing_reminder_days` | `14` | Lead-time window for the "due soon" warning (default 14) |
 
-`filing_status` ∈ `current` (nothing owed) · `no_schedule` (owed, no due date set) · `overdue`
-(owed, past due) · `due_soon` (owed, within the reminder window) · `ok` (owed, beyond the window),
-with `days_until_due`.
+`filing_status` is **schedule-driven** (since WS-CR1): a configured filing deadline drives the
+reminder **regardless of balance**, because a sales-tax return is generally required even at $0
+owed (e.g. MA "zero return"). `balance_due` is reported separately and does **not** gate the
+reminder. Values: `overdue` (scheduled, past due) · `due_soon` (scheduled, within the reminder
+window) · `ok` (scheduled, beyond the window) · `no_schedule` (owed but no due date set) ·
+`current` (no schedule and nothing owed), with `days_until_due`.
 
 **Surfacing:** `getTaxComplianceStatus()` is returned by `GET /api/tax-payments/summary` and included
-in `getDashboardStats()` (`tax_compliance`) so the status is available to the dashboard "Needs
-attention" surface and the Tax Payments screen. (The dashboard/Tax-screen visual badge + the
-Settings form inputs for the three keys are the UI finish; the data/logic layer is in place.)
+in `getDashboardStats()` (`tax_compliance`). **UI shipped (WS-CR1):** a persistent, non-dismissable
+dashboard "Needs attention" badge (fires on `overdue`/`due_soon`/`no_schedule`, including at $0) and
+the three Settings → Tax inputs for the keys above. Labels/help reflect the operator's state
+(currently Massachusetts) without hardcoding any jurisdiction in logic.
 
 ## Consequences
 

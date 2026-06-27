@@ -1,5 +1,11 @@
 # Code ↔ Docs Conformance Audit — 2026-06-23
 
+> **Remediation complete 2026-06-26.** All audit follow-ups were executed as the **WS-CR**
+> workstream (see `documents/tickets/README.md`). Findings below describe the **pre-fix** state at
+> audit time and are retained as the historical record — e.g. the parallel bootstrap (C14) was
+> retired in WS-CR2 (ADR-087), and the tax on-time-filing UI (C22) shipped in WS-CR1 (ADR-039).
+> Only WS-CR3 (remediation auto-cycle) remains, intentionally deferred/evidence-gated.
+
 Bidirectional deep audit following the **doc-side** ADR audit (completed 2026-06-22, log at
 `documents/ADR_AUDIT_2026-06-22.md`). The doc side is now the trustworthy spec. This phase measures
 the **code** (`src/`, `migrations/`, `tests/`, `scripts/`) against it.
