@@ -144,12 +144,14 @@ export function getTaxPaymentSummary() {
  *   • tax.filing_frequency      — "monthly" | "quarterly" | "annual" (informational label)
  *   • tax.filing_reminder_days  — lead-time window for the "due soon" warning (default 14)
  *
- * filing_status:
- *   "current"      — nothing owed (balance_due ≤ 0)
+ * filing_status (SCHEDULE-DRIVEN — WS-CR1): a configured filing deadline nags regardless of
+ * balance, because CT (and most states) require the return filed on time even at $0 owed.
+ * `balance_due` is reported separately as the amount, but does NOT gate the reminder.
+ *   "overdue"      — filing scheduled and the due date has passed
+ *   "due_soon"     — filing scheduled and due within the reminder window
+ *   "ok"           — filing scheduled, beyond the reminder window
  *   "no_schedule"  — money owed but no due date configured (operator must set one)
- *   "overdue"      — money owed and the due date has passed
- *   "due_soon"     — money owed and due within the reminder window
- *   "ok"           — money owed, due date set, beyond the reminder window
+ *   "current"      — no schedule set and nothing owed (nothing to file yet)
  */
 export type TaxFilingStatus = "current" | "no_schedule" | "overdue" | "due_soon" | "ok";
 
@@ -169,17 +171,21 @@ export function getTaxComplianceStatus() {
     }
   }
 
+  // WS-CR1: the configured filing schedule drives the reminder — a return is generally
+  // required on time even at $0 owed, so do NOT gate on balance_due.
   let filing_status: TaxFilingStatus;
-  if (summary.balance_due <= 0) {
-    filing_status = "current";
-  } else if (!nextDue || daysUntilDue === null) {
+  if (nextDue && daysUntilDue !== null) {
+    if (daysUntilDue < 0) {
+      filing_status = "overdue";
+    } else if (daysUntilDue <= reminderDays) {
+      filing_status = "due_soon";
+    } else {
+      filing_status = "ok";
+    }
+  } else if (summary.balance_due > 0) {
     filing_status = "no_schedule";
-  } else if (daysUntilDue < 0) {
-    filing_status = "overdue";
-  } else if (daysUntilDue <= reminderDays) {
-    filing_status = "due_soon";
   } else {
-    filing_status = "ok";
+    filing_status = "current";
   }
 
   return {
