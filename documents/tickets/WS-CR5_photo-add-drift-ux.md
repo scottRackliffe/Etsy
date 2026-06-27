@@ -1,5 +1,7 @@
 # Ticket WS-CR5 — Photo-add → drift → regenerate UX (confusing reset)
 
+> **Status: DONE + VERIFIED 2026-06-26** — commit c4ad014. Readiness API returns a `drifted` flag; panel shows a plain-language hint + relabels button "Regenerate listing" when a generated listing drifts. Drift rule unchanged. Live-verified (simulated drift on item 1).
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 2 (UX) |
