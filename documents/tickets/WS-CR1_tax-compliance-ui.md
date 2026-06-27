@@ -1,5 +1,7 @@
 # Ticket WS-CR1 — Tax compliance UI: dashboard badge + Settings inputs (C22)
 
+> **Status: DONE + VERIFIED 2026-06-26** — backend schedule-driven nag (2be8267) + Settings inputs + persistent dashboard badge (88a0fb7). Live-verified: badge fires at $0 balance (due_soon/overdue); Settings persist. CT facts recorded below.
+
 | Field | Value |
 |-------|-------|
 | Status | **OPEN** — Tier 1 (penalty risk) |
