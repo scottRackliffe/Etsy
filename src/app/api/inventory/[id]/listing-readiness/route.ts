@@ -15,6 +15,8 @@ import {
   buttonForPhase,
   recomputeAndStoreListingPhase,
   computeListingPhase,
+  hasGeneratedListing,
+  hasListingDrift,
 } from "@/lib/listing-phase";
 import { ApiRouteError, errorResponse, fromUnknownError } from "@/lib/api-error";
 import { requireEtsyAccessToken } from "@/lib/auth-session";
@@ -155,6 +157,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     // Recompute + persist the phase so the inventory list filter stays current.
     const listingPhase = recomputeAndStoreListingPhase(inventoryId) ?? computeListingPhase(item);
     const button = buttonForPhase(listingPhase);
+    // WS-CR5: distinguish "drifted" (was generated, inputs/photos changed → back to
+    // ready_to_generate) from a first-time generation, so the UI can explain the reset.
+    const drifted =
+      listingPhase === "ready_to_generate" && hasGeneratedListing(item) && hasListingDrift(item);
     const dataRemediation = buildDataRemediation(item, inventoryId);
 
     return NextResponse.json(
@@ -163,6 +169,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         item_id: inventoryId,
         ready: validation.ok,
         listing_phase: listingPhase,
+        drifted,
         button,
         missing_fields: validation.fields,
         required: dataRemediation

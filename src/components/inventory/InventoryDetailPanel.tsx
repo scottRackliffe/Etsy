@@ -237,6 +237,7 @@ type RemediationItem = {
 type ReadinessResponse = {
   ok: boolean;
   listing_phase: string;
+  drifted?: boolean;
   button: { label: string; action: "evaluate_data" | "generate" | "evaluate_quality" };
   data_remediation: RemediationItem[];
 };
@@ -412,7 +413,7 @@ function ListingLifecycleControls({
             busy={buttonBusy}
             disabled={busy || (action === "generate" && !onRegenerateAi)}
           >
-            {readiness.button.label}
+            {readiness.drifted ? "Regenerate listing" : readiness.button.label}
           </Button>
           {readiness.listing_phase === "listing_ready" ? (
             <Button
@@ -433,6 +434,13 @@ function ListingLifecycleControls({
           ) : null}
         </div>
       </div>
+
+      {readiness.drifted ? (
+        <p className="mt-2 text-xs text-[var(--ui-yellow)]">
+          An item detail or photo changed since the listing was generated. Regenerate to include
+          the change, then re-run Evaluate Quality.
+        </p>
+      ) : null}
 
       {action === "evaluate_data" && showData ? (
         <ul className="mt-3 space-y-1.5">
