@@ -33,6 +33,24 @@ operator can't see "tax due / overdue" or set the filing schedule.
 3. Add the dashboard badge in the "Needs attention" area, gated on `tax_compliance.filing_status`
    being `due_soon` or `overdue`.
 
+## CT specifics — confirmed by owner 2026-06-26 (DRS)
+
+The operator-entered schedule model is correct; these are the real CT facts to default/label
+toward (we still do NOT hardcode a calendar — the owner enters dates):
+
+- **Rate:** state sales tax **6.35%** (`tax.default_rate`).
+- **Form / platform:** **Form OS-114**, e-filed via the **myconneCT** portal.
+- **Due date rule:** by the **last day of the month following the reporting period**
+  (weekend/holiday → next business day).
+- **Frequency:** DRS-assigned **Monthly / Quarterly / Annually** (matches the 3 select options).
+- **Zero returns:** required **even if no tax is owed or no sales were made** — this validates
+  the **schedule-driven** `filing_status` (the badge nags at $0). ✔
+- **Penalty:** **$50 or 15% of tax due (greater)** + **1%/month** interest — worth surfacing
+  in the nag copy to make the stakes concrete.
+
+Possible follow-ups (not required now): default `tax.default_rate` to 6.35%; add helper text
+(OS-114 / myconneCT) by the inputs; optionally auto-suggest `next_filing_due_date`.
+
 ## Out of scope
 
 - Auto-filing or e-file integration; per-jurisdiction calendars (schedule is operator-entered).

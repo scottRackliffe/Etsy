@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { formatCurrency } from "@/lib/format-currency";
 import { ActivityLogSection } from "@/components/activity/ActivityLogSection";
@@ -12,6 +13,65 @@ import { BillPaymentsWidget } from "@/components/dashboard/BillPaymentsWidget";
 import { KpiTile } from "@/components/dashboard/KpiTile";
 import { WidgetHeader } from "@/components/dashboard/WidgetHeader";
 import { getInventoryAgingCounts } from "@/lib/inventory-aging";
+
+type TaxComplianceProps = {
+  balance_due: number;
+  next_filing_due_date: string | null;
+  days_until_due: number | null;
+  filing_status: "current" | "no_schedule" | "overdue" | "due_soon" | "ok";
+};
+
+function TaxFilingBadge({
+  compliance,
+  currencyCode,
+}: {
+  compliance: TaxComplianceProps;
+  currencyCode: string;
+}) {
+  const { filing_status, days_until_due, balance_due } = compliance;
+
+  let headline: string;
+  let valueColor: string;
+  let borderColor: string;
+
+  if (filing_status === "overdue") {
+    const daysLate = days_until_due !== null ? Math.abs(days_until_due) : 0;
+    headline = `Sales tax return OVERDUE by ${daysLate} day${daysLate === 1 ? "" : "s"}`;
+    valueColor = "text-[var(--ui-red)]";
+    borderColor = "border-[var(--ui-red)]";
+  } else if (filing_status === "due_soon") {
+    const daysLeft = days_until_due ?? 0;
+    headline = `Sales tax return due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+    valueColor = "text-[var(--ui-yellow)]";
+    borderColor = "border-[var(--ui-yellow)]";
+  } else {
+    // no_schedule
+    headline = "Tax owed — set a filing due date in Settings";
+    valueColor = "text-[var(--ui-yellow)]";
+    borderColor = "border-[var(--ui-yellow)]";
+  }
+
+  const amountLine =
+    balance_due > 0 ? `${formatCurrency(balance_due, currencyCode)} balance due` : "No balance due — return still required";
+
+  return (
+    <div
+      className={`rounded-xl border-2 ${borderColor} bg-[var(--ui-panel-bg)] p-4`}
+    >
+      <p className="text-xs uppercase tracking-wide text-[var(--ui-muted)]">Sales tax filing</p>
+      <p className={`mt-2 text-base font-semibold leading-snug ${valueColor}`}>{headline}</p>
+      <p className="mt-1 text-xs text-[var(--ui-muted)]">{amountLine}</p>
+      {filing_status === "no_schedule" ? (
+        <Link
+          href="/settings"
+          className="mt-2 block text-xs font-medium text-[var(--ui-accent)] hover:underline"
+        >
+          Configure filing schedule in Settings →
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 function SectionLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -27,6 +87,13 @@ export default function DashboardPage() {
   const { shops, selectedShopId, setSelectedShopId, currencyCode } = useApp();
 
   const activityLogRef = useRef<HTMLDivElement>(null);
+
+  type TaxComplianceKpi = {
+    balance_due: number;
+    next_filing_due_date: string | null;
+    days_until_due: number | null;
+    filing_status: "current" | "no_schedule" | "overdue" | "due_soon" | "ok";
+  };
 
   type DashboardKpis = {
     total_orders: number;
@@ -47,6 +114,7 @@ export default function DashboardPage() {
     not_listed_count: number;
     total_profit_this_month: number;
     total_profit_ytd: number;
+    tax_compliance: TaxComplianceKpi;
     avg_margin_this_month: number | null;
     avg_margin_this_month_count: number;
     last_etsy_sync_at: string | null;
@@ -86,6 +154,12 @@ export default function DashboardPage() {
           avg_margin_this_month_count: data.avg_margin_this_month_count ?? 0,
           last_etsy_sync_at: data.last_etsy_sync_at ?? null,
           payment_reminder_candidates: data.payment_reminder_candidates ?? 0,
+          tax_compliance: data.tax_compliance ?? {
+            balance_due: 0,
+            next_filing_due_date: null,
+            days_until_due: null,
+            filing_status: "current",
+          },
         })
       )
       .catch(() => setKpis(null));
@@ -220,6 +294,12 @@ export default function DashboardPage() {
           sub={kpis ? `${kpis.orders_last_7_days} in last 7 days` : undefined}
           href="/orders"
         />
+        {kpis &&
+          (kpis.tax_compliance.filing_status === "overdue" ||
+            kpis.tax_compliance.filing_status === "due_soon" ||
+            kpis.tax_compliance.filing_status === "no_schedule") && (
+            <TaxFilingBadge compliance={kpis.tax_compliance} currencyCode={currencyCode} />
+          )}
       </div>
 
       <SectionLabel className="mt-6">Inventory</SectionLabel>

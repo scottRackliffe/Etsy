@@ -24,6 +24,9 @@ export type ShippingSettingsSnapshot = {
 
 export type TaxSettingsSnapshot = {
   default_rate: string;
+  next_filing_due_date: string;
+  filing_frequency: string;
+  filing_reminder_days: string;
 };
 
 export type DisplaySettingsSnapshot = {
