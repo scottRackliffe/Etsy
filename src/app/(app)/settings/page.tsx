@@ -2008,11 +2008,16 @@ export default function ConfigPage() {
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Tax settings</h4>
-            <FormField label="Default sales tax rate" helpText="Percentage, e.g. 8.25 for 8.25%">
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Massachusetts: file electronically via MassTaxConnect (Form ST-9). A return is
+              required even with $0 due (&ldquo;zero return&rdquo;), generally by the 30th of the
+              month after each period.
+            </p>
+            <FormField label="Default sales tax rate" helpText="Percentage. Massachusetts state rate is 6.25%.">
               <input
                 value={taxSettings.default_rate}
                 onChange={(e) => setTaxSettings((c) => ({ ...c, default_rate: e.target.value }))}
-                placeholder="8.25"
+                placeholder="6.25"
                 type="number"
                 step="0.01"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
@@ -2020,7 +2025,7 @@ export default function ConfigPage() {
             </FormField>
             <FormField
               label="Next filing due date"
-              helpText="The next sales tax return deadline. Leave blank if not yet known."
+              helpText="The next sales tax return deadline (MA: the 30th of the month after each filing period). Leave blank if not yet known."
             >
               <input
                 type="date"
@@ -2031,7 +2036,7 @@ export default function ConfigPage() {
             </FormField>
             <FormField
               label="Filing frequency"
-              helpText="How often you file a sales tax return."
+              helpText="How often you file. MA DOR assigns by annual liability: Annual ≤$100, Quarterly $101–$1,200, Monthly >$1,200."
             >
               <select
                 value={taxSettings.filing_frequency}
