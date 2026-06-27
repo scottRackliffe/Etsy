@@ -108,22 +108,25 @@ Dashboard | Sales | Inventory | Receipts | Customers | Vendors | Reports | Tutor
 
 **Route:** `src/app/(app)/vendors/page.tsx`
 
-**Layout:** Master-detail (same pattern as Customers tab).
+**Layout:** Standard Entity Management Screen (**SEMS**, ADR-079). Vendors was the SEMS **pilot**
+(WS-E1). Full-width record list with **"+ Add New Vendor"** as the first row; selecting/editing
+opens the **inline editor that replaces the list** (list collapses to a breadcrumb), with a sticky
+Cancel/Save bar and the 3-button unsaved-changes guard (ADR-079 §2/§4).
 
-- **Left panel (vendor list):**
+- **Record list (Region 1):**
   - Search bar (name, contact person, email)
   - Sortable columns: Name, Contact Person, City/State, Phone
   - Active/inactive filter toggle
-  - "Add Vendor" button
+  - "+ Add New Vendor" as the first row; per-row Edit/Delete actions; double-click row = edit
 
-- **Right panel (vendor detail):**
+- **Editor (Region 2) + record context (Region 3):**
   - Header: vendor name (editable)
   - Contact section: contact person, email, phone
   - Address section: full address fields
   - Notes field
-  - Purchase history: table of purchases from this vendor (date, item, cost, shipping)
+  - Purchase history (Region 3): table of purchases from this vendor (date, item, cost, shipping)
   - Summary: total purchases count, total spend, last purchase date
-  - Save / Delete buttons
+  - Sticky Cancel / Save bar (Delete via row action + ConfirmDialog)
 
 **Deep-link:** `?vendorId=<id>` query parameter selects and scrolls to vendor (per ADR-035 pattern).
 
@@ -146,8 +149,7 @@ Dashboard | Sales | Inventory | Receipts | Customers | Vendors | Reports | Tutor
 **Used in:**
 - **Receipts page** (`receipts/page.tsx`): OCR vendor name → `ocrHint` on new receipt form; VendorPicker in expanded receipt detail for fixing unlinked vendors on existing receipts
 - **Expenses page** (`expenses/page.tsx`): OCR invoice scan → `ocrHint` on expense create form
-- **Listing Coach** (`listing-coach/page.tsx`): vendor selection for "Where I Bought This"
-- **Inventory detail panel** (`InventoryDetailPanel.tsx`): vendor selection in add/edit purchase modals; yellow hint for unlinked legacy vendors
+- **Inventory detail panel** (`InventoryDetailPanel.tsx`): vendor selection in the "Where I bought this" add/edit purchase modals (the former Listing Coach usage moved here when the Coach was removed, ADR-085); yellow hint for unlinked legacy vendors
 
 **Receipt vendor cascade:** When a receipt's vendor is updated via PATCH, the new `vendor_id`/`vendor_name` cascade to all `purchases` records created from that receipt's linked items.
 

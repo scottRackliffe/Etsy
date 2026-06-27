@@ -40,7 +40,7 @@ async function readEnvFile() {
 
 async function writeEnvFile(values) {
   const lines = [
-    "# Etsy Sales Manager local environment",
+    "# AiCE local environment",
     `ETSY_CLIENT_ID=${values.ETSY_CLIENT_ID ?? ""}`,
     `ETSY_CLIENT_SECRET=${values.ETSY_CLIENT_SECRET ?? ""}`,
     `ETSY_REDIRECT_URI=${values.ETSY_REDIRECT_URI ?? "http://localhost:3000/api/auth/etsy/callback"}`,

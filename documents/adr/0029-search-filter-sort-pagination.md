@@ -131,7 +131,7 @@ Example: `/inventory?q=vase&status=in_stock&sort_by=item_number&sort_dir=asc&pag
 
 **Status filter slug encoding:** URL query params use slug format (e.g., `status=in_stock`, `status=listed`) which the server maps to display format values (`In stock`, `Listed`) before querying the database. The mapping is case-insensitive and replaces underscores with spaces, with initial capital.
 
-**`shipping_status` filter for Sales:** Values: `shipped` (orders where `shipping_date IS NOT NULL`), `not_shipped` (orders where `shipping_date IS NULL`). Used in the Shipping chip group on the Sales page.
+**`shipping_status` filter for Sales:** Values: `shipped` (orders where `shipping_date IS NOT NULL`), `not_shipped` (orders where `shipping_date IS NULL`). Used in the Shipping chip group on the Orders page.
 
 **`customer_id` filter for Sales:** When present (e.g., `/sales?customer_id=7`), filters orders to those belonging to the specified customer. Supports deep-link from Customer purchase history → Sales list (ADR-052).
 

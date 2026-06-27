@@ -37,8 +37,7 @@ The application serves a **single-user, local** vintage/antique Etsy shop (Trudy
 | Mark paid / mark shipped (ship-until-paid + override)          | v1    | ADR-021, 031                                     |
 | Void / cancel order (no row delete)                            | v1    | ADR-022, design-decisions §4                     |
 | Inventory CRUD, statuses, condition, pictures                  | v1    | ADR-002, 010, 026, 030, 033                      |
-| Listing workshop (manual / AI / portable) + approve + publish  | v1    | ADR-023, 011                                     |
-| **AI listing generation** (research, price, full fields, photo paste, Google comps) in the inventory lifecycle | v1 | ADR-085, 081, 082 (supersedes the standalone Listing Coach, ADR-072) |
+| **AI listing generation** (research, price, full fields, photo paste, Google comps) in the inventory lifecycle | v1 | ADR-085, 081, 082 (the single listing system; supersedes the retired Listing Coach + Workshop, ADR-023/072) |
 | Customers, addresses, ship-to on orders                        | v1    | ADR-003, 017                                     |
 | Outstanding to-do list + deep-link to record                   | v1    | ADR-020, 035, 009                                |
 | Reports (13 types) PDF/CSV, date range                         | v1    | ADR-006, 013, 036, 038, 039, 054, 056            |

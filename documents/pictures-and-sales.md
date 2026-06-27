@@ -1,6 +1,6 @@
 # Why pictures are critical for sales
 
-Good photos are one of the most important factors in selling on Etsy. This short guide summarizes why, and how the Etsy Sales Manager app helps you get them right.
+Good photos are one of the most important factors in selling on Etsy. This short guide summarizes why, and how the AiCE app helps you get them right.
 
 ## Why pictures matter
 

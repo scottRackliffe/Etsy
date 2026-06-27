@@ -26,6 +26,7 @@ import {
   type CoachPhoto,
 } from "@/components/inventory/photo-paste-types";
 import { GoogleResultsPasteZone } from "@/components/inventory/GoogleResultsPasteZone";
+import { RemediationCyclePanel } from "@/components/inventory/RemediationCyclePanel";
 import type { PriceSuggestion, Citation, ComplianceCheck } from "@/lib/listing-ai";
 
 const STATUSES = ["Draft", "In stock", "Listed", "Sold", "Reserved", "Retired"] as const;
@@ -224,128 +225,6 @@ export type GenerateResult = {
 // WS-L3 sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Per-field "Fix" button — calls the inventory listing-refine route */
-function FieldFixButton({
-  itemId,
-  fieldName,
-  currentValue,
-  draft,
-  onFixed,
-}: {
-  itemId: number;
-  fieldName: string;
-  currentValue: string;
-  draft: Record<string, unknown>;
-  onFixed: (newValue: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [instruction, setInstruction] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const buildContext = () => ({
-    listing_title: String(draft.listing_title ?? ""),
-    listing_description: String(draft.listing_description ?? ""),
-    listing_tags: String(draft.listing_tags ?? ""),
-    listing_category_path: String(draft.listing_category_path ?? "") || null,
-    listing_condition_clarity: String(draft.listing_condition_clarity ?? ""),
-    listing_product_story: String(draft.listing_product_story ?? ""),
-    listing_attributes: String(draft.listing_attributes ?? ""),
-    listing_pricing_shipping_notes: String(draft.listing_pricing_shipping_notes ?? ""),
-    listing_title_strategy: String(draft.listing_title_strategy ?? ""),
-    listing_quality_checklist: String(draft.listing_quality_checklist ?? ""),
-    condition_code: String(draft.condition_code ?? ""),
-    condition_notes: String(draft.condition_notes ?? ""),
-    materials: String(draft.materials ?? ""),
-    sale_price: draft.sale_revenue !== "" ? Number(draft.sale_revenue) || null : null,
-  });
-
-  const submit = async () => {
-    if (!instruction.trim()) return;
-    setBusy(true);
-    try {
-      const resp = await fetch(`/api/inventory/${itemId}/listing-refine`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "field",
-          field_name: fieldName,
-          current_value: currentValue,
-          instruction: instruction.trim(),
-          context: buildContext(),
-        }),
-      });
-      const data = (await resp.json().catch(() => ({}))) as {
-        ok?: boolean;
-        fields?: Record<string, string>;
-      };
-      if (data.ok && data.fields?.[fieldName]) {
-        onFixed(data.fields[fieldName]);
-        setOpen(false);
-        setInstruction("");
-      }
-    } catch {
-      /* silent — field stays unchanged */
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--ui-accent)] hover:bg-[var(--ui-accent)]/10"
-        title="Ask AI to fix this field"
-      >
-        Fix
-      </button>
-    );
-  }
-
-  return (
-    <div className="mt-1 flex gap-1">
-      <input
-        value={instruction}
-        onChange={(e) => setInstruction(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            void submit();
-          }
-          if (e.key === "Escape") {
-            setOpen(false);
-            setInstruction("");
-          }
-        }}
-        className="flex-1 rounded border border-[var(--ui-accent)]/40 bg-[var(--ui-card-bg)] px-2 py-1 text-xs text-[var(--ui-body)] focus:outline-none"
-        placeholder="What should the AI change?"
-        autoFocus
-        spellCheck
-      />
-      <Button
-        variant="accent"
-        size="sm"
-        onClick={() => void submit()}
-        busy={busy}
-        disabled={!instruction.trim()}
-      >
-        Fix
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setOpen(false);
-          setInstruction("");
-        }}
-      >
-        Cancel
-      </Button>
-    </div>
-  );
-}
-
 type RemediationItem = {
   field: string;
   label: string;
@@ -358,6 +237,7 @@ type RemediationItem = {
 type ReadinessResponse = {
   ok: boolean;
   listing_phase: string;
+  drifted?: boolean;
   button: { label: string; action: "evaluate_data" | "generate" | "evaluate_quality" };
   data_remediation: RemediationItem[];
 };
@@ -445,7 +325,8 @@ function ListingLifecycleControls({
       if (!res.ok || !data?.ok) {
         onError(
           "Quality evaluation",
-          data?.error?.user_message ?? "We could not evaluate listing quality."
+          data?.error?.user_message ?? "We could not evaluate listing quality.",
+          data
         );
       } else {
         setQuality(data as QualityResult);
@@ -481,7 +362,8 @@ function ListingLifecycleControls({
           }
           onError(
             "Publish to Etsy",
-            data?.error?.user_message ?? "We could not publish this listing to Etsy."
+            data?.error?.user_message ?? "We could not publish this listing to Etsy.",
+            data
           );
           return;
         }
@@ -531,7 +413,7 @@ function ListingLifecycleControls({
             busy={buttonBusy}
             disabled={busy || (action === "generate" && !onRegenerateAi)}
           >
-            {readiness.button.label}
+            {readiness.drifted ? "Regenerate listing" : readiness.button.label}
           </Button>
           {readiness.listing_phase === "listing_ready" ? (
             <Button
@@ -552,6 +434,13 @@ function ListingLifecycleControls({
           ) : null}
         </div>
       </div>
+
+      {readiness.drifted ? (
+        <p className="mt-2 text-xs text-[var(--ui-yellow)]">
+          An item detail or photo changed since the listing was generated. Regenerate to include
+          the change, then re-run Evaluate Quality.
+        </p>
+      ) : null}
 
       {action === "evaluate_data" && showData ? (
         <ul className="mt-3 space-y-1.5">
@@ -739,6 +628,9 @@ export function InventoryDetailPanel({
   // saveTargetRef always points to the current saveChanges closure so the parent's saveRef
   // wrapper stays stable across re-renders.
   const saveTargetRef = useRef<() => Promise<boolean>>(async () => false);
+  // WS-CR6: track previous regenerateAiBusy so we can detect the true→false transition
+  // and proactively reload the item to capture the server's post-generate updated_at.
+  const prevRegenerateAiBusyRef = useRef<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [storeCategoryList, setStoreCategoryList] = useState<string[]>([]);
   const [addingCategory, setAddingCategory] = useState(false);
@@ -865,6 +757,22 @@ export function InventoryDetailPanel({
       baselineRef.current = newBaseline;
     }
   }, [item]);
+
+  // WS-CR6: After Generate (or any AI sub-action routed through regenerateAiBusy) completes,
+  // proactively reload the item so the panel's concurrency baseline (item.updated_at used by
+  // saveChanges → patchWithUndo → If-Match) reflects the server's post-generate updated_at.
+  // Without this, a save immediately after Generate sends the pre-generate updated_at and
+  // triggers a false 409 ("record was modified since you loaded it").
+  useEffect(() => {
+    const wasBusy = prevRegenerateAiBusyRef.current;
+    prevRegenerateAiBusyRef.current = Boolean(regenerateAiBusy);
+    if (wasBusy && !regenerateAiBusy && onReloadItem && item) {
+      void onReloadItem();
+    }
+  // onReloadItem and item are intentionally included to avoid stale closures; item is checked
+  // to skip the reload if no item is selected.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regenerateAiBusy]);
 
   // Compare draft against baseline (not item prop) so sub-action refreshes that advance
   // baseline don't create spurious dirty state, and user edits to untouched fields are preserved.
@@ -1031,7 +939,8 @@ export function InventoryDetailPanel({
       if (!resp.ok || !data.ok) {
         onError(
           "Video generation failed",
-          data.error?.user_message ?? "We could not generate the listing video."
+          data.error?.user_message ?? "We could not generate the listing video.",
+          data
         );
         return;
       }
@@ -1748,6 +1657,17 @@ export function InventoryDetailPanel({
           />
         ) : null}
 
+        {item &&
+        (item.listing_phase === "generated" ||
+          item.listing_phase === "needs_quality_remediation" ||
+          item.listing_phase === "listing_ready") ? (
+          <RemediationCyclePanel
+            itemId={item.id}
+            onApplied={onReloadItem}
+            onError={onError}
+          />
+        ) : null}
+
         {/* WS-L3: Citations / compliance display (collapsible) */}
         {lastGenerateResult && (lastGenerateResult.citations?.length || lastGenerateResult.compliance_check) ? (
           <div className="mb-3">
@@ -1820,67 +1740,34 @@ export function InventoryDetailPanel({
 
         <div className="space-y-3">
           <FormField label="Listing title" required>
-            <div className="flex items-start gap-1">
-              <input
-                value={draft.listing_title}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_title: e.target.value }))}
-                placeholder="e.g. Vintage 1950s Pink Depression Glass..."
-                spellCheck
-                disabled={busy || saving}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
-              {item ? (
-                <FieldFixButton
-                  itemId={item.id}
-                  fieldName="listing_title"
-                  currentValue={draft.listing_title}
-                  draft={draft as unknown as Record<string, unknown>}
-                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_title: v }))}
-                />
-              ) : null}
-            </div>
+            <input
+              value={draft.listing_title}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_title: e.target.value }))}
+              placeholder="e.g. Vintage 1950s Pink Depression Glass..."
+              spellCheck
+              disabled={busy || saving}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
           </FormField>
           <FormField label="Listing description" required>
-            <div className="flex items-start gap-1">
-              <textarea
-                value={draft.listing_description}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_description: e.target.value }))}
-                placeholder="Full listing description for Etsy..."
-                spellCheck
-                disabled={busy || saving}
-                rows={4}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
-              {item ? (
-                <FieldFixButton
-                  itemId={item.id}
-                  fieldName="listing_description"
-                  currentValue={draft.listing_description}
-                  draft={draft as unknown as Record<string, unknown>}
-                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_description: v }))}
-                />
-              ) : null}
-            </div>
+            <textarea
+              value={draft.listing_description}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_description: e.target.value }))}
+              placeholder="Full listing description for Etsy..."
+              spellCheck
+              disabled={busy || saving}
+              rows={4}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
           </FormField>
           <FormField label="Listing tags" required helpText="Comma-separated, up to 13 tags. Choose words buyers would search for.">
-            <div className="flex items-start gap-1">
-              <input
-                value={draft.listing_tags}
-                onChange={(e) => setDraft((c) => ({ ...c!, listing_tags: e.target.value }))}
-                placeholder="Comma separated, up to 13"
-                disabled={busy || saving}
-                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-              />
-              {item ? (
-                <FieldFixButton
-                  itemId={item.id}
-                  fieldName="listing_tags"
-                  currentValue={draft.listing_tags}
-                  draft={draft as unknown as Record<string, unknown>}
-                  onFixed={(v) => setDraft((c) => ({ ...c!, listing_tags: v }))}
-                />
-              ) : null}
-            </div>
+            <input
+              value={draft.listing_tags}
+              onChange={(e) => setDraft((c) => ({ ...c!, listing_tags: e.target.value }))}
+              placeholder="Comma separated, up to 13"
+              disabled={busy || saving}
+              className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+            />
             {draft.listing_tags.trim() && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {draft.listing_tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
@@ -1891,136 +1778,70 @@ export function InventoryDetailPanel({
           </FormField>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <FormField label="Title strategy">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_title_strategy}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_title_strategy: e.target.value }))}
-                  placeholder="Naming approach and keyword strategy..."
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_title_strategy"
-                    currentValue={draft.listing_title_strategy}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_title_strategy: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_title_strategy}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_title_strategy: e.target.value }))}
+                placeholder="Naming approach and keyword strategy..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <FormField label="Product story / details">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_product_story}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_product_story: e.target.value }))}
-                  placeholder="History, origin, notable features..."
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_product_story"
-                    currentValue={draft.listing_product_story}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_product_story: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_product_story}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_product_story: e.target.value }))}
+                placeholder="History, origin, notable features..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <FormField label="Condition clarity">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_condition_clarity}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_condition_clarity: e.target.value }))}
-                  placeholder="Condition details and any defect disclosure"
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_condition_clarity"
-                    currentValue={draft.listing_condition_clarity}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_condition_clarity: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_condition_clarity}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_condition_clarity: e.target.value }))}
+                placeholder="Condition details and any defect disclosure"
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <FormField label="Attributes and category fit">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_attributes}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_attributes: e.target.value }))}
-                  placeholder="Material, era, dimensions, style..."
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_attributes"
-                    currentValue={draft.listing_attributes}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_attributes: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_attributes}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_attributes: e.target.value }))}
+                placeholder="Material, era, dimensions, style..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <FormField label="Pricing and shipping notes">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_pricing_shipping_notes}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: e.target.value }))}
-                  placeholder="Pricing rationale, shipping instructions..."
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_pricing_shipping_notes"
-                    currentValue={draft.listing_pricing_shipping_notes}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_pricing_shipping_notes}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_pricing_shipping_notes: e.target.value }))}
+                placeholder="Pricing rationale, shipping instructions..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
             <FormField label="Quality checklist">
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={draft.listing_quality_checklist}
-                  onChange={(e) => setDraft((c) => ({ ...c!, listing_quality_checklist: e.target.value }))}
-                  placeholder="Pre-publish review notes..."
-                  spellCheck
-                  disabled={busy || saving}
-                  rows={2}
-                  className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
-                />
-                {item ? (
-                  <FieldFixButton
-                    itemId={item.id}
-                    fieldName="listing_quality_checklist"
-                    currentValue={draft.listing_quality_checklist}
-                    draft={draft as unknown as Record<string, unknown>}
-                    onFixed={(v) => setDraft((c) => ({ ...c!, listing_quality_checklist: v }))}
-                  />
-                ) : null}
-              </div>
+              <textarea
+                value={draft.listing_quality_checklist}
+                onChange={(e) => setDraft((c) => ({ ...c!, listing_quality_checklist: e.target.value }))}
+                placeholder="Pre-publish review notes..."
+                spellCheck
+                disabled={busy || saving}
+                rows={2}
+                className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 text-sm"
+              />
             </FormField>
           </div>
         </div>

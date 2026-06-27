@@ -17,7 +17,7 @@ New users see an empty application with no data. They cannot explore the workflo
 ### Entry points
 
 1. **First-run wizard (ADR-044):** Step 4 includes a "Load sample data to explore" button. This is optional — the user can skip it.
-2. **Config page:** A "Load Sample Data" button in a "Sample Data" section. Clicking it shows a `ConfirmDialog` (ADR-032): "This will add sample items, customers, and orders. Your existing data will not be affected." with actions "Load Sample Data" (primary) and "Cancel".
+2. **Settings page:** A "Load Sample Data" button in a "Sample Data" section. Clicking it shows a `ConfirmDialog` (ADR-032): "This will add sample items, customers, and orders. Your existing data will not be affected." with actions "Load Sample Data" (primary) and "Cancel".
 
 ### Sample dataset
 

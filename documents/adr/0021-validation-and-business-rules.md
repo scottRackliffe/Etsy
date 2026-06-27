@@ -157,12 +157,19 @@ These rules apply when publishing a listing to Etsy. Publishing is gated on **`l
 
 | Field | Rule | Error message if violated |
 | --- | --- | --- |
-| `etsy_when_made` | Required before publish. Must be a valid Etsy `when_made` enum value (see ADR-017 §1a). | "Era (when made) is required before publishing to Etsy." |
-| `etsy_taxonomy_id` | Required before publish. Must be a positive integer. | "Etsy category is required before publishing to Etsy." |
-| `materials` | Optional but recommended. If provided, each element must be a string ≤ 45 chars matching alphanumeric + whitespace only. Warning-level — not blocking. | "Each material must be 45 characters or less and contain only letters, numbers, and spaces." |
-| `item_weight` / `item_weight_unit` | Optional. If `item_weight` is provided, must be a positive number and `item_weight_unit` must also be set (one of: `oz`, `lb`, `g`, `kg`). Warning if missing for physical items. | "Weight unit is required when weight is provided." |
-| `item_length`, `item_width`, `item_height` / `item_dimensions_unit` | Optional. If any dimension is provided, all three should be provided along with `item_dimensions_unit` (one of: `in`, `ft`, `mm`, `cm`, `m`). | "All three dimensions and a unit are required when any dimension is provided." |
-| `etsy_return_policy_id` | Required before publish. Must resolve — either per-item value or global default (`etsy.publish.return_policy_id`). | "A return policy is required before publishing to Etsy. Set one on the item or in Config → Publish Defaults." |
+> **Severity model (aligned to `validatePublishReadiness`, 2026-06-23):** every rule below is
+> **blocking** (adds to `errors`) **except** `etsy_shipping_profile_id`, which is warning-only.
+> The "required" fields each resolve from the **per-item value OR a global default** (ADR-017 §1c);
+> the readiness gate and the publish route honor the **same** fallbacks (audit C7).
+
+| `etsy_when_made` | **Required** (blocking). Resolves from per-item value **or** global default (`etsy.publish.default_when_made`); must be a valid Etsy `when_made` enum (see ADR-017 §1a). | "Era (when made) is required before publishing to Etsy." |
+| `etsy_taxonomy_id` | **Required** (blocking). Resolves from per-item value **or** global default (`etsy.publish.default_taxonomy_id`); must be a positive integer. | "Category ID (taxonomy) is required before publishing to Etsy." / "Category ID must be a positive integer." |
+| `materials` | Optional. **If provided, blocking:** must be a JSON array of strings, each ≤ 45 characters. No character-set restriction is enforced; invalid JSON or a non-array is rejected. | "Materials must be a JSON array of strings." / "Materials[i] exceeds 45 characters (…)." / "Materials is not valid JSON. Expected an array like [\"ceramic\",\"glaze\"]." |
+| `item_weight` / `item_weight_unit` | Optional. **If `item_weight` is provided, blocking:** it must be a positive number and `item_weight_unit` one of `oz`, `lb`, `g`, `kg`. Missing weight is not flagged. | "Item weight must be a positive number." / "Weight unit is required when weight is set. Must be one of: oz, lb, g, kg." |
+| `item_length`, `item_width`, `item_height` / `item_dimensions_unit` | Optional. **If any dimension is provided, blocking:** `item_dimensions_unit` must be one of `in`, `ft`, `mm`, `cm`, `m`, and each provided dimension must be a positive number. Not all three are required — partial dimensions are allowed. | "Dimensions unit is required when any dimension is set. Must be one of: in, ft, mm, cm, m." / "Length must be a positive number." |
+| `etsy_return_policy_id` | **Required** (blocking). Resolves from per-item value **or** global default (`etsy.publish.return_policy_id`). | "A return policy is required. Set one on this item or configure a default in Settings → Etsy Publish Defaults." |
+| `etsy_shipping_profile_id` | Recommended — **warning only, does not block** publish. Resolves from per-item value or global default (`etsy.publish.shipping_profile_id`). | "No shipping profile set. A default or per-item shipping profile is recommended." |
+| `etsy_who_made` | **Required** (blocking). Resolves from per-item value **or** global default (`etsy.publish.default_who_made`); must be a valid `who_made` enum (`i_did`, `someone_else`, `collective`). | "Who made it is required before publishing to Etsy. Set it on this item or configure a default in Settings → Etsy Publish Defaults." |
 
 ### Schema mapping (updated 2026-05-24)
 

@@ -84,17 +84,17 @@ One row per inventory item. Source: ADR-002.
 | item_height                    | REAL    | —                         | Item height for shipping. Null if unknown.                                                                      |
 | item_dimensions_unit           | TEXT    | —                         | Dimension unit: `in`, `ft`, `mm`, `cm`, `m`. Default `in` when dimensions provided.                             |
 | is_supply                      | INTEGER | DEFAULT 0                 | 0 = finished product, 1 = craft supply. Determines Etsy marketplace section.                                    |
-| picture_classifications        | TEXT    | —                         | JSON array of `{slot, type}` objects. Shot types from Photo Guide 10-Shot Recipe (ADR-072 §Photo classification). Null if unclassified. |
+| picture_classifications        | TEXT    | —                         | JSON array of `{slot, type}` objects. Shot types from the shot-type taxonomy (ADR-083). Null if unclassified. |
 | listing_title                  | TEXT    | —                         | Etsy listing title (AI-generated or manual); required before List on Etsy.                                      |
 | listing_description            | TEXT    | —                         | Etsy listing description (AI-generated or manual); required before List on Etsy.                                |
 | listing_tags                   | TEXT    | —                         | Etsy listing tags (comma-separated or equivalent); required before List on Etsy.                                |
-| listing_category_path          | TEXT    | —                         | Etsy category path (ADR-023).                                                                                   |
-| listing_title_strategy         | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_product_story          | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_condition_clarity      | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_attributes             | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_pricing_shipping_notes | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
-| listing_quality_checklist      | TEXT    | —                         | Manual/AI listing workshop field (ADR-023).                                                                     |
+| listing_category_path          | TEXT    | —                         | Etsy category path (ADR-085).                                                                                   |
+| listing_title_strategy         | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
+| listing_product_story          | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
+| listing_condition_clarity      | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
+| listing_attributes             | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
+| listing_pricing_shipping_notes | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
+| listing_quality_checklist      | TEXT    | —                         | AI-authored listing strategy field (ADR-085).                                                                   |
 | listing_draft_state            | TEXT    | —                         | **DEPRECATED (ADR-085, 2026-06-21):** the ADR-023 draft-state machine is retired; column left in table but no longer read/written. Lifecycle is `listing_phase` (ADR-081). |
 | listing_draft_source           | TEXT    | —                         | **DEPRECATED (ADR-085).** Modes retired; not read/written.                                                      |
 | listing_export_id              | TEXT    | —                         | **DEPRECATED (ADR-085).** Portable export/import retired; not read/written.                                     |
@@ -131,11 +131,11 @@ At publish time, per-item values take precedence over global settings defaults:
 
 | Field | Per-item column | Global setting fallback | Required for publish |
 | --- | --- | --- | --- |
-| `who_made` | `inventory.etsy_who_made` | `etsy.publish.default_who_made` | Yes |
-| `when_made` | `inventory.etsy_when_made` | `etsy.publish.default_when_made` | Yes |
-| `taxonomy_id` | `inventory.etsy_taxonomy_id` | `etsy.publish.default_taxonomy_id` | Yes |
-| `shipping_profile_id` | `inventory.etsy_shipping_profile_id` | `etsy.publish.shipping_profile_id` | Yes |
-| `return_policy_id` | `inventory.etsy_return_policy_id` | `etsy.publish.return_policy_id` | Yes |
+| `who_made` | `inventory.etsy_who_made` | `etsy.publish.default_who_made` | **Yes** (blocks publish; per-item value or global default must resolve and be a valid enum — `validatePublishReadiness`) |
+| `when_made` | `inventory.etsy_when_made` | `etsy.publish.default_when_made` | **Yes** (blocks publish) |
+| `taxonomy_id` | `inventory.etsy_taxonomy_id` | `etsy.publish.default_taxonomy_id` | **Yes** (blocks publish) |
+| `shipping_profile_id` | `inventory.etsy_shipping_profile_id` | `etsy.publish.shipping_profile_id` | Recommended — **warning only, does not block** (per `validatePublishReadiness`) |
+| `return_policy_id` | `inventory.etsy_return_policy_id` | `etsy.publish.return_policy_id` | **Yes** (blocks publish) |
 
 ---
 
@@ -351,7 +351,7 @@ Persistent audit trail. Source: ADR-037.
 
 ---
 
-### 5f. Supporting tables (Etsy, listing workflow, reports)
+### 5g. Supporting tables (Etsy, listing workflow, reports)
 
 | Table                      | Purpose                                                                            | Source     |
 | -------------------------- | ---------------------------------------------------------------------------------- | ---------- |
@@ -438,7 +438,7 @@ Key-value store for app configuration that must persist (ADR-008, ADR-009). App/
 | easypost.preferred_service       | Preferred service level for batch operations (ADR-074)                                                       | Service name or empty                                                               |
 | etsy.active_shop_id              | Selected Etsy shop id (ADR-007)                                                                              | Shop id string                                                                      |
 | etsy.publish.default_who_made    | Global default `who_made` for Etsy listings; vintage shops should set `someone_else`                         | `someone_else`                                                                      |
-| etsy.publish.default_when_made   | Global default `when_made` for Etsy listings (fallback when per-item is null)                                | `before_2004`                                                                       |
+| etsy.publish.default_when_made   | Global default `when_made` for Etsy listings (fallback when per-item is null); must be a valid §1a enum value | `2004_2009`                                                                         |
 | etsy.publish.default_taxonomy_id | Global default taxonomy ID for Etsy listings (fallback when per-item is null)                                | Numeric Etsy taxonomy ID                                                            |
 | etsy.publish.shipping_profile_id | Etsy shipping profile ID (required for physical listings)                                                    | Numeric Etsy profile ID                                                             |
 | etsy.publish.return_policy_id    | Etsy return policy ID (required for active listings)                                                         | Numeric Etsy return policy ID                                                       |
@@ -581,6 +581,27 @@ General business overhead expenses — not directly tied to inventory COGS (ADR-
 | notes | TEXT | | Free-text notes. |
 | created_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
 | updated_at | TEXT | NOT NULL DEFAULT (datetime('now')) | ISO 8601 timestamp. |
+
+---
+
+### 6h. Table: `communication_log`
+
+Customer-outreach send tracking — payment reminders and thank-you notes. Source: ADR-078.
+
+| Column        | Type    | Constraints                                       | Source / notes                                          |
+| ------------- | ------- | ------------------------------------------------- | ------------------------------------------------------- |
+| id            | INTEGER | PRIMARY KEY AUTOINCREMENT                          | Surrogate key.                                          |
+| message_type  | TEXT    | NOT NULL                                          | `payment_reminder` \| `thank_you` (extensible).         |
+| channel       | TEXT    | NOT NULL                                          | `email` \| `print`.                                     |
+| order_id      | INTEGER | REFERENCES orders(id) ON DELETE SET NULL          | Related order (nullable).                               |
+| customer_id   | INTEGER | REFERENCES customers(id) ON DELETE SET NULL       | Related customer (nullable).                            |
+| recipient     | TEXT    | —                                                 | Email address, or `'print'`.                            |
+| subject       | TEXT    | —                                                 | Rendered subject.                                       |
+| body_snapshot | TEXT    | —                                                 | Rendered body at send time (audit).                     |
+| status        | TEXT    | NOT NULL DEFAULT 'queued'                          | `queued` \| `sent` \| `printed` \| `failed`.            |
+| error         | TEXT    | —                                                 | Failure detail when `status = 'failed'`.                |
+| sent_at       | TEXT    | —                                                 | ISO 8601 when sent/printed.                             |
+| created_at    | TEXT    | NOT NULL DEFAULT (datetime('now'))                | ISO 8601 timestamp.                                     |
 
 ---
 
@@ -975,11 +996,11 @@ CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
 CREATE INDEX idx_etsy_taxonomy_nodes_parent ON etsy_taxonomy_nodes(parent_id);
 CREATE INDEX idx_etsy_taxonomy_properties_taxonomy ON etsy_taxonomy_properties(taxonomy_id);
-CREATE INDEX IF NOT EXISTS idx_tax_payments_date ON tax_payments(payment_date);
-CREATE INDEX IF NOT EXISTS idx_receipts_vendor_id ON receipts(vendor_id);
-CREATE INDEX IF NOT EXISTS idx_business_expenses_date ON business_expenses(expense_date);
-CREATE INDEX IF NOT EXISTS idx_business_expenses_category ON business_expenses(category);
-CREATE INDEX IF NOT EXISTS idx_business_expenses_vendor_id ON business_expenses(vendor_id);
+CREATE INDEX idx_orders_shipper ON orders(shipper);
+CREATE INDEX idx_vendors_is_active ON vendors(is_active);
+-- Indexes for tax_payments, receipts, receipt_items, and business_expenses are created
+-- immediately after their CREATE TABLE statements below (those tables are defined later in
+-- this script, so their indexes must follow the table definitions, not precede them).
 
 -- chart_of_accounts (ADR-056)
 CREATE TABLE chart_of_accounts (
@@ -1081,6 +1102,13 @@ CREATE TABLE IF NOT EXISTS business_expenses (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Indexes for the later-defined tables (must follow their CREATE TABLE statements above)
+CREATE INDEX IF NOT EXISTS idx_tax_payments_date ON tax_payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_receipts_vendor_id ON receipts(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_date ON business_expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_category ON business_expenses(category);
+CREATE INDEX IF NOT EXISTS idx_business_expenses_vendor_id ON business_expenses(vendor_id);
 
 -- 6h. communication_log (ADR-078) — customer outreach audit (payment reminders, thank-you notes)
 CREATE TABLE IF NOT EXISTS communication_log (

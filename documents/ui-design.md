@@ -78,7 +78,7 @@ Commands are **context-sensitive** to the active tab, plus a few **global** acti
 - **Sync from Etsy** (pull latest orders).
 - **Mark as paid** (for selected order).
 - **Mark as shipped** (for selected order; prompt for shipper and date).
-- **Print shipping label** (for selected order): No automated connection to any shipping service. App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to go to Config → Shipping Info. See shipping-label-carrier-templates.md. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first.
+- **Print shipping label** (for selected order): No automated connection to any shipping service. App generates and prints the label using order ship-to and stored Shipping Info. If required Shipping Info is missing, tell user and how to go to Settings → Shipping Info. See shipping-label-carrier-templates.md. If the order has no carrier or ship-to data, show a message and prompt the user to complete the order first.
 - **Thank you note** (generate/print for selected order).
 - **Invoice** (generate/print for selected order).
 - **Record in inventory** (link order to inventory item / mark item sold).
@@ -348,7 +348,7 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 | Control              | Behavior                                                                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| App name             | `settings.business_name` or “Trudy’s Etsy Sales Manager”; links to Dashboard                                                                 |
+| App name             | `settings.business_name` or “Trudy’s AiCE”; links to Dashboard                                                                 |
 | Etsy status          | Badge: Connected (`success`) / Not connected (`warning`)                                                                                     |
 | Shop selector        | Dropdown when connected; drives sync and receipts scope                                                                                      |
 | Recent (🕐)          | ADR-063 — dropdown of last viewed orders/items/customers                                                                                     |

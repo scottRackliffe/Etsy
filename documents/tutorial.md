@@ -1,6 +1,6 @@
 # Tutorial: How Etsy works, how this app helps, and tips to improve sales
 
-This tutorial explains **how Etsy works**, **how the Etsy Sales Manager application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the tips folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
+This tutorial explains **how Etsy works**, **how the AiCE application helps you**, and **practical tips to improve sales**—including how to set prices. It is part of the app’s **Tutorial and tips** tab (tutorial and tips merged): use **Search** to find topics, the **Index** to browse, and **links to files in the tips folder** to open your own PDFs and docs outside the program. See [knowledge-base-design.md](knowledge-base-design.md) for the full design.
 
 ---
 
@@ -20,7 +20,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ### Orders and money
 
-- When an order is placed, you get a **sale notification**. You can view orders in Etsy Seller Manager (Orders) or—after connecting—in **this app** (Sales / Orders tab).
+- When an order is placed, you get a **sale notification**. You can view orders in Etsy Seller Manager (Orders) or—after connecting—in **this app** (Orders tab).
 - Etsy charges **listing fees** (per listing), **transaction fees** (percentage of sale + payment processing), and optional **ad fees** (e.g. Offsite Ads). Your **net** is sale price minus Etsy fees, your costs (item, shipping, packaging), and any other costs. This app helps you track **purchase cost**, **sale revenue**, **shipping cost**, and **other costs** so you can see real profit.
 
 ### Shop policies
@@ -41,15 +41,15 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 | Area               | How it helps                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dashboard**      | Quick view of activity and outstanding items (e.g. orders to ship).                                                                                                                                                                                                                                                                                              |
-| **Sales / Orders** | See Etsy orders in one place; mark paid/shipped; print labels, thank-you notes, invoices; link orders to your inventory and customers.                                                                                                                                                                                                                           |
-| **Inventory**      | Track each item: description, costs, dates, photos, condition. **Listing Coach** (Inventory → Add new listing with Listing Coach) lets you paste photos from Photos, add your Google search screenshot, answer a few short questions, and get a composed **title, description, and tags** — see [Listing_Coach_Guide.md](../system/tips/Listing_Coach_Guide.md). |
+| **Orders**         | See Etsy orders in one place; mark paid/shipped; print labels, thank-you notes, invoices; link orders to your inventory and customers.                                                                                                                                                                                                                           |
+| **Inventory**      | Track each item: description, costs, dates, photos, condition. **Start small** — add the basics and a hero photo — then let AiCE **Generate Listing** (it researches comparable items, suggests a price, and writes the **title, description, and tags**) and **Evaluate Listing Quality**. Keep working each listing up toward a **world-class** score so it earns the search traffic to sell quickly and at the right price, then **Publish to Etsy** once it passes (score ≥ 85). |
 | **Customers**      | Store buyer names and addresses; link purchases to customers; use data for thank-you notes and invoices.                                                                                                                                                                                                                                                         |
-| **Reports**        | Thank-you note, invoice, sales list, costs, **income month-to-date and year-to-date**, and **postal costs by vendor** (USPS, UPS, FedEx, DHL) so you know where your money goes.                                                                                                                                                                                 |
-| **Config**         | Connect/disconnect Etsy, set default shipper, business details for invoices; optional link to your own “why pictures matter” or other guides.                                                                                                                                                                                                                    |
+| **Reports**        | Thank-you note, invoice, sales list, costs (including postal/shipping spend by carrier — USPS, UPS, FedEx, DHL), profit by item, sales tax, inventory aging, and an accounting export — so you know where your money goes. (Income at-a-glance lives on the Dashboard.)                                                                                          |
+| **Settings**       | Connect/disconnect Etsy, set default shipper, business details for invoices; optional link to your own “why pictures matter” or other guides.                                                                                                                                                                                                                    |
 
 ### Tutorial and guides in the app
 
-- The app exposes **Tutorial and tips** (one tab) that includes this document and [pictures-and-sales.md](pictures-and-sales.md). In Config you can add a path or URL to **your own** guides (e.g. Etsy Seller Handbook PDFs, pricing notes) so everything is in one place.
+- The app exposes **Tutorial and tips** (one tab) that includes this document and [pictures-and-sales.md](pictures-and-sales.md). In Settings you can add a path or URL to **your own** guides (e.g. Etsy Seller Handbook PDFs, pricing notes) so everything is in one place.
 
 ---
 
@@ -57,13 +57,37 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ### Photos
 
-- Use **original photos** of the actual item. First image = main search image; make it clear and well lit. Include **multiple angles** and **detail shots** (up to 10 in the app; Etsy allows multiple images per listing).
+- Use **original photos** of the actual item. First image = main search image (your hero); make it clear and well lit. Include **multiple angles** and **detail shots** (up to 20 in the app; Etsy allows up to 20 images per listing). AiCE can suggest a **shot list** of exactly which photos a world-class listing needs.
 - For **vintage/antique**, document **condition** honestly: use the condition grade (Mint/Near Mint through Fair/As-Is), **condition notes** (e.g. patina, crazing, foxing), and **condition pictures** (up to 5) so buyers know exactly what they’re getting. See [pictures-and-sales.md](pictures-and-sales.md).
 
 ### Titles and keywords
 
 - **Titles** and **tags** feed Etsy search. Use terms buyers actually search for. Include material, era, style, color, size where relevant. Avoid stuffing; keep it readable.
-- Use **Listing Coach** in the app to generate title, description, and tags from your photos (and optional Google Visual Search results). Review the draft before approving and publishing. For manual control, use the listing workshop on an existing item.
+- Let AiCE **Generate Listing** to draft your title, description, and tags from your photos and item details (it researches comparable listings and prices). Review and refine the draft, then run **Evaluate Listing Quality** and keep working it up toward a world-class score before you publish — a stronger listing earns more search traffic, which sells the item faster and for a better price.
+
+### Improving a listing with the remediation cycle
+
+Once AiCE has generated a listing for an item, run **Evaluate Listing Quality** to score it on a 0–100 scale. The score is checked against an **85-point gate**: below 85 the listing is flagged for improvement; at 85 or above, **Publish to Etsy** becomes active.
+
+The quality score breaks down into a list of specific things to fix. Some the AI can handle automatically; some only you can supply.
+
+**What the AI needs before it can start.** Before **Generate Listing** is available, the item must have:
+- An item number
+- A description
+- A condition
+- At least one photo
+
+Everything else (price, category, shipping) is either written as a recommendation by Generate Listing, or flagged by the quality score for you to complete afterward.
+
+**Running the cycle.** After you see the quality score, two cycle buttons appear:
+- **Start cycle** (or **Cycle again** after the first pass) — runs one improvement pass. The AI rewrites only the flagged listing text (title, description, and tags) using the scoring engine's own guidance, then re-scores and shows you the **point change** so you can see whether progress is real.
+- **Advance AI** — brings in a more capable AI model for a tougher pass. Use this if the standard cycle has stalled or you want to push the score higher. You can reach for it at any point.
+
+You are in control: **you must approve every pass** by tapping one of those buttons. There is no automatic loop, and you can stop anytime by simply moving on.
+
+**Per-row Fix and global refine.** Each AI-fixable item in the score breakdown has its own **Fix** button so you can target just that one field. The **global refine box** below the score lets you type freeform feedback — for example, "Emphasize the hand-painted details" — and the AI incorporates it on the next pass.
+
+**Items only you can supply.** The quality score will also flag things the AI cannot fix on its own: required photos, the Etsy category, the shipping profile, and item attributes. For photos, tap **Download PDF** to get a printable shot list that tells you exactly which photos to shoot and what each one must show. Once you have added those photos and filled in the structured fields, run **Evaluate Listing Quality** again — those items will clear from the list.
 
 ### Descriptions
 
@@ -71,7 +95,7 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 ### Policies and trust
 
-- Set **clear shop policies** on Etsy (returns, shipping times, communication). Respond to messages promptly. Ship on time and use **tracking** when possible. This app helps you **mark shipped**, choose **shipper** (USPS, UPS, FedEx, DHL), and track **postal costs by vendor** so you can balance cost and service.
+- Set **clear shop policies** on Etsy (returns, shipping times, communication). Respond to messages promptly. Ship on time and use **tracking** when possible. This app helps you **mark shipped**, choose **shipper** (USPS, UPS, FedEx, DHL), and track **postal/shipping spend by carrier** (in the Costs report) so you can balance cost and service.
 
 ### Pricing (see Part 4)
 
@@ -112,14 +136,16 @@ This tutorial explains **how Etsy works**, **how the Etsy Sales Manager applicat
 
 | Topic                              | Where in the app                            | Where in this doc                                      |
 | ---------------------------------- | ------------------------------------------- | ------------------------------------------------------ |
-| Connect Etsy                       | Config; Dashboard                           | Part 2                                                 |
-| View orders                        | Sales / Orders                              | Part 2                                                 |
+| Connect Etsy                       | Settings; Dashboard                         | Part 2                                                 |
+| View orders                        | Orders                                      | Part 2                                                 |
 | Track inventory & costs            | Inventory                                   | Part 2, Part 4                                         |
 | Add pictures (directory → preview) | Inventory (main + condition)                | Part 2; [pictures-and-sales.md](pictures-and-sales.md) |
 | Condition (grade, notes, pics)     | Inventory → Condition                       | Part 3; Part 4                                         |
+| Generate a listing                 | Inventory (detail panel)                    | Part 3                                                 |
+| Evaluate quality / remediation     | Inventory (detail panel)                    | Part 3                                                 |
 | Customers                          | Customers                                   | Part 2                                                 |
 | Income & costs reports             | Reports                                     | Part 2, Part 4                                         |
-| Postal costs by vendor             | Reports                                     | Part 2                                                 |
+| Postal/shipping spend by carrier   | Costs report                                | Part 2                                                 |
 | Set prices                         | — (use Etsy + this app’s cost/revenue data) | Part 4                                                 |
 
 ---

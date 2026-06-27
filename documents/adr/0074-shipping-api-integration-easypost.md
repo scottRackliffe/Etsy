@@ -50,7 +50,7 @@ EasyPost provides a shipping API that enables rate shopping, label purchase, add
 | Client exposure | Never. All EasyPost calls are server-side only. |
 | Sensitive key filter | Added to settings API denylist (ADR-073 compliance) |
 
-The user enters their EasyPost API key in **Config → Shipping API**. The app encrypts and stores it. The key is never returned to the browser.
+The user enters their EasyPost API key in **Settings → Shipping API**. The app encrypts and stores it. The key is never returned to the browser.
 
 ### 3. Two-mode shipping (integrated + legacy)
 
@@ -294,8 +294,8 @@ Every error the user might encounter, with exact messages and recovery actions:
 
 | Error | Cause | User message | Actions |
 |---|---|---|---|
-| No API key | `EASYPOST_API_KEY` not set and no stored key | "Shipping API is not configured. Add your EasyPost API key in Config → Shipping API." | Navigate to Config |
-| Invalid API key | Key format wrong or revoked | "Your EasyPost API key is invalid. Check your key at easypost.com/account and update it in Config → Shipping API." | Check EasyPost dashboard, update key |
+| No API key | `EASYPOST_API_KEY` not set and no stored key | "Shipping API is not configured. Add your EasyPost API key in Settings → Shipping API." | Navigate to Config |
+| Invalid API key | Key format wrong or revoked | "Your EasyPost API key is invalid. Check your key at easypost.com/account and update it in Settings → Shipping API." | Check EasyPost dashboard, update key |
 | Test key in production | Using test key (`EZAK...test_`) when not in developer mode | "You are using an EasyPost test key. Labels will be simulated, not real. Switch to a production key for real shipments." | Warning only — allow to proceed |
 
 #### 9b. Pre-flight validation errors
@@ -303,9 +303,9 @@ Every error the user might encounter, with exact messages and recovery actions:
 | Error | Cause | User message | Actions |
 |---|---|---|---|
 | Missing ship-to | Incomplete address on order | "Complete the ship-to address before buying a label. Missing: {fields}." | Edit order |
-| Missing ship-from | Business address not set | "Complete your business address in Config → Business Info before buying labels." | Navigate to Config |
+| Missing ship-from | Business address not set | "Complete your business address in Settings → Business Info before buying labels." | Navigate to Config |
 | Missing shipper | No carrier set on order | "Select a carrier (USPS, UPS, etc.) on this order before buying a label." | Edit order |
-| No parcel info | No weight/dimensions set | "Package weight is required. Set it on the order or in Config → Shipping API defaults." | Edit dimensions in modal or Config |
+| No parcel info | No weight/dimensions set | "Package weight is required. Set it on the order or in Settings → Shipping API defaults." | Edit dimensions in modal or Config |
 
 #### 9c. EasyPost API errors
 
@@ -341,7 +341,7 @@ Every error the user might encounter, with exact messages and recovery actions:
 
 ### 10. Troubleshooting guide
 
-Displayed in Config → Shipping API as a collapsible "Troubleshooting" section, and also in Tutorial → Shipping:
+Displayed in Settings → Shipping API as a collapsible "Troubleshooting" section, and also in Tutorial → Shipping:
 
 **Problem: "No shipping rates returned"**
 - Ensure package weight is set (even 1 oz)
@@ -359,7 +359,7 @@ Displayed in Config → Shipping API as a collapsible "Troubleshooting" section,
 - Go to https://www.easypost.com/account/api-keys
 - Confirm your API key is active (not revoked)
 - If using a test key, it starts with "EZAK" and contains "test"
-- Copy the key again and re-enter it in Config → Shipping API
+- Copy the key again and re-enter it in Settings → Shipping API
 
 **Problem: "Insufficient funds"**
 - EasyPost Wallet Carriers require a funded wallet
@@ -368,7 +368,7 @@ Displayed in Config → Shipping API as a collapsible "Troubleshooting" section,
 - Unused wallet balance is refundable
 
 **Problem: "Label prints blank or garbled"**
-- Try switching label format between PDF and PNG in Config → Shipping API
+- Try switching label format between PDF and PNG in Settings → Shipping API
 - Ensure your printer supports the label size (4×6 or letter)
 - Try downloading the label file and opening it directly
 
@@ -559,7 +559,7 @@ Updated from current behavior. Now serves:
 
 ### 14. Config UI — Shipping API section
 
-Added to Config page (ADR-034) as a new section between "Shipping defaults" and "Tax settings":
+Added to Settings page (ADR-034) as a new section between "Shipping defaults" and "Tax settings":
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -658,7 +658,7 @@ Labels are included in backups (ADR-027) when `backup_include_pictures` is enabl
 - ADR-027: Backup (labels included in backup)
 - ADR-031: Order detail view (rate shopping modal, label purchase UI)
 - ADR-032: Confirmation dialogs (void label)
-- ADR-034: Config page (Shipping API section)
+- ADR-034: Settings page (Shipping API section)
 - ADR-037: Activity log (shipping events)
 - ADR-038: Profit/margin (postage cost data)
 - ADR-040: Bulk operations (batch label purchase)

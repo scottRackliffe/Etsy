@@ -20,7 +20,7 @@ ADR-006 defines the set of reports (thank you note, invoice, sales, costs, incom
 
 - **Generation (updated 2026-06-17):** Reports use an **HTML-based rendering approach**. The API returns report data as structured JSON (`format=json`). The frontend `<ReportViewer>` component renders a branded, print-ready HTML view. The browser's native Print / Save-as-PDF handles PDF output. Server-side PDFKit generation has been removed from regular reports (retained only for batch print queue). Report output is **not cached**; each run generates from current data (see ADR-008).
 - **Auth:** Report API routes do **not** require Etsy OAuth. Reports query local SQLite data and work without an Etsy connection.
-- **User choices after a report is generated:** The user is offered exactly three actions: **Print / Save as PDF** (browser print dialog), **Export CSV** (download as comma-delimited file), **Close** (dismiss report view). The browser's print dialog handles both printing and PDF export.
+- **User choices after a report is generated:** The user is offered exactly four actions: **Print** (browser print dialog), **Export PDF** (browser Save-as-PDF via the print dialog), **Export CSV** (download as comma-delimited file), **Cancel** (dismiss report view). (Exception: Accounting Export is CSV-only — **Export CSV | Cancel**; see Edge cases.)
 - **Export CSV:** Comma-delimited file; same report data and global filter as the HTML view. First row is a header (column names); one row per detail line. Values that contain commas or newlines are quoted per RFC 4180. File extension typically `.csv`.
 - **Layout:** Each report uses the **report layout (full spec)** below. Layout is consistent across report types (headers, tables, totals) suitable for a business document.
 
@@ -58,7 +58,7 @@ The following specifies the **exact content** that each report must include. Dat
 **Invoice** (per order)
 
 - **Data filter:** Per global rule above (active orders only).
-- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: business*name, business_address_line_1, business_address_line_2, business_city, business_state_province, business_country, business_postal_code). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to*\*`snapshot fields. (5) Date:`orders.order_date`. (6) Table of line items: for each `order_items`row — inventory description (or item_number),`quantity`, unit price (`order_items.unit_price`), line total (`order_items.line_total`). **`order_items.unit_price` and `order_items.line_total` are authoritative; `inventory.sale_revenue` is fallback only when order_items values are NULL.** (7) Subtotal (`orders.subtotal`or sum of line totals). (8) Discount: if`orders.discount_total`> 0, show and subtract. (9) Shipping: `orders.shipping_total` (buyer-facing shipping charge); show `orders.shipper` if set. (10) Tax: if `orders.tax_total` > 0, show as a separate line. (11) Total: `orders.grand_total` (= subtotal + shipping_total + tax_total − discount_total; per ADR-017). (12) Payment/shipping status from `orders.was_paid`, `orders.shipping_date`, `orders.shipper`. (13) **Shipping details (ADR-074):** If `orders.tracking_number` is non-empty, show: Shipping method: `orders.shipping_carrier_service` (when available); Tracking: `orders.tracking_number`. These appear in the shipping/status section of the invoice.
+- **Required content:** (1) Optional: user logo (from system, when set) at top. (2) Business name and address (from settings: `business_name`, `business_address_line_1`, `business_address_line_2`, `business_city`, `business_state_province`, `business_country`, `business_postal_code`). (3) “Invoice” or “Invoice #” + `orders.order_number` (or id). (4) Buyer / ship-to: `orders.ship_to_*` snapshot fields. (5) Date: `orders.order_date`. (6) Table of line items: for each `order_items` row — inventory description (or item_number), `quantity`, unit price (`order_items.unit_price`), line total (`order_items.line_total`). **`order_items.unit_price` and `order_items.line_total` are authoritative; `inventory.sale_revenue` is fallback only when order_items values are NULL.** (7) Subtotal (`orders.subtotal` or sum of line totals). (8) Discount: if `orders.discount_total` > 0, show and subtract. (9) Shipping: `orders.shipping_total` (buyer-facing shipping charge); show `orders.shipper` if set. (10) Tax: if `orders.tax_total` > 0, show as a separate line. (11) Total: `orders.grand_total` (= subtotal + shipping_total + tax_total − discount_total; per ADR-017). (12) Payment/shipping status from `orders.was_paid`, `orders.shipping_date`, `orders.shipper`. (13) **Shipping details (ADR-074):** If `orders.tracking_number` is non-empty, show: Shipping method: `orders.shipping_carrier_service` (when available); Tracking: `orders.tracking_number`. These appear in the shipping/status section of the invoice.
 - **Data:** `orders` + `order_items` joined to `inventory`; ship-to from order snapshot only. Tracking from `orders.tracking_number` and `orders.shipping_carrier_service`.
 
 > **Reconciliation note (2026-06-09):** Invoice shipping line corrected from `seller_shipping_cost` (seller's cost) to `shipping_total` (buyer-facing charge). Tax line added. Total formula aligned with ADR-017 `grand_total` definition. Line item pricing authority clarified: `order_items.unit_price`/`line_total` are canonical.
@@ -79,24 +79,18 @@ The following specifies the **exact content** that each report must include. Dat
 
 ---
 
-**Income — month to date**
+**Income — month to date / year to date — REMOVED (2026-06-17, ADR-036)**
 
-- **Required content:** (1) Title: “Income — Month to Date”. (2) Month and year (e.g. “February 2025”). (3) Total revenue: sum of non-null `inventory.sale_revenue` for items linked via `order_items` from active `orders` where `orders.order_date` is in the current month (NULL treated as 0). (4) Optional: count of orders.
-- **Data:** Per ADR-006; active orders only.
-
----
-
-**Income — year to date**
-
-- **Required content:** (1) Title: “Income — Year to Date”. (2) Year (e.g. “2025”). (3) Total revenue: same as MTD for the current calendar year. (4) Optional: count of orders.
-- **Data:** Same as MTD but for current year; active orders only.
+These standalone income reports were removed; income figures now appear on the **dashboard KPIs**
+(ADR-038). No `income-mtd` / `income-ytd` report routes exist.
 
 ---
 
-**Postal costs by vendor**
+**Postal costs by vendor — REMOVED (2026-06-17, ADR-036)**
 
-- **Required content:** (1) Title: “Postal Costs by Vendor”. (2) Date range if provided. (3) Table: Vendor (`orders.shipper`: USPS, UPS, FedEx, DHL, Other), Amount (sum of `orders.seller_shipping_cost` for that shipper). (4) Total across vendors. Include “Other” / “Unspecified” for null shipper (per ADR-005).
-- **Data:** `orders` table; per global filter. `GROUP BY shipper`; `SUM(seller_shipping_cost)`.
+Folded into the **Costs** report — postal/shipping spend grouped by `orders.shipper`,
+`SUM(orders.seller_shipping_cost)` (the old data model is unchanged; only the standalone report was
+removed). No `postal-by-vendor` report route exists.
 
 ---
 
@@ -118,9 +112,9 @@ The following specifies the **exact content** that each report must include. Dat
 
 **Edge cases (no ambiguity)**
 
-1. **Empty dataset:** When a report query returns zero rows and all metrics are zero, the PDF displays centered text: "No data found for the selected criteria." followed by "Try adjusting the date range or filters, or check that relevant records exist." The CSV output still includes the header row and metadata but with zero values.
+1. **Empty dataset:** When a report query returns zero rows and all metrics are zero, the report view displays centered text: "No data found for the selected criteria." followed by "Try adjusting the date range or filters, or check that relevant records exist." The CSV output still includes the header row and metadata but with zero values.
 
-2. **PDF generation failure:** If PDFKit or any PDF-rendering step throws an exception, the endpoint returns HTTP 500 with `user_message`: "Report generation failed. Please try again." and `actions`: ["Try again.", "Export as CSV instead."]. The CSV path is unaffected by PDF failures.
+2. **Report generation failure:** Regular reports render in the browser from the JSON the API returns (there is **no server-side PDFKit step** for regular reports — PDFKit is retained only for the batch print queue, ADR-055). If the report data query or render fails, the endpoint returns HTTP 500 with `user_message`: "Report generation failed. Please try again." and `actions`: ["Try again.", "Export as CSV instead."]. The CSV path is unaffected.
 
 3. **Date handling:** All date filter parameters (`from_date`, `to_date`) use UTC dates in `YYYY-MM-DD` format. The UI converts display dates to/from the user's `date_format` preference (stored in settings). If no date range is provided, the report defaults to "All time" (subject to the global active-order filter). If only `from_date` is provided, it filters from that date through today. If only `to_date` is provided, it filters through that date.
 
@@ -171,8 +165,6 @@ The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 | purchase.was_paid                        | `orders.was_paid`                                             |                                                                                                                              |
 | ship-to fields                           | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                                                                              |
 | sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                                                                                |
-| ship*to*\* fields                        | `orders.ship_to_first_name`, `orders.ship_to_last_name`, etc. | Snapshot fields on orders table                                  |
-| sum of purchase.shipping_cost by shipper | `SUM(orders.seller_shipping_cost) GROUP BY orders.shipper`    | Postal costs by vendor report                                    |
 
 ### Accounting export format (updated 2026-06-17)
 

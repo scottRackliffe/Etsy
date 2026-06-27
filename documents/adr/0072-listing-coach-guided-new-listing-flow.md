@@ -41,6 +41,11 @@ Marketing quality must follow canonical guidance: [etsy-listing-template-and-req
 
 ## Decision
 
+> ⚠️ **Historical only — do not implement.** The standalone Listing Coach was removed by ADR-085;
+> its capabilities live in the inventory lifecycle (Generate → Evaluate Quality → Publish). The
+> content below is kept for context (and as the original source of the photo shot taxonomy, now
+> canonical in ADR-083 §6).
+
 ### Product placement
 
 **Listing Coach** is part of **this application**, launched when the operator **adds a new listing** — not a separate product.
@@ -452,7 +457,7 @@ Log on complete:
 
 ### Outstanding (ADR-020)
 
-No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved). Items saved without `etsy_when_made` or `etsy_taxonomy_id` will appear on outstanding as "Missing era/category for Etsy publish" (ADR-020 Type 9).
+No new outstanding type. Existing rules apply after save (e.g. missing `sale_revenue` if skipped, draft not approved). Items saved without `etsy_when_made` or `etsy_taxonomy_id` will appear on outstanding as "Missing era/category for Etsy publish" (ADR-020 Type 8).
 
 ### Validation (ADR-021)
 
@@ -556,7 +561,7 @@ Two calls — **analyze** (vision + guidance) and **compose** (vision + guidance
 | 5 Confirms     | Quick checks                     | One card at a time or stacked; **Yes, use this** · **Edit**                                                                                      |
 | 6 Preview      | Your listing                     | Read-only title, description, tags, quality score. **Save to inventory** · **Back** · **Start over**                                             |
 | 7 Save         | Item number                      | Enter your item number (e.g. TCT-2026-042). Optional short description. **Save**                                                                 |
-| Error AI       | AI not set up                    | Go to Config → AI settings, add your key, and test connection.                                                                                   |
+| Error AI       | AI not set up                    | Go to Settings → AI settings, add your key, and test connection.                                                                                   |
 | Success        | Saved                            | Opening your new item in Inventory. Review and approve when ready.                                                                               |
 
 Button variants: primary = accent; secondary = neutral; destructive = Start over only (ConfirmDialog ADR-032).

@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { logApiCall } from "@/lib/api-usage";
 import { getSetting, setSetting } from "@/lib/settings-store";
+import { encryptValue, decryptValue } from "@/lib/secret-crypto";
+import { logger } from "@/lib/logging";
 
 export type AiProvider = "openai";
 
@@ -28,9 +30,11 @@ export type AiTask =
   | "photo-quality"
   | "shot-list"
   | "measure"
+  | "receipt-ocr"
+  | "expense-scan"
   | "test";
 
-const ECONOMY_TASKS = new Set<AiTask>(["photo-quality", "shot-list", "measure"]);
+const ECONOMY_TASKS = new Set<AiTask>(["photo-quality", "shot-list", "measure", "receipt-ocr", "expense-scan"]);
 
 /**
  * Resolve the model for a task: the economy model for economy-eligible tasks
@@ -52,7 +56,30 @@ function parseIntSetting(value: string | null, fallback: number): number {
 export function getAiConfig(): AiConfig | null {
   const provider = (getSetting("ai.provider") ?? "openai").trim() as AiProvider;
   const model = (getSetting("ai.model") ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL).trim();
-  const apiKey = (getSetting("ai.api_key") ?? process.env.OPENAI_API_KEY ?? "").trim();
+  // Read encrypted key; back-compat: migrate legacy plaintext key on first read.
+  let apiKey = (process.env.OPENAI_API_KEY ?? "").trim();
+  if (!apiKey) {
+    const encryptedKey = getSetting("ai.api_key_encrypted");
+    if (encryptedKey) {
+      try {
+        apiKey = decryptValue(encryptedKey).trim();
+      } catch {
+        logger.warn("ai-config: failed to decrypt stored API key");
+      }
+    } else {
+      // Legacy plaintext fallback — migrate to encrypted on the spot.
+      const legacyKey = (getSetting("ai.api_key") ?? "").trim();
+      if (legacyKey) {
+        apiKey = legacyKey;
+        try {
+          setSetting("ai.api_key_encrypted", encryptValue(legacyKey));
+          setSetting("ai.api_key", "");
+        } catch {
+          logger.warn("ai-config: failed to migrate legacy plaintext key to encrypted");
+        }
+      }
+    }
+  }
   const baseUrl = (getSetting("ai.base_url") ?? process.env.OPENAI_BASE_URL ?? "").trim() || null;
   const rawTimeoutMs = parseIntSetting(getSetting("ai.timeout_ms"), DEFAULT_TIMEOUT_MS);
   const timeoutMs = rawTimeoutMs < 5000 ? DEFAULT_TIMEOUT_MS : rawTimeoutMs;
@@ -79,8 +106,12 @@ export function getAiConfig(): AiConfig | null {
 export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
   apiKeyConfigured: boolean;
   economyModel: string;
+  premiumModel: string;
+  premiumReasoningEffort: string;
 } {
   const economyModel = (getSetting("ai.economy_model") ?? "").trim();
+  const premiumModel = (getSetting("ai.premium_model") ?? "").trim();
+  const premiumReasoningEffort = (getSetting("ai.premium_reasoning_effort") ?? "").trim();
   const config = getAiConfig();
   if (!config) {
     return {
@@ -92,6 +123,8 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
       tokenBudget: parseIntSetting(getSetting("ai.token_budget"), DEFAULT_TOKEN_BUDGET),
       apiKeyConfigured: false,
       economyModel,
+      premiumModel,
+      premiumReasoningEffort,
     };
   }
   return {
@@ -103,6 +136,8 @@ export function getMaskedAiConfig(): Omit<AiConfig, "apiKey"> & {
     tokenBudget: config.tokenBudget,
     apiKeyConfigured: true,
     economyModel,
+    premiumModel,
+    premiumReasoningEffort,
   };
 }
 
@@ -110,6 +145,8 @@ export function saveAiConfig(input: {
   provider?: string;
   model?: string;
   economyModel?: string;
+  premiumModel?: string;
+  premiumReasoningEffort?: string;
   apiKey?: string;
   baseUrl?: string | null;
   timeoutMs?: number;
@@ -121,14 +158,25 @@ export function saveAiConfig(input: {
     throw new Error("Unsupported AI provider. Supported providers: openai");
   }
   if (input.model !== undefined) {
-    setSetting("ai.model", input.model.trim() || DEFAULT_MODEL);
+    setSetting("ai.model", input.model.trim().toLowerCase() || DEFAULT_MODEL);
   }
   if (input.economyModel !== undefined) {
     // Blank = use the primary model for economy-eligible tasks.
-    setSetting("ai.economy_model", input.economyModel.trim());
+    setSetting("ai.economy_model", input.economyModel.trim().toLowerCase());
+  }
+  if (input.premiumModel !== undefined) {
+    // Blank = no premium configured; Advance AI falls back to the primary model.
+    setSetting("ai.premium_model", input.premiumModel.trim().toLowerCase());
+  }
+  if (input.premiumReasoningEffort !== undefined) {
+    // Blank = no reasoning effort override; reasoning models use their default.
+    setSetting("ai.premium_reasoning_effort", input.premiumReasoningEffort.trim());
   }
   if (input.apiKey !== undefined) {
-    setSetting("ai.api_key", input.apiKey.trim());
+    const trimmedKey = input.apiKey.trim();
+    setSetting("ai.api_key_encrypted", encryptValue(trimmedKey));
+    // Clear legacy plaintext key if present.
+    setSetting("ai.api_key", "");
   }
   if (input.baseUrl !== undefined) {
     setSetting("ai.base_url", (input.baseUrl ?? "").trim());

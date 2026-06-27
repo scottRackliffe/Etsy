@@ -75,12 +75,14 @@ const VALID_WHEN_MADE = new Set([
 
 const VALID_WEIGHT_UNITS = new Set(["oz", "lb", "g", "kg"]);
 const VALID_DIMENSION_UNITS = new Set(["in", "ft", "mm", "cm", "m"]);
+const VALID_WHO_MADE = new Set(["i_did", "someone_else", "collective"]);
 
 type InventoryLike = {
   etsy_when_made?: string | null;
   etsy_taxonomy_id?: number | null;
   etsy_return_policy_id?: number | null;
   etsy_shipping_profile_id?: number | null;
+  etsy_who_made?: string | null;
   materials?: string | null;
   item_weight?: number | null;
   item_weight_unit?: string | null;
@@ -97,16 +99,28 @@ export function validatePublishReadiness(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!item.etsy_when_made) {
+  // Per-item value OR global publish default (ADR-017 §1c / ADR-021 §8). The publish route resolves
+  // these same fields from settings, so the gate must honor the same fallbacks or items relying on a
+  // configured default would be wrongly rejected (audit C7).
+  const whenMade = item.etsy_when_made ?? (settings["etsy.publish.default_when_made"] || null);
+  if (!whenMade) {
     errors.push("Era (when made) is required before publishing to Etsy.");
-  } else if (!VALID_WHEN_MADE.has(item.etsy_when_made)) {
-    errors.push(`"${item.etsy_when_made}" is not a valid era value.`);
+  } else if (!VALID_WHEN_MADE.has(whenMade)) {
+    errors.push(`"${whenMade}" is not a valid era value.`);
   }
 
-  if (item.etsy_taxonomy_id == null) {
+  const taxonomyId = item.etsy_taxonomy_id ?? (Number(settings["etsy.publish.default_taxonomy_id"]) || null);
+  if (taxonomyId == null) {
     errors.push("Category ID (taxonomy) is required before publishing to Etsy.");
-  } else if (!Number.isInteger(item.etsy_taxonomy_id) || item.etsy_taxonomy_id <= 0) {
+  } else if (!Number.isInteger(taxonomyId) || taxonomyId <= 0) {
     errors.push("Category ID must be a positive integer.");
+  }
+
+  const whoMade = item.etsy_who_made ?? (settings["etsy.publish.default_who_made"] || null);
+  if (!whoMade) {
+    errors.push("Who made it is required before publishing to Etsy. Set it on this item or configure a default in Settings → Etsy Publish Defaults.");
+  } else if (!VALID_WHO_MADE.has(whoMade)) {
+    errors.push(`"${whoMade}" is not a valid who_made value (expected: i_did, someone_else, collective).`);
   }
 
   const returnPolicyId = item.etsy_return_policy_id ?? (Number(settings["etsy.publish.return_policy_id"]) || null);

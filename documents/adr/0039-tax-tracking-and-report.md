@@ -47,7 +47,7 @@ A new setting key is added to the `settings` table:
 
 **Config UI (ADR-034):**
 
-- Add a "Tax Settings" field in the Config page under a "Tax" subsection (or within the existing "Business" section)
+- Add a "Tax Settings" field in the Settings page under a "Tax" subsection (or within the existing "Business" section)
 - Input: percentage field with label "Default Sales Tax Rate" — user enters `8.25` for 8.25%, stored as `8.25` (percentage number)
 - Input step: `0.01`
 - Helper text: "Enter as percentage, e.g. 8.25 for 8.25%. Applied automatically to new manual orders. Etsy orders use the tax amount from Etsy."
@@ -87,7 +87,7 @@ A new report type added to the reports system.
 
 **Empty data:** "No orders found for the selected date range."
 
-**PDF format:** Follows ADR-013 rules — 12pt Courier body, 14pt title, 1in margins, light grid lines, page numbers centered.
+**PDF format:** Follows the ADR-013 report layout (brand layout: Crimson Text headings + Raleway body, brand banner, cream alternating rows).
 
 ### 4. SQL query pattern
 
@@ -135,6 +135,40 @@ grand_total = subtotal + shipping_total + tax_total - discount_total
 ```
 
 This recalculation happens in the API `PATCH /api/orders/[id]` handler whenever any of the four component fields change.
+
+### 7. On-time filing compliance focus (added 2026-06-23, audit C22)
+
+CT sales-tax remittance is compliance-critical — there are penalties for **late filing**, so the
+system must keep the operator focused on filing **on time**, not merely record payments after the
+fact.
+
+**Outstanding liability** is already a fact derived from data: `balance_due = tax_collected −
+total_remitted` (tax collected = `SUM(orders.tax_total)` for active orders; remitted = `SUM` of tax
+payments incl. the Expenses/AP-lite "Tax Remittance" category). This is computed by
+`getTaxPaymentSummary()` and surfaced in the Sales Tax Summary report (`current_liability`).
+
+**Filing timeliness** is computed by `getTaxComplianceStatus()` (`src/lib/tax-payments.ts`) against
+an **operator-configured** schedule — the system does **not** hardcode any jurisdiction's filing
+calendar. New `settings` keys:
+
+| Key | Example | Notes |
+| --- | --- | --- |
+| `tax.next_filing_due_date` | `2026-07-31` | ISO date of the next filing deadline (operator-supplied fact) |
+| `tax.filing_frequency` | `quarterly` | `monthly` \| `quarterly` \| `annual` (informational label) |
+| `tax.filing_reminder_days` | `14` | Lead-time window for the "due soon" warning (default 14) |
+
+`filing_status` is **schedule-driven** (since WS-CR1): a configured filing deadline drives the
+reminder **regardless of balance**, because a sales-tax return is generally required even at $0
+owed (e.g. MA "zero return"). `balance_due` is reported separately and does **not** gate the
+reminder. Values: `overdue` (scheduled, past due) · `due_soon` (scheduled, within the reminder
+window) · `ok` (scheduled, beyond the window) · `no_schedule` (owed but no due date set) ·
+`current` (no schedule and nothing owed), with `days_until_due`.
+
+**Surfacing:** `getTaxComplianceStatus()` is returned by `GET /api/tax-payments/summary` and included
+in `getDashboardStats()` (`tax_compliance`). **UI shipped (WS-CR1):** a persistent, non-dismissable
+dashboard "Needs attention" badge (fires on `overdue`/`due_soon`/`no_schedule`, including at $0) and
+the three Settings → Tax inputs for the keys above. Labels/help reflect the operator's state
+(currently Massachusetts) without hardcoding any jurisdiction in logic.
 
 ## Consequences
 

@@ -19,7 +19,7 @@ Etsy order sync is currently manual-only. The user must remember to click "Sync"
 - Setting key: `sync.auto_interval`
 - Stored in the `settings` table (key-value store)
 - Allowed values: `off` (default), `5min`, `15min`, `30min`, `1hour`
-- Configurable via Config page → Etsy Connection section (ADR-034 §2)
+- Configurable via Settings page → Etsy Connection section (ADR-034 §2)
 - UI: dropdown select with the five options above
 
 ### Client-side implementation
@@ -85,6 +85,6 @@ Etsy order sync is currently manual-only. The user must remember to click "Sync"
 
 ## Notes
 
-- Cross-references: ADR-019 (Etsy order sync — endpoint, mutex, idempotency), ADR-025 (token refresh — transparent re-auth before API calls), ADR-034 (Config page — Etsy Connection section UI, §2), ADR-037 (activity log — new action types for auto-sync)
+- Cross-references: ADR-019 (Etsy order sync — endpoint, mutex, idempotency), ADR-025 (token refresh — transparent re-auth before API calls), ADR-034 (Settings page — Etsy Connection section UI, §2), ADR-037 (activity log — new action types for auto-sync)
 - Future enhancement: server-side cron or webhook-based sync could replace client-side interval for reliability, but Etsy does not currently offer webhooks for receipt updates
 - Rate limit consideration: Etsy API allows ~10,000 calls/day per app. Even at 5-minute intervals, auto-sync uses ~288 calls/day — well within limits

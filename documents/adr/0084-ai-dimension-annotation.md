@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted — implemented (WS-H2, 2026-06-21)
+Accepted
+
+_Implemented: WS-H2, 2026-06-21._
 
 **Implementation note (WS-H2):** `src/lib/dimension-annotation.ts` — `estimateDimensions()` reads the
 ruler photo via the OpenAI Responses API on the WS-AICOST economy lane (`resolveModelForTask(…,
@@ -26,7 +28,7 @@ width as needed) — producing a polished measurement image without manual graph
 
 Existing capabilities: **Sharp** (image processing, already a dependency) for compositing
 overlays; **OpenAI vision** for estimating dimensions from the ruler scale; picture storage
-(ADR-026) and the shot-type taxonomy (ADR-072, `measurement`).
+(ADR-026) and the shot-type taxonomy (ADR-083, `measurement`).
 
 Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.b)**.
 
@@ -61,7 +63,7 @@ fields.
    **overlay style standard (§6)**. Output is a new JPEG.
 4. **Save:** store the annotated image in the item's picture storage (ADR-026) and assign it to a
    **secondary** slot (never overwrite the clean hero — see §6), classified as `measurement`
-   (ADR-072). The original hero is unchanged.
+   (ADR-083). The original hero is unchanged.
 5. **Optional field write-back:** offer to set `item_length`, `item_height`, `item_width` (and
    `item_dimensions_unit`) from the confirmed values.
 
@@ -85,7 +87,7 @@ Logs activity (ADR-037): `inventory.dimensions_annotated`
 
 ### 5. UI
 
-- In the inventory picture area (ADR-033) / Listing Coach (ADR-072): **"Add measurement photo"**
+- In the inventory picture area (ADR-033): **"Add measurement photo"**
   → upload ruler photo → review/correct estimated dimensions → preview annotated image → save.
 - Satisfies the `measurement` shot in the shot list (ADR-083) and the photo rubric (ADR-082).
 
@@ -128,6 +130,6 @@ The rendered annotation must follow these rules so it is professional, truthful,
 - Evidence base: `documents/research/2026-06-21_etsy-listing-best-practices.md` §11 (dimension
   imagery best practices; dual-unit labels; keep-hero-clean; per-shape logic).
 - **Cross-references to update at implementation (.cursorrules §1b):** ADR-026/033 (picture storage
-  + UI), ADR-072 (`measurement` shot), ADR-082 (measurement photo rubric), ADR-017/002 (optional
+  + UI), ADR-083 (`measurement` shot), ADR-082 (measurement photo rubric), ADR-017/002 (optional
   `dimension_annotation_json`; dimension fields already exist), ADR-018 (endpoints), ADR-075 (API
   usage), ADR-037 (activity action), `.cursorrules` (optional column + action).

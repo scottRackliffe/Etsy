@@ -205,6 +205,14 @@ export type Purchase = {
 
 export type UiErrorVariant = "error" | "success" | "info";
 
+/** Technical detail surfaced in the collapsible "Details" section of the error dialog. */
+export type UiErrorDetail = {
+  code?: string;
+  message: string;
+  timestamp: string;
+  endpoint?: string;
+};
+
 export type UiError = {
   title: string;
   message: string;
@@ -213,6 +221,8 @@ export type UiError = {
   occurredAt?: string;
   /** Visual style: error (red), success (green), info (blue). Auto-detected from title if omitted. */
   variant?: UiErrorVariant;
+  /** Technical detail (code, raw message, timestamp) shown in the collapsible Details section. */
+  detail?: UiErrorDetail;
 };
 
 export type ApiErrorShape = {
@@ -239,6 +249,8 @@ export type AiConfig = {
   provider: string;
   model: string;
   economyModel?: string;
+  premiumModel?: string;
+  premiumReasoningEffort?: string;
   baseUrl?: string | null;
   timeoutMs: number;
   retryCount: number;

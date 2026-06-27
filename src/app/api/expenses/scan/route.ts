@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { errorResponse, fromUnknownError } from "@/lib/api-error";
-import { getAiConfig } from "@/lib/ai-config";
+import { getAiConfig, resolveModelForTask } from "@/lib/ai-config";
 import { logApiCall } from "@/lib/api-usage";
 import { logActivity } from "@/lib/activity-log";
 
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     });
 
     const response = await openai.responses.create({
-      model: config.model,
+      model: resolveModelForTask(config, "expense-scan"),
       max_output_tokens: 4000,
       temperature: 0.1,
       input: [

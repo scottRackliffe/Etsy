@@ -28,7 +28,7 @@ src/app/
     dashboard/
       page.tsx                  # Dashboard tab content
     orders/
-      page.tsx                  # Sales/Orders tab — master-detail layout (ADR-031)
+      page.tsx                  # Orders tab — SEMS scaffold (ADR-031/079)
     shipping/
       page.tsx                  # Shipping tab — list + ShippingPanel (ADR-080)
     inventory/
@@ -37,8 +37,10 @@ src/app/
       page.tsx                  # Receipts tab — vendor purchase receipts with inventory linking
     customers/
       page.tsx                  # Customers tab content
+    communications/
+      page.tsx                  # Communications tab — payment reminders, thank-yous (ADR-078)
     vendors/
-      page.tsx                  # Vendors tab — master-detail vendor list (ADR-076)
+      page.tsx                  # Vendors tab — SEMS scaffold (ADR-076/079)
     expenses/
       page.tsx                  # Expenses tab — business overhead tracking (ADR-077)
     reports/
@@ -47,8 +49,8 @@ src/app/
       page.tsx                  # Full-page Outstanding tab
     tutorial/
       page.tsx                  # Tutorial and tips tab
-    config/
-      page.tsx                  # Config/Settings tab
+    settings/
+      page.tsx                  # Settings tab
   # listing-coach/ REMOVED (ADR-085) — new items use inline SEMS create on /inventory
   page.tsx                      # Root redirect → /dashboard
 ```
@@ -66,7 +68,7 @@ The shared layout renders:
 | Area             | Component       | Position                  | Behavior                                                                   |
 | ---------------- | --------------- | ------------------------- | -------------------------------------------------------------------------- |
 | **Header**       | `<AppHeader />` | Top, full width           | App name, Etsy connection status indicator, shop selector (when connected) |
-| **Tab bar**      | `<TabBar />`    | Below header, full width  | 10 tabs as `<Link>` elements; active tab highlighted via `usePathname()`   |
+| **Tab bar**      | `<TabBar />`    | Below header, full width  | 13 tabs (`src/components/shell/TabBar.tsx`): Dashboard · Orders · Shipping · Inventory · Receipts · Customers · Communications · Vendors · Expenses · Reports · Outstanding · Tutorial & tips · Settings. `<Link>` elements; active tab via `usePathname()` |
 | **Main content** | `{children}`    | Below tab bar, full width | Active tab page content                                                    |
 
 **Note (updated 2026-05-24):** The original ADR-024 included `CommandsPanel` and `OutstandingPanel` as persistent side panels flanking the main content. These are deferred to post-v1 per ADR-009. In v1, context-sensitive actions are placed inline on each page using `Button` components (ADR-028). The Outstanding tab serves as the full-page outstanding list. The `panel_layout` setting and layout swap button are also deferred.
@@ -122,7 +124,7 @@ Each tab page is a server component that may contain client components for inter
 
 **Sales** (`src/app/(app)/orders/page.tsx`)
 
-- Master-detail layout (ADR-031): order list on left, detail panel on right
+- SEMS scaffold (ADR-031/079): full-width order list + inline editor that replaces it
 - `OrdersTable` — Filterable order list with search, sort, pagination (ADR-029)
 - `OrderDetailPanel` — Full detail view: header, line items, ship-to, financials, shipping, notes, action buttons
 - `NewOrderForm` — Manual order entry with `PickList` for item selection
@@ -130,13 +132,11 @@ Each tab page is a server component that may contain client components for inter
 
 **Inventory** (`src/app/(app)/inventory/page.tsx`)
 
-- Two-panel layout (ADR-030): "Inventory detail" panel + "Listing workshop" panel
+- SEMS scaffold (ADR-079): full-width list + inline detail editor (no separate "Listing Workshop" panel)
 - `InventoryTable` — Item list with thumbnail, status, search, sort, pagination (ADR-029)
-- `InventoryDetailPanel` — Core field editing: costs, status, dates, condition, notes (ADR-030)
-- `PictureGrid` — Visual 10-slot upload grid with drag-and-drop (ADR-033)
+- `InventoryDetailPanel` — Core field editing + Listing Content section + context-aware lifecycle button (Evaluate Data → Generate → Evaluate Quality → Publish), ADR-030/085
+- `PictureGrid` — Visual 20-slot upload grid with drag-and-drop + clipboard paste (ADR-033)
 - `ConditionSection` — Condition code dropdown, has-issue toggle, notes, condition pictures
-- `ListingAuthoringPanel` — Mode toggle (Manual / Generate / Import), form sections, approve/reject
-- `PublishPreview` — Preview Etsy listing before publish; approve gate
 
 **Customers** (`src/app/(app)/customers/page.tsx`)
 
@@ -166,7 +166,7 @@ Each tab page is a server component that may contain client components for inter
 
 **Config** (`src/app/(app)/settings/page.tsx`)
 
-- 8 logical sections (ADR-034):
+- Settings sections (ADR-034):
 - `EtsyConnectionCard` — Connect/disconnect, redirect URI, token status
 - `BusinessDetailsForm` — Name, address, logo upload
 - `ShippingDefaultsForm` — Default carrier and shipping preferences
@@ -268,8 +268,6 @@ src/
       InventoryDetailPanel.tsx
       PictureImportFlow.tsx
       ConditionSection.tsx
-      ListingAuthoringPanel.tsx
-      PublishPreview.tsx
     customers/
       CustomersTable.tsx
       CustomerDetailForm.tsx

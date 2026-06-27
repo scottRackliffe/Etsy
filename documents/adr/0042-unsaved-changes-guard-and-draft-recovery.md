@@ -22,7 +22,7 @@ Every form that edits a persisted record or creates a new one is protected:
 | -------------------------------------- | --------------------------------- | ------------------------- |
 | Sales — order detail (ADR-031)         | Order editing panel               | Guard + auto-save draft   |
 | Inventory — detail panel (ADR-030)     | Inventory editing panel           | Guard + auto-save draft   |
-| Inventory — listing workshop (ADR-030) | Listing content editing           | Guard + auto-save draft   |
+| Inventory — Listing Content section (ADR-030) | Listing content editing    | Guard + auto-save draft   |
 | Customers — detail editing             | Customer editing form             | Guard only (simpler form) |
 | Config — all sections (ADR-034)        | Each config section independently | Guard only                |
 
@@ -114,7 +114,7 @@ useEffect(() => {
 
 ### 4. Auto-save to localStorage (draft recovery)
 
-For long forms (inventory detail, listing workshop, order detail), the current form state is periodically saved to `localStorage` to protect against browser crashes, power loss, or accidental closure.
+For long forms (inventory detail, order detail, and other SEMS editors), the current form state is periodically saved to `localStorage` to protect against browser crashes, power loss, or accidental closure.
 
 **Draft key format:** `draft:<entity_type>:<entity_id>`
 
@@ -223,7 +223,7 @@ When the mutation queue replays after reconnection and encounters a 409 (stale r
 
 ## Notes
 
-- Cross-references: ADR-030 (inventory detail — primary consumer of this guard + draft recovery), ADR-031 (order detail — consumer of guard + draft recovery), ADR-032 (ConfirmDialog — used for the in-app navigation guard dialog), ADR-034 (Config sections — consumer of guard only, no auto-save needed)
+- Cross-references: ADR-030 (inventory detail — primary consumer of this guard + draft recovery), ADR-031 (order detail — consumer of guard + draft recovery), ADR-032 (ConfirmDialog — used for the in-app navigation guard dialog), ADR-034 (Settings sections — consumer of guard only, no auto-save needed)
 - The `beforeunload` event is the only way to intercept browser close/refresh; it shows a browser-native dialog that cannot be styled or have custom text in modern browsers
 - For "new record" forms (creating a new item/order), use the key `draft:<entity_type>:new`; if the user starts creating two new items, the second overwrites the first draft (acceptable trade-off for simplicity)
 - This ADR supersedes the brief mention of dirty tracking in ADR-030 §4 and provides the full specification

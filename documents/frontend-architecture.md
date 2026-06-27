@@ -13,7 +13,7 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | `/`              | `src/app/page.tsx`                     | —           | Redirects to `/dashboard`                                                                                                    |
 | `/dashboard`     | `src/app/(app)/dashboard/page.tsx`     | Dashboard   | KPI cards, recent orders, sync status                                                                                        |
 | `/sales`         | `src/app/(app)/orders/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
-| `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list, detail panel, pictures, listing workshop (ADR-030)                                                                |
+| `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list + inline SEMS detail editor: core fields, pictures, Listing Content section, lifecycle button (ADR-030/079/085)     |
 | ~~`/listing-coach`~~ | — | — | **REMOVED (ADR-085):** new items use the inline SEMS create on `/inventory`; the AI Generate step lives in the inventory detail editor. |
 | `/customers`     | `src/app/(app)/customers/page.tsx`     | Customers   | Customer list, detail panel, addresses, purchase history                                                                     |
 | `/reports`       | `src/app/(app)/reports/page.tsx`       | Reports     | Report chooser, options, viewer                                                                                              |
@@ -53,7 +53,7 @@ File: `src/app/(app)/layout.tsx`
 - **Client component:** Yes
 - **Props:** None (reads context)
 - **Behavior:**
-  - Displays app name ("Trudy's Etsy Sales Manager" or from `settings.business_name`)
+  - Displays app name ("Trudy's AiCE" or from `settings.business_name`)
   - Shows Etsy connection badge: green "Connected" / red "Not Connected"
   - When connected: shop selector dropdown (if multiple shops)
   - Last sync timestamp from `settings.last_etsy_sync_at`
@@ -191,7 +191,7 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
 - `EtsySyncStatus` — Last sync date, sync button, connection health
 - `ActivityFeed` — Recent activity log entries widget (ADR-037)
 
-**Sales tab:**
+**Orders tab:**
 
 - `NewOrderForm` uses `PickList` for item selection; creates order via `POST /api/orders` then `POST` order items.
 - `MarkShippedForm` shows shipper dropdown (USPS/UPS/FedEx/DHL/Other), date picker, shipping cost input; warns if not paid (ADR-021 §11, ship-without-paid override).
@@ -204,7 +204,7 @@ Full component list per tab is specified in ADR-024 §3.3. Key behavioral notes:
   - Import mode: paste JSON or upload file → validate schema → review → approve.
 - "Publish to Etsy" becomes available only when `listing_phase = 'listing_ready'` (ADR-085) plus the required Etsy fields are set. (The retired `listing_draft_state = 'approved'` gate no longer applies.)
 
-**Config tab:**
+**Settings tab:**
 
 - `AiSettingsForm` fields: provider dropdown, model text input, API key (password field, masked in display), base URL (optional), timeout, retry count, token budget. "Test Connection" button calls `POST /api/settings/ai/test-connection`.
 - `BackupSection` per ADR-027.
@@ -284,12 +284,12 @@ export type ApiError = {
 | 4    | Shared UI: `DataTable`, `FormField`, `Modal`, `Toast`, `Badge`, `EmptyState`, `LoadingSpinner`     | —                                                  | Components render in isolation                                    |
 | 5    | Hooks: `useApi`, `useSettings`, `usePagination`, `useToast`                                        | Step 4                                             | Hooks work with existing API routes                               |
 | 6    | Dashboard tab: extract from page.tsx                                                               | Steps 3–5                                          | Dashboard shows KPI cards, recent orders, sync status             |
-| 7    | Sales tab: extract orders list, detail, new order, mark paid/shipped                               | Steps 4–5 + `PickList`                             | Sales tab fully functional                                        |
+| 7    | Orders tab: extract orders list, detail, new order, mark paid/shipped                               | Steps 4–5 + `PickList`                             | Orders tab fully functional                                        |
 | 8    | Inventory tab: extract item list, detail, pictures, listing, condition                             | Steps 4–5 + `PictureGrid`, `ListingAuthoringPanel` | Inventory CRUD + listing workflow works                           |
 | 9    | Customers tab: extract customer list, detail, addresses                                            | Steps 4–5                                          | Customer CRUD works                                               |
 | 10   | Outstanding panel + full-page tab                                                                  | Step 5 + `useOutstanding`                          | Outstanding items display; click navigates correctly              |
 | 11   | Reports tab                                                                                        | Steps 4–5 + `PdfPreview`                           | All core reports + ADR-038/039/054/056 types generate and display |
-| 12   | Config tab                                                                                         | Steps 4–5                                          | All settings editable; Etsy connect/disconnect works              |
+| 12   | Settings tab                                                                                         | Steps 4–5                                          | All settings editable; Etsy connect/disconnect works              |
 | 13   | Tutorial tab                                                                                       | `SearchInput`, `TutorialIndex`                     | Search and index work; tips folder links open files               |
 | 14   | Commands panel _(deferred to post-v1)_                                                             | Steps 6–13                                         | Context-sensitive commands work for all tabs                      |
 | 15   | Delete monolithic page.tsx                                                                         | All above                                          | Old file removed; all tests pass                                  |
@@ -320,7 +320,7 @@ Each step is independently deployable. The monolithic page.tsx can coexist durin
 | `CustomerNotesSection`           | 065 | Customer detail                   |
 | `CustomerMergeModal`             | 053 | Customers tab                     |
 | `ProfitabilityRow`               | 038 | Inventory detail                  |
-| `ListingScoreWidget`             | 068 | Inventory listing workshop        |
+| `ListingQualityBadge`            | 082 | Inventory detail + list (single quality engine; ADR-068 retired) |
 | `InventoryValueCard`             | 064 | Dashboard                         |
 | `OfflineBanner` / retry queue UI | 050 | App shell                         |
 

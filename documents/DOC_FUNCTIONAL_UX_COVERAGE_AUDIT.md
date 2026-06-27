@@ -26,7 +26,7 @@
 
 **Documented identity:** Single-user **local** app for **Trudy’s Classic Treasures** — vintage/antique Etsy shop. Official Etsy API only; no carrier APIs; no scraping ([ADR-011](adr/0011-compliance-with-etsy-rules.md), [etsy-compliance.md](etsy-compliance.md)).
 
-**Well-covered operational domains (69 ADRs + ui-design):**
+**Well-covered operational domains (85 ADRs + ui-design):**
 
 ```mermaid
 flowchart TB
@@ -193,7 +193,7 @@ These are **common** in Etsy seller tools but **not** specified anywhere. Treat 
 | **Dashboard composition**                          | ADR-016 base vs KPI/activity extensions (016 Notes, 064, 037) not one layout | **ADR-016 addendum** or ui-design § Dashboard: card grid, widget order, empty/connected states                                                                                       |
 | **List filters UI**                                | ADR-029 server params; no chip/bar spec                                      | ui-design per tab: status filters, date presets, “clear filters”                                                                                                                     |
 | **Shipping label preview**                         | Template data yes; modal/preview/print flow thin                             | ui-design § Sales: label preview modal dimensions, error states                                                                                                                      |
-| **Config page**                                    | ADR-034 card grid yes; current code ≠ spec                                   | Already ADR-034 — implement to spec                                                                                                                                                  |
+| **Settings page**                                    | ADR-034 card grid yes; current code ≠ spec                                   | Already ADR-034 — implement to spec                                                                                                                                                  |
 | **ConfirmDialog vs Modal**                         | ADR-032 + frontend-architecture                                              | Component spec exists — ensure adoption list per tab                                                                                                                                 |
 | **Loading skeletons**                              | LoadingSpinner only                                                          | ui-design: prefer skeleton rows in DataTable for perceived performance                                                                                                               |
 | **Vendor purchases UI**                            | Schema + API, no screen                                                      | ADR or Inventory detail § “Sourcing”: link `purchases` rows to item                                                                                                                  |

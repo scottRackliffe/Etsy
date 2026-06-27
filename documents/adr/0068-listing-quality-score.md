@@ -23,6 +23,10 @@ There is no feedback on whether a listing has strong SEO, good photos, or comple
 
 ## Decision
 
+> ⚠️ **Historical only — do not implement.** This score (`computeListingScore`) was retired by
+> ADR-085; the single quality engine is the **ADR-082** rubric. The content below is kept for
+> context.
+
 ### Quality score
 
 A score from 0 to 100, computed from a weighted checklist of listing best practices. The score is calculated on the fly from the inventory record — no stored column.

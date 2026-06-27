@@ -38,7 +38,7 @@ Every list page and filtered view MUST use the `EmptyState` shared component (AD
 
 ### Etsy connection awareness
 
-- When the app is NOT connected to Etsy, any "Sync from Etsy" button is replaced with "Connect Etsy first" — styled as `variant="secondary"` with a link icon, navigating to the Config tab Etsy Connection section
+- When the app is NOT connected to Etsy, any "Sync from Etsy" button is replaced with "Connect Etsy first" — styled as `variant="secondary"` with a link icon, navigating to the Settings tab Etsy Connection section
 - When connected, "Sync from Etsy" triggers the sync flow directly (calls `POST /api/sync/etsy`)
 
 ### Button styling

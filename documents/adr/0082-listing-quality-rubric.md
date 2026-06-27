@@ -14,7 +14,7 @@ ADR-081 defines the listing lifecycle and the **Evaluate Listing Quality** actio
 needs a **rigorous, explicit rubric**: every listing field and **every photo** must be judged
 against concrete specifications, and each failure must produce a remediation item (shortcoming +
 mitigation). The owner wants this to be sophisticated and aligned with Etsy best practices, with a
-**target around 98%** (pass threshold remains 85 per ADR-068). The simpler ADR-068 score is not
+the AI helping push every listing **toward a ~100 aspiration** above the firm **85** publish gate (`listing.min_quality_score`). The simpler ADR-068 score is not
 detailed enough for per-photo "is this artwork on point?" judgments.
 
 This ADR is the canonical **rubric** — and, per **ADR-085**, the app's **single** quality engine.
@@ -32,7 +32,7 @@ Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstre
 
 Define a **weighted, criterion-based rubric (0–100)** evaluated by deterministic checks (text
 fields, counts, presence) **plus AI vision** (per-photo "on point" judgment). Each unmet criterion
-emits a **quality-remediation item** consumed by ADR-081 §4. Pass = **85**; target = **98**.
+emits a **quality-remediation item** consumed by ADR-081 §4. **Publish gate = 85** (firm minimum, `listing.min_quality_score`); the AI drives the score **toward ~100** (aspiration) — there is no separate intermediate target.
 
 ---
 
@@ -115,7 +115,7 @@ Photos are scored in two parts:
 
 **8a. Coverage (16 pts)** — the right shots exist (cross-checked against the shot list, ADR-083):
 
-| Shot (ADR-072 type) | Pts | Required? |
+| Shot (ADR-083 type) | Pts | Required? |
 | --- | --- | --- |
 | Hero (`hero`) | 4 | Required |
 | ≥2 alternate angles incl. **back / underside** (`angle`/`underside`) | 3 | Required |
@@ -159,8 +159,8 @@ coverage but is not required.
 ```json
 {
   "score": 0,                       // 0–100 weighted sum
-  "passed": false,                  // score >= threshold (85 default)
-  "target": 98,
+  "passed": false,                  // score >= publish gate (listing.min_quality_score, default 85)
+  "target": 100,                    // ~100 aspiration (display only; the gate is 85)
   "categories": [
     { "name": "photos", "earned": 0, "possible": 40 }
   ],
@@ -194,10 +194,11 @@ coverage but is not required.
 - **Full path = deterministic + AI vision** (§8b per-photo "on point + quality"); **all non-empty
   pictures are sent** (unchanged invariant). Runs on Evaluate Listing Quality, result cached in
   `listing_quality_json`. Each AI call is logged via ADR-075.
-- Threshold is read from the single setting key `listing.min_quality_score` (default **85**;
-  `listing.quality_threshold` is retired — WS-THRESH). The **target 98** is advisory (shown as a
-  goal). The **publish gate** is `listing_phase = 'listing_ready'` (= rubric passed, no blocking
-  remediation) plus the Etsy field checks (ADR-085 §5 / ADR-081 §1); it is no longer ADR-023.
+- The quality gate is read from the single setting key `listing.min_quality_score` (default **85**,
+  a **firm minimum**; `listing.quality_threshold` is retired — WS-THRESH). The score is driven
+  **toward ~100** (aspiration shown as the goal); there is **no separate 98 target**. The phase
+  publish gate is `listing_phase = 'listing_ready'` (= rubric passed, no blocking remediation) plus
+  the Etsy field checks (ADR-085 §5 / ADR-081 §1); it is no longer ADR-023.
 
 ---
 

@@ -144,11 +144,11 @@ Both validate that the order exists and has `order_status = 'active'`. Return 40
 
 - Use the same `buildReportPdf` with enhanced layout: proper table with column headers, centered logo, formatted currency, structured address block.
 - Page size: letter (8.5 × 11 in) per ADR-013.
-- Font: Courier 12pt for body per ADR-013.
+- Fonts and layout per ADR-013 (brand layout: Crimson Text headings + Raleway body, brand banner).
 
 ---
 
-### Integration with Sales page (ADR-031)
+### Integration with Orders page (ADR-031)
 
 The order detail panel in Sales includes "Print invoice" and "Thank-you note" buttons. These link to:
 

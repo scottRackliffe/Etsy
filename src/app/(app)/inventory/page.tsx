@@ -925,7 +925,11 @@ function InventoryPageInner() {
         });
       }
 
-      await patchSelectedItem({});
+      // Refresh via GET (not a PATCH): Generate already advanced updated_at server-side, so a
+      // PATCH here would send a stale If-Match and 409 — falsely reporting "could not generate"
+      // even though the listing saved. A GET reloads the post-generate item + resets the
+      // concurrency baseline (WS-CR6).
+      await reloadSelectedInventoryItem();
       setError(null);
     } catch (err) {
       setApiError("Could not generate listing", "We could not generate listing content.", err);

@@ -90,8 +90,8 @@ When importing pictures for an item:
 
 | Property  | Value                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------ |
-| Size      | 200 × 200 px (default); user-configurable via `settings.thumbnail_size` (100–400 px range) |
-| Fit       | `cover` — crop to fill the square; center gravity                                          |
+| Size      | **Max dimension 200 px** (default), **aspect ratio preserved**; user-configurable via `settings.thumbnail_size` (100–400 px range) |
+| Fit       | `inside` — scale to fit within the max dimension, **aspect ratio preserved (no crop)**     |
 | Format    | JPEG                                                                                       |
 | Quality   | 80                                                                                         |
 | Storage   | `uploads/inventory/<item_id>/thumbnail.jpg`                                                |
@@ -127,6 +127,10 @@ Pictures are **not** renumbered after removal. Slot 3 can be empty while slots 1
 
 ### 8. Bulk import (directory → item)
 
+> **Deferred to post-v1.** A native directory picker isn't available in the browser (ADR-010); v1
+> uses multi-file selection + drag-and-drop + clipboard paste instead. The directory-import flow
+> below applies only to a future desktop/Electron build.
+
 When importing from a directory:
 
 1. App reads all image files from the selected directory (filtered by allowed types).
@@ -137,7 +141,7 @@ When importing from a directory:
 
 ### 9. Video storage
 
-Video files stored at `uploads/inventory/<item_id>/video/` path. Accepted formats: MP4, MOV. Max 100 MB. Duration 5–15 seconds. Path stored in `inventory.video_path`. Only one video per item. Uploading a new video replaces the existing one (old file is deleted). Video files are included in the item's storage directory and deleted when the inventory item is deleted (same as pictures per §9 below).
+Video files stored at `uploads/inventory/<item_id>/video/` path. Accepted formats: MP4, MOV. Max 100 MB. Duration 5–15 seconds. Path stored in `inventory.video_path`. Only one video per item. Uploading a new video replaces the existing one (old file is deleted). Video files are included in the item's storage directory and deleted when the inventory item is deleted (same as pictures per §10 below).
 
 ### 10. Disk usage and cleanup
 

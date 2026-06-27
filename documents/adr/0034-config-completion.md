@@ -1,8 +1,10 @@
-# ADR-034: Config completion — all application settings on one page
+# ADR-034: Settings completion — all application settings on one page
 
 ## Status
 
-Accepted (updated 2026-06-18)
+Accepted
+
+_Updated 2026-06-18._
 
 ## Date
 
@@ -10,15 +12,15 @@ Accepted (updated 2026-06-18)
 
 ## Context
 
-The Config page needs to surface every application setting the user may need to adjust, organized into logical sections. Early versions only had AI settings, Etsy publish defaults, and icon paths. This has been expanded to include all settings documented across ADRs, business profile, shipping, tax, display preferences, backup/restore, and more.
+The Settings page needs to surface every application setting the user may need to adjust, organized into logical sections. Early versions only had AI settings, Etsy publish defaults, and icon paths. This has been expanded to include all settings documented across ADRs, business profile, shipping, tax, display preferences, backup/restore, and more.
 
 ## Decision
 
-**The Config page is a single scrollable page with card sections in a responsive grid (`lg:grid-cols-2` and `lg:grid-cols-3`).** No internal tabs. Each section has a heading, form fields, and a dedicated Save button.
+**The Settings page is a single scrollable page with card sections in a responsive grid (`lg:grid-cols-2` and `lg:grid-cols-3`).** No internal tabs. Each section has a heading, form fields, and a dedicated Save button.
 
 ---
 
-### Complete section inventory (22 sections)
+### Complete section inventory (20 sections)
 
 | # | Section | Setting keys | Notes |
 |---|---------|-------------|-------|
@@ -34,7 +36,7 @@ The Config page needs to surface every application setting the user may need to 
 | 10 | **Store categories** | `inventory.store_categories` | Textarea (one per line). Count display. |
 | 11 | **Etsy categories & attributes** | Taxonomy cache tables | Sync button, last sync timestamp, node count. Loads Etsy taxonomy for listing creation. |
 | 12 | **Display preferences** | `ui.date_format`, `ui.currency_code`, `ui.page_size`, `ui.timezone`, `first_day_of_week`, `repeat_customer_threshold`, `activity_log.retention_days` | Date format, currency, page size, timezone (all IANA zones), first day of week (Sun/Mon/Sat), repeat customer badge threshold, activity log retention. |
-| 13 | **AI settings** | `ai.provider`, `ai.model`, `ai.economy_model`, `ai.api_key_encrypted`, `ai.base_url`, `ai.timeout_ms`, `ai.retry_count`, `ai.token_budget` | Model name, **optional economy model** (used for high-volume vision tasks — photo quality, shot list, measurements; blank = use primary model; WS-AICOST), API key (password), base URL, timeout/retries/token budget. Save + Test connection buttons. |
+| 13 | **AI settings** | `ai.provider`, `ai.model`, `ai.economy_model`, `ai.premium_model`, `ai.api_key_encrypted`, `ai.base_url`, `ai.timeout_ms`, `ai.retry_count`, `ai.token_budget` | Primary model name; **optional economy model** (high-volume vision tasks — photo quality, shot list, measurements; blank = use primary; WS-AICOST); **optional premium model** (the more-capable tier engaged by "Advance AI" in the remediation cycle, ADR-086 §1a / ADR-089; blank = no premium, Advance AI runs at primary). API key (password), base URL, timeout/retries/token budget. Save + Test connection buttons. |
 | 14 | **Publish defaults** | `etsy.publish.default_taxonomy_id`, `etsy.publish.shipping_profile_id`, `etsy.publish.return_policy_id`, `etsy.publish.default_who_made`, `etsy.publish.default_when_made`, `etsy.publish.image_max_dimension`, `etsy.publish.image_jpeg_quality`, `etsy.publish.image_target_dpi`, `etsy.publish.image_upload_attempts`, `etsy.publish.allow_partial_image_upload`, `etsy.publish.readiness_state_id`, `etsy.publish.image_ids`, `etsy.developer_mode`, `listing.min_quality_score` | Etsy listing defaults. Taxonomy ID, shipping/return policy IDs, who/when made, image settings (dimension, quality, DPI, upload retries, partial upload toggle). Min listing quality score gate. Developer mode checkbox. |
 | 15 | **Icons and sizing** | `ui.icons.screen_header_path`, `ui.icons.report_header_path`, `ui.icons.screen_header_size_px`, `ui.icons.report_header_width_px` | Path inputs for bundled icon assets. |
 | 16 | **Content & paths** | `pictures_matter_url`, `thumbnail_size`, `tutorial_system_folder_path` | "Why pictures matter" URL, thumbnail max dimension (100–400px), custom tutorial tips folder path. |
@@ -112,5 +114,5 @@ All settings use the `settings` key/value table and `/api/settings/[key]` endpoi
   - Database integrity section shows check history, not just the action button.
   - Publish defaults expose all advanced image settings previously only saved but not editable.
 - **Negative**
-  - Config page is the largest page — card layout keeps it scannable.
+  - Settings page is the largest page — card layout keeps it scannable.
   - Business logo upload requires the image serving infrastructure from ADR-033.

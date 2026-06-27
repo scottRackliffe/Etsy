@@ -14,7 +14,16 @@ The Inventory page currently functions only as a "Listing authoring workshop." U
 
 ## Decision
 
-**Add a full inventory detail panel with listing content fields inline.** The page uses a single-column layout: item list → detail panel (with listing content section) → picture grids. All fields for a selected item are accessible in one scrollable view. **(Updated 2026-06-16: The separate "Listing Workshop" panel has been removed; listing fields are consolidated into the detail panel.)**
+**Add a full inventory detail panel with listing content fields inline.** All fields for a selected item are accessible in one scrollable view (core inventory fields, then the Listing Content section, then picture grids).
+
+> **Screen scaffold = SEMS (ADR-079).** Inventory uses the Standard Entity Management Screen: a
+> full-width record list with **"+ Add New"** as the first row; selecting/adding opens the **inline
+> editor that replaces the list** (list collapses to a breadcrumb) with a sticky Cancel/Save bar and
+> the 3-button unsaved-changes guard (ADR-042 §3 / ADR-079 §4). The **field, validation, picture,
+> and lifecycle specifications in this ADR remain authoritative**; only the surrounding scaffold is
+> SEMS. **(2026-06-16: the separate "Listing Workshop" panel was removed — listing fields are
+> consolidated into the detail editor; the create Modal and two-button dirty dialog described in
+> older revisions are superseded by the SEMS inline create + 3-button guard.)**
 
 ---
 
@@ -104,7 +113,7 @@ Fields required by Etsy for publishing. Per-item values here override global def
 **Pictures section (20 slots):**
 
 - Photo grid: 20 item photo slots (`picture_1..picture_20`) per ADR-033.
-- Each photo thumbnail shows its **shot type classification badge** (from `picture_classifications` JSON). Clicking the badge opens the classification dropdown: first option "OK" (keep current type), then the full shot type enum per ADR-072 §Photo classification.
+- Each photo thumbnail shows its **shot type classification badge** (from `picture_classifications` JSON). Clicking the badge opens the classification dropdown: first option "OK" (keep current type), then the full shot type enum per ADR-083 §6 (canonical shot-type taxonomy).
 - Photos default to `extra` unless the operator assigns a type (or AI classifies them during Generate).
 - **"Auto-sort by type"** button: reorders photos into canonical Photo Guide sequence (hero first, then angle, detail, backstamp, scale, imperfection, underside, grouping, lifestyle, measurement, extra). Confirmation prompt before reorder.
 - Condition photo grid: 5 slots (`condition_picture_1..condition_picture_5`). Not classified.
@@ -159,7 +168,7 @@ Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 
 - Button uses `<Button variant="accent" busy={saving}>Save changes</Button>`.
 - On success: toast notification ("Item updated").
 - On error: toast notification with error message.
-- **Dirty tracking:** If the user has unsaved changes and selects a different item, show a confirmation dialog (per ADR-032): "You have unsaved changes. Discard them?"
+- **Dirty tracking:** If the user has unsaved changes and attempts to leave (select a different item, "+ Add New", switch tabs), show the **3-button unsaved-changes dialog** — Save changes / Discard changes / Keep editing (ADR-042 §3 / ADR-079 §4).
 
 ---
 
@@ -174,11 +183,12 @@ Cross-ref: ADR-017 (`purchases` table), ADR-070 (vendor buys in scope), ADR-071 
 
 ### Create item flow
 
-- Replace the current inline inputs with a Modal (per ADR-032):
-  - Title: "Add inventory item"
-  - Fields: Item number (required), Description, Status (default: `draft`), Purchase cost, Condition.
-  - Buttons: "Create" (accent) and "Cancel" (secondary).
-- On success: close modal, select new item, toast "Item created."
+- New items use the **SEMS "+ Add New" first-row inline editor** (ADR-079) — not a modal. It opens
+  a blank editor (same scaffold as edit) with at minimum: Item number (required), Description, Status
+  (default: `Draft`), Purchase cost, Condition, and the **hero photo**; then the lifecycle button
+  drives Generate → Quality → Publish (ADR-085).
+- Sticky Cancel/Save bar; on Save: validate, persist, toast "Item created," return to the list with
+  the new item selected.
 
 ---
 

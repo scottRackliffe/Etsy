@@ -89,11 +89,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     activityId = id;
     activityLabel = item.item_number || item.description || `Item ${id}`;
 
+    // Pass ALL publish defaults the validator may fall back to, so the readiness gate and the
+    // field-resolution below agree on which fields can come from global settings (audit C7).
     const publishSettings: Record<string, string> = {};
-    const returnPolicySetting = getSetting("etsy.publish.return_policy_id");
-    if (returnPolicySetting) publishSettings["etsy.publish.return_policy_id"] = returnPolicySetting;
-    const shippingProfileSetting = getSetting("etsy.publish.shipping_profile_id");
-    if (shippingProfileSetting) publishSettings["etsy.publish.shipping_profile_id"] = shippingProfileSetting;
+    for (const key of [
+      "etsy.publish.return_policy_id",
+      "etsy.publish.shipping_profile_id",
+      "etsy.publish.default_who_made",
+      "etsy.publish.default_when_made",
+      "etsy.publish.default_taxonomy_id",
+    ] as const) {
+      const value = getSetting(key);
+      if (value) publishSettings[key] = value;
+    }
 
     const publishCheck = validatePublishReadiness(item, publishSettings);
     if (!publishCheck.ready) {

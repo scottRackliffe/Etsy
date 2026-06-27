@@ -23,7 +23,7 @@ The **dashboard** is the application's home view. Its content, structure, and be
 ### 1. Layout (single full page)
 
 - **Header (top, full width)**
-  - **Left:** Application title (e.g. "Trudy's Etsy Sales").
+  - **Left:** Application title (e.g. "AiCE").
   - **Right:** One of:
     - **"Connect Etsy"** button (when not connected) — primary action; navigates to `/api/auth/etsy`.
     - **"Disconnect"** button (when connected) — calls logout (POST `/api/auth/logout` or equivalent); clears session and returns the view to "not connected" state.
@@ -97,7 +97,7 @@ When the user **is** authenticated with Etsy (valid token, "connected"):
 
 When the tabbed layout (ADR-009) exists:
 
-- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The "Connect Etsy" / "Disconnect" actions may live in the shared header or in the Config tab; the dashboard tab still shows the same "not connected" vs "connected" content in its main area.
+- The **Dashboard** tab is the **same** content as described above: header (or shared app header), then shop selector (when connected) and recent orders table. The "Connect Etsy" / "Disconnect" actions may live in the shared header or in the Settings tab; the dashboard tab still shows the same "not connected" vs "connected" content in its main area.
 - The dashboard tab may **additionally** show: summary cards (e.g. orders this week, revenue MTD) and links into the outstanding list, as described in ui-design.md §2. Those additions do not change the core behavior above; they extend it.
 
 ## Consequences
@@ -118,7 +118,7 @@ When the tabbed layout (ADR-009) exists:
 ### Extensions (updated 2026-05-24)
 
 - **KPI widgets (ADR-024, ADR-038, ADR-064, ADR-066):** In addition to Etsy receipts preview, the dashboard shows local-order KPIs via `GET /api/dashboard`, `GET /api/dashboard/inventory-value`, and `GET /api/dashboard/stats` (ADR-018 §10). Persisted `orders` are authoritative for revenue metrics; receipts are not the long-term data store (ADR-019).
-- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries (e.g. last 20). The widget uses the `GET /api/activity?limit=20` endpoint. Each entry shows timestamp, action description, and an optional link to the related entity. This supplements the summary cards mentioned in section 5 above. **(Superseded by the 2026-06-21 Activity views block below for the exact row count, layout, and width.)**
+- **Activity feed widget (ADR-037):** The dashboard includes a "Recent Activity" widget showing the most recent activity log entries via `GET /api/activity`. Each entry shows timestamp, action description, and an optional link to the related entity. **(Superseded by the 2026-06-21 Activity views block below — see §6 for the canonical row count (25), layout, and width.)**
 - **Shared components (ADR-028):** All dashboard UI elements (buttons, loading states, error states, empty states, badges) use the shared component library (`Button`, `LoadingSpinner`, `EmptyState`, `ErrorPanel`, `Badge`). The receipts table uses the `DataTable` component.
 - **Setup wizard (ADR-044):** First-run wizard overlays the dashboard when `setup.completed` is not `"true"`.
 
@@ -159,10 +159,11 @@ The dashboard presents **two views of the same activity data** (`activity_log`, 
 A dashboard widget listing **current inventory items below the listing-quality threshold**, so
 the user can quickly find items needing work.
 
-- **Inclusion:** items whose listing quality score is **below the pass threshold**. Pass =
-  **score ≥ 85** (85 passes); therefore the widget lists items with **score < 85**. (The target
-  threshold will rise toward ≈98% when the WS-G quality rubric lands; the widget reads whatever
-  the current threshold is and does not hard-code 85 beyond this default.)
+- **Inclusion:** items whose listing quality score is **below the publish gate**. Pass =
+  **score ≥ 85** (85 passes); therefore the widget lists items with **score < 85**. 85 is the
+  **firm publish gate** (`listing.min_quality_score`, default 85 — configurable but **not**
+  auto-climbing); the AI helps push listings toward a ~100 aspiration. The widget reads whatever
+  the current `listing.min_quality_score` is.
 - **Exclusions:** items with status **Sold, Retired,** or **Inactive** are never shown (out of
   scope). Only active/listable items appear.
 - **Presentation:** a **scrollable**, single-spaced list, **sorted lowest score first**.

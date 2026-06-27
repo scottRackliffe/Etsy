@@ -17,7 +17,7 @@ import { ProgressModal } from "@/components/ui/ProgressModal";
 import { SemsScreen, type SemsScreenController } from "@/components/sems/SemsScreen";
 import { SemsEditor } from "@/components/sems/SemsEditor";
 import { useSemsEditorGuard } from "@/components/sems/useSemsEditorGuard";
-import { OrderDetailPanel, type OrderDetailPanelHandle } from "@/components/sales/OrderDetailPanel";
+import { OrderDetailPanel, type OrderDetailPanelHandle } from "@/components/orders/OrderDetailPanel";
 import { useDirtyTracking } from "@/hooks/useDirtyTracking";
 import { useBatchOperation } from "@/hooks/useBatchOperation";
 import { useBatchSelection } from "@/hooks/useBatchSelection";

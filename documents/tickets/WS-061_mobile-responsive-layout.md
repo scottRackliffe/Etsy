@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **OPEN** — Tier 3 backlog |
+| Status | **OPEN — ON HOLD.** Not to be started until the owner **signs off on all other work** (owner, 2026-06-24). Last item in the queue. |
 | Workstream | **Infrastructure / UX** — deferred post-v1 sprint (`.cursorrules`). |
 | Source ADR | **ADR-061** (mobile-responsive layout), ADR-079 (SEMS on small screens). |
 | Recommended model | Strong model — touches every tab; plan before coding. |
 | Complexity | Large. |
 | Risk | Medium — SEMS list↔editor transitions on narrow viewports. |
-| Priority | **Backlog** — not blocking desktop daily use. |
+| Priority | **Lowest / last.** Gated on owner sign-off of everything else; not blocking desktop daily use. |
 | Depends on | WS-E1–E6 SEMS rollout (done). |
 
 ---

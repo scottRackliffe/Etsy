@@ -253,10 +253,10 @@ When the outstanding panel or any cross-tab link needs to navigate to a specific
 ```typescript
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Navigate to a specific order on the Sales tab
+// Navigate to a specific order on the Orders tab
 router.push(`/sales?order_id=${orderId}`);
 
-// The Sales page reads the search param and auto-selects
+// The Orders page reads the search param and auto-selects
 const searchParams = useSearchParams();
 const targetOrderId = searchParams.get("order_id");
 useEffect(() => {

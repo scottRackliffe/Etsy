@@ -113,7 +113,7 @@ Operations that may exceed ~3s (Etsy sync, large batch, backup, CSV import, comb
 { "ok": true, "job_id": "job_<opaque>", "status": "running" }
 ```
 
-Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (SSE). Cancel: `DELETE /api/jobs/[job_id]`. Completed jobs include `result` JSON; failed jobs include error envelope in `result` or `error`.
+Poll `GET /api/jobs/[job_id]` for progress. (An SSE `/stream` variant was specified but is **not implemented** — descoped 2026-06-23, audit C18.) Cancel: `DELETE /api/jobs/[job_id]`. Completed jobs include `result` JSON; failed jobs include error envelope in `result` or `error`.
 
 ---
 
@@ -168,6 +168,7 @@ Poll `GET /api/jobs/[job_id]` or subscribe via `GET /api/jobs/[job_id]/stream` (
 | POST   | /api/inventory/[id]/listing-refine           | App  | Per-field or global AI refine (ported from Coach)     | Path: id; Body: `{ mode: "field"\|"global", field_name?, current_value?, instruction }`                | Returns `{ ok, fields: { <field>: <new_value> } }`. No images. Ported from the former `/api/listing-coach/refine` (ADR-085 §3).                                                                                                                                                                                                                                                                                                                                              |
 | POST   | /api/inventory/[id]/listing-video            | App  | Generate listing video from photos (ported from Coach) | Path: id; Body: `{ photo_paths?, classifications? }`                                                   | ffmpeg slideshow from item photos; writes `inventory.video_path`. Returns `{ ok, video_path, duration_seconds, photo_count }`. Ported from the former `/api/listing-coach/video` (ADR-085 §3).                                                                                                                                                                                                                                                                                |
 | POST   | /api/inventory/[id]/listing-quality          | App  | Run listing quality review (ADR-081/082)              | Path: id                                                                                               | Blocks (409 `PUBLISH_NOT_READY`) if data is missing or has drifted since generation. Otherwise runs the full ADR-082 rubric (deterministic categories + AI-vision per-photo §8b) and returns `{ ok, score, passed, target, categories: [{name, earned, possible}], quality_remediation: [{category, ref, shortcoming, mitigation, weight, resolution_link}], photo_ai_evaluated, listing_phase, evaluated_at }`. Caches the result in `listing_quality_json`. Sets phase `listing_ready` (passed + no blocking remediation) or `needs_quality_remediation`. AI §8b degrades gracefully to a provisional sub-score (`photo_ai_evaluated:false`) on AI failure/missing config. Logs `listing.quality_evaluated`. Pass threshold = `listing.min_quality_score` (default 85); target 98 advisory. |
+| POST   | /api/inventory/[id]/listing-remediation-cycle | App | One user-observed remediation pass (ADR-089) | Path: id; Body: `{ tier?: "standard"\|"premium" }` (default standard) | Scores (ADR-082), then one global `refineListing` fixes the **AI-fixable** items (`listing_title`/`listing_description`/`listing_tags`/`sale_revenue`) at the tier's model (`premium` → `ai.premium_model` when set, ADR-086 §1a), **applies only listing output fields + price (no ADR-081 hash inputs → no drift)**, re-scores + persists. 200: `{ previous_score, new_score, delta, improved, passed, model_used, premium_configured, remediation, user_action_items, applied_fields }`; `no_ai_action:true` when only user-action items (photos/data) remain. 409 if listing not current/generated. Logs `listing.remediation_cycle`. |
 | GET    | /api/inventory/[id]/shot-list                | App  | Read saved AI shot list (ADR-083)                    | Path: id                                                                                               | 200: `{ ok, shot_list: [{shot_type, name, purpose, pass_spec, tips, required, captured}] \| null }`. `captured` is recomputed at read time from current pictures + classifications. `null` if never generated. 404 if item not found. |
 | POST   | /api/inventory/[id]/shot-list                | App  | Generate/regenerate AI shot list (ADR-083)           | Path: id                                                                                               | Sends `picture_1` + item context to AI (economy lane, WS-AICOST) and returns a tailored checklist `{ ok, shot_list: [...] }`, persisted to `shot_list_json`. Logs `listing.shot_list_generated`. 400 `AI_NOT_CONFIGURED` (no key) or `VALIDATION_ERROR` (no primary photo); 502 `LISTING_GENERATION_FAILED` on AI failure. 404 if item not found. |
 | POST   | /api/inventory/[id]/measure                  | App  | Estimate dimensions from a ruler photo (ADR-084)     | multipart/form-data: `ruler` image                                                                     | Sends the ruler photo to AI (economy lane, WS-AICOST) and returns `{ ok, ai_available, estimate: { length, width, height, unit, confidence } \| null }`. No render. Degrades gracefully: `ai_available:false` + `estimate:null` on AI failure/missing config (user enters values manually). 400 if no `ruler` or no `picture_1`. 404 if item not found. |
@@ -251,9 +252,7 @@ Reports are generated on demand. Request format via query `format=pdf` or `forma
 | GET or POST | /api/reports/invoice           | App  | Invoice for one order                   | Query or body: order_id (required), format? (pdf \| csv, default pdf)  | 200: PDF or CSV per ADR-013. 404 if order not found. Content per ADR-013. |
 | GET or POST | /api/reports/sales             | App  | Sales report                            | Query or body: from_date?, to_date?, format? (pdf \| csv, default pdf) | 200: PDF or CSV. Content per ADR-013.                                     |
 | GET or POST | /api/reports/costs             | App  | Costs report                            | Query or body: from_date?, to_date?, format? (pdf \| csv, default pdf) | 200: PDF or CSV. Content per ADR-013.                                     |
-| GET or POST | /api/reports/income-mtd        | App  | Income month-to-date                    | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013.                                     |
-| GET or POST | /api/reports/income-ytd        | App  | Income year-to-date                     | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013.                                     |
-| GET or POST | /api/reports/postal-by-vendor  | App  | Postal costs by vendor                  | Query or body: from_date?, to_date?, format? (pdf \| csv, default pdf) | 200: PDF or CSV. Content per ADR-013.                                     |
+| ~~GET/POST~~ | ~~/api/reports/income-mtd, income-ytd, postal-by-vendor~~ | — | **REMOVED (ADR-036, 2026-06-17)** — income on dashboard KPIs (ADR-038); postal folded into Costs | — | — |
 | GET or POST | /api/reports/outstanding-items | App  | Outstanding items (all to-dos)          | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013 (Outstanding items).                 |
 | GET or POST | /api/reports/ar-aging          | App  | AR aging (unpaid orders by age bucket)  | Query or body: format? (pdf \| csv, default pdf)                       | 200: PDF or CSV. Content per ADR-013 (AR aging).                          |
 | GET or POST | /api/reports/profit-by-item    | App  | Per-item profit and margin (ADR-038)    | Query: from_date?, to_date? (aliases start_date/end_date), format?     | 200: PDF or CSV. Active orders filter per ADR-006/013.                    |
@@ -475,7 +474,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 }
 ```
 
-**13) Concurrent edit (409, ADR-046)**
+**12) Concurrent edit (409, ADR-046)**
 
 ```json
 {
@@ -490,7 +489,7 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 }
 ```
 
-**12) Report endpoint response behavior**
+**13) Report endpoint response behavior**
 
 - For `format=pdf`: return `200`, `Content-Type: application/pdf`, and binary PDF content.
 - For `format=csv`: return `200`, `Content-Type: text/csv`, and RFC4180 CSV content.
@@ -691,7 +690,7 @@ Valid actions: orders — `mark_paid`, `mark_shipped`, `void`; inventory — `ch
 }
 ```
 
-Completed: `status: "completed"`, `result` object (action-specific, e.g. sync `{ synced, created_orders, skipped?, errors? }`). Failed: `status: "failed"`, `error` envelope. Cancelled: `status: "cancelled"`. `DELETE /api/jobs/[job_id]` → **200** or **204**. SSE `GET /api/jobs/[job_id]/stream`: events `progress`, `completed`, `failed` with same JSON payloads.
+Completed: `status: "completed"`, `result` object (action-specific, e.g. sync `{ synced, created_orders, skipped?, errors? }`). Failed: `status: "failed"`, `error` envelope. Cancelled: `status: "cancelled"`. `DELETE /api/jobs/[job_id]` → **200** or **204**. (A planned SSE `GET /api/jobs/[job_id]/stream` with `progress`/`completed`/`failed` events is **not implemented** — descoped 2026-06-23, audit C18; poll instead.)
 
 **B12) `GET /api/health` (§23, ADR-050)**
 
@@ -1257,6 +1256,129 @@ Request:
 
 ---
 
+**§40. Miscellaneous endpoints not previously indexed (C17 back-fill)**
+
+The following live endpoints existed in code but were omitted from the sections above. They are recorded here to complete the catalog.
+
+**Addresses — global list**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/addresses` | App | List all addresses across all customers. Query: `customer_id?`, `limit?`, `offset?`. 200: `{ items: Address[], pagination }`. |
+
+**Auth — Etsy session info**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/auth/etsy/info` | None | Return current Etsy connection state: `{ connected, shop_id?, shop_name?, connected_at?, token_expires_at?, last_etsy_sync_at? }`. Used by UI to determine whether OAuth is active without a full API call. |
+
+**Backup — scheduled trigger**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/backup/scheduled` | App | Trigger a scheduled automatic backup (called by the app's internal scheduler). 200: `{ ok, ran, … }`. No-ops if not due yet. |
+
+**Dashboard — low-quality inventory**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/dashboard/low-quality-inventory` | App | Return inventory items with low listing-quality scores for the dashboard widget. 200: `{ ok, items: [] }`. |
+
+**Expenses — bill payments sub-resource**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/expenses/[id]/payments` | App | List payments recorded against a bill/expense. 200: `{ ok, items: BillPayment[] }`. |
+| POST | `/api/expenses/[id]/payments` | App | Record a payment against a bill/expense. Body: `{ payment_date, amount, payment_method?, reference_number?, notes? }`. 201: `{ ok, item: BillPayment, expense }`. |
+| DELETE | `/api/expenses/[id]/payments` | App | Delete a payment (query param `paymentId` required). 200: `{ ok, expense }`. |
+
+**Expenses — bills view**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/expenses/bills` | App | List non-tax bill-type expenses. 200: `{ ok, items }`. |
+| GET | `/api/expenses/bills/summary` | App | Aggregated bill payment summary (total billed, total paid, outstanding). 200: `{ ok, … }`. |
+
+**Inventory — regenerate thumbnails**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/inventory/regenerate-thumbnails` | App | Regenerate all inventory thumbnails (ADR-026 §5). Used when the `thumbnail_size` setting changes. 200: `{ ok, … }`. |
+
+**Order items — direct access**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| PATCH | `/api/order-items/[id]` | App | Update a single order line item (quantity, unit price, etc.). 200: `{ ok, order }`. |
+| DELETE | `/api/order-items/[id]` | App | Remove a line item from an order. 200: `{ ok, order }`. |
+
+**Orders — line item sub-resource**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/orders/[id]/items` | App | Add a line item to an existing order. Body: `{ inventory_id, quantity?, unit_price? }`. 201: `{ ok, order }`. |
+| PATCH | `/api/orders/[id]/items/[itemId]` | App | Update a specific line item on an order. 200: `{ ok, order }`. |
+| DELETE | `/api/orders/[id]/items/[itemId]` | App | Remove a specific line item from an order. 200: `{ ok, order }`. |
+
+**Orders — discount reasons**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/orders/discount-reasons` | App | Return a distinct list of previously used discount reason strings. 200: `{ reasons: string[] }`. Used for auto-complete in the UI. |
+
+**Reports — vendor profitability**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET or POST | `/api/reports/vendor-profitability` | App | Vendor profitability report: revenue, cost, margin grouped by vendor. Query/body: `from_date?`, `to_date?`, `format?` (pdf/csv). 200: PDF or CSV per ADR-013. |
+
+**Settings — database integrity check**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/integrity-check` | App | Run `PRAGMA integrity_check` on the SQLite database. Stores result in settings and logs activity. 200: `{ ok, result }`. |
+
+**Settings — business logo**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/logo` | App | Upload business logo image (multipart; max 5 MB). Stores to `uploads/branding/logo.png`; sets `business_logo_path` setting. 200: `{ ok, path }`. |
+| DELETE | `/api/settings/logo` | App | Remove the business logo. Clears file and `business_logo_path` setting. 204. |
+
+**Settings — report header image**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/settings/report-header` | App | Upload report header image (multipart; max 5 MB). Stores to `uploads/branding/report-header.png`; sets `report_header_logo_path` setting. 200: `{ ok, path }`. |
+| DELETE | `/api/settings/report-header` | App | Remove the report header image. Clears file and `report_header_logo_path` setting. 204. |
+
+**Shipping — EasyPost connection test**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/shipping/test-connection` | App | Test whether the configured EasyPost API key is valid. 200: `{ ok, configured, … }`. 400 `SHIPPING_NOT_CONFIGURED` if no key set. |
+
+**Tutorial — file listing and content**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/tutorial/files` | App | List available tutorial files (`.md`/`.txt`). 200: `{ ok, files: string[] }`. |
+| GET | `/api/tutorial/files/[name]` | App | Return the content of a named tutorial file. Path param `name` must end in `.md` or `.txt`; directory traversal rejected. 200: `{ ok, name, content }`. 404 if not found. |
+
+**API usage — connection session tracking**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| POST | `/api/usage/session` | App | Record or update a connection session event (`start`, `end`, `heartbeat`) for external services. Body: `{ service, action, session_id? }`. 200: `{ ok, session_id? }`. |
+
+**Vendors — category list**
+
+| Method | Path | Auth | Purpose |
+| ------ | ---- | ---- | ------- |
+| GET | `/api/vendors/categories` | App | Return a merged list of vendor category strings (DB values + default suggestions), deduplicated and sorted. 200: `{ ok, categories: string[] }`. |
+
+---
+
 ## Consequences
 
 - **Positive:** Single place for all endpoints; no ambiguity for implementers.
@@ -1269,7 +1391,7 @@ Request:
 - Report content: exact content and data for each report type are specified in **ADR-013** (Report content section).
 - Listing generation is governed by the single lifecycle in **ADR-085** (supersedes ADR-023/072): inline create → Generate (research + price + all fields) → Evaluate Quality → Publish at `listing_ready`. Listing endpoints are in section 4.
 - **Full extension index:** §12–§32 (ADR-027–074 plus vendor receipts). **Appendix B** provides concrete JSON for extension endpoints; feature ADRs remain authoritative for UI and edge cases.
-- **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Config → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
+- **Print shipping label (dual mode — ADR-074):** Two modes: (1) **EasyPost integrated** — rate shop, buy label with postage, auto-tracking via `§30` endpoints. (2) **Legacy local** — generates HTML address label from order ship-to + stored Shipping Info; no postage, no tracking. If EasyPost not configured, only legacy mode is available. If required Shipping Info is missing for legacy mode, tell user and how to navigate to Settings → Shipping Info. See `documents/shipping-label-carrier-templates.md` and ADR-074.
 
 ### Extensions (updated 2026-05-24)
 
@@ -1356,7 +1478,7 @@ Optional v1 extension: `{ action, filter }` without `ids` for “select all matc
 | Method | Path                      | Auth | Purpose                         |
 | ------ | ------------------------- | ---- | ------------------------------- |
 | GET    | /api/jobs/[job_id]        | App  | Poll job status/progress/result |
-| GET    | /api/jobs/[job_id]/stream | App  | SSE progress stream             |
+| ~~GET~~ | ~~/api/jobs/[job_id]/stream~~ | —  | **NOT IMPLEMENTED (descoped 2026-06-23, audit C18):** no SSE route exists in code; poll `GET /api/jobs/[job_id]` instead. |
 | DELETE | /api/jobs/[job_id]        | App  | Cancel running job              |
 
 **§23. Health (ADR-050)**

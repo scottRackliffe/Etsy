@@ -1,4 +1,4 @@
-# Etsy Sales Manager — System Colors
+# AiCE — System Colors
 
 UI color palette aligned to **Cursor blue UI** (deep navy surfaces, cool blue accents). Same scheme as NSLS for consistency.
 

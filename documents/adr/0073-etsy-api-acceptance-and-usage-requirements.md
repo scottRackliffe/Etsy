@@ -431,7 +431,7 @@ Etsy may terminate or suspend API access and/or your Developer Account if:
 
 ---
 
-## 13. Our compliance (Etsy Sales Manager)
+## 13. Our compliance (AiCE)
 
 This section maps each requirement to our implementation. See also `documents/etsy-compliance.md` and ADR-011.
 
@@ -443,8 +443,8 @@ This section maps each requirement to our implementation. See also `documents/et
 | Token encryption | AES-256-GCM at rest in SQLite `settings` table (ADR-025) |
 | Rate limit handling | HTTP 429 + `Retry-After` header respected; configurable limits (ADR-011) |
 | No caching of API responses | `etsy_receipts` stores synced operational data, not cached responses (ADR-011, etsy-compliance.md) |
-| Trademark disclaimer | Displayed in app footer and Config page (ADR-011) |
-| No "Etsy" in app name | App name is "Etsy Sales Manager" for internal reference only; displayed name is distinct |
+| Trademark disclaimer | Displayed in app footer and Settings page (ADR-011) |
+| No "Etsy" in app name | The app's name is **AiCE** — contains no "Etsy" |
 | No screen-scraping | API-only data access (ADR-011) |
 | Testing policy | Draft listings used during development; Developer Mode guidance in documentation |
 | Scopes: minimum required | `transactions_r`, `shops_r` at connect; `listings_w`, `listings_r` on first publish (ADR-007) |
@@ -472,7 +472,7 @@ This section maps each requirement to our implementation. See also `documents/et
 |---|---|---|
 | 2.1 | **Go to the developer portal** | Navigate to [etsy.com/developers/your-apps](https://www.etsy.com/developers/your-apps). |
 | 2.2 | **Click "Create a New App"** | This opens the registration form. |
-| 2.3 | **Choose a name** | Pick a name that does NOT contain the word "Etsy". Example: "Trudy's Sales Manager" or "Vintage Shop Manager". Using "Etsy" in the name will cause rejection. |
+| 2.3 | **Choose a name** | Pick a name that does NOT contain the word "Etsy". Example: "AiCE" or "Vintage Shop Manager". Using "Etsy" in the name will cause rejection. |
 | 2.4 | **Write the application description** | This is the most critical field for approval. Be detailed, specific, and honest. Describe exactly what the app does and who uses it. See the template below. |
 | 2.5 | **Provide a website URL** | Must be a real, accessible URL. Even a simple landing page works. Do not leave blank or use placeholder URLs. |
 | 2.6 | **Select "Personal" access type** | Always start with personal access. Do NOT request commercial from the start — this frequently gets rejected. |
@@ -589,7 +589,7 @@ Only needed if the app will serve sellers other than yourself (multi-seller/SaaS
 - ADR-007: OAuth flow and token refresh
 - ADR-011: Compliance with Etsy rules (decision record)
 - ADR-019: Etsy order sync
-- ADR-023: Listing content generation modes
+- ADR-023: Listing content generation modes *(superseded by ADR-085)*
 - ADR-025: Token refresh middleware and encryption
 - ADR-057: Scheduled auto-sync
 - `documents/etsy-compliance.md`: Detailed compliance mapping

@@ -53,7 +53,8 @@ A `gl_transaction_rules` entry for `'Business Expense'` handles the double-entry
 
 **Route:** `src/app/(app)/expenses/page.tsx`
 
-**Layout:** Master-detail with summary cards at top.
+**Layout:** SEMS (ADR-079) — full-width record list with summary cards at top; the inline editor
+replaces the list (Expenses was rolled onto the SEMS scaffold in WS-E4).
 
 - **Summary cards:** Total expenses, tax-deductible total, top category, recurring count
 - **List panel:** Filterable/sortable/paginated table with inline category and amount display
@@ -66,6 +67,17 @@ A `gl_transaction_rules` entry for `'Business Expense'` handles the double-entry
 - **Income Statement (P&L):** Business expenses appear in Operating Expenses section (or COGS when `is_cogs = 1`)
 - **Balance Sheet:** Expense transactions reduce Cash; COGS expenses reduce inventory value
 - **Accounting Export:** Business expenses included as journal entries via `buildAccountingExportRows()`
+
+### 6. Tax remittance is an expense (history + relationship to `tax_payments`)
+
+Tax-payment recording was the **seed of this Expenses function** (originally "AP-Lite"). Once the
+Expenses scope was clarified, it became clear a **tax remittance is just another expense** the system
+must record, so it was **blended into Expenses**: a remitted tax is a `business_expenses` row under
+category **`Tax Remittance`**, paid via `bill_payments`. The standalone `tax_payments` table is
+**retained** for the tax-specific reporting/compliance view (filing periods, outstanding liability,
+on-time filing — ADR-039 §7); `getAllTaxPayments()` unions both sources (the `Tax Remittance`
+expenses plus any legacy `tax_payments` rows not already represented). Net: tax is modeled as an
+expense for the books, while CT sales-tax **compliance tracking stays first-class** (ADR-039).
 
 ## Consequences
 

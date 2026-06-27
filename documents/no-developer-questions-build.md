@@ -262,7 +262,7 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 14. ~~**Order detail view**~~ ✅ Complete.
 15. ~~**Confirmation dialogs**~~ ✅ Complete (all destructive actions).
 16. ~~**Image upload and thumbnail preview**~~ ✅ Complete (10 main + 5 condition slots).
-17. ~~**Config completion**~~ ✅ Complete.
+17. ~~**Settings completion**~~ ✅ Complete.
 18. ~~**Deep-link navigation**~~ ✅ Complete.
 19. ~~**Reports date picker and per-order docs**~~ ✅ Complete (date range, presets, per-order invoice/thank-you, four-action post-generation).
 20. ~~**Activity log**~~ ✅ Complete (logActivity wired into all CRUD mutations, dashboard feed, entity timeline per ADR-037).
@@ -337,4 +337,4 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 **Functional & UX coverage (pre-code confidence):** [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md) — Phase 1b complete (ADR-070/071, ui-design §1b–1d); signed off 2026-05-24.
 
-**Etsy OAuth hold (2026-05-24):** Compliance remediation waves **36+** paused until MyEMS API key is approved. **Listing Coach (priority 53, ADR-072)** is the active build track — see [LISTING_COACH_SCOPE.md](LISTING_COACH_SCOPE.md). Waves **1–35** remain complete on `feature/final-system-completion`.
+**Etsy OAuth hold (2026-05-24, historical):** Compliance remediation waves **36+** were paused until the Etsy API key was approved. The Listing Coach (then priority 53) was **later removed and absorbed into the unified listing lifecycle (ADR-085, 2026-06-21)** — its scope doc is archived at [archive/LISTING_COACH_SCOPE.md](archive/LISTING_COACH_SCOPE.md). Waves **1–35** remain complete on `feature/final-system-completion`.

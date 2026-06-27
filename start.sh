@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the Etsy Sales Manager dev server and open it in Chrome
+# Start the AiCE dev server and open it in Chrome
 
 cd "$(dirname "$0")"
 

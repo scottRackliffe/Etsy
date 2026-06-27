@@ -17,11 +17,19 @@ Accepted
 
 ## Context
 
-The Sales page displays orders in a table but provides no way to view order details. Clicking an order only highlights the row and shows a one-line summary. There is no view for line items, shipping address, tracking number, customer association, shipping costs, discounts, notes, or order status changes. Users cannot edit order fields, add tracking numbers, or link orders to customers. The backend API (`GET /api/orders/[id]`, `PATCH /api/orders/[id]`) already supports full CRUD, but the frontend does not expose it.
+The Orders page displays orders in a table but provides no way to view order details. Clicking an order only highlights the row and shows a one-line summary. There is no view for line items, shipping address, tracking number, customer association, shipping costs, discounts, notes, or order status changes. Users cannot edit order fields, add tracking numbers, or link orders to customers. The backend API (`GET /api/orders/[id]`, `PATCH /api/orders/[id]`) already supports full CRUD, but the frontend does not expose it.
 
 ## Decision
 
-**Add a full order detail panel to the Sales page with editable fields, line items, and action buttons.** The page adopts a master-detail layout: order list on the left/top, detail panel on the right/bottom.
+**Add a full order detail panel to the Orders page with editable fields, line items, and action buttons.**
+
+> **Screen scaffold = SEMS (ADR-079).** Orders uses the Standard Entity Management Screen: a
+> full-width record list with **"+ Add New"** as the first row; selecting/adding opens the **inline
+> editor that replaces the list** (breadcrumb back to the list) with a sticky Cancel/Save bar and the
+> 3-button unsaved-changes guard (ADR-042 §3 / ADR-079 §4). The **field, line-item, financials, and
+> action specifications in this ADR remain authoritative**; only the surrounding scaffold is SEMS
+> (this supersedes the older "master-detail" / Modal-create descriptions below). Shipping moved to
+> the Shipping module per the ADR-080 note above.
 
 ---
 
@@ -171,7 +179,7 @@ All use `Button` component. Destructive actions require confirmation per ADR-032
 | Mark shipped    | `<Button variant="accent">Mark shipped</Button>`      | Prompt for carrier + tracking + date, then `POST /api/orders/[id]/mark-shipped` |
 | Void order      | `<Button variant="danger">Void order</Button>`        | Confirmation dialog. Sets `order_status = 'void'`                               |
 | Print invoice   | `<Button variant="secondary">Print invoice</Button>`  | Opens `/api/reports/invoice/{id}?format=pdf` (path-based, per ADR-036)          |
-| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you/{id}?format=pdf` (path-based, per ADR-036)        |
+| Print thank-you | `<Button variant="secondary">Thank-you note</Button>` | Opens `/api/reports/thank-you-note/{id}?format=pdf` (path-based, per ADR-036)    |
 | Link customer   | `<Button variant="ghost">Link customer</Button>`      | Modal with customer search/select. Sets `customer_id` via PATCH                 |
 | Buy & print label | `<Button variant="accent">Buy & Print Label</Button>` | Opens Rate Shopping Modal (ADR-074). Only shown when EasyPost configured.     |
 | Void label      | `<Button variant="ghost">Void label</Button>`          | ConfirmDialog → `POST /api/orders/[id]/shipping-refund`. Only when label exists and not shipped. |
@@ -201,14 +209,12 @@ Instead of a single button click, "Mark shipped" opens a small modal:
 
 ### Create order flow
 
-Replace the current inline form with a Modal:
+New orders use the **SEMS "+ Add New" first-row inline editor** (ADR-079) — not a modal:
 
-- Title: "Create order"
 - Fields: Order number (required), Customer (optional, searchable select), Source channel (default: `manual`), `order_status` default `active`, `payment_status` default `unpaid`.
-- After create: user adds line items in detail panel (minimum one line before mark-paid/shipped).
+- After create: user adds line items in the editor (minimum one line before mark-paid/shipped).
 - **Canonical enums:** `order_status`: `active` | `void` | `cancelled`; `payment_status`: `unpaid` | `paid` | `refunded` (ADR-017, ADR-071). Never `open` or `pending`.
-- Buttons: "Create" (accent) + "Cancel" (secondary).
-- On success: select new order, open detail panel.
+- Sticky Cancel/Save bar; on Save: select the new order in the list.
 
 ---
 
@@ -267,6 +273,6 @@ ALTER TABLE orders ADD COLUMN package_height_in REAL;
   - Tracking numbers auto-populate on orders and carry through to thank-you notes and invoices (ADR-013).
 - **Negative**
   - Requires database migration for `tracking_number` and EasyPost columns.
-  - Master-detail layout adds complexity to the Sales page.
+  - Master-detail layout adds complexity to the Orders page.
   - Mark-shipped modal is a change from the current single-click pattern.
   - Rate shopping modal adds a multi-step flow for label purchase.

@@ -1,6 +1,6 @@
-# Installation — Etsy Sales Manager
+# Installation — AiCE
 
-This guide covers installing and running the Etsy Sales Manager app on **macOS** and **Windows 11**. Use the steps that match your OS where they differ.
+This guide covers installing and running the AiCE app on **macOS** and **Windows 11**. Use the steps that match your OS where they differ.
 
 ---
 

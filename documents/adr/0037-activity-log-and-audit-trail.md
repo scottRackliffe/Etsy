@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 | -------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`           | INTEGER PK    | Auto-increment                                                                                                                                                       |
 | `action`       | TEXT NOT NULL | Action identifier (see action catalog below)                                                                                                                         |
-| `entity_type`  | TEXT          | `inventory`, `order`, `customer`, `address`, `setting`, `listing`, `sync`, `backup`, `system` (scheduled sync, integrity, sample data per ADR-057, ADR-058, ADR-069) |
+| `entity_type`  | TEXT          | One of the canonical values in §A1 (`inventory`, `order`, `customer`, `address`, `receipt`, `vendor`, `expense`, `tax_payment`, `shipping`, `report`, `communication`, `setting`, `sync`, `backup`, `system`). Note: `listing.*` actions use `entity_type='inventory'`. |
 | `entity_id`    | INTEGER       | ID of the affected record (nullable for system-wide actions)                                                                                                         |
 | `entity_label` | TEXT          | Human-readable label for the record (e.g., item number, order number, customer name)                                                                                 |
 | `detail_json`  | TEXT          | JSON object with action-specific details (changed fields, old/new values, error messages)                                                                            |
@@ -199,9 +199,7 @@ Response:
       "created_at": "2026-05-24T14:30:00.000Z"
     }
   ],
-  "total": 1234,
-  "limit": 50,
-  "offset": 0
+  "pagination": { "limit": 50, "offset": 0, "total": 1234, "has_more": true }
 }
 ```
 

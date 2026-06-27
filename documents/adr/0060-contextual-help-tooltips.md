@@ -43,7 +43,7 @@ Fields like `condition_code`, `listing_draft_state`, and `seller_shipping_cost` 
 | `purchase_cost`                 | Inventory detail | "What you paid to acquire this item from the vendor (not including shipping to you)."                                                       |
 | `shipping_cost` (on inventory)  | Inventory detail | "Your cost to receive this item from the vendor/seller."                                                                                    |
 | `sale_revenue`                  | Inventory detail | "The price the buyer paid (or will pay) for this item."                                                                                     |
-| `listing_draft_state`           | Listing workshop | "Listing drafts progress through stages: draft → generated/imported → approved → published. Only approved drafts can be published to Etsy." |
+| `listing_phase`                 | Inventory detail | "Where this listing is in the lifecycle: needs data → ready to generate → generated → needs work → ready to publish. It publishes to Etsy once ready and at/above the quality gate (85)." |
 | `seller_shipping_cost`          | Order detail     | "What you paid the carrier to ship this order to the buyer."                                                                                |
 | `tracking_number`               | Order detail     | "The carrier tracking number for this shipment. Customers can use this to track their package."                                             |
 | `order_status`                  | Order detail     | "Active = order is in progress or complete. Void = cancelled by seller. Cancelled = cancelled by buyer."                                    |
@@ -52,7 +52,7 @@ Fields like `condition_code`, `listing_draft_state`, and `seller_shipping_cost` 
 | `shipped_without_paid_override` | Order detail     | "This order was shipped before payment was confirmed. An audit record has been created."                                                    |
 | `source_channel`                | Order detail     | "How this order was created: 'etsy' = synced from Etsy, 'manual' = entered by hand."                                                        |
 | `category_tags`                 | Inventory detail | "Comma-separated tags for organizing inventory (e.g., 'glassware, depression era, pink')."                                                  |
-| `listing_tags`                  | Listing workshop | "Search tags for Etsy. Up to 13 tags, each up to 20 characters. Choose words buyers would search for."                                      |
+| `listing_tags`                  | Inventory detail | "Search tags for Etsy. Up to 13 tags, each up to 20 characters. Choose words buyers would search for."                                      |
 
 ### Tooltip styling
 

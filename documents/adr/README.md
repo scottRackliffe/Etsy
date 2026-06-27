@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADRs)
 
-This folder contains Architecture Decision Records for the Etsy Sales Manager application. Each ADR documents a significant design or scope decision in a consistent format.
+This folder contains Architecture Decision Records for the AiCE application. Each ADR documents a significant design or scope decision in a consistent format.
 
 **Internal only — not exposed to users.** ADRs are internal design and architecture documents. They must **not** be exposed to end users: no ADR content, links, or references in the application UI, user help, or user-facing documentation. User-facing content and behavior are defined in [tutorial.md](../tutorial.md), [knowledge-base-design.md](../knowledge-base-design.md), [ui-design.md](../ui-design.md), [pictures-and-sales.md](../pictures-and-sales.md), system/tips, and similar documents only. Implementers use ADRs to build the system; users never see them.
 
@@ -55,7 +55,7 @@ We use a standard format for all ADRs:
 | [ADR-031](0031-order-detail-view-and-editing.md)                   | Order detail view and editing                                                           |
 | [ADR-032](0032-confirmation-dialogs.md)                            | Confirmation dialogs for destructive and irreversible actions                           |
 | [ADR-033](0033-image-upload-and-thumbnail-preview.md)              | Image upload UI and thumbnail preview grid                                              |
-| [ADR-034](0034-config-completion.md)                               | Config completion — business profile, shipping info, date format, and full settings     |
+| [ADR-034](0034-config-completion.md)                               | Settings completion — business profile, shipping info, date format, and full settings     |
 | [ADR-035](0035-deep-link-navigation.md)                            | Deep-link navigation — Outstanding click-through selects record on target page          |
 | [ADR-036](0036-reports-date-picker-and-per-order-documents.md)     | Reports date picker UI and per-order document generation                                |
 | [ADR-037](0037-activity-log-and-audit-trail.md)                    | Activity log and audit trail                                                            |
@@ -107,3 +107,7 @@ We use a standard format for all ADRs:
 | [ADR-083](0083-ai-shot-list-generation.md)                         | AI shot-list generation from the primary photo                                           |
 | [ADR-084](0084-ai-dimension-annotation.md)                         | AI dimension annotation from a reference-ruler photo                                     |
 | [ADR-085](0085-unified-listing-lifecycle.md)                       | **Unified listing lifecycle — single processor (supersedes ADR-023/068/072)**           |
+| [ADR-086](0086-ai-model-cost-strategy.md)                          | AI model selection & cost strategy — cheapest-first, escalate on proven inadequacy       |
+| [ADR-087](0087-database-schema-management-and-health.md)           | Database schema management & health — migrations as the single source of truth           |
+| [ADR-088](0088-financial-reporting-suite.md)                       | Financial reporting suite — GL balance sheet, income statement, A/R aging, vendor profit  |
+| [ADR-089](0089-listing-remediation-cycle.md)                       | Listing remediation cycle — user-observed scoring↔AI-mitigation loop (Stop/Cycle/Advance) |

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { addNotificationEntry } from "@/lib/notifications";
-import { createUiError, stampUiError } from "@/lib/ui-error";
+import { createUiError, stampUiError, extractErrorDetail } from "@/lib/ui-error";
 import type {
   Shop,
   InventoryItem,
@@ -212,9 +212,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data?.error?.code === "UNAUTHORIZED") {
       return;
     }
-    const message = data?.error?.user_message ?? data?.error?.message ?? fallbackMessage;
+    const message = data?.error?.user_message ?? fallbackMessage;
     const actions = data?.error?.actions ?? ["Try again.", "If this continues, refresh the page."];
-    setError(stampUiError({ title, message, actions, variant: "error" }));
+    const detail = extractErrorDetail(payload);
+    setError(stampUiError({ title, message, actions, variant: "error", detail }));
     queueMicrotask(() => {
       addNotificationEntry({ type: "error", message: `${title}: ${message}` });
     });

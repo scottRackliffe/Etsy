@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The application makes outbound API calls to two external services — Etsy (OAuth, shop data, receipt sync, listing publish) and OpenAI (listing generation, listing coach, listing improvement, connection testing). Both services have usage-based billing or quota implications:
+The application makes outbound API calls to two external services — Etsy (OAuth, shop data, receipt sync, listing publish) and OpenAI (listing generate/refine, per-photo quality, shot list, dimension measurement, connection testing). Both services have usage-based billing or quota implications:
 
 - **Etsy** bundles API access and shipping labels into the monthly subscription, but has daily/per-second rate limits that the app must respect. Visibility into call volume helps diagnose rate-limit issues and plan sync frequency.
 - **OpenAI** charges per API call based on token usage. Without visibility into call counts, the operator has no way to correlate OpenAI billing with app activity.
@@ -18,7 +18,7 @@ The application makes outbound API calls to two external services — Etsy (OAut
 
 No existing mechanism tracks external API call counts. The `activity_log` table records business-level events (order created, listing approved) but not individual API requests. The structured logger writes to the console but does not persist counts to the database.
 
-The operator asked for monthly call counts per service, displayed in the Config page.
+The operator asked for monthly call counts per service, displayed in the Settings page.
 
 ---
 
@@ -32,7 +32,7 @@ A new lightweight table stores one row per outbound API call:
 CREATE TABLE IF NOT EXISTS api_call_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   service TEXT NOT NULL,        -- 'etsy' | 'openai' (future: 'easypost')
-  endpoint TEXT NOT NULL,       -- e.g. '/shops/{id}/receipts', 'responses.create/listing-coach'
+  endpoint TEXT NOT NULL,       -- e.g. '/shops/{id}/receipts', 'responses.create/listing-generate'
   status_code INTEGER,          -- HTTP status code (200, 429, 500, etc.)
   created_at TEXT NOT NULL      -- ISO 8601 UTC
 );
@@ -44,7 +44,7 @@ Design choices:
 
 - **No request/response payloads** — this is a counter, not a debug log. Keeps the table small.
 - **`status_code` is nullable** — some SDK calls may not surface a status code cleanly.
-- **`endpoint` includes a qualifier** — e.g. `responses.create/listing-coach` vs `responses.create/improve-listing` to distinguish OpenAI call sites.
+- **`endpoint` includes a qualifier** — e.g. `responses.create/listing-generate` vs `responses.create/listing-refine` to distinguish OpenAI call sites.
 - **Model lane (WS-AICOST):** the economy-eligible tasks (`responses.create/listing-photo-quality`, `.../shot-list`, `.../measure`) honor the optional `ai.economy_model` setting via `resolveModelForTask()`; the endpoint label is unchanged regardless of which model lane runs, so per-call-site attribution is preserved.
 - **Fire-and-forget** — the `logApiCall()` helper never throws; failures are logged to the structured logger and silently ignored.
 
@@ -66,14 +66,17 @@ Every outbound `fetch()` or SDK call to an external service logs a row immediate
 
 For retry loops (429 handling), each attempt is logged separately so the operator can see rate-limit pressure.
 
-#### OpenAI (4 call sites)
+#### OpenAI (7 call sites)
 
 | Location | Endpoint logged |
 |----------|----------------|
 | `src/lib/listing-ai.ts` → Generate engine (research + price + fields, ADR-085) | `responses.create/generate-listing` |
 | `src/lib/listing-ai.ts` → `refineListing()` (per-field/global) | `responses.create/listing-refine` |
-| ~~`src/lib/listing-coach.ts`~~, ~~`improve-listing`~~ | **RETIRED (ADR-085):** folded into the Generate/refine engine above |
 | `src/lib/listing-photo-vision.ts` → `evaluatePhotoQuality()` | `responses.create/listing-photo-quality` |
+| `src/lib/shot-list.ts` → AI shot-list generation (ADR-083, economy lane) | `responses.create/shot-list` |
+| `src/lib/dimension-annotation.ts` → AI dimension measurement (ADR-084, economy lane) | `responses.create/measure` |
+| `src/app/api/expenses/scan/route.ts` → AI invoice/receipt scan (expense OCR) | `responses.create/expense-scan` |
+| `src/app/api/receipts/ocr/route.ts` → AI receipt OCR (vendor purchase receipts) | `responses.create/receipt-ocr` |
 | `src/lib/ai-config.ts` → `testAiConnection()` | `responses.create/test-connection` |
 
 ### 3. Query API
@@ -100,7 +103,7 @@ Returns monthly aggregates:
 
 ### 4. Config UI
 
-A new "API Usage" section in the Config page (between Sample Data and Backup & Restore) displays:
+A new "API Usage" section in the Settings page (between Sample Data and Backup & Restore) displays:
 
 - A table with one row per month, one column per service, plus a row total
 - Current month highlighted with a green "current" badge
@@ -146,10 +149,11 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 | `src/lib/sqlite.ts` | Added `api_call_log` table DDL and index |
 | `src/lib/api-usage.ts` | New module — `logApiCall()` and `getMonthlyUsage()` |
 | `src/lib/etsy.ts` | Added `logApiCall('etsy', ...)` at 7 fetch points |
-| `src/lib/listing-generator.ts` | Added `logApiCall('openai', ...)` |
-| `src/lib/listing-coach.ts` | Added `logApiCall('openai', ...)` |
+| `src/lib/listing-ai.ts` | Added `logApiCall('openai', ...)` (generate + refine; replaces removed `listing-generator.ts`) |
+| `src/lib/listing-photo-vision.ts`, `shot-list.ts`, `dimension-annotation.ts` | Added `logApiCall('openai', ...)` at each OpenAI call site (WS-AICOST economy lane) |
 | `src/lib/ai-config.ts` | Added `logApiCall('openai', ...)` |
-| `src/app/api/inventory/[id]/improve-listing/route.ts` | Added `logApiCall('openai', ...)` |
+| `src/app/api/expenses/scan/route.ts` | Added `logApiCall('openai', ...)` (expense receipt scan) |
+| `src/app/api/receipts/ocr/route.ts` | Added `logApiCall('openai', ...)` (vendor receipt OCR) |
 | `src/app/api/usage/route.ts` | New endpoint — `GET /api/usage` |
 | `src/app/(app)/settings/page.tsx` | New "API Usage" section in Config UI |
 
@@ -157,6 +161,6 @@ Adding a new service (e.g. EasyPost) requires only adding `logApiCall("easypost"
 
 - ADR-017: Database schema — `api_call_log` table addition
 - ADR-018: API surface — `GET /api/usage` endpoint addition
-- ADR-034: Config completion — new API Usage section
+- ADR-034: Settings completion — new API Usage section
 - ADR-037: Activity log — similar retention pattern (not yet applied to `api_call_log`)
 - ADR-074: EasyPost integration — future `logApiCall("easypost", ...)` instrumentation

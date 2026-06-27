@@ -74,7 +74,8 @@ export function computeListingSourceHash(item: InventoryRecord): string {
   return createHash("sha256").update(payload).digest("hex");
 }
 
-function hasGeneratedListing(item: InventoryRecord): boolean {
+/** True when the item already has generated listing content (title/description/tags). */
+export function hasGeneratedListing(item: InventoryRecord): boolean {
   return (
     nonEmpty(item.listing_title) &&
     nonEmpty(item.listing_description) &&

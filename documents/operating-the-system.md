@@ -1,6 +1,6 @@
-# Operating the System — Etsy Sales Manager
+# Operating the System — AiCE
 
-This is the practical operations manual for running Etsy Sales Manager day to day.
+This is the practical operations manual for running AiCE day to day.
 
 Use this as your primary "how to use it" reference.
 

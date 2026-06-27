@@ -138,7 +138,7 @@ A new report type added to the reports system (ADR-006, ADR-013).
 - `GET /api/reports/profit-by-item?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=pdf` → PDF
 - `GET /api/reports/profit-by-item?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&format=csv` → CSV
 - Default date range: current calendar month if no dates provided
-- Response follows ADR-013 report format rules (12pt Courier body, 1in margins, page numbers centered)
+- Response follows the ADR-013 report layout (brand layout: Crimson Text + Raleway, brand banner)
 
 ### 5. Color coding
 

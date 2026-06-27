@@ -16,8 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
 import { ProgressModal } from "@/components/ui/ProgressModal";
-import { ChartOfAccountsSection } from "@/components/config/ChartOfAccountsSection";
-import { ShippingInfoSection } from "@/components/config/ShippingInfoSection";
+import { ChartOfAccountsSection } from "@/components/settings/ChartOfAccountsSection";
+import { ShippingInfoSection } from "@/components/settings/ShippingInfoSection";
 import { useProgressOperation } from "@/hooks/useProgressOperation";
 import type { ApiErrorShape, AiConfig } from "@/types";
 
@@ -77,6 +77,9 @@ type EasyPostSettings = {
 
 type TaxSettings = {
   default_rate: string;
+  next_filing_due_date: string;
+  filing_frequency: string;
+  filing_reminder_days: string;
 };
 
 type DisplaySettings = {
@@ -170,7 +173,12 @@ export default function ConfigPage() {
     ups_account: "",
     fedex_account: "",
   });
-  const [taxSettings, setTaxSettings] = useState<TaxSettings>({ default_rate: "" });
+  const [taxSettings, setTaxSettings] = useState<TaxSettings>({
+    default_rate: "",
+    next_filing_due_date: "",
+    filing_frequency: "quarterly",
+    filing_reminder_days: "14",
+  });
   const [easypostSettings, setEasypostSettings] = useState<EasyPostSettings>({
     api_key: "",
     test_api_key: "",
@@ -452,7 +460,12 @@ export default function ConfigPage() {
         ups_account: map.get("shipping.ups_account") ?? "",
         fedex_account: map.get("shipping.fedex_account") ?? "",
       });
-      setTaxSettings({ default_rate: map.get("tax.default_rate") ?? "" });
+      setTaxSettings({
+        default_rate: map.get("tax.default_rate") ?? "",
+        next_filing_due_date: map.get("tax.next_filing_due_date") ?? "",
+        filing_frequency: map.get("tax.filing_frequency") ?? "quarterly",
+        filing_reminder_days: map.get("tax.filing_reminder_days") ?? "14",
+      });
       setEasypostSettings({
         api_key: "",
         test_api_key: "",
@@ -519,7 +532,12 @@ export default function ConfigPage() {
             ups_account: map.get("shipping.ups_account") ?? "",
             fedex_account: map.get("shipping.fedex_account") ?? "",
           },
-          taxSettings: { default_rate: map.get("tax.default_rate") ?? "" },
+          taxSettings: {
+            default_rate: map.get("tax.default_rate") ?? "",
+            next_filing_due_date: map.get("tax.next_filing_due_date") ?? "",
+            filing_frequency: map.get("tax.filing_frequency") ?? "quarterly",
+            filing_reminder_days: map.get("tax.filing_reminder_days") ?? "14",
+          },
           displaySettings: {
             date_format: map.get("ui.date_format") ?? "MM/DD/YYYY",
             currency_code: map.get("ui.currency_code") ?? "USD",
@@ -909,9 +927,14 @@ export default function ConfigPage() {
 
   const saveTaxSettings = () =>
     void saveSettingsKeys(
-      [{ key: "tax.default_rate", value: taxSettings.default_rate }],
+      [
+        { key: "tax.default_rate", value: taxSettings.default_rate },
+        { key: "tax.next_filing_due_date", value: taxSettings.next_filing_due_date },
+        { key: "tax.filing_frequency", value: taxSettings.filing_frequency },
+        { key: "tax.filing_reminder_days", value: taxSettings.filing_reminder_days },
+      ],
       "Tax settings saved",
-      "Default sales tax rate was updated."
+      "Tax settings were updated."
     );
 
   const saveDisplaySettings = () =>
@@ -1265,6 +1288,8 @@ export default function ConfigPage() {
           provider: "openai",
           model: aiConfig?.model ?? "gpt-4.1-mini",
           economy_model: aiConfig?.economyModel ?? "",
+          premium_model: aiConfig?.premiumModel ?? "",
+          premium_reasoning_effort: aiConfig?.premiumReasoningEffort ?? "",
           api_key: aiApiKeyDraft || undefined,
           base_url: aiConfig?.baseUrl ?? "",
           timeout_ms: aiConfig?.timeoutMs ?? 30000,
@@ -1983,13 +2008,57 @@ export default function ConfigPage() {
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Tax settings</h4>
-            <FormField label="Default sales tax rate" helpText="Percentage, e.g. 8.25 for 8.25%">
+            <p className="mb-3 text-xs text-[var(--ui-muted)]">
+              Massachusetts: file electronically via MassTaxConnect (Form ST-9). A return is
+              required even with $0 due (&ldquo;zero return&rdquo;), generally by the 30th of the
+              month after each period.
+            </p>
+            <FormField label="Default sales tax rate" helpText="Percentage. Massachusetts state rate is 6.25%.">
               <input
                 value={taxSettings.default_rate}
-                onChange={(e) => setTaxSettings({ default_rate: e.target.value })}
-                placeholder="8.25"
+                onChange={(e) => setTaxSettings((c) => ({ ...c, default_rate: e.target.value }))}
+                placeholder="6.25"
                 type="number"
                 step="0.01"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="Next filing due date"
+              helpText="The next sales tax return deadline (MA: the 30th of the month after each filing period). Leave blank if not yet known."
+            >
+              <input
+                type="date"
+                value={taxSettings.next_filing_due_date}
+                onChange={(e) => setTaxSettings((c) => ({ ...c, next_filing_due_date: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="Filing frequency"
+              helpText="How often you file. MA DOR assigns by annual liability: Annual ≤$100, Quarterly $101–$1,200, Monthly >$1,200."
+            >
+              <select
+                value={taxSettings.filing_frequency}
+                onChange={(e) => setTaxSettings((c) => ({ ...c, filing_frequency: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </FormField>
+            <FormField
+              label="Reminder lead time (days)"
+              helpText="How many days before the due date to show a warning on the dashboard. Default: 14."
+            >
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={taxSettings.filing_reminder_days}
+                onChange={(e) => setTaxSettings((c) => ({ ...c, filing_reminder_days: e.target.value }))}
+                placeholder="14"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
             </FormField>
@@ -2003,8 +2072,6 @@ export default function ConfigPage() {
               Save tax settings
             </Button>
           </div>
-
-          <ChartOfAccountsSection />
 
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Item numbering</h4>
@@ -2113,6 +2180,9 @@ export default function ConfigPage() {
             >
               Save order numbering
             </Button>
+          </div>
+          <div className="lg:col-span-3">
+            <ChartOfAccountsSection />
           </div>
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-4">
             <h4 className="mb-2 text-sm font-semibold text-[var(--ui-title)]">Store categories</h4>
@@ -2362,6 +2432,8 @@ export default function ConfigPage() {
                     provider: current?.provider ?? "openai",
                     model: e.target.value,
                     economyModel: current?.economyModel ?? "",
+                    premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2384,6 +2456,8 @@ export default function ConfigPage() {
                     provider: current?.provider ?? "openai",
                     model: current?.model ?? "",
                     economyModel: e.target.value,
+                    premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
                     baseUrl: current?.baseUrl ?? null,
                     timeoutMs: current?.timeoutMs ?? 30000,
                     retryCount: current?.retryCount ?? 1,
@@ -2394,6 +2468,59 @@ export default function ConfigPage() {
                 placeholder="e.g. gpt-4.1-nano (blank = use primary model)"
                 className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
               />
+            </FormField>
+            <FormField
+              label="Premium model (optional)"
+              helpText="Optional — more capable model engaged by 'Advance AI' in the remediation cycle; blank = use the primary model."
+            >
+              <input
+                value={aiConfig?.premiumModel ?? ""}
+                onChange={(e) => {
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: current?.model ?? "",
+                    economyModel: current?.economyModel ?? "",
+                    premiumModel: e.target.value,
+                    premiumReasoningEffort: current?.premiumReasoningEffort ?? "",
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                placeholder="e.g. gpt-4.1 (blank = use primary model)"
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              />
+            </FormField>
+            <FormField
+              label="Reasoning effort (optional)"
+              helpText="For reasoning-class premium models (e.g. gpt-5.5). Sets the effort level sent as reasoning: { effort }. Leave blank for standard (non-reasoning) models."
+            >
+              <select
+                value={aiConfig?.premiumReasoningEffort ?? ""}
+                onChange={(e) => {
+                  setAiConfig((current) => ({
+                    provider: current?.provider ?? "openai",
+                    model: current?.model ?? "",
+                    economyModel: current?.economyModel ?? "",
+                    premiumModel: current?.premiumModel ?? "",
+                    premiumReasoningEffort: e.target.value,
+                    baseUrl: current?.baseUrl ?? null,
+                    timeoutMs: current?.timeoutMs ?? 30000,
+                    retryCount: current?.retryCount ?? 1,
+                    tokenBudget: current?.tokenBudget ?? 2000,
+                    apiKeyConfigured: current?.apiKeyConfigured ?? false,
+                  }));
+                }}
+                className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 text-sm"
+              >
+                <option value="">— none (standard model) —</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="xhigh">xhigh</option>
+              </select>
             </FormField>
             <FormField label="API key" helpText="Your OpenAI API key (stored encrypted)" required error={aiFieldErrors.apiKey}>
               <input
