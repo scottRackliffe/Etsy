@@ -20,7 +20,7 @@ This tutorial explains **how Etsy works**, **how the AiCE application helps you*
 
 ### Orders and money
 
-- When an order is placed, you get a **sale notification**. You can view orders in Etsy Seller Manager (Orders) or—after connecting—in **this app** (Sales / Orders tab).
+- When an order is placed, you get a **sale notification**. You can view orders in Etsy Seller Manager (Orders) or—after connecting—in **this app** (Orders tab).
 - Etsy charges **listing fees** (per listing), **transaction fees** (percentage of sale + payment processing), and optional **ad fees** (e.g. Offsite Ads). Your **net** is sale price minus Etsy fees, your costs (item, shipping, packaging), and any other costs. This app helps you track **purchase cost**, **sale revenue**, **shipping cost**, and **other costs** so you can see real profit.
 
 ### Shop policies
@@ -64,6 +64,30 @@ This tutorial explains **how Etsy works**, **how the AiCE application helps you*
 
 - **Titles** and **tags** feed Etsy search. Use terms buyers actually search for. Include material, era, style, color, size where relevant. Avoid stuffing; keep it readable.
 - Let AiCE **Generate Listing** to draft your title, description, and tags from your photos and item details (it researches comparable listings and prices). Review and refine the draft, then run **Evaluate Listing Quality** and keep working it up toward a world-class score before you publish — a stronger listing earns more search traffic, which sells the item faster and for a better price.
+
+### Improving a listing with the remediation cycle
+
+Once AiCE has generated a listing for an item, run **Evaluate Listing Quality** to score it on a 0–100 scale. The score is checked against an **85-point gate**: below 85 the listing is flagged for improvement; at 85 or above, **Publish to Etsy** becomes active.
+
+The quality score breaks down into a list of specific things to fix. Some the AI can handle automatically; some only you can supply.
+
+**What the AI needs before it can start.** Before **Generate Listing** is available, the item must have:
+- An item number
+- A description
+- A condition
+- At least one photo
+
+Everything else (price, category, shipping) is either written as a recommendation by Generate Listing, or flagged by the quality score for you to complete afterward.
+
+**Running the cycle.** After you see the quality score, two cycle buttons appear:
+- **Start cycle** (or **Cycle again** after the first pass) — runs one improvement pass. The AI rewrites only the flagged listing text (title, description, and tags) using the scoring engine's own guidance, then re-scores and shows you the **point change** so you can see whether progress is real.
+- **Advance AI** — brings in a more capable AI model for a tougher pass. Use this if the standard cycle has stalled or you want to push the score higher. You can reach for it at any point.
+
+You are in control: **you must approve every pass** by tapping one of those buttons. There is no automatic loop, and you can stop anytime by simply moving on.
+
+**Per-row Fix and global refine.** Each AI-fixable item in the score breakdown has its own **Fix** button so you can target just that one field. The **global refine box** below the score lets you type freeform feedback — for example, "Emphasize the hand-painted details" — and the AI incorporates it on the next pass.
+
+**Items only you can supply.** The quality score will also flag things the AI cannot fix on its own: required photos, the Etsy category, the shipping profile, and item attributes. For photos, tap **Download PDF** to get a printable shot list that tells you exactly which photos to shoot and what each one must show. Once you have added those photos and filled in the structured fields, run **Evaluate Listing Quality** again — those items will clear from the list.
 
 ### Descriptions
 
@@ -112,11 +136,13 @@ This tutorial explains **how Etsy works**, **how the AiCE application helps you*
 
 | Topic                              | Where in the app                            | Where in this doc                                      |
 | ---------------------------------- | ------------------------------------------- | ------------------------------------------------------ |
-| Connect Etsy                       | Config; Dashboard                           | Part 2                                                 |
-| View orders                        | Sales / Orders                              | Part 2                                                 |
+| Connect Etsy                       | Settings; Dashboard                         | Part 2                                                 |
+| View orders                        | Orders                                      | Part 2                                                 |
 | Track inventory & costs            | Inventory                                   | Part 2, Part 4                                         |
 | Add pictures (directory → preview) | Inventory (main + condition)                | Part 2; [pictures-and-sales.md](pictures-and-sales.md) |
 | Condition (grade, notes, pics)     | Inventory → Condition                       | Part 3; Part 4                                         |
+| Generate a listing                 | Inventory (detail panel)                    | Part 3                                                 |
+| Evaluate quality / remediation     | Inventory (detail panel)                    | Part 3                                                 |
 | Customers                          | Customers                                   | Part 2                                                 |
 | Income & costs reports             | Reports                                     | Part 2, Part 4                                         |
 | Postal/shipping spend by carrier   | Costs report                                | Part 2                                                 |
