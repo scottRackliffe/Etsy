@@ -102,7 +102,7 @@ One outstanding item per customer. Display: e.g. “Customer: &lt;first_name&gt;
 
 **Query rule:** When the Outstanding list is built, the app runs validation and context checks (ADR-021) for the relevant records; records (or orders) with unresolved validation/context-check failures appear as outstanding items. One outstanding item per record or per order that has unresolved issues. No separate stored "flag" is required; the app evaluates validation state to build the list.
 
-**Target on click:** Navigate to the tab and record that needs attention (e.g. Sales → order; Inventory → item).
+**Target on click:** Navigate to the tab and record that needs attention (e.g. Orders → order; Inventory → item).
 
 ---
 
@@ -136,14 +136,14 @@ One outstanding item per inventory row. Display: e.g. "Item &lt;item_number&gt; 
 
 | Type                            | Data source          | Query / logic                                                      | One item per       | Click target        |
 | ------------------------------- | -------------------- | ------------------------------------------------------------------ | ------------------ | ------------------- |
-| Paid but not shipped            | orders               | active, was_paid=1, missing ship date | orders.id          | Sales, order        |
-| Not yet marked paid             | orders               | active, was_paid=0                                                 | orders.id          | Sales, order        |
-| New Etsy not synced             | Etsy API + orders    | receipt_id with no orders.etsy_receipt_id                          | receipt_id         | Sales, sync         |
+| Paid but not shipped            | orders               | active, was_paid=1, missing ship date | orders.id          | Orders, order        |
+| Not yet marked paid             | orders               | active, was_paid=0                                                 | orders.id          | Orders, order        |
+| New Etsy not synced             | Etsy API + orders    | receipt_id with no orders.etsy_receipt_id                          | receipt_id         | Orders, sync         |
 | In stock not listed             | inventory            | status In stock and date_listed empty                        | inventory.id       | Inventory, item     |
 | Customer no/incomplete address  | customers, addresses | no complete flat or ship-to address                                | customers.id       | Customers, customer |
-| Missing shipping cost           | orders               | shipped but seller_shipping_cost null/0                            | orders.id          | Sales, order        |
+| Missing shipping cost           | orders               | shipped but seller_shipping_cost null/0                            | orders.id          | Orders, order        |
 | Validation/context-check issues | DB or computed       | records with unresolved validation/context failures                | record or order_id | Tab and record      |
-| Missing era/category for Etsy   | inventory            | draft in progress, etsy_when_made or etsy_taxonomy_id null         | inventory.id       | Inventory, item     |
+| Missing era/category for Etsy   | inventory            | generated listing (`listing_phase` in generated/remediation/ready), etsy_when_made or etsy_taxonomy_id null | inventory.id | Inventory, item |
 
 ---
 

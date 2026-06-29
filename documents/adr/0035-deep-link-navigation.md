@@ -67,10 +67,10 @@ Beyond Outstanding, other pages may produce deep links:
 
 | Source                                  | Target       | Param                                     |
 | --------------------------------------- | ------------ | ----------------------------------------- |
-| Dashboard order table (future)          | Sales detail | `orderId`                                 |
-| Sales → customer name link (ADR-031)    | Customers    | `customerId`                              |
-| Customers → order history (future)      | Sales        | `customerId` (filters orders by customer) |
-| Reports → per-order drill-down (future) | Sales        | `orderId`                                 |
+| Dashboard order table (future)          | Orders detail | `orderId`                                 |
+| Orders → customer name link (ADR-031)   | Customers     | `customerId`                              |
+| Customers → order history (future)      | Orders        | `customerId` (filters orders by customer) |
+| Reports → per-order drill-down (future) | Orders        | `orderId`                                 |
 | **Activity views (ADR-037, WS-A)**      | per entity   | `itemId` / `orderId` / `customerId` / `receiptId` / `vendorId` / `expenseId` / `taxPaymentId` |
 | Dashboard low-quality widget (WS-D)     | Inventory    | `itemId`                                  |
 

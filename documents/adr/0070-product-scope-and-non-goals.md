@@ -42,7 +42,7 @@ The application serves a **single-user, local** vintage/antique Etsy shop (Trudy
 | Outstanding to-do list + deep-link to record                   | v1    | ADR-020, 035, 009                                |
 | Reports (13 types) PDF/CSV, date range                         | v1    | ADR-006, 013, 036, 038, 039, 054, 056            |
 | Shipping labels (local print, no carrier API)                  | v1    | shipping-label-carrier-templates, ui-design §5.9 |
-| Config (business, shipping info, AI, backup, tax, sample data) | v1    | ADR-034, 027, 039, 069                           |
+| Config (business, shipping info, AI, backup, tax, sample data) | v1    | ADR-034, 027, 039, 069 (UI label **Settings**, route `/settings`) |
 | Profit/margin, tax report, aging, accounting export            | v1    | ADR-038, 039, 054, 056                           |
 | Backup / restore                                               | v1    | ADR-027                                          |
 | Activity audit log                                             | v1    | ADR-037                                          |

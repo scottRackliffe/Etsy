@@ -10,7 +10,7 @@ This document is the **decision index**. Each section summarizes the decision an
 
 **Summary:** No automated connection to any shipping service. App generates and prints the label using order ship-to + stored Shipping Info. If Shipping Info is missing when needed, app tells user and how to navigate to it (Settings → Shipping Info). Automated connections to shippers (e.g. carrier APIs) are a future consideration; not in current scope.
 
-**SSOT:** [shipping-label-carrier-templates.md](shipping-label-carrier-templates.md) (no carrier connection; Shipping Info; behavior); [ui-design.md](ui-design.md) (Sales commands, Config); [ADR-018](adr/0018-api-surface-endpoints.md) (Notes). Storage: [ADR-017](adr/0017-database-schema.md).
+**SSOT:** [shipping-label-carrier-templates.md](shipping-label-carrier-templates.md) (no carrier connection; Shipping Info; behavior); [ui-design.md](ui-design.md) (Orders commands, Settings); [ADR-018](adr/0018-api-surface-endpoints.md) (Notes). Storage: [ADR-017](adr/0017-database-schema.md).
 
 ---
 
@@ -56,9 +56,9 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ## 7. Automated backup (rolling 25, FIFO)
 
-**Summary:** Automated backup on schedule; backup directory configurable; full DB (optionally pictures); rolling 25 FIFO; v1 may be DB only—document in Config/help. Settings: backup_directory, backup_schedule.
+**Summary:** Automated backup on schedule; backup directory configurable; full DB (optionally pictures); rolling 25 FIFO; v1 may be DB only—document in Settings/help. Settings: backup_directory, backup_schedule.
 
-**SSOT:** [ADR-027](adr/0027-backup-and-restore.md) (format, schedule, rolling FIFO retention, API endpoints, restore flow with safety net, error handling, Config UI). Settings keys: [ADR-017](adr/0017-database-schema.md). Frontend UI: ADR-034 (Settings page backup/restore section).
+**SSOT:** [ADR-027](adr/0027-backup-and-restore.md) (format, schedule, rolling FIFO retention, API endpoints, restore flow with safety net, error handling, Settings UI). Settings keys: [ADR-017](adr/0017-database-schema.md). Frontend UI: ADR-034 (Settings page backup/restore section).
 
 ---
 
@@ -142,15 +142,15 @@ This document is the **decision index**. Each section summarizes the decision an
 
 ---
 
-## 18. Config: Why pictures matter / tutorial links
+## 18. Settings: Why pictures matter / tutorial links
 
-**Summary:** Config exposes optional "Why pictures matter" path/URL (pictures_matter_url) and optional "Tutorial and tips folder" path (tutorial_system_folder_path). If set, the app uses them; if unset, default tutorial content and system/tips/ apply. No future-only scope; in scope per ui-design and knowledge-base-design.
+**Summary:** Settings exposes optional "Why pictures matter" path/URL (pictures_matter_url) and optional "Tutorial and tips folder" path (tutorial_system_folder_path). If set, the app uses them; if unset, default tutorial content and system/tips/ apply. No future-only scope; in scope per ui-design and knowledge-base-design.
 
-**SSOT:** [ui-design.md](ui-design.md) (Config, §5); [knowledge-base-design.md](knowledge-base-design.md) (§4, §7); [ADR-017](adr/0017-database-schema.md) (settings: pictures_matter_url, tutorial_system_folder_path).
+**SSOT:** [ui-design.md](ui-design.md) (Settings, §5); [knowledge-base-design.md](knowledge-base-design.md) (§4, §7); [ADR-017](adr/0017-database-schema.md) (settings: pictures_matter_url, tutorial_system_folder_path).
 
 ---
 
-## 19. Preferences: date format, first-day-of-week (in scope; Config)
+## 19. Preferences: date format, first-day-of-week (in scope; Settings)
 
 **Summary:** Date format and first-day-of-week in scope; stored in settings; used for display and calendars.
 

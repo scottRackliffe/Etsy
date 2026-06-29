@@ -168,4 +168,4 @@ The Decision body above uses ADR-017 field names. Legacy terms map as follows:
 
 ### Accounting export format (updated 2026-06-17)
 
-The Accounting Export report (ADR-056) uses double-entry bookkeeping with GAAP account numbers. It is CSV-only (no PDF). Each transaction produces two rows (debit + credit). Account numbers are stored in the `chart_of_accounts` database table and are editable from Config. See ADR-056 for the full specification.
+The Accounting Export report (ADR-056) uses double-entry bookkeeping with GAAP account numbers. It is CSV-only (no PDF). Each transaction produces two rows (debit + credit). Account numbers are stored in the `chart_of_accounts` database table and are editable from Settings. See ADR-056 for the full specification.

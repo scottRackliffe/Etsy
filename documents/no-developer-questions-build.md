@@ -323,9 +323,11 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 ## 7) Phase 2 — Documentation vs code compliance audit
 
-**Status:** Complete (2026-05-24). See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) and [`DEEP_AUDIT_2026-05-24.md`](DEEP_AUDIT_2026-05-24.md).
+**Status (2026-05-24):** Complete. See [`DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) and [`DEEP_AUDIT_2026-05-24.md`](DEEP_AUDIT_2026-05-24.md).
 
-**Summary:** No critical **documentation** contradictions. **5 Critical** and **28 High** **code** gaps vs ADR-017/018 (e.g. `order_status = 'shipped'`, unpaid ship allowed without 400, ~37% ADR-018 routes absent, ADR-070 v1 UI largely unbuilt). Schema gaps for `tracking_number`, `activity_log`, `customer_notes` resolved in migrations 003–004 (2026-05-25).
+**Superseded by (2026-06-23/26):** [`CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md`](CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md) and [`ADR_AUDIT_2026-06-22.md`](ADR_AUDIT_2026-06-22.md). The Phase 2 summary below describes the **2026-05-24** snapshot only; do not treat its code-gap counts as current — the 2026-06 audits track remediation (WS-CR workstream, largely complete).
+
+**Summary (2026-05-24 snapshot):** No critical **documentation** contradictions at that time. Code lagged spec in several areas; most have since been addressed. Schema gaps for `tracking_number`, `activity_log`, `customer_notes` resolved in migrations 003–004 (2026-05-25).
 
 **Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures.
 

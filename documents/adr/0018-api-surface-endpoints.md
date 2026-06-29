@@ -489,10 +489,11 @@ Per-order path aliases remain in Extensions §16. Report layouts: ADR-013; scope
 }
 ```
 
-**13) Report endpoint response behavior**
+**13) Report endpoint response behavior (updated 2026-06-17, ADR-013)**
 
-- For `format=pdf`: return `200`, `Content-Type: application/pdf`, and binary PDF content.
+- For `format=json` (default): return `200`, `Content-Type: application/json`, structured report payload for `<ReportViewer>` HTML rendering.
 - For `format=csv`: return `200`, `Content-Type: text/csv`, and RFC4180 CSV content.
+- PDF for regular reports is produced client-side via the browser print dialog (Print / Save as PDF), not as a server-side binary PDF response. PDFKit is retained only for batch print queue (ADR-055).
 - For missing order-specific input (for example invoice without `order_id`): return `400` with standard error JSON shape.
 
 ---

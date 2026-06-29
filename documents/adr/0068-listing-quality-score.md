@@ -67,7 +67,11 @@ Tag count is determined by splitting `listing_tags` on commas and counting non-e
 
 ### API endpoint
 
-`GET /api/inventory/[id]/listing-score`
+> ⚠️ **Retired (ADR-085).** `GET /api/inventory/[id]/listing-score` and `src/lib/listing-score.ts`
+> are removed. Quality is served by `GET /api/inventory/[id]/listing-quality` (ADR-082). The
+> example below is historical only.
+
+`GET /api/inventory/[id]/listing-score` *(removed)*
 
 Response:
 
@@ -118,12 +122,12 @@ Response:
 
 ### UI display
 
-#### Inventory detail / listing workshop
+#### Inventory detail listing section *(historical UI — superseded by ADR-082/085)*
 
 - A circular score badge shows the numeric score with grade color as border and ~25% tint (`color-mix`); the number is centered inside.
 - Below the circle, a **Quality** caption (uppercase, muted) labels the score.
 - Tips appear beside or below the badge under the heading **Tips to improve your listing**, as a bulleted list (up to 3 tips).
-- The score block is the first element inside the expanded listing workshop panel (ADR-030).
+- In the current app, quality is shown via the ADR-082 rubric in `InventoryDetailPanel` (ADR-030/085), not a separate workshop panel.
 
 #### Inventory DataTable (optional column)
 
@@ -139,7 +143,7 @@ Response:
 ## Notes
 
 - Cross-ref: ADR-023 (listing content generation modes), ADR-002 (inventory data model fields), ADR-029 (sortable columns in DataTable), ADR-030 (inventory detail two-panel layout).
-- The scoring logic should be extracted into a shared utility (`src/lib/listing-score.ts`) so it can be used both server-side (API) and potentially client-side for instant feedback during editing.
+- The scoring logic was extracted into `src/lib/listing-score.ts` *(removed; see ADR-082 `listing-rubric.ts`)*.
 - The rubric point values are intentionally designed so that a listing with a good title, description, 5+ photos, and all tags filled scores ≥ 80 (green) without needing every optional criterion.
 
 ---

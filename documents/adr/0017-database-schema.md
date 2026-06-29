@@ -629,7 +629,7 @@ Indexes are part of the initial schema. Index names are defined in the DDL below
 
 The following SQL is the **canonical schema**. Section §1–§7 narrative tables match this DDL. Implementations must create the same tables and indexes (names and types may not be changed without updating this ADR).
 
-**Implementation note (2026-05-24):** The app bootstraps via `src/lib/sqlite.ts` and `migrations/`. Some columns/tables here (e.g. `tracking_number`, `activity_log`, `customer_notes`) may require a migration before use — add migrations rather than diverging from this DDL.
+**Implementation note (2026-06-26):** The app applies forward-only migrations via `src/lib/db-migrate.ts` on boot (ADR-087). This DDL is the canonical spec; `migrations/` must converge to match it — never change this ADR to match incomplete code.
 
 ```sql
 PRAGMA foreign_keys = ON;
@@ -888,7 +888,7 @@ CREATE TABLE activity_log (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5f. Etsy receipt cache (ADR-019)
+-- 5g. Etsy receipt cache (ADR-019)
 CREATE TABLE etsy_receipts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   receipt_id TEXT UNIQUE NOT NULL,
@@ -897,7 +897,7 @@ CREATE TABLE etsy_receipts (
   synced_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 5g. Listing workflow audit (ADR-023) — RETIRED by ADR-085 (no longer written; kept for back-compat)
+-- 5h. Listing workflow audit (ADR-023) — RETIRED by ADR-085 (no longer written; kept for back-compat)
 CREATE TABLE listing_exports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   export_id TEXT UNIQUE NOT NULL,
