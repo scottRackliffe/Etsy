@@ -20,33 +20,15 @@ in the folder root. **Completed** tickets are in [`completed/`](completed/) for 
 
 ## Open tickets
 
-The **WS-CR** workstream holds the follow-ups from the 2026-06-23/24 code↔docs conformance audit
-(`documents/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md`). The audit's findings were mostly executed
-already (WP1–WP7); these tickets are the **remaining builds**.
+Three tickets remain open. All other work is archived in [`completed/`](completed/).
 
-| Ticket | File | Topic | Tier |
-|--------|------|-------|------|
-| ~~WS-CR1~~ | [WS-CR1_tax-compliance-ui.md](WS-CR1_tax-compliance-ui.md) | Tax compliance UI — dashboard badge + Settings inputs (C22) | ✅ DONE + VERIFIED 06-26 |
-| ~~WS-CR2~~ | [WS-CR2_bootstrap-retirement.md](WS-CR2_bootstrap-retirement.md) | Retire runtime bootstrap; migrations as sole schema source (ADR-087) | ✅ DONE + VERIFIED 06-26 |
-| **WS-CR3** | [WS-CR3_remediation-autocycle.md](WS-CR3_remediation-autocycle.md) | Remediation auto-cycle (stall→escalate) — evidence-gated (D1) | Tier 3 / backlog |
-| ~~WS-CR4~~ | [WS-CR4_user-docs-remediation-cycle.md](WS-CR4_user-docs-remediation-cycle.md) | User-facing help for the remediation cycle | ✅ DONE 06-26 |
-| ~~WS-CR5~~ | [WS-CR5_photo-add-drift-ux.md](WS-CR5_photo-add-drift-ux.md) | Photo-add → drift → regenerate UX (confusing reset) | ✅ DONE + VERIFIED 06-26 |
-| ~~WS-CR6~~ | [WS-CR6_generate-concurrency-baseline.md](WS-CR6_generate-concurrency-baseline.md) | "Record modified" / `PATCH 409` concurrency on save — **CONFIRMED** (live log) | ✅ DONE — guard-verified 06-26 |
-| ~~WS-CR7~~ | [WS-CR7_reasoning-model-tier-support.md](WS-CR7_reasoning-model-tier-support.md) | Reasoning-class model tier support (drop temperature + reasoning-effort dial) — live-test finding | ✅ DONE — live-verified 06-26 |
-| ~~WS-CR8~~ | [WS-CR8_settings-chart-of-accounts-layout.md](WS-CR8_settings-chart-of-accounts-layout.md) | Settings: Chart of Accounts **+ GL Transaction Rules** under Item/Order Numbering, full-width, no h-scroll | ✅ DONE (code) 06-26 |
-| ~~WS-CR9~~ | [WS-CR9_lowercase-model-names.md](WS-CR9_lowercase-model-names.md) | Normalize OpenAI model names to lowercase + trim on save (casing trap) | ✅ DONE (code) 06-26 |
-| ~~WS-CR10~~ | [WS-CR10_surface-real-ai-errors.md](WS-CR10_surface-real-ai-errors.md) | Surface the real error in AI dialogs (stop masking causes; don't discard billed AI on save-fail) — live-test finding | ✅ DONE — live-verified 06-26 |
-| ~~WS-CR11~~ | [WS-CR11_error-dialog-details-button.md](WS-CR11_error-dialog-details-button.md) | Error dialogs: add a "Details" button revealing code/message/timestamp (+ Copy) — owner request | ✅ DONE — live-verified 06-26 |
-| ~~WS-CR12~~ | [WS-CR12_generate-timeout-many-images.md](WS-CR12_generate-timeout-many-images.md) | Generate times out (~30s) with many images; server saves but UI false-fails — live-test finding | ✅ DONE — live-verified 06-26 |
-| ~~WS-CR13~~ | [WS-CR13_photo-shotlist-pdf.md](WS-CR13_photo-shotlist-pdf.md) | Printable photo shot-list PDF (what to shoot + what each photo must show) | ✅ DONE (code) 06-26 |
-| ~~WS-CR15~~ | [WS-CR15_per-row-fix-ai-fixable.md](WS-CR15_per-row-fix-ai-fixable.md) | Per-row "Fix" button on AI-fixable remediation rows (reuse listing-refine) — live-test finding | ✅ DONE (code) 06-26 |
-| ~~WS-CR16~~ | [WS-CR16_rubric-honors-publish-defaults.md](WS-CR16_rubric-honors-publish-defaults.md) | Rubric must honor publish defaults (who_made/when_made) — stops false nag (C7 sibling) | ✅ DONE (code) 06-26 |
-| ~~WS-CR17~~ | [WS-CR17_pending-photo-row-copy-and-ux.md](WS-CR17_pending-photo-row-copy-and-ux.md) | "Per-photo AI pending" row: stale "WS-G3" copy + misleading Fix link — live-test finding | ✅ DONE (code) 06-26 |
-| ~~WS-CR18~~ | [WS-CR18_photo-vision-empty-economy-model.md](WS-CR18_photo-vision-empty-economy-model.md) | Per-photo AI vision empty → provisional — DIAGNOSED (reasoning-budget disproven) + retry/reason fix | ✅ DONE (code) 06-26 |
-| ~~WS-CR19~~ | [WS-CR19_remove-per-field-fix-buttons.md](WS-CR19_remove-per-field-fix-buttons.md) | Remove redundant per-field "Fix" buttons (keep cycle + per-row + global refine) — owner request | ✅ DONE (code) 06-26 |
-| ~~WS-CR14~~ | [WS-CR14_economy-lane-reasoning-token-budget.md](WS-CR14_economy-lane-reasoning-token-budget.md) | Economy-lane AI (shot-list/photo-vision/measure) fails on gpt-5.x — token budget + temperature (CR7 gap) — live-test finding | ✅ DONE (verified) |
-| **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD — last; not started until owner signs off on all other work** |
-| **WS-CR20** | [WS-CR20_ai-generated-scale-and-lifestyle-photos.md](WS-CR20_ai-generated-scale-and-lifestyle-photos.md) | AI-generated in-hand scale + styled lifestyle photos — design ADR + build | **ON HOLD — future / tech-gated (fidelity + Etsy authenticity)** |
+| Ticket | File | Topic | Status |
+|--------|------|-------|--------|
+| **WS-CR3** | [WS-CR3_remediation-autocycle.md](WS-CR3_remediation-autocycle.md) | Remediation auto-cycle (stall→escalate) — evidence-gated (D1) | Backlog — needs live-cycle evidence before thresholds |
+| **WS-061** | [WS-061_mobile-responsive-layout.md](WS-061_mobile-responsive-layout.md) | Mobile layout (ADR-061) | **ON HOLD** — last; owner sign-off on all other work |
+| **WS-CR20** | [WS-CR20_ai-generated-scale-and-lifestyle-photos.md](WS-CR20_ai-generated-scale-and-lifestyle-photos.md) | AI-generated scale + lifestyle photos | **ON HOLD** — future / tech-gated (fidelity + Etsy authenticity) |
+
+**WS-CR1–CR19** (conformance remediation from the 2026-06-23 audit) are **done** — see [`completed/`](completed/).
 
 ### Ops / verification (not tickets — operator steps)
 
@@ -66,8 +48,7 @@ already (WP1–WP7); these tickets are the **remaining builds**.
   remediation cycle -> **score 56 (delta +4, improved:true)**, applied_fields =
   [listing_title, listing_tags, listing_description], premium_configured:true, **11 user-action items
   handed back** (photos/category/shipping). Confirms the design exactly: the AI fixes the text, the
-  user adds the photos. _Optional remaining: drive the UI buttons (Stop/Cycle/Advance) in-browser and
-  an "Advance AI" premium-tier pass._
+  user adds the photos.
 
 ---
 
@@ -92,6 +73,7 @@ All implemented workstreams are in [`completed/`](completed/). Do **not** re-run
 | Economy AI lane | WS-AICOST |
 | Idempotent migrations | WS-MIGRATE |
 | Receipt image persistence | WS-RCPTIMG |
+| Conformance remediation (2026-06 audit) | WS-CR1–CR19 |
 
 See [`completed/README.md`](completed/README.md) for the full archived list.
 

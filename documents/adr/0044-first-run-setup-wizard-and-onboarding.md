@@ -99,9 +99,9 @@ The wizard is a full-screen modal with 4 sequential steps, displayed as a center
   2. **"Sync Etsy Orders"**
      - Icon: sync/refresh icon
      - Description: "Import your recent Etsy sales"
-     - Click action: close wizard → navigate to `/sales` and trigger sync
+     - Click action: close wizard → navigate to `/orders` and trigger sync
      - Only shown if Etsy is connected (Step 3 completed); otherwise replaced with:
-     - **"Explore Sales"**: "Manually add your first order" → navigate to `/sales`
+     - **"Explore Orders"**: "Manually add your first order" → navigate to `/orders`
 
   3. **"Explore Tutorials"**
      - Icon: book/lightbulb icon

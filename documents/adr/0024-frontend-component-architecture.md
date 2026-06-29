@@ -209,7 +209,7 @@ Each tab page manages its own list/detail state (selected item, form values, pag
 
 When the outstanding list navigates to a record:
 
-1. Router pushes to the correct tab route (e.g. `/sales`)
+1. Router pushes to the correct tab route (e.g. `/orders`)
 2. URL search params encode the target record (e.g. `?orderId=123`)
 3. The target tab page reads search params and auto-selects/scrolls to that record
 4. A brief highlight animation draws attention to the target row

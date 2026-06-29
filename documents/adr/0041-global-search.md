@@ -174,7 +174,7 @@ The target page reads the query param, selects/scrolls to the record, highlights
 
 The search modal closes immediately on click.
 
-**"See all N results" link:** Navigates to the entity's tab page with the search term pre-filled in the page-level search input: `/sales?q=<term>`, `/inventory?q=<term>`, `/customers?q=<term>`.
+**"See all N results" link:** Navigates to the entity's tab page with the search term pre-filled in the page-level search input: `/orders?q=<term>`, `/inventory?q=<term>`, `/customers?q=<term>`.
 
 ### 8. Keyboard navigation within the modal
 

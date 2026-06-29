@@ -1,4 +1,4 @@
-# Etsy Sales Manager — Cursor Rules
+# AiCE — Cursor Rules
 # Last updated: 2026-06-21 (WS-C: Communications/Outreach Center — ADR-078 implemented)
 # These rules tell Cursor exactly where to look and what to follow for every domain.
 # When in doubt: read the ADR first, then implement.
@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-This is **Etsy Sales Manager** — a Next.js 16 (App Router) + TypeScript + Tailwind CSS + SQLite app
+This is **AiCE** (The AI-Powered eCommerce Engine) — a Next.js 16 (App Router) + TypeScript + Tailwind CSS + SQLite app
 for managing an Etsy vintage/antique business (Trudy's Classic Treasures). It connects to Etsy via
 OAuth, manages inventory, customers, orders, and generates reports and listing content (including
 AI-assisted). It is a single-user local app.

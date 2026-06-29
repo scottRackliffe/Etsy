@@ -12,14 +12,19 @@ For the architectural decision and rationale, see [ADR-024](adr/0024-frontend-co
 | ---------------- | -------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `/`              | `src/app/page.tsx`                     | —           | Redirects to `/dashboard`                                                                                                    |
 | `/dashboard`     | `src/app/(app)/dashboard/page.tsx`     | Dashboard   | KPI cards, recent orders, sync status                                                                                        |
-| `/sales`         | `src/app/(app)/orders/page.tsx`         | Sales       | Order list, detail, new order, mark paid/shipped                                                                             |
+| `/orders`        | `src/app/(app)/orders/page.tsx`         | Orders      | Order list, detail, new order, mark paid/shipped                                                                             |
+| `/shipping`      | `src/app/(app)/shipping/page.tsx`       | Shipping    | Carrier, labels, mark shipped (ADR-080)                                                                                      |
 | `/inventory`     | `src/app/(app)/inventory/page.tsx`     | Inventory   | Item list + inline SEMS detail editor: core fields, pictures, Listing Content section, lifecycle button (ADR-030/079/085)     |
 | ~~`/listing-coach`~~ | — | — | **REMOVED (ADR-085):** new items use the inline SEMS create on `/inventory`; the AI Generate step lives in the inventory detail editor. |
+| `/receipts`      | `src/app/(app)/receipts/page.tsx`      | Receipts    | Vendor purchase receipts, scan/upload, inventory linking                                                                     |
 | `/customers`     | `src/app/(app)/customers/page.tsx`     | Customers   | Customer list, detail panel, addresses, purchase history                                                                     |
+| `/communications`| `src/app/(app)/communications/page.tsx`| Communications | Payment reminders, thank-you notes (ADR-078)                                                                               |
+| `/vendors`       | `src/app/(app)/vendors/page.tsx`       | Vendors     | Vendor master-detail (ADR-076)                                                                                               |
+| `/expenses`      | `src/app/(app)/expenses/page.tsx`      | Expenses    | Business expenses + tax payments (ADR-077/039)                                                                               |
 | `/reports`       | `src/app/(app)/reports/page.tsx`       | Reports     | Report chooser, options, viewer                                                                                              |
 | `/outstanding`   | `src/app/(app)/outstanding/page.tsx`   | Outstanding | Full-page outstanding list                                                                                                   |
 | `/tutorial`      | `src/app/(app)/tutorial/page.tsx`      | Tutorial    | Search, index, articles, tips folder links                                                                                   |
-| `/config`        | `src/app/(app)/settings/page.tsx`        | Config      | Etsy connection, business details, AI settings, backup                                                                       |
+| `/settings`      | `src/app/(app)/settings/page.tsx`        | Settings    | Etsy connection, business details, AI settings, backup                                                                       |
 
 ---
 
@@ -31,7 +36,7 @@ File: `src/app/(app)/layout.tsx`
 ┌─────────────────────────────────────────────────┐
 │  AppHeader (connection status, shop selector)    │
 ├─────────────────────────────────────────────────┤
-│  TabBar (Dashboard | Sales | Inventory | ... )   │
+│  TabBar (Dashboard | Orders | Shipping | Inventory | … )   │
 ├─────────────────────────────────────────────────┤
 │              Main Content                        │
 │              {children}                          │

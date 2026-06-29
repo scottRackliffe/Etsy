@@ -9,11 +9,10 @@ const repoRoot = path.resolve(__dirname, "../..");
 
 test("listing publish workflow routes exist", async () => {
   const requiredRoutes = [
-    "src/app/api/inventory/[id]/publish-preview/route.ts",
     "src/app/api/inventory/[id]/publish-to-etsy/route.ts",
-    "src/app/api/inventory/[id]/listing-approve/route.ts",
-    "src/app/api/inventory/[id]/listing-reject/route.ts",
-    "src/app/api/inventory/[id]/publish-history/route.ts",
+    "src/app/api/inventory/[id]/listing-readiness/route.ts",
+    "src/app/api/inventory/[id]/listing-quality/route.ts",
+    "src/app/api/inventory/[id]/listing-remediation-cycle/route.ts",
   ];
 
   await Promise.all(
@@ -21,7 +20,21 @@ test("listing publish workflow routes exist", async () => {
       await access(path.join(repoRoot, relativePath));
     })
   );
-  assert.equal(requiredRoutes.length, 5);
+  assert.equal(requiredRoutes.length, 4);
+});
+
+test("retired publish routes are gone", async () => {
+  const retiredRoutes = [
+    "src/app/api/inventory/[id]/publish-preview/route.ts",
+    "src/app/api/inventory/[id]/listing-approve/route.ts",
+    "src/app/api/inventory/[id]/listing-reject/route.ts",
+  ];
+
+  await Promise.all(
+    retiredRoutes.map(async (relativePath) => {
+      await assert.rejects(access(path.join(repoRoot, relativePath)), { code: "ENOENT" });
+    })
+  );
 });
 
 test("report endpoints use structured report builder", async () => {

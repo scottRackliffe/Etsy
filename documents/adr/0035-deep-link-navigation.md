@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The Outstanding page navigates to target pages using URL query params (`?orderId=`, `?itemId=`, `?customerId=`), but the target pages (Sales, Inventory, Customers) never read these params. Clicking an outstanding item opens the correct tab but does not select the relevant record. The navigation intent is broken.
+The Outstanding page navigates to target pages using URL query params (`?orderId=`, `?itemId=`, `?customerId=`), but the target pages (Orders, Inventory, Customers) never read these params. Clicking an outstanding item opens the correct tab but does not select the relevant record. The navigation intent is broken.
 
 ## Decision
 
@@ -22,14 +22,14 @@ The Outstanding page navigates to target pages using URL query params (`?orderId
 
 | Target page              | Query param       | Behavior                                                                                                                    |
 | ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Sales (`/sales`)         | `orderId={id}`    | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
+| Orders (`/orders`)         | `orderId={id}`    | Select the order with `id = orderId`. If the order is not on the current page, fetch it by ID and display its detail panel. |
 | Inventory (`/inventory`) | `itemId={id}`     | Select the inventory item with `id = itemId`. Same fetch-if-missing behavior.                                               |
 | Customers (`/customers`) | `customerId={id}` | Select the customer with `id = customerId`. Load their addresses.                                                           |
 | Receipts (`/receipts`)   | `receiptId={id}`  | Select/expand the vendor receipt with `id = receiptId`. Fetch-if-missing behavior.                                          |
 | Vendors (`/vendors`)     | `vendorId={id}`   | Select the vendor with `id = vendorId` (ADR-076). Fetch-if-missing behavior.                                               |
 | Expenses (`/expenses`)   | `expenseId={id}`  | Select the business expense with `id = expenseId` (ADR-077).                                                                |
 | Expenses (`/expenses`)   | `taxPaymentId={id}` | Open the Tax section and select the tax payment with `id = taxPaymentId` (ADR-039).                                       |
-| Shipping (`/shipping`)   | `orderId={id}`    | (After WS-F) Select the order's shipping context. **Until WS-F ships, shipping activity links to `/orders?orderId={id}`.** |
+| Shipping (`/shipping`)   | `orderId={id}`    | Select the order's shipping context (ADR-080). Legacy `/orders?orderId=` redirects are still accepted for activity deep-links. |
 
 ---
 
