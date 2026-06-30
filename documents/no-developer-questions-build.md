@@ -226,7 +226,7 @@ When **§4.1–4.6** are all checked, Phase 1 internal-consistency documentation
 
 ### 4.8 Phase 1b — Store-owner functional & modern UI completeness (blocking code)
 
-**Goal:** A developer implementing the app has **no significant questions**; every capability an Etsy vintage/antique store owner would reasonably expect is either **fully specified for v1** or **explicitly excluded** with rationale ([DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md)).
+**Goal:** A developer implementing AiCE has **no significant questions**; every capability a store owner would reasonably expect (via the Etsy integration and local workflows) is either **fully specified for v1** or **explicitly excluded** with rationale ([archive/audits/DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](../archive/audits/DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md)).
 
 - [x] **ADR-070** — Product scope matrix (v1 / post-v1 / Etsy-only / never) — 2026-05-24
 - [x] **ADR-071** — Visual design system (typography, spacing, navigation, badges, transaction-complete) — 2026-05-24

@@ -1,7 +1,8 @@
 # AiCE — The AI-Powered eCommerce Engine
 
-Local app for **Trudy's Classic Treasures** (and future shops): Etsy OAuth, inventory, orders,
-shipping, listings (AI generate + quality rubric), communications, expenses, and reports.
+**AiCE** is a local, single-user e-commerce operations engine: inventory, AI listing lifecycle,
+orders, shipping, communications, expenses, and reports. **Etsy Open API v3** is the first
+marketplace integration. The pilot deployment is **Trudy's Classic Treasures** (vintage/antique).
 
 **Stack:** Next.js 16 · TypeScript · Tailwind · SQLite · Etsy Open API v3
 
@@ -67,7 +68,7 @@ Open [http://localhost:3000](http://localhost:3000). Full install: [documents/in
 
 ---
 
-## License / Etsy
+## License / Etsy marketplace
 
-Etsy is a trademark of Etsy, Inc. This app uses the official Etsy API and is not endorsed by Etsy.
+Etsy is a trademark of Etsy, Inc. AiCE uses the official Etsy API and is not endorsed by Etsy.
 See [documents/etsy-compliance.md](documents/etsy-compliance.md).

@@ -6,7 +6,7 @@ This document gives a **high-level** implementation order. All detailed behavior
 > (ADR-076), Expenses (ADR-077), the top-level Shipping / EasyPost module (ADR-074/080), the Standard
 > Entity Management Screen (ADR-079), Communications (ADR-078), and the unified listing
 > lifecycle + quality rubric (ADR-081–085) — are tracked in
-> `PROGRAM_2026-06-21_major-enhancements.md` and the completed `tickets/` workstreams, not
+> `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` and the completed `tickets/` workstreams, not
 > re-sequenced here.
 
 ---

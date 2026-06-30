@@ -1,4 +1,4 @@
-# Etsy Project — Recovery Instructions
+# Pre-AiCE recovery instructions (archived)
 
 > **Archived 2026-06-29.** Pre-AiCE / EBC recovery notes only. For live backup/restore see
 > [`documents/operations/BACKUP.md`](../../documents/operations/BACKUP.md) and

@@ -1,7 +1,8 @@
-# Archive — interim and historical material
+# Archive — interim and historical material (AiCE repo)
 
 This folder holds **non-canonical** documents moved out of the active tree so new developers
-are not confused about what to read or implement.
+are not confused about what to read or implement. The product is **AiCE**; files here may still
+say "Etsy Project" or "Sales Manager" from before the rename — treat as historical only.
 
 **Do not implement from files here.** Canonical specs live in `documents/adr/`, active work in
 `documents/tickets/`, and onboarding in `documents/START_HERE.md`.

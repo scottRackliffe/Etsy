@@ -1,5 +1,8 @@
 # Documentation index
 
+**Product:** **AiCE** — *The AI-Powered eCommerce Engine* (not "Etsy Sales Manager"). Etsy appears in
+docs only for the marketplace integration, OAuth/API, compliance, and Etsy listing fields.
+
 **New developer?** Start at **[START_HERE.md](START_HERE.md)** — not this full table.
 
 All canonical specs are **ADRs** in [`adr/`](adr/). User-facing copy is in [`tutorial.md`](tutorial.md) and

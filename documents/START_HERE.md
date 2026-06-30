@@ -1,8 +1,12 @@
 # Start here — developer onboarding (AiCE)
 
-**AiCE** (*The AI-Powered eCommerce Engine*) is a Next.js 16 + TypeScript + SQLite app for managing
-an Etsy vintage shop. This page is the **single map** for a new developer — read it once, then use
-the links below instead of searching the tree.
+**AiCE** (*The AI-Powered eCommerce Engine*) is a Next.js 16 + TypeScript + SQLite app for
+e-commerce shop operations. **Etsy** is the first marketplace integration (OAuth + Open API v3);
+the pilot shop is **Trudy's Classic Treasures**. This page is the **single map** for a new
+developer — read it once, then use the links below instead of searching the tree.
+
+> **Naming:** The product is **AiCE**, not "Etsy Sales Manager" and not an "Etsy app." Use "Etsy"
+> only for the marketplace, API, and Etsy-specific listing fields (ADR-073).
 
 ---
 

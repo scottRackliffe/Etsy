@@ -30,7 +30,7 @@ When in doubt: **fewer steps, clearer labels, predictable behavior.**
 | **Outstanding / To-do** | *(Deferred to post-v1; see ADR-009 and § Implementation notes)* | In v1, Outstanding is a full-page tab only. Click an item → deep-link navigate to the correct tab and record (ADR-035).                                                                                                                                                                                  |
 | **Content**             | Center / main area          | List, form, or report for the active tab.                                                                                                                                                                                                                                                                 |
 
-**Header:** App name (e.g. “Trudy’s Etsy Sales”), maybe global status (Etsy connected / not connected), user or shop indicator. No tabs in the header strip if we want a clean “tabs only” bar below it.
+**Header:** **AiCE** branding (logo + tagline); optional `settings.business_name` for the shop name (e.g. "Trudy's Classic Treasures"). Global status: Etsy connected / not connected. No tabs in the header strip if we want a clean “tabs only” bar below it.
 
 ---
 
@@ -348,7 +348,7 @@ Each inventory item has a **Condition** section for buyer transparency and Etsy 
 
 | Control              | Behavior                                                                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| App name             | `settings.business_name` or “Trudy’s AiCE”; links to Dashboard                                                                 |
+| App name             | **AiCE** in header (logo + tagline); shop name from `settings.business_name` when set (e.g. Trudy's Classic Treasures); links to Dashboard |
 | Etsy status          | Badge: Connected (`success`) / Not connected (`warning`)                                                                                     |
 | Shop selector        | Dropdown when connected; drives sync and receipts scope                                                                                      |
 | Recent (🕐)          | ADR-063 — dropdown of last viewed orders/items/customers                                                                                     |

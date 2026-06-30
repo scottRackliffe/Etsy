@@ -10,9 +10,12 @@ Accepted
 
 ## Context
 
-The application serves a **single-user, local** vintage/antique Etsy shop (Trudy's Classic Treasures). Store owners have many possible needs; without an explicit scope matrix, implementers infer features from silence or duplicate Etsy.com. Phase 1b requires every reasonable capability to be classified: **v1 in app**, **post-v1**, **Etsy-only (no app feature)**, or **never**.
+The application is **AiCE** — a single-user, local e-commerce operations engine. The first
+marketplace integration is **Etsy**; the pilot shop is **Trudy's Classic Treasures** (vintage/antique).
+Store owners have many possible needs; without an explicit scope matrix, implementers infer features
+from silence or duplicate Etsy.com. Phase 1b requires every reasonable capability to be classified: **v1 in app**, **post-v1**, **Etsy-only (no app feature)**, or **never**.
 
-**Companion docs:** Feature detail remains in ADR-001–069, [ui-design.md](../ui-design.md), [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](../DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md).
+**Companion docs:** Feature detail remains in ADR-001–069, [ui-design.md](../ui-design.md), [archive/audits/DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](../../archive/audits/DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md).
 
 ## Decision
 

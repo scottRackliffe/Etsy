@@ -8,9 +8,10 @@
 ## Project Overview
 
 This is **AiCE** (The AI-Powered eCommerce Engine) — a Next.js 16 (App Router) + TypeScript + Tailwind CSS + SQLite app
-for managing an Etsy vintage/antique business (Trudy's Classic Treasures). It connects to Etsy via
-OAuth, manages inventory, customers, orders, and generates reports and listing content (including
-AI-assisted). It is a single-user local app.
+for e-commerce shop operations (inventory, listings, orders, shipping, reports). **Etsy Open API v3** is the first
+marketplace integration; the pilot shop is **Trudy's Classic Treasures** (vintage/antique). It is a single-user local app.
+
+**Product naming:** The app is always **AiCE**, never "Etsy Sales Manager" or any name containing "Etsy" (ADR-073). Use "Etsy" only for the marketplace, OAuth/API, compliance, and Etsy-specific listing fields.
 
 Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equivalent), Node 20 LTS.
 
