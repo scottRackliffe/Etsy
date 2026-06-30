@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Workstream | **E** — Standard Entity Management Screen (LOCKED in `documents/PROGRAM_2026-06-21_major-enhancements.md`). This is **phase 1 of N** (scaffold + pilot). |
+| Workstream | **E** — Standard Entity Management Screen (LOCKED in `archive/audits/PROGRAM_2026-06-21_major-enhancements.md`). This is **phase 1 of N** (scaffold + pilot). |
 | Source ADR | **ADR-079** (authoritative — read in full). Reconciles ADR-024, 028, 029, 030, 031, **042** (2-button → 3-button), 032, 059, 060, 061, 062. |
 | Recommended model | **T3 / stronger** (`gpt-5.3-codex` or `claude-opus-4-8-thinking-high`) for THIS ticket — the dirty-guard/3-button dialog flow is subtle and becomes the template for the whole app. The **follow-on rollout tickets (WS-E2..E6) are Sonnet-tier** once this locks the pattern. |
 | Complexity | Medium-Large (new reusable scaffold components + context change + full refactor of one screen). |

@@ -23,7 +23,7 @@ What already exists and must be reused (do not reinvent):
 - **Print queue** for batch printing (ADR-055).
 - **Activity log** (ADR-037) and **encrypted-secret** pattern (AES-256-GCM, ADR-025).
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **C** (LOCKED).
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **C** (LOCKED).
 
 ## Decision
 

@@ -275,7 +275,7 @@ logActivity({
 
 ## Extensions (2026-06-21) — WS-A: full activity coverage, deep-links, and filters
 
-Source: `documents/PROGRAM_2026-06-21_major-enhancements.md` (workstream A). This block is
+Source: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` (workstream A). This block is
 **authoritative** where it overlaps the original sections above. No schema change: the existing
 `activity_log` table (ADR-017) is unchanged; we only broaden the **values** used in
 `entity_type` / `action` and specify the UI taxonomy.

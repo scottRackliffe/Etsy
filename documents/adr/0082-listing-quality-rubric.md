@@ -26,7 +26,7 @@ Inventory list quality column/sort, the Outstanding low-quality list, the dashbo
 widget (ADR-016 §7), and the inventory aging report. The full AI-vision path runs on Evaluate
 Listing Quality and is cached in `listing_quality_json`.
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **G/D**.
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **G/D**.
 
 ## Decision
 

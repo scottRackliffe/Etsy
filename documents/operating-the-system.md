@@ -252,7 +252,7 @@ If operations are blocked:
 1. Try reconnect flow.
 2. Retry operation with one known-good shop/item.
 3. Check setup/env (`documents/installation.md`, `documents/setup/ENV_MATRIX.md`).
-4. Use recovery reference (`documents/Recovery_Instructions.md`) for broader restore context.
+4. For pre-AiCE / EBC recovery context (historical only), see [`archive/interim/Recovery_Instructions.md`](../archive/interim/Recovery_Instructions.md).
 
 Escalate with:
 

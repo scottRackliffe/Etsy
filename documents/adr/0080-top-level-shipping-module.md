@@ -19,7 +19,7 @@ own **top-level menu** so Sales focuses on the sale itself and shipping has a de
 uncluttered workspace. The rate-shopping modal currently works well and must be preserved
 as-is.
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **F**.
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **F**.
 
 Owner direction (verbatim intent): "Sales will not include shipping, and Shipping will only
 include the Shipping fields, the package dimensions, and the shipping shopping modal (which is

@@ -27,7 +27,7 @@ Existing related specs: ADR-023 (listing modes + draft state machine
 `draft→generated→approved→published`), ADR-068 (listing quality score), ADR-072 (Listing Coach),
 canonical "generation blocked until…" rule in `.cursorrules` §5.
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **G** (LOCKED:
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **G** (LOCKED:
 the quality review is a **new class/phase**, separate from `inventory.status`, which is retained).
 
 ## Decision

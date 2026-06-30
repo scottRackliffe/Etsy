@@ -7,7 +7,7 @@ Accepted
 _Decision date 2026-06-23 (owner walkthrough). This ADR sets the **direction and principles**; the
 schema-review + migration-consolidation + health-procedures work is a scoped engineering task
 (step 3 of the conformance remediation). Open conformance gaps it governs:
-`documents/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md` C13, C14 (and the dead-schema items C2, C12)._
+`archive/audits/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md` C13, C14 (and the dead-schema items C2, C12)._
 
 **Implementation status (2026-06-23):**
 - ✅ **Migrations are now the complete source of truth.** `migrations/018_schema_consolidation.sql`

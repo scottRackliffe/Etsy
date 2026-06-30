@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Workstream | **C** — Communications/Outreach (LOCKED in `documents/PROGRAM_2026-06-21_major-enhancements.md`) |
+| Workstream | **C** — Communications/Outreach (LOCKED in `archive/audits/PROGRAM_2026-06-21_major-enhancements.md`) |
 | Source ADR | **ADR-078** (authoritative; read in full first). Cross-refs: ADR-017, 018 §38, 034, 013/036, 037, 011 + etsy-compliance.md, 031, 055, 025. |
 | Recommended model | **T2 — Sonnet** (`claude-4.6-sonnet-medium-thinking`) for the build. ADR-078 is fully spec'd; this is wiring well-trodden patterns. Escalate to a stronger model only if an escalation trigger fires. |
 | Complexity | Medium (one new table, ~7 endpoints, one new lib, SMTP via nodemailer, one new screen, Config section, order-detail buttons, activity wiring). |

@@ -80,7 +80,7 @@ Stack: Next.js 16, TypeScript, Tailwind CSS, SQLite (via better-sqlite3 or equiv
 | Listing quality rubric (per-field + per-photo specs; single quality engine) | `documents/adr/0082-listing-quality-rubric.md` |
 | AI shot-list generation (from primary photo) | `documents/adr/0083-ai-shot-list-generation.md` |
 | AI dimension annotation (reference-ruler photo) | `documents/adr/0084-ai-dimension-annotation.md` |
-| Major enhancements program (workstreams A–H, sequencing) | `documents/PROGRAM_2026-06-21_major-enhancements.md` |
+| Major enhancements program (workstreams A–H — **historical**, mostly implemented) | `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` |
 | Etsy listing best-practices research (rubric evidence) | `documents/research/2026-06-21_etsy-listing-best-practices.md` |
 | Product scope and non-goals | `documents/adr/0070-product-scope-and-non-goals.md` |
 | Visual design system and UI consistency | `documents/adr/0071-visual-design-system-and-ui-consistency.md` |
@@ -768,7 +768,7 @@ Evaluate Data → Generate Listing → Evaluate Listing Quality → (listing_rea
 ### Pending:
 - Priority 44: Mobile-responsive layout (ADR-061) — deferred to dedicated sprint
 - **Major Enhancements Program (2026-06-21, ADRs 078–084) — DOC-COMPLETE, implementation pending.**
-  See `documents/PROGRAM_2026-06-21_major-enhancements.md`. Workstreams:
+  See `archive/audits/PROGRAM_2026-06-21_major-enhancements.md`. Workstreams:
   - **A** Activity coverage expansion (ADR-037/035/018) — receipts/vendors/AP/shipping/reports/config in both views; deep-links; deleted=no-link; multi-type filter.
   - **B** Dashboard Recent Activity = newest 25, 1/3 width; Activity log 2/3 (ADR-016 §6).
   - **D** Dashboard low-quality inventory widget, score < threshold, excludes Sold/Retired/Inactive (ADR-016 §7).

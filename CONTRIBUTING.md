@@ -2,6 +2,8 @@
 
 ## Local Setup
 
+**First time?** Read [`documents/START_HERE.md`](documents/START_HERE.md) for the full map.
+
 1. Install deps: `npm ci`
 2. Validate env: `npm run env:check`
 3. Migrate DB: `npm run db:migrate`

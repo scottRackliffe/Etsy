@@ -205,7 +205,7 @@ See [listing-authoring-task-cards.md](listing-authoring-task-cards.md) §4.
 **Touch:**
 
 - `src/app/(app)/inventory/page.tsx` — CTA
-- `documents/DEEP_AUDIT_2026-05-24.md` — Wave LC entry when done
+- `archive/audits/DEEP_AUDIT_2026-05-24.md` — Wave LC entry when done
 
 ---
 

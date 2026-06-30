@@ -329,7 +329,7 @@ When all priorities are complete, the build is ready for autonomous implementati
 
 **Summary (2026-05-24 snapshot):** No critical **documentation** contradictions at that time. Code lagged spec in several areas; most have since been addressed. Schema gaps for `tracking_number`, `activity_log`, `customer_notes` resolved in migrations 003–004 (2026-05-25).
 
-**Deliverable:** [`documents/DOC_COMPLIANCE_AUDIT.md`](DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures.
+**Deliverable:** [`archive/audits/DOC_COMPLIANCE_AUDIT.md`](../archive/audits/DOC_COMPLIANCE_AUDIT.md) — Spec | Code | Action tables for schema, API, business rules, reports, UI, fixtures (historical; archived 2026-06-29).
 
 **Exit criterion:** Met — Critical doc issues none; High code gaps enumerated with ADR links. Implementation scheduling is §5 priorities 8–52.
 

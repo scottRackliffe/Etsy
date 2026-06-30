@@ -124,7 +124,7 @@ When the tabbed layout (ADR-009) exists:
 
 ### Extensions (updated 2026-06-21) — Activity views (WS-B) and Low-quality inventory widget (WS-D)
 
-Source: `documents/PROGRAM_2026-06-21_major-enhancements.md` (workstreams B and D).
+Source: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` (workstreams B and D).
 
 #### 6. Activity views — "Recent Activity" and "Activity log" (WS-B)
 

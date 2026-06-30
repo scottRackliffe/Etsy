@@ -1,45 +1,86 @@
-# Documentation
+# Documentation index
 
-All project documentation lives in this folder (**documents/**) within the etsy project.
+**New developer?** Start at **[START_HERE.md](START_HERE.md)** — not this full table.
 
-| Location                                                                               | Contents                                                                                                                                                                                                                                                                    |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [installation.md](installation.md)                                                     | **Installation** — Step-by-step install for macOS and Windows 11 (prerequisites, Etsy app, env, run).                                                                                                                                                                       |
-| [setup/DEVELOPMENT.md](setup/DEVELOPMENT.md)                                           | **Development setup** — Contributor workflow: local bootstrap, run/lint/build commands, and troubleshooting shortcuts.                                                                                                                                                      |
-| [setup/ENV_MATRIX.md](setup/ENV_MATRIX.md)                                             | **Environment matrix** — Required/optional environment variables by dev/staging/prod, defaults, and validation expectations.                                                                                                                                                |
-| [ui-design.md](ui-design.md)                                                           | **UI design** — World-class layout: tabs (top), commands (left/right), outstanding to-do (right), plus tabs/commands list and key processes (complete sale, add customer, add item, reports, config, maintenance).                                                          |
-| [System_Colors.md](System_Colors.md)                                                   | **System colors** — UI palette (hex/CSS variables). **Usage rules:** [ADR-071](adr/0071-visual-design-system-and-ui-consistency.md).                                                                                                                                        |
-| [DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md](DOC_FUNCTIONAL_UX_COVERAGE_AUDIT.md)             | **Functional & UX coverage** — Store-owner capability matrix; Phase 1b scope.                                                                                                                                                                                               |
-| [DOC_COMPLIANCE_AUDIT.md](DOC_COMPLIANCE_AUDIT.md)                                     | **Doc vs code compliance** — Row-level gap tables (Phase 2).                                                                                                                                                                                                                |
-| [DEEP_AUDIT_2026-05-24.md](DEEP_AUDIT_2026-05-24.md)                                   | **Deep audit** — Full-board: docs, schema, API %, UI, tests, ADR-070 vs code, remediation waves.                                                                                                                                                                            |
-| [etsy-compliance.md](etsy-compliance.md)                                               | **Etsy compliance** — How we follow Etsy’s API Terms, seller policies, listing/image and vintage rules, and data/privacy requirements.                                                                                                                                      |
-| [etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md) | **Etsy listing template and requirements** — Listing structure and requirements; inputs to AI (all item pictures must be sent); "can't list until complete"; AI response shape.                                                                                             |
-| [knowledge-base-design.md](knowledge-base-design.md)                                   | **Tutorial and tips (knowledge base)** — Design: search, index, links to files in the tips folder. Tutorial and tips merged in one tab.                                                                                                                                     |
-| [tutorial.md](tutorial.md)                                                             | **Tutorial and tips (content)** — How Etsy works, how this app helps, tips to improve sales, how to set prices. Main built-in content for the Tutorial and tips tab.                                                                                                        |
-| [operating-the-system.md](operating-the-system.md)                                     | **Operations manual** — Day-to-day system operation: startup, connect/disconnect, order monitoring, listing readiness/generation, and error-response playbooks.                                                                                                             |
-| [pictures-and-sales.md](pictures-and-sales.md)                                         | **Why pictures matter for sales** — Short guide for sellers; linked from picture import UI. Optional in Config: link to user's own doc (e.g. a PDF).                                                                                                                        |
-| [knowledge-base-topics-catalog.md](knowledge-base-topics-catalog.md)                   | **Knowledge base topic catalog** — Exhaustive searchable taxonomy and aliases for user-facing help content (non-book scope).                                                                                                                                                |
-| [design-decisions-implementation.md](design-decisions-implementation.md)               | **Design decisions — implementation index (SSOT)** — Decision index; each section summarizes and points to the single source of truth (no duplication).                                                                                                                     |
-| [shipping-label-carrier-templates.md](shipping-label-carrier-templates.md)             | **Shipping label** — Print shipping label (no automated connection to carriers); Shipping Info (stored per carrier); behavior and preconditions.                                                                                                                            |
-| [Recovery_Instructions.md](Recovery_Instructions.md)                                   | **Recovery** — How to restore the Etsy project (book, EBC, catalog, guides) after loss.                                                                                                                                                                                     |
-| [system/tips/](../system/tips/)                                                        | **Scannable/lookup tips (knowledge base)** — Trudy's documents: How to Win on Etsy, Book outline, Etsy Photo Guide. This folder is the default document set for the Tutorial and tips tab (search, index, links). See [knowledge-base-design.md](knowledge-base-design.md). |
-| [ebc/](ebc/)                                                                           | **EBC system description** — Etsy Business Console module structure, roadmap, design card; example items.                                                                                                                                                                   |
-| [frontend-architecture.md](frontend-architecture.md)                                   | **Frontend architecture** — Complete component tree, routing map, prop contracts, build order for decomposing the monolithic page.tsx into maintainable components.                                                                                                         |
-| [state-management.md](state-management.md)                                             | **State management** — Client-side data patterns: AppProvider context, fetch patterns, optimistic updates, form validation, error handling, context-in-place navigation.                                                                                                    |
-| [database/SCHEMA_RECONCILIATION.md](database/SCHEMA_RECONCILIATION.md)                 | **Schema reconciliation** — Table-by-table comparison of ADR-017 canonical schema vs. implemented schema, with migration plan to align them.                                                                                                                                |
-| [adr/](adr/)                                                                           | **Architecture Decision Records (internal only)** — 89 ADRs. **Scope:** ADR-070. **UI consistency:** ADR-071. See [adr/README.md](adr/README.md).                                                                                                                           |
-| [implementation-guide.md](implementation-guide.md)                                     | **Implementation guide** — High-level phases and which ADRs apply; implementation order only (no spec detail).                                                                                                                                                              |
-| [development-plan.md](development-plan.md)                                             | **Development plan** — Sequencing by dependencies, risk, and value; phased deliverables and exit criteria; references ADRs and implementation guide.                                                                                                                        |
-| [no-developer-questions-build.md](no-developer-questions-build.md)                     | **No-developer-questions checklist** — Gap-closure list for autonomous implementation: spec completeness, test/CI/build readiness, and release/ops artifacts.                                                                                                               |
-| [archive/listing-authoring-task-cards.md](archive/listing-authoring-task-cards.md)     | **Listing authoring task cards — RETIRED (archived).** Coach/Workshop authoring build cards; superseded by ADR-085 (unified lifecycle). Kept for history only.                                                                                                              |
-| [testing/TEST_PLAN.md](testing/TEST_PLAN.md)                                           | **Test plan** — Unit/integration/manual scope, acceptance gates, fixtures, and CI expectations.                                                                                                                                                                             |
-| [testing/MANUAL_TEST_SCENARIOS.md](testing/MANUAL_TEST_SCENARIOS.md)                   | **Manual acceptance scenarios** — Step-by-step release verification scripts for startup, auth, inventory, listing generation, and health checks.                                                                                                                            |
-| [database/MIGRATIONS.md](database/MIGRATIONS.md)                                       | **Database migrations and seed** — Migration/seed files, commands, environment usage, and safety rules.                                                                                                                                                                     |
-| [ci/CI_EXPECTATIONS.md](ci/CI_EXPECTATIONS.md)                                         | **CI expectations** — Mandatory quality gates and merge policy.                                                                                                                                                                                                             |
-| [release/RELEASE_PROCESS.md](release/RELEASE_PROCESS.md)                               | **Release process** — Pre-release checklist, release steps, and post-release stabilization.                                                                                                                                                                                 |
-| [release/DEPLOYMENT.md](release/DEPLOYMENT.md)                                         | **Deployment guide** — Environment setup, build/migrate/start flow, and runtime checks.                                                                                                                                                                                     |
-| [operations/ROLLBACK.md](operations/ROLLBACK.md)                                       | **Rollback runbook** — Trigger conditions, rollback sequence, and required evidence capture.                                                                                                                                                                                |
-| [operations/BACKUP.md](operations/BACKUP.md)                                           | **Backup/restore** — SQLite backup cadence and restore validation checks.                                                                                                                                                                                                   |
-| [operations/OBSERVABILITY.md](operations/OBSERVABILITY.md)                             | **Observability baseline** — Health checks, logs, alerts, and incident triage workflow.                                                                                                                                                                                     |
+All canonical specs are **ADRs** in [`adr/`](adr/). User-facing copy is in [`tutorial.md`](tutorial.md) and
+[`system/tips/`](../system/tips/). Historical material is in [`../archive/`](../archive/README.md) and
+[`archive/`](archive/) (retired Listing Coach).
 
-The main project README (setup, usage, functionality) is at the repository root.
+---
+
+## Canonical specs (implement from these)
+
+| Doc | Purpose |
+|-----|---------|
+| [adr/README.md](adr/README.md) | ADR index (89 ADRs) — **primary SSOT** |
+| [adr/0017-database-schema.md](adr/0017-database-schema.md) | Database DDL |
+| [adr/0018-api-surface-endpoints.md](adr/0018-api-surface-endpoints.md) | REST API catalog |
+| [ui-design.md](ui-design.md) | Tabs, screens, commands, outstanding |
+| [adr/0021-validation-and-business-rules.md](adr/0021-validation-and-business-rules.md) | Validation rules |
+| [etsy-listing-template-and-requirements.md](etsy-listing-template-and-requirements.md) | Listing fields + AI inputs |
+| [etsy-compliance.md](etsy-compliance.md) | Etsy API / seller compliance |
+| [System_Colors.md](System_Colors.md) | UI palette (see ADR-071) |
+| [shipping-label-carrier-templates.md](shipping-label-carrier-templates.md) | Local label generation (no carrier API) |
+| [design-decisions-implementation.md](design-decisions-implementation.md) | Cross-cutting decision index → ADRs |
+
+---
+
+## Implementation & workflow
+
+| Doc | Purpose |
+|-----|---------|
+| [implementation-guide.md](implementation-guide.md) | Build phases → which ADRs apply |
+| [development-plan.md](development-plan.md) | Sequencing, dependencies, exit criteria |
+| [no-developer-questions-build.md](no-developer-questions-build.md) | Gap-closure checklist |
+| [IMPLEMENTATION_PLAYBOOK.md](IMPLEMENTATION_PLAYBOOK.md) | Ticket-driven AI implementation loop |
+| [tickets/README.md](tickets/README.md) | Open / completed work tickets |
+| [frontend-architecture.md](frontend-architecture.md) | Component tree + routing map |
+| [state-management.md](state-management.md) | Client state patterns |
+
+---
+
+## Setup, test, release, ops
+
+| Doc | Purpose |
+|-----|---------|
+| [installation.md](installation.md) | macOS / Windows install |
+| [setup/DEVELOPMENT.md](setup/DEVELOPMENT.md) | Contributor workflow |
+| [setup/ENV_MATRIX.md](setup/ENV_MATRIX.md) | Environment variables |
+| [database/MIGRATIONS.md](database/MIGRATIONS.md) | Migrations + seed commands |
+| [database/SCHEMA_RECONCILIATION.md](database/SCHEMA_RECONCILIATION.md) | Schema drift notes (ADR-017 is SSOT) |
+| [testing/TEST_PLAN.md](testing/TEST_PLAN.md) | Test scope |
+| [testing/MANUAL_TEST_SCENARIOS.md](testing/MANUAL_TEST_SCENARIOS.md) | Release verification scripts |
+| [ci/CI_EXPECTATIONS.md](ci/CI_EXPECTATIONS.md) | CI gates |
+| [release/RELEASE_PROCESS.md](release/RELEASE_PROCESS.md) | Release checklist |
+| [release/DEPLOYMENT.md](release/DEPLOYMENT.md) | Deploy runbook |
+| [operations/BACKUP.md](operations/BACKUP.md) | Backup / restore |
+| [operations/ROLLBACK.md](operations/ROLLBACK.md) | Rollback |
+| [operations/OBSERVABILITY.md](operations/OBSERVABILITY.md) | Health / logs |
+| [operating-the-system.md](operating-the-system.md) | Day-to-day operator manual |
+
+---
+
+## User-facing content (in-app / Tutorial tab)
+
+| Doc | Purpose |
+|-----|---------|
+| [tutorial.md](tutorial.md) | Built-in tutorial articles |
+| [pictures-and-sales.md](pictures-and-sales.md) | Why pictures matter (linked from picture UI) |
+| [knowledge-base-design.md](knowledge-base-design.md) | Tutorial tab design |
+| [knowledge-base-topics-catalog.md](knowledge-base-topics-catalog.md) | Help topic taxonomy |
+| [privacy-policy.md](privacy-policy.md) | Privacy policy text |
+| [system/tips/](../system/tips/) | Scannable tip files |
+
+---
+
+## Research & retired
+
+| Doc | Purpose |
+|-----|---------|
+| [research/](research/) | Etsy listing best-practices research (feeds ADR-082) |
+| [archive/](archive/) | Retired Listing Coach / workshop docs (ADR-085) |
+| [../archive/](../archive/README.md) | Historical audits + interim notes (zip available) |
+
+---
+
+Project README (quick setup): [`../README.md`](../README.md)

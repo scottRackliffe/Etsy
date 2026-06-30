@@ -1,8 +1,7 @@
 # Tickets — remaining work backlog
 
-**Last updated:** 2026-06-24  
-**Branch:** `docs/adr-audit-remediation` (conformance-remediation follow-ups; was
-`feature/final-system-completion`)
+**Last updated:** 2026-06-29  
+**Branch:** `main`
 
 This folder holds **implementation tickets** for AiCE. Only **open** tickets live
 in the folder root. **Completed** tickets are in [`completed/`](completed/) for reference.
@@ -32,8 +31,7 @@ Three tickets remain open. All other work is archived in [`completed/`](complete
 
 ### Ops / verification (not tickets — operator steps)
 
-- **`npm run db:migrate`** on the live dev DB — applies migrations 018/019 (drops dead schema;
-  tested on a copy only). _Not yet run on the live DB._
+- **`npm run db:migrate`** — migrations 018/019 applied on live dev DB (2026-06-29).
 - **`npm run dev` smoke-test — BACKEND + UI RENDER VERIFIED LIVE 2026-06-24** (clean restart; the
   long-running dev server had wedged after the rename/delete churn). Via API: app boots, `/api/health`
   200 (WP3 DB init OK); cycle endpoint `POST /api/inventory/[id]/listing-remediation-cycle` runs

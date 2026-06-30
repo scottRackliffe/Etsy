@@ -7,7 +7,7 @@ Accepted
 _Decision date 2026-06-23. The **policy** below is accepted and binding. The **escalation
 mechanism** (try-cheap → measure → escalate with recorded evidence) is a stated requirement that is
 **not yet fully implemented** — see Consequences / "Conformance gaps" — and is tracked in
-`documents/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md` (C9, C11, D1)._
+`archive/audits/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md` (C9, C11, D1)._
 
 ## Date
 
@@ -114,7 +114,7 @@ good enough?" a **measurable** question, not a guess.
 ### Conformance gaps to close (as of 2026-06-23)
 
 These are open items measured against this decision (detail in
-`documents/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md`):
+`archive/audits/CODE_DOC_CONFORMANCE_AUDIT_2026-06-23.md`):
 
 - **C11** — `receipts/ocr` and `expenses/scan` call the **primary** model directly, bypassing
   `resolveModelForTask`. They should default to the cheapest adequate model (add `receipt-ocr` /

@@ -30,7 +30,7 @@ This feeds the photo portion of the quality rubric (ADR-082) and reuses the phot
 taxonomy** already defined in §6 (this ADR) (`hero, angle, detail, backstamp, scale, imperfection,
 underside, grouping, lifestyle, measurement, extra`).
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.a)**.
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.a)**.
 
 ## Decision
 

@@ -30,7 +30,7 @@ Existing capabilities: **Sharp** (image processing, already a dependency) for co
 overlays; **OpenAI vision** for estimating dimensions from the ruler scale; picture storage
 (ADR-026) and the shot-type taxonomy (ADR-083, `measurement`).
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.b)**.
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **H (10.b)**.
 
 ## Decision
 

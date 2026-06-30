@@ -24,7 +24,7 @@ different places, and the unsaved-changes popup offers no Save).
 This ADR establishes the **Standard Entity Management Screen (SEMS)** and reconciles it with the
 existing frontend ADRs (024, 028, 029, 030, 031, 032, 042, 061, 062).
 
-Program reference: `documents/PROGRAM_2026-06-21_major-enhancements.md` workstream **E** (LOCKED
+Program reference: `archive/audits/PROGRAM_2026-06-21_major-enhancements.md` workstream **E** (LOCKED
 approach: define standard → reconcile ADRs → **pilot on Vendors** → debug → roll out).
 
 ## Decision

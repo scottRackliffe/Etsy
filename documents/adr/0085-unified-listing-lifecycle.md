@@ -219,4 +219,4 @@ without a mode; `update` calls Etsy `updateListing` — needs a new Etsy-client 
   `system/tips/Listing_Coach_Guide.md`.
 - Implementation workstreams: WS-L1 (Generate engine + gate), WS-L2 (inline create), WS-L3 (port
   Coach UI), WS-L4 (quality unification), WS-L5 (publish re-gate + surface), WS-L6 (remove dead
-  code). Tracked in `documents/PROGRAM_2026-06-21_major-enhancements.md`.
+  code). Tracked in `archive/audits/PROGRAM_2026-06-21_major-enhancements.md`.

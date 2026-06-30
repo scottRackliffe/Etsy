@@ -1,7 +1,11 @@
 # Etsy Project — Recovery Instructions
 
+> **Archived 2026-06-29.** Pre-AiCE / EBC recovery notes only. For live backup/restore see
+> [`documents/operations/BACKUP.md`](../../documents/operations/BACKUP.md) and
+> [`documents/START_HERE.md`](../../documents/START_HERE.md).
+
 Version 1.1  
-Status: Maintained  
+Status: Archived (historical)  
 Last Updated: 2026-02-16
 
 ## Purpose
