@@ -32,6 +32,7 @@
 
 # Personal/local content
 /TrudysClassicTreasures/
+.claude/
 
 # Archive files
 *.zip
