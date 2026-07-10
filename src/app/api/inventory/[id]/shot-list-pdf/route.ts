@@ -16,6 +16,52 @@ import { requireEtsyAccessToken } from "@/lib/auth-session";
 import { getInventoryById } from "@/lib/inventory";
 import { getSavedShotList, type ShotListItem } from "@/lib/shot-list";
 
+const BODY_FONT_SIZE = 9;
+const DETAIL_FONT_SIZE = 8;
+const MIN_SHOT_BLOCK_HEIGHT = 72;
+
+function estimateShotBlockHeight(
+  doc: InstanceType<typeof PDFDocument>,
+  pageWidth: number,
+  shot: ShotListItem
+): number {
+  doc.font("Helvetica-Bold").fontSize(11);
+  let height = doc.heightOfString(`${shot.name}  NEEDED`, { width: pageWidth });
+  doc.font("Helvetica").fontSize(DETAIL_FONT_SIZE);
+  height += doc.heightOfString(shot.shot_type.toUpperCase(), { width: pageWidth }) + 2;
+  doc.font("Helvetica").fontSize(BODY_FONT_SIZE);
+  if (shot.purpose) {
+    height += doc.heightOfString(`What it must show: ${shot.purpose}`, { width: pageWidth }) + 2;
+  }
+  if (shot.pass_spec) {
+    height += doc.heightOfString(`Pass: ${shot.pass_spec}`, { width: pageWidth }) + 2;
+  }
+  if (shot.tips) {
+    height += doc.heightOfString(`Tip: ${shot.tips}`, { width: pageWidth }) + 2;
+  }
+  return height + 14;
+}
+
+function ensureVerticalSpace(doc: InstanceType<typeof PDFDocument>, minHeight: number): void {
+  const bottom = doc.page.height - doc.page.margins.bottom;
+  if (doc.y + minHeight > bottom) {
+    doc.addPage();
+  }
+}
+
+function writeWrapped(
+  doc: InstanceType<typeof PDFDocument>,
+  text: string,
+  pageWidth: number,
+  options?: { font?: string; size?: number; color?: string }
+): void {
+  doc
+    .font(options?.font ?? "Helvetica")
+    .fontSize(options?.size ?? BODY_FONT_SIZE)
+    .fillColor(options?.color ?? "#000000")
+    .text(text, { width: pageWidth, lineGap: 2 });
+}
+
 function buildShotListPdf(
   itemNumber: string,
   description: string,
@@ -40,11 +86,14 @@ function buildShotListPdf(
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
     // ── Header ──────────────────────────────────────────────────────────────
-    doc.fontSize(16).font("Helvetica-Bold").text("Photo Shot List", { align: "left" });
+    doc.fontSize(16).font("Helvetica-Bold").text("Photo Shot List", { width: pageWidth, align: "left" });
     doc.moveDown(0.3);
-    doc.fontSize(11).font("Helvetica-Bold").text(itemNumber, { align: "left" });
+    doc.fontSize(11).font("Helvetica-Bold").text(itemNumber, { width: pageWidth, align: "left" });
     if (description) {
-      doc.fontSize(10).font("Helvetica").fillColor("#444444").text(description, { align: "left" });
+      doc.fontSize(10).font("Helvetica").fillColor("#444444").text(description, {
+        width: pageWidth,
+        align: "left",
+      });
     }
     doc.fillColor("#000000");
 
@@ -86,47 +135,51 @@ function buildShotListPdf(
     function renderGroup(title: string, items: ShotListItem[]) {
       if (items.length === 0) return;
 
-      doc.fontSize(9).font("Helvetica-Bold").fillColor("#666666")
-        .text(title.toUpperCase(), { characterSpacing: 0.5 });
+      ensureVerticalSpace(doc, 24);
+      doc.fontSize(9).font("Helvetica-Bold").fillColor("#666666").text(title.toUpperCase(), {
+        width: pageWidth,
+      });
       doc.fillColor("#000000");
       doc.moveDown(0.4);
 
       for (const shot of items) {
-        // Check remaining page space; add page if < 80pt left
-        if (doc.page.height - doc.page.margins.bottom - doc.y < 80) {
-          doc.addPage();
-        }
+        const blockHeight = Math.max(
+          MIN_SHOT_BLOCK_HEIGHT,
+          estimateShotBlockHeight(doc, pageWidth, shot)
+        );
+        ensureVerticalSpace(doc, blockHeight);
 
         const status = shot.captured ? "CAPTURED" : "NEEDED";
         const statusColor = shot.captured ? "#1a7a3c" : "#a0410d";
-        const labelText = `${shot.name}  `;
 
-        // Shot name + status on same line
-        doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text(labelText, {
+        doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text(`${shot.name}  `, {
+          width: pageWidth,
           continued: true,
-          lineBreak: false,
         });
         doc.font("Helvetica-Bold").fontSize(8).fillColor(statusColor).text(status, {
-          continued: false,
+          width: pageWidth,
         });
         doc.fillColor("#000000");
 
-        // Shot type badge (small)
-        doc.fontSize(8).font("Helvetica").fillColor("#777777")
-          .text(shot.shot_type.toUpperCase(), { characterSpacing: 0.3 });
-        doc.fillColor("#000000");
+        writeWrapped(doc, shot.shot_type.toUpperCase(), pageWidth, {
+          size: DETAIL_FONT_SIZE,
+          color: "#777777",
+        });
 
         if (shot.purpose) {
-          doc.font("Helvetica").fontSize(9).fillColor("#222222")
-            .text(`What it must show: ${shot.purpose}`);
+          writeWrapped(doc, `What it must show: ${shot.purpose}`, pageWidth, { color: "#222222" });
         }
         if (shot.pass_spec) {
-          doc.font("Helvetica").fontSize(8).fillColor("#444444")
-            .text(`Pass: ${shot.pass_spec}`);
+          writeWrapped(doc, `Pass: ${shot.pass_spec}`, pageWidth, {
+            size: DETAIL_FONT_SIZE,
+            color: "#444444",
+          });
         }
         if (shot.tips) {
-          doc.font("Helvetica").fontSize(8).fillColor("#666666")
-            .text(`Tip: ${shot.tips}`);
+          writeWrapped(doc, `Tip: ${shot.tips}`, pageWidth, {
+            size: DETAIL_FONT_SIZE,
+            color: "#666666",
+          });
         }
         doc.fillColor("#000000");
         doc.moveDown(0.7);
