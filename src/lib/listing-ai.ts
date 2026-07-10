@@ -823,6 +823,140 @@ RULES:
    listing_attributes, listing_pricing_shipping_notes, listing_quality_checklist,
    condition_notes, identification, sale_price`;
 
+// ---------------------------------------------------------------------------
+// suggestListingAttributes — focused attribute repair (ADR-082/085)
+// ---------------------------------------------------------------------------
+
+/** Valid Etsy `when_made` enum values (ADR-017 §1a). */
+export const WHEN_MADE_VALUES = [
+  "made_to_order", "2020_2026", "2010_2019", "2004_2009", "2000_2003",
+  "1990s", "1980s", "1970s", "1960s", "1950s", "1940s", "1930s",
+  "1920s", "1910s", "1900s", "1800s", "1700s", "before_1700",
+] as const;
+
+export type AttributeSuggestion = {
+  when_made?: string;
+  taxonomy_id?: number;
+  taxonomy_path?: string;
+  materials?: string[];
+  dimensions?: SuggestedDimensions;
+};
+
+const ATTRIBUTE_SYSTEM_PROMPT = `You identify structured Etsy listing attributes for vintage/antique items from photos and a text identification.
+Return STRICT JSON only. Never guess — omit any field you cannot determine with reasonable confidence.
+You are filling in MISSING metadata for an existing listing; do NOT rewrite the title, description, or tags.`;
+
+/**
+ * Ask the AI for the missing structured attributes only (era, category, materials,
+ * dimensions). Focused + cheap: no listing text is produced. Returns validated,
+ * normalized suggestions; callers must still validate taxonomy against the cache.
+ */
+export async function suggestListingAttributes(params: {
+  itemPhotos: CoachPhotoFile[];
+  identification: string;
+  description?: string;
+  conditionCode?: string;
+  storeCategory?: string;
+  needWhenMade: boolean;
+  needTaxonomy: boolean;
+  needMaterials: boolean;
+  needDimensions: boolean;
+  model?: string;
+}): Promise<AttributeSuggestion> {
+  const cappedPhotos = params.itemPhotos.slice(0, 4);
+  const scaled = await Promise.all(cappedPhotos.map(downscaleForAi));
+
+  const wants: string[] = [];
+  if (params.needWhenMade) {
+    wants.push(
+      `- when_made: one of ${WHEN_MADE_VALUES.join(", ")} (the era the item was made)`
+    );
+  }
+  if (params.needTaxonomy) {
+    wants.push(
+      "- taxonomy_path: the most-specific Etsy category path (e.g. 'Home & Living > Home Décor > Candles & Holders > Candle Holders')",
+      "- taxonomy_id: the numeric Etsy taxonomy id if you are confident (else omit)"
+    );
+  }
+  if (params.needMaterials) {
+    wants.push("- materials: array of 1-4 specific material strings (e.g. ['crystal','brass'])");
+  }
+  if (params.needDimensions) {
+    wants.push(
+      "- dimensions: { length, width, height, dimensions_unit (in|cm|mm|ft|m), weight, weight_unit (oz|lb|g|kg) } — you MUST provide ALL THREE of length, width, and height (estimate reasonable values from the item type and photos even if unsure, so shipping can be calculated), plus weight"
+    );
+  }
+
+  const userText = [
+    "TASK: Determine ONLY the following missing attributes for this item. Omit anything uncertain.",
+    "",
+    `Identification: ${params.identification || "(unknown)"}`,
+    params.description ? `Seller description: ${params.description.slice(0, 600)}` : "",
+    params.conditionCode ? `Condition: ${params.conditionCode}` : "",
+    params.storeCategory ? `Store category: ${params.storeCategory}` : "",
+    "",
+    "Return strict JSON with only these keys (omit any you cannot determine):",
+    ...wants,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = (await callAiJson({
+      system: ATTRIBUTE_SYSTEM_PROMPT,
+      userText,
+      images: scaled,
+      webSearch: params.needTaxonomy || params.needWhenMade,
+      highRes: false,
+      tokenBudget: 2000,
+      timeoutMs: 90_000,
+      qualifier: "responses.create/listing-attributes",
+      model: params.model,
+    })) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+
+  const out: AttributeSuggestion = {};
+
+  const wm = typeof parsed.when_made === "string" ? parsed.when_made.trim() : "";
+  if (params.needWhenMade && (WHEN_MADE_VALUES as readonly string[]).includes(wm)) {
+    out.when_made = wm;
+  }
+
+  if (params.needTaxonomy) {
+    if (typeof parsed.taxonomy_id === "number" && parsed.taxonomy_id > 0) {
+      out.taxonomy_id = Math.round(parsed.taxonomy_id);
+    }
+    if (typeof parsed.taxonomy_path === "string" && parsed.taxonomy_path.trim()) {
+      out.taxonomy_path = parsed.taxonomy_path.trim();
+    }
+  }
+
+  if (params.needMaterials && Array.isArray(parsed.materials)) {
+    const mats = (parsed.materials as unknown[])
+      .filter((m): m is string => typeof m === "string" && m.trim().length > 0)
+      .map((m) => m.trim())
+      .slice(0, 4);
+    if (mats.length > 0) out.materials = mats;
+  }
+
+  if (params.needDimensions && parsed.dimensions && typeof parsed.dimensions === "object") {
+    const d = parsed.dimensions as Record<string, unknown>;
+    const dims: SuggestedDimensions = {};
+    if (typeof d.length === "number" && d.length > 0) dims.length = d.length;
+    if (typeof d.width === "number" && d.width > 0) dims.width = d.width;
+    if (typeof d.height === "number" && d.height > 0) dims.height = d.height;
+    if (typeof d.dimensions_unit === "string") dims.dimensions_unit = d.dimensions_unit.trim();
+    if (typeof d.weight === "number" && d.weight > 0) dims.weight = d.weight;
+    if (typeof d.weight_unit === "string") dims.weight_unit = d.weight_unit.trim();
+    if (Object.keys(dims).length > 0) out.dimensions = dims;
+  }
+
+  return out;
+}
+
 export async function refineListing(input: RefineListingInput): Promise<RefineListingResult> {
   const isField = input.mode === "field" && input.fieldName;
 
@@ -838,7 +972,7 @@ export async function refineListing(input: RefineListingInput): Promise<RefineLi
     `- Title: ${input.context.listing_title}`,
     `- Tags: ${input.context.listing_tags}`,
     `- Category: ${input.context.listing_category_path ?? "not set"}`,
-    `- Description (first 500 chars): ${input.context.listing_description.slice(0, 500)}`,
+    `- Description (current full text): ${input.context.listing_description.slice(0, 2500)}`,
   ];
 
   let userText: string;

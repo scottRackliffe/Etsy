@@ -13,21 +13,32 @@ type RemediationItem = {
   resolution_link?: string;
 };
 
+type PassResult = {
+  previous_score: number;
+  new_score: number;
+  delta: number;
+  applied_fields: string[];
+};
+
 type CycleResult = {
   ok: boolean;
+  mode?: "single" | "auto";
   tier: "standard" | "premium";
   no_ai_action?: boolean;
   message?: string;
   model_used: string | null;
   premium_configured: boolean;
+  photo_ai_evaluated?: boolean;
   previous_score: number;
   new_score: number;
   delta: number;
-  improved: boolean;
+  improved?: boolean;
   passed: boolean;
   listing_phase?: string;
+  passes?: PassResult[];
   remediation: RemediationItem[];
   user_action_items: RemediationItem[];
+  picture_items?: RemediationItem[];
   applied_fields: string[];
 };
 
@@ -161,14 +172,14 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
   const [showPremiumHint, setShowPremiumHint] = useState(false);
 
   const runCycle = useCallback(
-    async (tier: "standard" | "premium") => {
+    async (tier: "standard" | "premium", mode: "single" | "auto" = "single") => {
       setBusy(true);
       setShowPremiumHint(false);
       try {
         const res = await fetch(`/api/inventory/${itemId}/listing-remediation-cycle`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ tier }),
+          body: JSON.stringify({ tier, mode }),
         });
         const data = (await res.json().catch(() => ({}))) as CycleResult & {
           error?: { code?: string; message?: string; user_message?: string };
@@ -200,20 +211,38 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
     setShowPremiumHint(false);
   };
 
-  // Not yet started — show the entry button only.
+  // Not yet started — show the entry buttons only.
   if (!result) {
     return (
       <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-[var(--ui-title)]">AI remediation cycle</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--ui-title)]">AI listing repair</p>
             <p className="text-xs text-[var(--ui-muted)]">
-              Score the listing and let the AI fix what the rubric found — one pass at a time.
+              Fix everything the rubric can — title, description, tags, price, era, category,
+              materials, and dimensions — in one run. Photo issues are left for you to reshoot.
             </p>
           </div>
-          <Button variant="accent" size="sm" onClick={() => void runCycle("standard")} busy={busy}>
-            Start cycle
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void runCycle("standard", "single")}
+              busy={busy}
+              title="Run a single pass you can review"
+            >
+              Single pass
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={() => void runCycle("standard", "auto")}
+              busy={busy}
+              title="Keep fixing non-photo issues until nothing is left to fix"
+            >
+              Repair everything (except photos)
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -228,11 +257,13 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
         ? "text-[var(--ui-red)]"
         : "text-[var(--ui-muted)]";
 
-  const aiFixable = result.remediation.filter(
-    (r) => !result.user_action_items.some((u) => u.ref === r.ref && u.shortcoming === r.shortcoming)
+  // Non-picture items still open (the engine already fixed what it could). Some map
+  // to a refine field so we offer an inline Fix button; the rest are user decisions.
+  const attentionItems = result.user_action_items.filter((r) => r.ref !== PHOTO_AI_PENDING_REF);
+  // Photo issues the user must reshoot — never auto-fixable.
+  const photoItems = (result.picture_items ?? result.remediation).filter(
+    (r) => r.ref !== PHOTO_AI_PENDING_REF && (r.ref === "pictures" || r.ref === "condition_pictures" || /^picture_\d+$/.test(r.ref ?? ""))
   );
-  // WS-CR17: exclude the PHOTO_AI_PENDING_REF row from user-action (it's a system state, not user-fixable).
-  const userItems = result.user_action_items.filter((r) => r.ref !== PHOTO_AI_PENDING_REF);
 
   return (
     <div className="mb-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
@@ -271,26 +302,43 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleStop} disabled={busy}>
-            Stop cycling
+            Done
           </Button>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => void runCycle("standard")}
+            onClick={() => void runCycle("standard", "auto")}
             busy={busy}
+            title="Run the full non-photo repair loop again"
           >
-            Cycle again
+            Repair again
           </Button>
           <Button
             variant="accent"
             size="sm"
-            onClick={() => void runCycle("premium")}
+            onClick={() => void runCycle("premium", "auto")}
             busy={busy}
+            title="Re-run using the premium AI model (if configured)"
           >
             Advance AI
           </Button>
         </div>
       </div>
+
+      {/* Pass trace (auto mode) */}
+      {result.passes && result.passes.length > 1 ? (
+        <p className="mt-2 text-xs text-[var(--ui-muted)]">
+          {result.passes.length} passes:{" "}
+          {result.passes
+            .map((p) => `${p.previous_score}→${p.new_score}`)
+            .join(", ")}
+        </p>
+      ) : null}
+      {result.photo_ai_evaluated === false ? (
+        <p className="mt-1 text-xs text-[var(--ui-yellow)]">
+          Per-photo AI review didn&apos;t run this time — the photo sub-score is provisional.
+        </p>
+      ) : null}
 
       {/* no_ai_action message */}
       {result.no_ai_action ? (
@@ -326,18 +374,18 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
         </p>
       ) : null}
 
-      {/* AI-fixable remaining items */}
-      {aiFixable.length > 0 ? (
+      {/* Needs your attention — non-photo items still open */}
+      {attentionItems.length > 0 ? (
         <div className="mt-3 border-t border-[var(--ui-border)] pt-3">
           <p className="mb-1.5 text-xs font-semibold text-[var(--ui-title)]">
-            Remaining AI-fixable ({aiFixable.length})
+            Needs your attention ({attentionItems.length})
           </p>
           <ul className="space-y-1.5">
-            {aiFixable.map((item, idx) => {
+            {attentionItems.map((item, idx) => {
               const fieldName = item.ref ? REF_TO_FIELD[item.ref] : undefined;
               return (
                 <li
-                  key={`ai-${item.ref ?? "item"}-${idx}`}
+                  key={`att-${item.ref ?? "item"}-${idx}`}
                   className="flex items-start justify-between gap-3 text-sm"
                 >
                   <span className="min-w-0 flex-1">
@@ -345,7 +393,6 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
                     {item.mitigation ? (
                       <span className="block text-xs text-[var(--ui-muted)]">{item.mitigation}</span>
                     ) : null}
-                    {/* WS-CR15: per-row Fix button for fields that have a refine mapping */}
                     {fieldName ? (
                       <RowFixButton
                         itemId={itemId}
@@ -354,6 +401,14 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
                       />
                     ) : null}
                   </span>
+                  {!fieldName && item.resolution_link ? (
+                    <a
+                      href={item.resolution_link}
+                      className="shrink-0 text-xs font-medium text-[var(--ui-accent)] hover:underline"
+                    >
+                      Fix →
+                    </a>
+                  ) : null}
                 </li>
               );
             })}
@@ -361,19 +416,19 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
         </div>
       ) : null}
 
-      {/* User-action items */}
-      {userItems.length > 0 ? (
+      {/* Photo issues — reshoot required (not auto-fixable) */}
+      {photoItems.length > 0 ? (
         <div className="mt-3 border-t border-[var(--ui-border)] pt-3">
           <p className="mb-1.5 text-xs font-semibold text-[var(--ui-title)]">
-            Needs your attention ({userItems.length})
+            Photo issues — reshoot needed ({photoItems.length})
           </p>
           <ul className="space-y-1.5">
-            {userItems.map((item, idx) => (
+            {photoItems.map((item, idx) => (
               <li
-                key={`user-${item.ref ?? "item"}-${idx}`}
+                key={`pic-${item.ref ?? "item"}-${idx}`}
                 className="flex items-start justify-between gap-3 text-sm"
               >
-                <span>
+                <span className="min-w-0 flex-1">
                   <span className="font-medium text-[var(--ui-title)]">{item.shortcoming}</span>
                   {item.mitigation ? (
                     <span className="block text-xs text-[var(--ui-muted)]">{item.mitigation}</span>
@@ -384,7 +439,7 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
                     href={item.resolution_link}
                     className="shrink-0 text-xs font-medium text-[var(--ui-accent)] hover:underline"
                   >
-                    Fix →
+                    Photos →
                   </a>
                 ) : null}
               </li>
@@ -394,8 +449,10 @@ export function RemediationCyclePanel({ itemId, onApplied, onError }: Props) {
       ) : null}
 
       {/* All clear */}
-      {aiFixable.length === 0 && userItems.length === 0 && !result.no_ai_action ? (
-        <p className="mt-3 text-xs text-[var(--ui-muted)]">No outstanding quality items.</p>
+      {attentionItems.length === 0 && photoItems.length === 0 && !result.no_ai_action ? (
+        <p className="mt-3 text-xs text-[var(--ui-green)]">
+          No outstanding quality items — the listing is ready.
+        </p>
       ) : null}
     </div>
   );
